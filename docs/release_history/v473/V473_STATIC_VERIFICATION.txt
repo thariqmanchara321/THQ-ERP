@@ -1,0 +1,833 @@
+THQ ERP V4.7.3 STATIC RELEASE VERIFICATION
+Passed: 830/830
+
+PASS | admin_panel version 4.7.3+7
+PASS | client_app version 4.7.3+7
+PASS | pos_app version 4.7.3+7
+PASS | erp_core version 4.7.3
+PASS | shared app version 4.7.3
+PASS | shared minimum migration 119
+PASS | shared release name
+PASS | pos_terminal_day_v473 defined
+PASS | pos_terminal_invoices_v473 defined
+PASS | pos_sales_today_v473 defined
+PASS | pos_purchases_today_v473 defined
+PASS | pos_expenses_today_v473 defined
+PASS | pos_return_documents_today_v473 defined
+PASS | migration 119 registered
+PASS | backend contract app 4.7.3
+PASS | backend contract release name
+PASS | Terminal Daily strips detailed shift rows
+PASS | historical held invoices not reported
+PASS | invoice history exact terminal
+PASS | invoice history selected day
+PASS | return lookup exact terminal/day
+PASS | POS sales current day exact terminal
+PASS | POS purchases current day exact terminal
+PASS | POS expenses current day exact terminal
+PASS | sales today balance is return aware
+PASS | purchase today balance is return aware
+PASS | upgrade 119 mirror exists
+PASS | upgrade 119 mirror byte-identical
+PASS | post-check covers pos_terminal_day_v473
+PASS | post-check covers pos_terminal_invoices_v473
+PASS | post-check covers pos_sales_today_v473
+PASS | post-check covers pos_purchases_today_v473
+PASS | post-check covers pos_expenses_today_v473
+PASS | post-check covers pos_return_documents_today_v473
+PASS | Admin dashboard is refreshable stateful
+PASS | Admin visible Refresh control
+PASS | client_app refresh function
+PASS | client_app refreshes business object
+PASS | client_app refresh strict runtime
+PASS | client_app strict refresh does not silently stale
+PASS | client_app refresh runtime binding persisted
+PASS | client_app local store id updated after refresh
+PASS | client_app active content remounted on refresh
+PASS | client_app refreshes navigation
+PASS | client_app refresh navigation is strict
+PASS | pos_app refresh function
+PASS | pos_app refreshes business object
+PASS | pos_app refresh strict runtime
+PASS | pos_app strict refresh does not silently stale
+PASS | pos_app refresh runtime binding persisted
+PASS | pos_app local store id updated after refresh
+PASS | pos_app active content remounted on refresh
+PASS | pos_app refreshes navigation
+PASS | pos_app refresh navigation is strict
+PASS | Client desktop Refresh button
+PASS | Client mobile Refresh icon
+PASS | POS sidebar Refresh action
+PASS | POS Refresh protects unheld cart
+PASS | Resume opens held workspace
+PASS | Resume blocks non-empty cart
+PASS | Held page stays inside product workspace
+PASS | Held invoices full page method
+PASS | Held invoices responsive grid
+PASS | Held cards show customer/item/time/total
+PASS | Held page has back/products controls
+PASS | Selecting held sale restores and closes workspace
+PASS | Hold uses center workspace not modal
+PASS | legacy horizontal held strip removed
+PASS | POS sales uses exact-terminal v473 RPC
+PASS | POS purchases uses exact-terminal v473 RPC
+PASS | POS expenses uses exact-terminal v473 RPC
+PASS | POS return lookup uses today v473 RPC
+PASS | Cashier screen history is today only
+PASS | Cashier screen says Today shifts
+PASS | Cashier history directs older records to Terminal Daily
+PASS | POS Sales title today
+PASS | POS Purchases title today
+PASS | POS Returns explains history in Terminal Daily
+PASS | Terminal Daily uses v473 summary RPC
+PASS | Terminal Daily uses v473 invoice search
+PASS | Terminal Daily read-only summary wording
+PASS | Terminal Daily date picker historical
+PASS | Terminal Daily previous/next controls
+PASS | Terminal Daily summary sections
+PASS | Terminal Daily invoice drilldown hidden by default
+PASS | Terminal Daily invoice search prompt
+PASS | Terminal Daily opens SaleDetailScreen
+PASS | Terminal Daily refreshes summary after invoice detail
+PASS | Historical held only today
+PASS | Terminal Daily has no shift mutation controls
+PASS | Terminal Daily export is summary-only no shift detail table
+PASS | apps/pos_app/test/widget_test.dart app version test 4.7.3
+PASS | apps/pos_app/test/widget_test.dart migration test 119
+PASS | apps/client_app/test/widget_test.dart app version test 4.7.3
+PASS | apps/client_app/test/widget_test.dart migration test 119
+PASS | packages/erp_core/test/erp_core_test.dart app version test 4.7.3
+PASS | packages/erp_core/test/erp_core_test.dart migration test 119
+PASS | release artifact exists README_V473_RELEASE.md
+PASS | release artifact exists CHANGELOG_V473.md
+PASS | release artifact exists docs/V473_RELEASE_ACCEPTANCE.md
+PASS | release artifact exists backend/upgrade_from_118/V473_POST_UPGRADE_CHECK.sql
+PASS | import resolves apps/admin_panel/lib/widgets/customer_account_dialog.dart -> ../services/customer_account_service.dart
+PASS | import resolves apps/admin_panel/lib/services/platform_config_service.dart -> ../models/platform_models.dart
+PASS | import resolves apps/admin_panel/lib/services/business_role_service.dart -> ../models/business_role.dart
+PASS | import resolves apps/admin_panel/lib/services/business_user_service.dart -> ../models/business_user.dart
+PASS | import resolves apps/admin_panel/lib/services/business_service.dart -> ../models/business.dart
+PASS | import resolves apps/admin_panel/lib/services/business_service.dart -> ../models/business_module.dart
+PASS | import resolves apps/admin_panel/lib/services/business_service.dart -> ../models/erp_module.dart
+PASS | import resolves apps/admin_panel/lib/services/inventory_service.dart -> ../models/inventory_product.dart
+PASS | import resolves apps/admin_panel/lib/screens/platform_admins_screen.dart -> ../widgets/admin_home_button.dart
+PASS | import resolves apps/admin_panel/lib/screens/platform_admins_screen.dart -> ../models/platform_models.dart
+PASS | import resolves apps/admin_panel/lib/screens/platform_admins_screen.dart -> ../services/platform_config_service.dart
+PASS | import resolves apps/admin_panel/lib/screens/system_health_screen.dart -> ../services/system_health_service.dart
+PASS | import resolves apps/admin_panel/lib/screens/invoice_templates_screen.dart -> ../widgets/admin_home_button.dart
+PASS | import resolves apps/admin_panel/lib/screens/invoice_templates_screen.dart -> ../services/platform_config_service.dart
+PASS | import resolves apps/admin_panel/lib/screens/create_owner_screen.dart -> ../widgets/admin_home_button.dart
+PASS | import resolves apps/admin_panel/lib/screens/create_owner_screen.dart -> ../services/owner_service.dart
+PASS | import resolves apps/admin_panel/lib/screens/business_locations_devices_screen.dart -> ../widgets/admin_home_button.dart
+PASS | import resolves apps/admin_panel/lib/screens/business_locations_devices_screen.dart -> ../services/location_device_service.dart
+PASS | import resolves apps/admin_panel/lib/screens/platform_settings_screen.dart -> ../widgets/admin_home_button.dart
+PASS | import resolves apps/admin_panel/lib/screens/platform_settings_screen.dart -> ../models/platform_models.dart
+PASS | import resolves apps/admin_panel/lib/screens/platform_settings_screen.dart -> ../services/platform_config_service.dart
+PASS | import resolves apps/admin_panel/lib/screens/tenant_invoice_templates_screen.dart -> ../services/platform_config_service.dart
+PASS | import resolves apps/admin_panel/lib/screens/admin_dashboard.dart -> ../services/admin_auth_service.dart
+PASS | import resolves apps/admin_panel/lib/screens/admin_dashboard.dart -> ../services/platform_config_service.dart
+PASS | import resolves apps/admin_panel/lib/screens/admin_dashboard.dart -> ../ui/v43_theme.dart
+PASS | import resolves apps/admin_panel/lib/screens/platform_support_screen.dart -> ../services/platform_config_service.dart
+PASS | import resolves apps/admin_panel/lib/screens/platform_support_screen.dart -> ../widgets/admin_home_button.dart
+PASS | import resolves apps/admin_panel/lib/screens/ui_design_studio_screen.dart -> ../models/business.dart
+PASS | import resolves apps/admin_panel/lib/screens/ui_design_studio_screen.dart -> ../services/business_service.dart
+PASS | import resolves apps/admin_panel/lib/screens/ui_design_studio_screen.dart -> ../services/platform_config_service.dart
+PASS | import resolves apps/admin_panel/lib/screens/ui_design_studio_screen.dart -> ../widgets/admin_home_button.dart
+PASS | import resolves apps/admin_panel/lib/screens/tenant_subscription_screen.dart -> ../widgets/admin_home_button.dart
+PASS | import resolves apps/admin_panel/lib/screens/tenant_subscription_screen.dart -> ../models/platform_models.dart
+PASS | import resolves apps/admin_panel/lib/screens/tenant_subscription_screen.dart -> ../services/platform_config_service.dart
+PASS | import resolves apps/admin_panel/lib/screens/platform_audit_screen.dart -> ../widgets/admin_home_button.dart
+PASS | import resolves apps/admin_panel/lib/screens/platform_audit_screen.dart -> ../models/platform_models.dart
+PASS | import resolves apps/admin_panel/lib/screens/platform_audit_screen.dart -> ../services/platform_config_service.dart
+PASS | import resolves apps/admin_panel/lib/screens/business_roles_screen.dart -> ../widgets/admin_home_button.dart
+PASS | import resolves apps/admin_panel/lib/screens/business_roles_screen.dart -> ../models/business_role.dart
+PASS | import resolves apps/admin_panel/lib/screens/business_roles_screen.dart -> ../services/business_role_service.dart
+PASS | import resolves apps/admin_panel/lib/screens/menu_builder_screen.dart -> ../models/business.dart
+PASS | import resolves apps/admin_panel/lib/screens/menu_builder_screen.dart -> ../services/business_service.dart
+PASS | import resolves apps/admin_panel/lib/screens/menu_builder_screen.dart -> ../services/platform_config_service.dart
+PASS | import resolves apps/admin_panel/lib/screens/menu_builder_screen.dart -> ../widgets/admin_home_button.dart
+PASS | import resolves apps/admin_panel/lib/screens/transaction_control_screen.dart -> ../models/business.dart
+PASS | import resolves apps/admin_panel/lib/screens/transaction_control_screen.dart -> ../services/business_service.dart
+PASS | import resolves apps/admin_panel/lib/screens/transaction_control_screen.dart -> ../services/transaction_control_service.dart
+PASS | import resolves apps/admin_panel/lib/screens/transaction_control_screen.dart -> ../widgets/admin_home_button.dart
+PASS | import resolves apps/admin_panel/lib/screens/login_screen.dart -> ../ui/v43_theme.dart
+PASS | import resolves apps/admin_panel/lib/screens/login_screen.dart -> ../services/admin_auth_service.dart
+PASS | import resolves apps/admin_panel/lib/screens/subscription_plans_screen.dart -> ../widgets/admin_home_button.dart
+PASS | import resolves apps/admin_panel/lib/screens/subscription_plans_screen.dart -> ../models/platform_models.dart
+PASS | import resolves apps/admin_panel/lib/screens/subscription_plans_screen.dart -> ../services/platform_config_service.dart
+PASS | import resolves apps/admin_panel/lib/screens/business_details_screen.dart -> ../models/business.dart
+PASS | import resolves apps/admin_panel/lib/screens/business_details_screen.dart -> ../models/business_module.dart
+PASS | import resolves apps/admin_panel/lib/screens/business_details_screen.dart -> ../services/business_service.dart
+PASS | import resolves apps/admin_panel/lib/screens/platform_error_logs_screen.dart -> ../services/platform_config_service.dart
+PASS | import resolves apps/admin_panel/lib/screens/create_business_screen.dart -> ../widgets/admin_home_button.dart
+PASS | import resolves apps/admin_panel/lib/screens/create_business_screen.dart -> ../models/platform_models.dart
+PASS | import resolves apps/admin_panel/lib/screens/create_business_screen.dart -> ../services/business_service.dart
+PASS | import resolves apps/admin_panel/lib/screens/create_business_screen.dart -> ../services/platform_config_service.dart
+PASS | import resolves apps/admin_panel/lib/screens/templates_screen.dart -> ../widgets/admin_home_button.dart
+PASS | import resolves apps/admin_panel/lib/screens/templates_screen.dart -> ../models/platform_models.dart
+PASS | import resolves apps/admin_panel/lib/screens/templates_screen.dart -> ../services/platform_config_service.dart
+PASS | import resolves apps/admin_panel/lib/screens/modules_screen.dart -> ../widgets/admin_home_button.dart
+PASS | import resolves apps/admin_panel/lib/screens/modules_screen.dart -> ../models/platform_models.dart
+PASS | import resolves apps/admin_panel/lib/screens/modules_screen.dart -> ../services/platform_config_service.dart
+PASS | import resolves apps/admin_panel/lib/screens/businesses_screen.dart -> ../widgets/admin_home_button.dart
+PASS | import resolves apps/admin_panel/lib/screens/businesses_screen.dart -> ../models/business.dart
+PASS | import resolves apps/admin_panel/lib/screens/businesses_screen.dart -> ../services/business_service.dart
+PASS | import resolves apps/admin_panel/lib/screens/businesses_screen.dart -> ../services/location_device_service.dart
+PASS | import resolves apps/admin_panel/lib/screens/customer_accounts_screen.dart -> ../services/customer_account_service.dart
+PASS | import resolves apps/admin_panel/lib/screens/customer_accounts_screen.dart -> ../widgets/customer_account_dialog.dart
+PASS | import resolves apps/admin_panel/lib/screens/customer_accounts_screen.dart -> ../widgets/admin_home_button.dart
+PASS | import resolves apps/admin_panel/lib/screens/business_users_screen.dart -> ../widgets/admin_home_button.dart
+PASS | import resolves apps/admin_panel/lib/screens/business_users_screen.dart -> ../models/business_user.dart
+PASS | import resolves apps/admin_panel/lib/screens/business_users_screen.dart -> ../services/business_user_service.dart
+PASS | import resolves apps/admin_panel/lib/screens/app_versions_screen.dart -> ../services/platform_config_service.dart
+PASS | import resolves apps/admin_panel/lib/screens/app_versions_screen.dart -> ../widgets/admin_home_button.dart
+PASS | import resolves apps/client_app/lib/widgets/customer_account_dialog.dart -> ../services/customer_account_service.dart
+PASS | import resolves apps/client_app/lib/services/client_session_service.dart -> ../models/client_session.dart
+PASS | import resolves apps/client_app/lib/services/purchase_service.dart -> ../models/purchase.dart
+PASS | import resolves apps/client_app/lib/services/purchase_service.dart -> ../models/purchase_detail.dart
+PASS | import resolves apps/client_app/lib/services/navigation_service.dart -> ../models/app_menu_node.dart
+PASS | import resolves apps/client_app/lib/services/invoice_pdf_service.dart -> ../models/client_session.dart
+PASS | import resolves apps/client_app/lib/services/invoice_pdf_service.dart -> ../models/sale_detail.dart
+PASS | import resolves apps/client_app/lib/services/customer_service.dart -> ../models/customer.dart
+PASS | import resolves apps/client_app/lib/services/dashboard_service.dart -> ../models/client_session.dart
+PASS | import resolves apps/client_app/lib/services/dashboard_service.dart -> ../models/dashboard_data.dart
+PASS | import resolves apps/client_app/lib/services/dashboard_service.dart -> ../models/dashboard_insights.dart
+PASS | import resolves apps/client_app/lib/services/location_scope_service.dart -> ../models/client_session.dart
+PASS | import resolves apps/client_app/lib/services/report_service.dart -> ../models/report_summary.dart
+PASS | import resolves apps/client_app/lib/services/accounting_service.dart -> ../models/accounting_summary.dart
+PASS | import resolves apps/client_app/lib/services/expense_service.dart -> ../models/expense.dart
+PASS | import resolves apps/client_app/lib/services/device_heartbeat_service.dart -> ../models/client_session.dart
+PASS | import resolves apps/client_app/lib/services/ui_design_service.dart -> ../ui/v43_theme.dart
+PASS | import resolves apps/client_app/lib/services/sales_service.dart -> ../models/sale.dart
+PASS | import resolves apps/client_app/lib/services/sales_service.dart -> ../models/sale_detail.dart
+PASS | import resolves apps/client_app/lib/services/team_service.dart -> ../models/team_user.dart
+PASS | import resolves apps/client_app/lib/services/app_log_service.dart -> ../models/app_error_log.dart
+PASS | import resolves apps/client_app/lib/services/party_statement_service.dart -> ../models/party_statement.dart
+PASS | import resolves apps/client_app/lib/services/supplier_service.dart -> ../models/supplier.dart
+PASS | import resolves apps/client_app/lib/services/payment_center_service.dart -> ../models/client_session.dart
+PASS | import resolves apps/client_app/lib/services/payment_center_service.dart -> ../models/payment_pending.dart
+PASS | import resolves apps/client_app/lib/services/inventory_service.dart -> ../models/inventory_product.dart
+PASS | import resolves apps/client_app/lib/services/inventory_service.dart -> ../models/inventory_product_detail.dart
+PASS | import resolves apps/client_app/lib/services/inventory_service.dart -> ../models/stock_movement.dart
+PASS | import resolves apps/client_app/lib/screens/business_activity_screen.dart -> ../models/client_session.dart
+PASS | import resolves apps/client_app/lib/screens/business_activity_screen.dart -> ../services/app_log_service.dart
+PASS | import resolves apps/client_app/lib/screens/client_login_screen.dart -> ../ui/v43_theme.dart
+PASS | import resolves apps/client_app/lib/screens/client_login_screen.dart -> ../services/client_auth_service.dart
+PASS | import resolves apps/client_app/lib/screens/industry_workspace_screen.dart -> ../models/client_session.dart
+PASS | import resolves apps/client_app/lib/screens/backup_export_screen.dart -> ../models/client_session.dart
+PASS | import resolves apps/client_app/lib/screens/backup_export_screen.dart -> ../services/backup_service.dart
+PASS | import resolves apps/client_app/lib/screens/production_screen.dart -> ../models/client_session.dart
+PASS | import resolves apps/client_app/lib/screens/production_screen.dart -> ../models/inventory_product.dart
+PASS | import resolves apps/client_app/lib/screens/production_screen.dart -> ../services/inventory_service.dart
+PASS | import resolves apps/client_app/lib/screens/production_screen.dart -> ../services/location_scope_service.dart
+PASS | import resolves apps/client_app/lib/screens/production_screen.dart -> ../services/production_service.dart
+PASS | import resolves apps/client_app/lib/screens/inventory_products_screen.dart -> ../models/client_session.dart
+PASS | import resolves apps/client_app/lib/screens/inventory_products_screen.dart -> ../models/inventory_product.dart
+PASS | import resolves apps/client_app/lib/screens/inventory_products_screen.dart -> ../services/inventory_service.dart
+PASS | import resolves apps/client_app/lib/screens/inventory_products_screen.dart -> ../services/location_scope_service.dart
+PASS | import resolves apps/client_app/lib/screens/inventory_products_screen.dart -> ../ui/v43_theme.dart
+PASS | import resolves apps/client_app/lib/screens/transport_service_screen.dart -> ../models/client_session.dart
+PASS | import resolves apps/client_app/lib/screens/transport_service_screen.dart -> ../models/customer.dart
+PASS | import resolves apps/client_app/lib/screens/transport_service_screen.dart -> ../models/inventory_product.dart
+PASS | import resolves apps/client_app/lib/screens/transport_service_screen.dart -> ../services/customer_service.dart
+PASS | import resolves apps/client_app/lib/screens/transport_service_screen.dart -> ../services/inventory_service.dart
+PASS | import resolves apps/client_app/lib/screens/transport_service_screen.dart -> ../services/location_scope_service.dart
+PASS | import resolves apps/client_app/lib/screens/transport_service_screen.dart -> ../services/sales_service.dart
+PASS | import resolves apps/client_app/lib/screens/transport_service_screen.dart -> ../services/transport_service.dart
+PASS | import resolves apps/client_app/lib/screens/customers_screen.dart -> ../models/client_session.dart
+PASS | import resolves apps/client_app/lib/screens/customers_screen.dart -> ../models/customer.dart
+PASS | import resolves apps/client_app/lib/screens/customers_screen.dart -> ../services/customer_service.dart
+PASS | import resolves apps/client_app/lib/screens/customers_screen.dart -> ../services/location_scope_service.dart
+PASS | import resolves apps/client_app/lib/screens/customers_screen.dart -> ../widgets/customer_account_dialog.dart
+PASS | import resolves apps/client_app/lib/screens/suppliers_screen.dart -> ../models/client_session.dart
+PASS | import resolves apps/client_app/lib/screens/suppliers_screen.dart -> ../models/supplier.dart
+PASS | import resolves apps/client_app/lib/screens/suppliers_screen.dart -> ../services/supplier_service.dart
+PASS | import resolves apps/client_app/lib/screens/purchases_screen.dart -> ../models/client_session.dart
+PASS | import resolves apps/client_app/lib/screens/purchases_screen.dart -> ../models/inventory_product.dart
+PASS | import resolves apps/client_app/lib/screens/purchases_screen.dart -> ../models/purchase.dart
+PASS | import resolves apps/client_app/lib/screens/purchases_screen.dart -> ../models/supplier.dart
+PASS | import resolves apps/client_app/lib/screens/purchases_screen.dart -> ../services/inventory_service.dart
+PASS | import resolves apps/client_app/lib/screens/purchases_screen.dart -> ../services/location_scope_service.dart
+PASS | import resolves apps/client_app/lib/screens/purchases_screen.dart -> ../services/purchase_service.dart
+PASS | import resolves apps/client_app/lib/screens/purchases_screen.dart -> ../services/supplier_service.dart
+PASS | import resolves apps/client_app/lib/screens/restaurant_screen.dart -> ../models/client_session.dart
+PASS | import resolves apps/client_app/lib/screens/restaurant_screen.dart -> ../models/customer.dart
+PASS | import resolves apps/client_app/lib/screens/restaurant_screen.dart -> ../models/inventory_product.dart
+PASS | import resolves apps/client_app/lib/screens/restaurant_screen.dart -> ../services/customer_service.dart
+PASS | import resolves apps/client_app/lib/screens/restaurant_screen.dart -> ../services/inventory_service.dart
+PASS | import resolves apps/client_app/lib/screens/restaurant_screen.dart -> ../services/location_scope_service.dart
+PASS | import resolves apps/client_app/lib/screens/restaurant_screen.dart -> ../services/restaurant_service.dart
+PASS | import resolves apps/client_app/lib/screens/restaurant_screen.dart -> ../services/sales_service.dart
+PASS | import resolves apps/client_app/lib/screens/invoice_designer_screen.dart -> ../models/client_session.dart
+PASS | import resolves apps/client_app/lib/screens/invoice_designer_screen.dart -> ../services/invoice_template_service.dart
+PASS | import resolves apps/client_app/lib/screens/invoice_designer_screen.dart -> ../services/location_scope_service.dart
+PASS | import resolves apps/client_app/lib/screens/invoice_designer_screen.dart -> ../services/location_service.dart
+PASS | import resolves apps/client_app/lib/screens/invoice_designer_screen.dart -> ../services/tenant_settings_service.dart
+PASS | import resolves apps/client_app/lib/screens/purchase_detail_screen.dart -> ../models/client_session.dart
+PASS | import resolves apps/client_app/lib/screens/purchase_detail_screen.dart -> ../models/purchase_detail.dart
+PASS | import resolves apps/client_app/lib/screens/purchase_detail_screen.dart -> ../services/purchase_service.dart
+PASS | import resolves apps/client_app/lib/screens/purchase_detail_screen.dart -> ../services/return_receipt_service.dart
+PASS | import resolves apps/client_app/lib/screens/purchase_detail_screen.dart -> ../services/activity_timeline_service.dart
+PASS | import resolves apps/client_app/lib/screens/purchase_detail_screen.dart -> ../widgets/activity_timeline_card.dart
+PASS | import resolves apps/client_app/lib/screens/bulk_import_screen.dart -> ../models/client_session.dart
+PASS | import resolves apps/client_app/lib/screens/bulk_import_screen.dart -> ../services/bulk_import_service.dart
+PASS | import resolves apps/client_app/lib/screens/bulk_import_screen.dart -> ../services/inventory_service.dart
+PASS | import resolves apps/client_app/lib/screens/bulk_import_screen.dart -> ../services/location_scope_service.dart
+PASS | import resolves apps/client_app/lib/screens/party_statement_screen.dart -> ../models/client_session.dart
+PASS | import resolves apps/client_app/lib/screens/party_statement_screen.dart -> ../models/party_statement.dart
+PASS | import resolves apps/client_app/lib/screens/party_statement_screen.dart -> ../services/party_statement_service.dart
+PASS | import resolves apps/client_app/lib/screens/dashboard_screen.dart -> ../models/client_session.dart
+PASS | import resolves apps/client_app/lib/screens/dashboard_screen.dart -> ../models/dashboard_data.dart
+PASS | import resolves apps/client_app/lib/screens/dashboard_screen.dart -> ../models/dashboard_insights.dart
+PASS | import resolves apps/client_app/lib/screens/dashboard_screen.dart -> ../services/dashboard_service.dart
+PASS | import resolves apps/client_app/lib/screens/dashboard_screen.dart -> ../ui/v43_theme.dart
+PASS | import resolves apps/client_app/lib/screens/pos_screen.dart -> ../models/client_session.dart
+PASS | import resolves apps/client_app/lib/screens/pos_screen.dart -> ../models/customer.dart
+PASS | import resolves apps/client_app/lib/screens/pos_screen.dart -> ../models/inventory_product.dart
+PASS | import resolves apps/client_app/lib/screens/pos_screen.dart -> ../services/customer_service.dart
+PASS | import resolves apps/client_app/lib/screens/pos_screen.dart -> ../services/inventory_service.dart
+PASS | import resolves apps/client_app/lib/screens/pos_screen.dart -> ../services/sales_service.dart
+PASS | import resolves apps/client_app/lib/screens/device_activation_screen.dart -> ../services/device_installation_service.dart
+PASS | import resolves apps/client_app/lib/screens/tasks_screen.dart -> ../models/client_session.dart
+PASS | import resolves apps/client_app/lib/screens/tasks_screen.dart -> ../services/location_scope_service.dart
+PASS | import resolves apps/client_app/lib/screens/tasks_screen.dart -> ../services/task_service.dart
+PASS | import resolves apps/client_app/lib/screens/business_settings_screen.dart -> ../models/client_session.dart
+PASS | import resolves apps/client_app/lib/screens/business_settings_screen.dart -> ../services/tenant_settings_service.dart
+PASS | import resolves apps/client_app/lib/screens/accounting_screen.dart -> ../models/accounting_summary.dart
+PASS | import resolves apps/client_app/lib/screens/accounting_screen.dart -> ../models/client_session.dart
+PASS | import resolves apps/client_app/lib/screens/accounting_screen.dart -> ../services/accounting_service.dart
+PASS | import resolves apps/client_app/lib/screens/accounting_screen.dart -> ../services/location_scope_service.dart
+PASS | import resolves apps/client_app/lib/screens/error_logs_screen.dart -> ../models/app_error_log.dart
+PASS | import resolves apps/client_app/lib/screens/error_logs_screen.dart -> ../models/client_session.dart
+PASS | import resolves apps/client_app/lib/screens/error_logs_screen.dart -> ../services/app_log_service.dart
+PASS | import resolves apps/client_app/lib/screens/returns_register_screen.dart -> ../models/client_session.dart
+PASS | import resolves apps/client_app/lib/screens/returns_register_screen.dart -> ../services/location_scope_service.dart
+PASS | import resolves apps/client_app/lib/screens/returns_register_screen.dart -> ../services/returns_service.dart
+PASS | import resolves apps/client_app/lib/screens/team_access_screen.dart -> ../models/client_session.dart
+PASS | import resolves apps/client_app/lib/screens/team_access_screen.dart -> ../models/team_user.dart
+PASS | import resolves apps/client_app/lib/screens/team_access_screen.dart -> ../services/team_service.dart
+PASS | import resolves apps/client_app/lib/screens/sale_detail_screen.dart -> ../models/client_session.dart
+PASS | import resolves apps/client_app/lib/screens/sale_detail_screen.dart -> ../models/sale_detail.dart
+PASS | import resolves apps/client_app/lib/screens/sale_detail_screen.dart -> ../services/sales_service.dart
+PASS | import resolves apps/client_app/lib/screens/sale_detail_screen.dart -> ../services/return_receipt_service.dart
+PASS | import resolves apps/client_app/lib/screens/sale_detail_screen.dart -> ../services/customer_service.dart
+PASS | import resolves apps/client_app/lib/screens/sale_detail_screen.dart -> ../services/activity_timeline_service.dart
+PASS | import resolves apps/client_app/lib/screens/sale_detail_screen.dart -> ../widgets/activity_timeline_card.dart
+PASS | import resolves apps/client_app/lib/screens/sale_detail_screen.dart -> ../models/customer.dart
+PASS | import resolves apps/client_app/lib/screens/business_selector_screen.dart -> ../models/client_session.dart
+PASS | import resolves apps/client_app/lib/screens/business_selector_screen.dart -> ../services/client_session_service.dart
+PASS | import resolves apps/client_app/lib/screens/sales_screen.dart -> ../models/client_session.dart
+PASS | import resolves apps/client_app/lib/screens/sales_screen.dart -> ../models/customer.dart
+PASS | import resolves apps/client_app/lib/screens/sales_screen.dart -> ../models/inventory_product.dart
+PASS | import resolves apps/client_app/lib/screens/sales_screen.dart -> ../models/sale.dart
+PASS | import resolves apps/client_app/lib/screens/sales_screen.dart -> ../services/customer_service.dart
+PASS | import resolves apps/client_app/lib/screens/sales_screen.dart -> ../services/inventory_service.dart
+PASS | import resolves apps/client_app/lib/screens/sales_screen.dart -> ../services/location_scope_service.dart
+PASS | import resolves apps/client_app/lib/screens/sales_screen.dart -> ../services/sales_service.dart
+PASS | import resolves apps/client_app/lib/screens/reports_screen.dart -> ../models/client_session.dart
+PASS | import resolves apps/client_app/lib/screens/reports_screen.dart -> ../models/report_summary.dart
+PASS | import resolves apps/client_app/lib/screens/reports_screen.dart -> ../services/report_service.dart
+PASS | import resolves apps/client_app/lib/screens/reports_screen.dart -> ../services/report_export_service.dart
+PASS | import resolves apps/client_app/lib/screens/reports_screen.dart -> ../services/location_scope_service.dart
+PASS | import resolves apps/client_app/lib/screens/barcode_workbench_screen.dart -> ../models/client_session.dart
+PASS | import resolves apps/client_app/lib/screens/barcode_workbench_screen.dart -> ../services/barcode_service.dart
+PASS | import resolves apps/client_app/lib/screens/barcode_workbench_screen.dart -> ../services/location_scope_service.dart
+PASS | import resolves apps/client_app/lib/screens/tracking_lookup_screen.dart -> ../models/client_session.dart
+PASS | import resolves apps/client_app/lib/screens/payment_center_screen.dart -> ../models/client_session.dart
+PASS | import resolves apps/client_app/lib/screens/payment_center_screen.dart -> ../models/payment_pending.dart
+PASS | import resolves apps/client_app/lib/screens/payment_center_screen.dart -> ../services/payment_center_service.dart
+PASS | import resolves apps/client_app/lib/screens/division_overview_screen.dart -> ../models/client_session.dart
+PASS | import resolves apps/client_app/lib/screens/division_overview_screen.dart -> ../services/division_overview_service.dart
+PASS | import resolves apps/client_app/lib/screens/add_product_screen.dart -> ../models/client_session.dart
+PASS | import resolves apps/client_app/lib/screens/add_product_screen.dart -> ../services/inventory_service.dart
+PASS | import resolves apps/client_app/lib/screens/client_entry_screen.dart -> ../services/device_installation_service.dart
+PASS | import resolves apps/client_app/lib/screens/stock_transfers_screen.dart -> ../models/client_session.dart
+PASS | import resolves apps/client_app/lib/screens/stock_transfers_screen.dart -> ../models/inventory_product.dart
+PASS | import resolves apps/client_app/lib/screens/stock_transfers_screen.dart -> ../services/inventory_service.dart
+PASS | import resolves apps/client_app/lib/screens/stock_transfers_screen.dart -> ../services/location_scope_service.dart
+PASS | import resolves apps/client_app/lib/screens/stock_transfers_screen.dart -> ../services/stock_transfer_service.dart
+PASS | import resolves apps/client_app/lib/screens/expenses_screen.dart -> ../models/client_session.dart
+PASS | import resolves apps/client_app/lib/screens/expenses_screen.dart -> ../models/expense.dart
+PASS | import resolves apps/client_app/lib/screens/expenses_screen.dart -> ../services/expense_service.dart
+PASS | import resolves apps/client_app/lib/screens/global_search_screen.dart -> ../models/client_session.dart
+PASS | import resolves apps/client_app/lib/screens/global_search_screen.dart -> ../services/global_search_service.dart
+PASS | import resolves apps/client_app/lib/screens/client_home_screen.dart -> ../models/client_session.dart
+PASS | import resolves apps/client_app/lib/screens/client_home_screen.dart -> ../models/app_menu_node.dart
+PASS | import resolves apps/client_app/lib/screens/client_home_screen.dart -> ../services/client_auth_service.dart
+PASS | import resolves apps/client_app/lib/screens/client_home_screen.dart -> ../services/client_session_service.dart
+PASS | import resolves apps/client_app/lib/screens/client_home_screen.dart -> ../services/device_heartbeat_service.dart
+PASS | import resolves apps/client_app/lib/screens/client_home_screen.dart -> ../services/location_scope_service.dart
+PASS | import resolves apps/client_app/lib/screens/client_home_screen.dart -> ../services/navigation_service.dart
+PASS | import resolves apps/client_app/lib/screens/client_home_screen.dart -> ../services/ui_design_service.dart
+PASS | import resolves apps/client_app/lib/screens/client_home_screen.dart -> ../ui/v43_theme.dart
+PASS | import resolves apps/client_app/lib/screens/custom_fields_screen.dart -> ../models/client_session.dart
+PASS | import resolves apps/client_app/lib/screens/custom_fields_screen.dart -> ../services/custom_fields_service.dart
+PASS | import resolves apps/client_app/lib/screens/notifications_screen.dart -> ../models/client_session.dart
+PASS | import resolves apps/client_app/lib/screens/notifications_screen.dart -> ../services/notification_service.dart
+PASS | import resolves apps/client_app/lib/screens/support_screen.dart -> ../models/client_session.dart
+PASS | import resolves apps/client_app/lib/screens/support_screen.dart -> ../services/support_service.dart
+PASS | import resolves apps/client_app/lib/screens/approvals_screen.dart -> ../models/client_session.dart
+PASS | import resolves apps/client_app/lib/screens/approvals_screen.dart -> ../services/approval_service.dart
+PASS | import resolves apps/client_app/lib/screens/client_bootstrap_screen.dart -> ../models/client_session.dart
+PASS | import resolves apps/client_app/lib/screens/client_bootstrap_screen.dart -> ../services/backend_compatibility_service.dart
+PASS | import resolves apps/client_app/lib/screens/client_bootstrap_screen.dart -> ../services/client_auth_service.dart
+PASS | import resolves apps/client_app/lib/screens/client_bootstrap_screen.dart -> ../services/client_session_service.dart
+PASS | import resolves apps/client_app/lib/screens/invoice_preview_screen.dart -> ../models/client_session.dart
+PASS | import resolves apps/client_app/lib/screens/invoice_preview_screen.dart -> ../models/sale_detail.dart
+PASS | import resolves apps/client_app/lib/screens/invoice_preview_screen.dart -> ../services/invoice_pdf_service.dart
+PASS | import resolves apps/client_app/lib/screens/invoice_preview_screen.dart -> ../services/invoice_template_service.dart
+PASS | import resolves apps/client_app/lib/screens/locations_screen.dart -> ../models/client_session.dart
+PASS | import resolves apps/client_app/lib/screens/locations_screen.dart -> ../services/location_scope_service.dart
+PASS | import resolves apps/client_app/lib/screens/locations_screen.dart -> ../services/location_service.dart
+PASS | import resolves apps/client_app/lib/screens/customer_accounts_screen.dart -> ../models/client_session.dart
+PASS | import resolves apps/client_app/lib/screens/customer_accounts_screen.dart -> ../services/customer_account_service.dart
+PASS | import resolves apps/client_app/lib/screens/customer_accounts_screen.dart -> ../services/location_scope_service.dart
+PASS | import resolves apps/client_app/lib/screens/customer_accounts_screen.dart -> ../widgets/customer_account_dialog.dart
+PASS | import resolves apps/client_app/lib/screens/product_detail_screen.dart -> ../models/client_session.dart
+PASS | import resolves apps/client_app/lib/screens/product_detail_screen.dart -> ../models/inventory_product_detail.dart
+PASS | import resolves apps/client_app/lib/screens/product_detail_screen.dart -> ../models/stock_movement.dart
+PASS | import resolves apps/client_app/lib/screens/product_detail_screen.dart -> ../services/inventory_service.dart
+PASS | import resolves apps/client_app/lib/screens/workshop_screen.dart -> ../models/client_session.dart
+PASS | import resolves apps/client_app/lib/screens/workshop_screen.dart -> ../services/location_scope_service.dart
+PASS | import resolves apps/client_app/lib/screens/workshop_screen.dart -> ../services/workshop_service.dart
+PASS | import resolves apps/pos_app/lib/widgets/customer_account_dialog.dart -> ../services/customer_account_service.dart
+PASS | import resolves apps/pos_app/lib/services/client_session_service.dart -> ../models/client_session.dart
+PASS | import resolves apps/pos_app/lib/services/purchase_service.dart -> ../models/purchase.dart
+PASS | import resolves apps/pos_app/lib/services/purchase_service.dart -> ../models/purchase_detail.dart
+PASS | import resolves apps/pos_app/lib/services/navigation_service.dart -> ../models/app_menu_node.dart
+PASS | import resolves apps/pos_app/lib/services/invoice_pdf_service.dart -> ../models/client_session.dart
+PASS | import resolves apps/pos_app/lib/services/invoice_pdf_service.dart -> ../models/sale_detail.dart
+PASS | import resolves apps/pos_app/lib/services/customer_service.dart -> ../models/customer.dart
+PASS | import resolves apps/pos_app/lib/services/dashboard_service.dart -> ../models/dashboard_data.dart
+PASS | import resolves apps/pos_app/lib/services/dashboard_service.dart -> ../models/dashboard_insights.dart
+PASS | import resolves apps/pos_app/lib/services/location_scope_service.dart -> ../models/client_session.dart
+PASS | import resolves apps/pos_app/lib/services/report_service.dart -> ../models/report_summary.dart
+PASS | import resolves apps/pos_app/lib/services/accounting_service.dart -> ../models/accounting_summary.dart
+PASS | import resolves apps/pos_app/lib/services/expense_service.dart -> ../models/expense.dart
+PASS | import resolves apps/pos_app/lib/services/device_heartbeat_service.dart -> ../models/client_session.dart
+PASS | import resolves apps/pos_app/lib/services/ui_design_service.dart -> ../ui/v43_theme.dart
+PASS | import resolves apps/pos_app/lib/services/sales_service.dart -> ../models/sale.dart
+PASS | import resolves apps/pos_app/lib/services/sales_service.dart -> ../models/sale_detail.dart
+PASS | import resolves apps/pos_app/lib/services/app_log_service.dart -> ../models/app_error_log.dart
+PASS | import resolves apps/pos_app/lib/services/party_statement_service.dart -> ../models/party_statement.dart
+PASS | import resolves apps/pos_app/lib/services/supplier_service.dart -> ../models/supplier.dart
+PASS | import resolves apps/pos_app/lib/services/payment_center_service.dart -> ../models/payment_pending.dart
+PASS | import resolves apps/pos_app/lib/services/inventory_service.dart -> ../models/inventory_product.dart
+PASS | import resolves apps/pos_app/lib/services/inventory_service.dart -> ../models/inventory_product_detail.dart
+PASS | import resolves apps/pos_app/lib/services/inventory_service.dart -> ../models/stock_movement.dart
+PASS | import resolves apps/pos_app/lib/screens/business_activity_screen.dart -> ../models/client_session.dart
+PASS | import resolves apps/pos_app/lib/screens/business_activity_screen.dart -> ../services/app_log_service.dart
+PASS | import resolves apps/pos_app/lib/screens/client_login_screen.dart -> ../services/client_auth_service.dart
+PASS | import resolves apps/pos_app/lib/screens/industry_workspace_screen.dart -> ../models/client_session.dart
+PASS | import resolves apps/pos_app/lib/screens/terminal_day_screen.dart -> ../models/client_session.dart
+PASS | import resolves apps/pos_app/lib/screens/terminal_day_screen.dart -> ../services/terminal_day_export_service.dart
+PASS | import resolves apps/pos_app/lib/screens/terminal_day_screen.dart -> ../services/terminal_day_service.dart
+PASS | import resolves apps/pos_app/lib/screens/inventory_products_screen.dart -> ../models/client_session.dart
+PASS | import resolves apps/pos_app/lib/screens/inventory_products_screen.dart -> ../models/inventory_product.dart
+PASS | import resolves apps/pos_app/lib/screens/inventory_products_screen.dart -> ../services/inventory_service.dart
+PASS | import resolves apps/pos_app/lib/screens/customers_screen.dart -> ../models/client_session.dart
+PASS | import resolves apps/pos_app/lib/screens/customers_screen.dart -> ../models/customer.dart
+PASS | import resolves apps/pos_app/lib/screens/customers_screen.dart -> ../services/customer_service.dart
+PASS | import resolves apps/pos_app/lib/screens/return_center_screen.dart -> ../models/client_session.dart
+PASS | import resolves apps/pos_app/lib/screens/return_center_screen.dart -> ../services/return_search_service.dart
+PASS | import resolves apps/pos_app/lib/screens/suppliers_screen.dart -> ../models/client_session.dart
+PASS | import resolves apps/pos_app/lib/screens/suppliers_screen.dart -> ../models/supplier.dart
+PASS | import resolves apps/pos_app/lib/screens/suppliers_screen.dart -> ../services/supplier_service.dart
+PASS | import resolves apps/pos_app/lib/screens/purchases_screen.dart -> ../models/client_session.dart
+PASS | import resolves apps/pos_app/lib/screens/purchases_screen.dart -> ../models/inventory_product.dart
+PASS | import resolves apps/pos_app/lib/screens/purchases_screen.dart -> ../models/purchase.dart
+PASS | import resolves apps/pos_app/lib/screens/purchases_screen.dart -> ../models/supplier.dart
+PASS | import resolves apps/pos_app/lib/screens/purchases_screen.dart -> ../services/inventory_service.dart
+PASS | import resolves apps/pos_app/lib/screens/purchases_screen.dart -> ../services/purchase_service.dart
+PASS | import resolves apps/pos_app/lib/screens/purchases_screen.dart -> ../services/supplier_service.dart
+PASS | import resolves apps/pos_app/lib/screens/restaurant_screen.dart -> ../models/client_session.dart
+PASS | import resolves apps/pos_app/lib/screens/restaurant_screen.dart -> ../models/customer.dart
+PASS | import resolves apps/pos_app/lib/screens/restaurant_screen.dart -> ../models/inventory_product.dart
+PASS | import resolves apps/pos_app/lib/screens/restaurant_screen.dart -> ../services/customer_service.dart
+PASS | import resolves apps/pos_app/lib/screens/restaurant_screen.dart -> ../services/inventory_service.dart
+PASS | import resolves apps/pos_app/lib/screens/restaurant_screen.dart -> ../services/restaurant_service.dart
+PASS | import resolves apps/pos_app/lib/screens/restaurant_screen.dart -> ../services/sales_service.dart
+PASS | import resolves apps/pos_app/lib/screens/restaurant_screen.dart -> ../services/pos_completion_service.dart
+PASS | import resolves apps/pos_app/lib/screens/restaurant_screen.dart -> ../services/pos_hardware_service.dart
+PASS | import resolves apps/pos_app/lib/screens/pos_home_screen.dart -> ../models/app_menu_node.dart
+PASS | import resolves apps/pos_app/lib/screens/pos_home_screen.dart -> ../models/client_session.dart
+PASS | import resolves apps/pos_app/lib/screens/pos_home_screen.dart -> ../services/client_auth_service.dart
+PASS | import resolves apps/pos_app/lib/screens/pos_home_screen.dart -> ../services/client_session_service.dart
+PASS | import resolves apps/pos_app/lib/screens/pos_home_screen.dart -> ../services/device_heartbeat_service.dart
+PASS | import resolves apps/pos_app/lib/screens/pos_home_screen.dart -> ../services/location_scope_service.dart
+PASS | import resolves apps/pos_app/lib/screens/pos_home_screen.dart -> ../services/navigation_service.dart
+PASS | import resolves apps/pos_app/lib/screens/pos_home_screen.dart -> ../services/ui_design_service.dart
+PASS | import resolves apps/pos_app/lib/screens/pos_home_screen.dart -> ../ui/v43_theme.dart
+PASS | import resolves apps/pos_app/lib/screens/purchase_detail_screen.dart -> ../models/client_session.dart
+PASS | import resolves apps/pos_app/lib/screens/purchase_detail_screen.dart -> ../models/purchase_detail.dart
+PASS | import resolves apps/pos_app/lib/screens/purchase_detail_screen.dart -> ../services/purchase_service.dart
+PASS | import resolves apps/pos_app/lib/screens/purchase_detail_screen.dart -> ../services/return_receipt_service.dart
+PASS | import resolves apps/pos_app/lib/screens/purchase_detail_screen.dart -> ../services/activity_timeline_service.dart
+PASS | import resolves apps/pos_app/lib/screens/purchase_detail_screen.dart -> ../widgets/activity_timeline_card.dart
+PASS | import resolves apps/pos_app/lib/screens/bulk_import_screen.dart -> ../models/client_session.dart
+PASS | import resolves apps/pos_app/lib/screens/bulk_import_screen.dart -> ../services/bulk_import_service.dart
+PASS | import resolves apps/pos_app/lib/screens/party_statement_screen.dart -> ../models/client_session.dart
+PASS | import resolves apps/pos_app/lib/screens/party_statement_screen.dart -> ../models/party_statement.dart
+PASS | import resolves apps/pos_app/lib/screens/party_statement_screen.dart -> ../services/party_statement_service.dart
+PASS | import resolves apps/pos_app/lib/screens/dashboard_screen.dart -> ../models/client_session.dart
+PASS | import resolves apps/pos_app/lib/screens/dashboard_screen.dart -> ../models/dashboard_data.dart
+PASS | import resolves apps/pos_app/lib/screens/dashboard_screen.dart -> ../models/dashboard_insights.dart
+PASS | import resolves apps/pos_app/lib/screens/dashboard_screen.dart -> ../services/dashboard_service.dart
+PASS | import resolves apps/pos_app/lib/screens/pos_screen.dart -> ../models/client_session.dart
+PASS | import resolves apps/pos_app/lib/screens/pos_screen.dart -> ../models/customer.dart
+PASS | import resolves apps/pos_app/lib/screens/pos_screen.dart -> ../models/inventory_product.dart
+PASS | import resolves apps/pos_app/lib/screens/pos_screen.dart -> ../models/sale_detail.dart
+PASS | import resolves apps/pos_app/lib/screens/pos_screen.dart -> ../services/customer_service.dart
+PASS | import resolves apps/pos_app/lib/screens/pos_screen.dart -> ../services/cashier_shift_service.dart
+PASS | import resolves apps/pos_app/lib/screens/pos_screen.dart -> ../services/inventory_service.dart
+PASS | import resolves apps/pos_app/lib/screens/pos_screen.dart -> ../services/sales_service.dart
+PASS | import resolves apps/pos_app/lib/screens/pos_screen.dart -> ../services/pos_completion_service.dart
+PASS | import resolves apps/pos_app/lib/screens/pos_screen.dart -> ../services/pos_hardware_service.dart
+PASS | import resolves apps/pos_app/lib/screens/pos_screen.dart -> ../services/invoice_pdf_service.dart
+PASS | import resolves apps/pos_app/lib/screens/pos_screen.dart -> ../services/invoice_template_service.dart
+PASS | import resolves apps/pos_app/lib/screens/pos_screen.dart -> ../ui/v43_theme.dart
+PASS | import resolves apps/pos_app/lib/screens/pos_screen.dart -> ../widgets/customer_account_dialog.dart
+PASS | import resolves apps/pos_app/lib/screens/device_activation_screen.dart -> ../services/device_installation_service.dart
+PASS | import resolves apps/pos_app/lib/screens/business_settings_screen.dart -> ../models/client_session.dart
+PASS | import resolves apps/pos_app/lib/screens/business_settings_screen.dart -> ../services/tenant_settings_service.dart
+PASS | import resolves apps/pos_app/lib/screens/accounting_screen.dart -> ../models/accounting_summary.dart
+PASS | import resolves apps/pos_app/lib/screens/accounting_screen.dart -> ../models/client_session.dart
+PASS | import resolves apps/pos_app/lib/screens/accounting_screen.dart -> ../services/accounting_service.dart
+PASS | import resolves apps/pos_app/lib/screens/error_logs_screen.dart -> ../models/app_error_log.dart
+PASS | import resolves apps/pos_app/lib/screens/error_logs_screen.dart -> ../models/client_session.dart
+PASS | import resolves apps/pos_app/lib/screens/error_logs_screen.dart -> ../services/app_log_service.dart
+PASS | import resolves apps/pos_app/lib/screens/pos_entry_screen.dart -> ../services/device_installation_service.dart
+PASS | import resolves apps/pos_app/lib/screens/sale_detail_screen.dart -> ../models/client_session.dart
+PASS | import resolves apps/pos_app/lib/screens/sale_detail_screen.dart -> ../models/sale_detail.dart
+PASS | import resolves apps/pos_app/lib/screens/sale_detail_screen.dart -> ../services/sales_service.dart
+PASS | import resolves apps/pos_app/lib/screens/sale_detail_screen.dart -> ../services/return_receipt_service.dart
+PASS | import resolves apps/pos_app/lib/screens/sale_detail_screen.dart -> ../services/customer_service.dart
+PASS | import resolves apps/pos_app/lib/screens/sale_detail_screen.dart -> ../services/activity_timeline_service.dart
+PASS | import resolves apps/pos_app/lib/screens/sale_detail_screen.dart -> ../widgets/activity_timeline_card.dart
+PASS | import resolves apps/pos_app/lib/screens/sale_detail_screen.dart -> ../models/customer.dart
+PASS | import resolves apps/pos_app/lib/screens/business_selector_screen.dart -> ../models/client_session.dart
+PASS | import resolves apps/pos_app/lib/screens/business_selector_screen.dart -> ../services/client_session_service.dart
+PASS | import resolves apps/pos_app/lib/screens/sales_screen.dart -> ../models/client_session.dart
+PASS | import resolves apps/pos_app/lib/screens/sales_screen.dart -> ../models/customer.dart
+PASS | import resolves apps/pos_app/lib/screens/sales_screen.dart -> ../models/inventory_product.dart
+PASS | import resolves apps/pos_app/lib/screens/sales_screen.dart -> ../models/sale.dart
+PASS | import resolves apps/pos_app/lib/screens/sales_screen.dart -> ../services/customer_service.dart
+PASS | import resolves apps/pos_app/lib/screens/sales_screen.dart -> ../services/inventory_service.dart
+PASS | import resolves apps/pos_app/lib/screens/sales_screen.dart -> ../services/sales_service.dart
+PASS | import resolves apps/pos_app/lib/screens/pos_settings_screen.dart -> ../models/client_session.dart
+PASS | import resolves apps/pos_app/lib/screens/pos_settings_screen.dart -> ../services/pos_completion_service.dart
+PASS | import resolves apps/pos_app/lib/screens/pos_settings_screen.dart -> ../services/pos_hardware_service.dart
+PASS | import resolves apps/pos_app/lib/screens/pos_settings_screen.dart -> ../services/pos_local_backup_service.dart
+PASS | import resolves apps/pos_app/lib/screens/reports_screen.dart -> ../models/client_session.dart
+PASS | import resolves apps/pos_app/lib/screens/reports_screen.dart -> ../models/report_summary.dart
+PASS | import resolves apps/pos_app/lib/screens/reports_screen.dart -> ../services/report_service.dart
+PASS | import resolves apps/pos_app/lib/screens/tracking_lookup_screen.dart -> ../models/client_session.dart
+PASS | import resolves apps/pos_app/lib/screens/payment_center_screen.dart -> ../models/client_session.dart
+PASS | import resolves apps/pos_app/lib/screens/payment_center_screen.dart -> ../models/payment_pending.dart
+PASS | import resolves apps/pos_app/lib/screens/payment_center_screen.dart -> ../services/payment_center_service.dart
+PASS | import resolves apps/pos_app/lib/screens/pos_bootstrap_screen.dart -> ../models/client_session.dart
+PASS | import resolves apps/pos_app/lib/screens/pos_bootstrap_screen.dart -> ../services/client_session_service.dart
+PASS | import resolves apps/pos_app/lib/screens/add_product_screen.dart -> ../models/client_session.dart
+PASS | import resolves apps/pos_app/lib/screens/add_product_screen.dart -> ../services/inventory_service.dart
+PASS | import resolves apps/pos_app/lib/screens/expenses_screen.dart -> ../models/client_session.dart
+PASS | import resolves apps/pos_app/lib/screens/expenses_screen.dart -> ../models/expense.dart
+PASS | import resolves apps/pos_app/lib/screens/expenses_screen.dart -> ../services/expense_service.dart
+PASS | import resolves apps/pos_app/lib/screens/client_home_screen.dart -> ../models/client_session.dart
+PASS | import resolves apps/pos_app/lib/screens/client_home_screen.dart -> ../services/client_auth_service.dart
+PASS | import resolves apps/pos_app/lib/screens/cashier_shift_screen.dart -> ../models/client_session.dart
+PASS | import resolves apps/pos_app/lib/screens/cashier_shift_screen.dart -> ../services/cashier_shift_service.dart
+PASS | import resolves apps/pos_app/lib/screens/cashier_shift_screen.dart -> ../services/pos_completion_service.dart
+PASS | import resolves apps/pos_app/lib/screens/cashier_shift_screen.dart -> ../services/pos_local_backup_service.dart
+PASS | import resolves apps/pos_app/lib/screens/notifications_screen.dart -> ../models/client_session.dart
+PASS | import resolves apps/pos_app/lib/screens/notifications_screen.dart -> ../services/notification_service.dart
+PASS | import resolves apps/pos_app/lib/screens/support_screen.dart -> ../models/client_session.dart
+PASS | import resolves apps/pos_app/lib/screens/support_screen.dart -> ../services/support_service.dart
+PASS | import resolves apps/pos_app/lib/screens/client_bootstrap_screen.dart -> ../models/client_session.dart
+PASS | import resolves apps/pos_app/lib/screens/client_bootstrap_screen.dart -> ../services/backend_compatibility_service.dart
+PASS | import resolves apps/pos_app/lib/screens/client_bootstrap_screen.dart -> ../services/client_auth_service.dart
+PASS | import resolves apps/pos_app/lib/screens/client_bootstrap_screen.dart -> ../services/client_session_service.dart
+PASS | import resolves apps/pos_app/lib/screens/invoice_preview_screen.dart -> ../models/client_session.dart
+PASS | import resolves apps/pos_app/lib/screens/invoice_preview_screen.dart -> ../models/sale_detail.dart
+PASS | import resolves apps/pos_app/lib/screens/invoice_preview_screen.dart -> ../services/invoice_pdf_service.dart
+PASS | import resolves apps/pos_app/lib/screens/invoice_preview_screen.dart -> ../services/invoice_template_service.dart
+PASS | import resolves apps/pos_app/lib/screens/pos_login_screen.dart -> ../services/client_auth_service.dart
+PASS | import resolves apps/pos_app/lib/screens/product_detail_screen.dart -> ../models/client_session.dart
+PASS | import resolves apps/pos_app/lib/screens/product_detail_screen.dart -> ../models/inventory_product_detail.dart
+PASS | import resolves apps/pos_app/lib/screens/product_detail_screen.dart -> ../models/stock_movement.dart
+PASS | import resolves apps/pos_app/lib/screens/product_detail_screen.dart -> ../services/inventory_service.dart
+PASS | Dart structural balance apps/admin_panel/lib/main.dart
+PASS | Dart structural balance apps/admin_panel/lib/config/supabase_config.dart
+PASS | Dart structural balance apps/admin_panel/lib/ui/v43_theme.dart
+PASS | Dart structural balance apps/admin_panel/lib/widgets/customer_account_dialog.dart
+PASS | Dart structural balance apps/admin_panel/lib/widgets/admin_home_button.dart
+PASS | Dart structural balance apps/admin_panel/lib/services/owner_service.dart
+PASS | Dart structural balance apps/admin_panel/lib/services/transaction_control_service.dart
+PASS | Dart structural balance apps/admin_panel/lib/services/platform_config_service.dart
+PASS | Dart structural balance apps/admin_panel/lib/services/system_health_service.dart
+PASS | Dart structural balance apps/admin_panel/lib/services/business_role_service.dart
+PASS | Dart structural balance apps/admin_panel/lib/services/app_log_service.dart
+PASS | Dart structural balance apps/admin_panel/lib/services/business_user_service.dart
+PASS | Dart structural balance apps/admin_panel/lib/services/location_device_service.dart
+PASS | Dart structural balance apps/admin_panel/lib/services/customer_account_service.dart
+PASS | Dart structural balance apps/admin_panel/lib/services/business_service.dart
+PASS | Dart structural balance apps/admin_panel/lib/services/admin_auth_service.dart
+PASS | Dart structural balance apps/admin_panel/lib/services/inventory_service.dart
+PASS | Dart structural balance apps/admin_panel/lib/models/business_module.dart
+PASS | Dart structural balance apps/admin_panel/lib/models/platform_models.dart
+PASS | Dart structural balance apps/admin_panel/lib/models/business.dart
+PASS | Dart structural balance apps/admin_panel/lib/models/business_role.dart
+PASS | Dart structural balance apps/admin_panel/lib/models/erp_module.dart
+PASS | Dart structural balance apps/admin_panel/lib/models/inventory_product.dart
+PASS | Dart structural balance apps/admin_panel/lib/models/business_user.dart
+PASS | Dart structural balance apps/admin_panel/lib/screens/platform_admins_screen.dart
+PASS | Dart structural balance apps/admin_panel/lib/screens/system_health_screen.dart
+PASS | Dart structural balance apps/admin_panel/lib/screens/invoice_templates_screen.dart
+PASS | Dart structural balance apps/admin_panel/lib/screens/create_owner_screen.dart
+PASS | Dart structural balance apps/admin_panel/lib/screens/business_locations_devices_screen.dart
+PASS | Dart structural balance apps/admin_panel/lib/screens/platform_settings_screen.dart
+PASS | Dart structural balance apps/admin_panel/lib/screens/tenant_invoice_templates_screen.dart
+PASS | Dart structural balance apps/admin_panel/lib/screens/admin_dashboard.dart
+PASS | Dart structural balance apps/admin_panel/lib/screens/platform_support_screen.dart
+PASS | Dart structural balance apps/admin_panel/lib/screens/ui_design_studio_screen.dart
+PASS | Dart structural balance apps/admin_panel/lib/screens/tenant_subscription_screen.dart
+PASS | Dart structural balance apps/admin_panel/lib/screens/platform_audit_screen.dart
+PASS | Dart structural balance apps/admin_panel/lib/screens/business_roles_screen.dart
+PASS | Dart structural balance apps/admin_panel/lib/screens/menu_builder_screen.dart
+PASS | Dart structural balance apps/admin_panel/lib/screens/transaction_control_screen.dart
+PASS | Dart structural balance apps/admin_panel/lib/screens/login_screen.dart
+PASS | Dart structural balance apps/admin_panel/lib/screens/subscription_plans_screen.dart
+PASS | Dart structural balance apps/admin_panel/lib/screens/business_details_screen.dart
+PASS | Dart structural balance apps/admin_panel/lib/screens/platform_error_logs_screen.dart
+PASS | Dart structural balance apps/admin_panel/lib/screens/create_business_screen.dart
+PASS | Dart structural balance apps/admin_panel/lib/screens/templates_screen.dart
+PASS | Dart structural balance apps/admin_panel/lib/screens/modules_screen.dart
+PASS | Dart structural balance apps/admin_panel/lib/screens/businesses_screen.dart
+PASS | Dart structural balance apps/admin_panel/lib/screens/customer_accounts_screen.dart
+PASS | Dart structural balance apps/admin_panel/lib/screens/business_users_screen.dart
+PASS | Dart structural balance apps/admin_panel/lib/screens/app_versions_screen.dart
+PASS | Dart structural balance apps/client_app/lib/main.dart
+PASS | Dart structural balance apps/client_app/lib/config/supabase_config.dart
+PASS | Dart structural balance apps/client_app/lib/ui/v43_theme.dart
+PASS | Dart structural balance apps/client_app/lib/widgets/customer_account_dialog.dart
+PASS | Dart structural balance apps/client_app/lib/widgets/activity_timeline_card.dart
+PASS | Dart structural balance apps/client_app/lib/services/global_search_service.dart
+PASS | Dart structural balance apps/client_app/lib/services/backend_compatibility_service.dart
+PASS | Dart structural balance apps/client_app/lib/services/client_session_service.dart
+PASS | Dart structural balance apps/client_app/lib/services/production_service.dart
+PASS | Dart structural balance apps/client_app/lib/services/device_installation_service.dart
+PASS | Dart structural balance apps/client_app/lib/services/client_auth_service.dart
+PASS | Dart structural balance apps/client_app/lib/services/purchase_service.dart
+PASS | Dart structural balance apps/client_app/lib/services/tenant_settings_service.dart
+PASS | Dart structural balance apps/client_app/lib/services/workshop_service.dart
+PASS | Dart structural balance apps/client_app/lib/services/return_receipt_service.dart
+PASS | Dart structural balance apps/client_app/lib/services/activity_timeline_service.dart
+PASS | Dart structural balance apps/client_app/lib/services/navigation_service.dart
+PASS | Dart structural balance apps/client_app/lib/services/invoice_pdf_service.dart
+PASS | Dart structural balance apps/client_app/lib/services/report_export_service.dart
+PASS | Dart structural balance apps/client_app/lib/services/returns_service.dart
+PASS | Dart structural balance apps/client_app/lib/services/customer_service.dart
+PASS | Dart structural balance apps/client_app/lib/services/dashboard_service.dart
+PASS | Dart structural balance apps/client_app/lib/services/location_scope_service.dart
+PASS | Dart structural balance apps/client_app/lib/services/barcode_service.dart
+PASS | Dart structural balance apps/client_app/lib/services/report_service.dart
+PASS | Dart structural balance apps/client_app/lib/services/invoice_template_service.dart
+PASS | Dart structural balance apps/client_app/lib/services/support_service.dart
+PASS | Dart structural balance apps/client_app/lib/services/accounting_service.dart
+PASS | Dart structural balance apps/client_app/lib/services/expense_service.dart
+PASS | Dart structural balance apps/client_app/lib/services/device_heartbeat_service.dart
+PASS | Dart structural balance apps/client_app/lib/services/backup_service.dart
+PASS | Dart structural balance apps/client_app/lib/services/ui_design_service.dart
+PASS | Dart structural balance apps/client_app/lib/services/task_service.dart
+PASS | Dart structural balance apps/client_app/lib/services/sales_service.dart
+PASS | Dart structural balance apps/client_app/lib/services/division_overview_service.dart
+PASS | Dart structural balance apps/client_app/lib/services/approval_service.dart
+PASS | Dart structural balance apps/client_app/lib/services/custom_fields_service.dart
+PASS | Dart structural balance apps/client_app/lib/services/team_service.dart
+PASS | Dart structural balance apps/client_app/lib/services/location_service.dart
+PASS | Dart structural balance apps/client_app/lib/services/stock_transfer_service.dart
+PASS | Dart structural balance apps/client_app/lib/services/app_log_service.dart
+PASS | Dart structural balance apps/client_app/lib/services/party_statement_service.dart
+PASS | Dart structural balance apps/client_app/lib/services/supplier_service.dart
+PASS | Dart structural balance apps/client_app/lib/services/restaurant_service.dart
+PASS | Dart structural balance apps/client_app/lib/services/bulk_import_service.dart
+PASS | Dart structural balance apps/client_app/lib/services/payment_center_service.dart
+PASS | Dart structural balance apps/client_app/lib/services/customer_account_service.dart
+PASS | Dart structural balance apps/client_app/lib/services/transport_service.dart
+PASS | Dart structural balance apps/client_app/lib/services/inventory_service.dart
+PASS | Dart structural balance apps/client_app/lib/services/notification_service.dart
+PASS | Dart structural balance apps/client_app/lib/models/customer.dart
+PASS | Dart structural balance apps/client_app/lib/models/accounting_summary.dart
+PASS | Dart structural balance apps/client_app/lib/models/sale_detail.dart
+PASS | Dart structural balance apps/client_app/lib/models/party_statement.dart
+PASS | Dart structural balance apps/client_app/lib/models/app_error_log.dart
+PASS | Dart structural balance apps/client_app/lib/models/payment_pending.dart
+PASS | Dart structural balance apps/client_app/lib/models/sale.dart
+PASS | Dart structural balance apps/client_app/lib/models/inventory_product_detail.dart
+PASS | Dart structural balance apps/client_app/lib/models/dashboard_insights.dart
+PASS | Dart structural balance apps/client_app/lib/models/report_summary.dart
+PASS | Dart structural balance apps/client_app/lib/models/stock_movement.dart
+PASS | Dart structural balance apps/client_app/lib/models/dashboard_data.dart
+PASS | Dart structural balance apps/client_app/lib/models/inventory_product.dart
+PASS | Dart structural balance apps/client_app/lib/models/app_menu_node.dart
+PASS | Dart structural balance apps/client_app/lib/models/expense.dart
+PASS | Dart structural balance apps/client_app/lib/models/team_user.dart
+PASS | Dart structural balance apps/client_app/lib/models/client_session.dart
+PASS | Dart structural balance apps/client_app/lib/models/purchase.dart
+PASS | Dart structural balance apps/client_app/lib/models/purchase_detail.dart
+PASS | Dart structural balance apps/client_app/lib/models/supplier.dart
+PASS | Dart structural balance apps/client_app/lib/screens/business_activity_screen.dart
+PASS | Dart structural balance apps/client_app/lib/screens/client_login_screen.dart
+PASS | Dart structural balance apps/client_app/lib/screens/industry_workspace_screen.dart
+PASS | Dart structural balance apps/client_app/lib/screens/backup_export_screen.dart
+PASS | Dart structural balance apps/client_app/lib/screens/production_screen.dart
+PASS | Dart structural balance apps/client_app/lib/screens/inventory_products_screen.dart
+PASS | Dart structural balance apps/client_app/lib/screens/transport_service_screen.dart
+PASS | Dart structural balance apps/client_app/lib/screens/customers_screen.dart
+PASS | Dart structural balance apps/client_app/lib/screens/suppliers_screen.dart
+PASS | Dart structural balance apps/client_app/lib/screens/purchases_screen.dart
+PASS | Dart structural balance apps/client_app/lib/screens/restaurant_screen.dart
+PASS | Dart structural balance apps/client_app/lib/screens/invoice_designer_screen.dart
+PASS | Dart structural balance apps/client_app/lib/screens/purchase_detail_screen.dart
+PASS | Dart structural balance apps/client_app/lib/screens/bulk_import_screen.dart
+PASS | Dart structural balance apps/client_app/lib/screens/party_statement_screen.dart
+PASS | Dart structural balance apps/client_app/lib/screens/dashboard_screen.dart
+PASS | Dart structural balance apps/client_app/lib/screens/pos_screen.dart
+PASS | Dart structural balance apps/client_app/lib/screens/device_activation_screen.dart
+PASS | Dart structural balance apps/client_app/lib/screens/tasks_screen.dart
+PASS | Dart structural balance apps/client_app/lib/screens/business_settings_screen.dart
+PASS | Dart structural balance apps/client_app/lib/screens/accounting_screen.dart
+PASS | Dart structural balance apps/client_app/lib/screens/error_logs_screen.dart
+PASS | Dart structural balance apps/client_app/lib/screens/returns_register_screen.dart
+PASS | Dart structural balance apps/client_app/lib/screens/team_access_screen.dart
+PASS | Dart structural balance apps/client_app/lib/screens/sale_detail_screen.dart
+PASS | Dart structural balance apps/client_app/lib/screens/business_selector_screen.dart
+PASS | Dart structural balance apps/client_app/lib/screens/sales_screen.dart
+PASS | Dart structural balance apps/client_app/lib/screens/reports_screen.dart
+PASS | Dart structural balance apps/client_app/lib/screens/barcode_workbench_screen.dart
+PASS | Dart structural balance apps/client_app/lib/screens/tracking_lookup_screen.dart
+PASS | Dart structural balance apps/client_app/lib/screens/payment_center_screen.dart
+PASS | Dart structural balance apps/client_app/lib/screens/division_overview_screen.dart
+PASS | Dart structural balance apps/client_app/lib/screens/add_product_screen.dart
+PASS | Dart structural balance apps/client_app/lib/screens/client_entry_screen.dart
+PASS | Dart structural balance apps/client_app/lib/screens/stock_transfers_screen.dart
+PASS | Dart structural balance apps/client_app/lib/screens/expenses_screen.dart
+PASS | Dart structural balance apps/client_app/lib/screens/global_search_screen.dart
+PASS | Dart structural balance apps/client_app/lib/screens/client_home_screen.dart
+PASS | Dart structural balance apps/client_app/lib/screens/custom_fields_screen.dart
+PASS | Dart structural balance apps/client_app/lib/screens/notifications_screen.dart
+PASS | Dart structural balance apps/client_app/lib/screens/support_screen.dart
+PASS | Dart structural balance apps/client_app/lib/screens/approvals_screen.dart
+PASS | Dart structural balance apps/client_app/lib/screens/client_bootstrap_screen.dart
+PASS | Dart structural balance apps/client_app/lib/screens/invoice_preview_screen.dart
+PASS | Dart structural balance apps/client_app/lib/screens/locations_screen.dart
+PASS | Dart structural balance apps/client_app/lib/screens/customer_accounts_screen.dart
+PASS | Dart structural balance apps/client_app/lib/screens/product_detail_screen.dart
+PASS | Dart structural balance apps/client_app/lib/screens/workshop_screen.dart
+PASS | Dart structural balance apps/pos_app/lib/main.dart
+PASS | Dart structural balance apps/pos_app/lib/config/supabase_config.dart
+PASS | Dart structural balance apps/pos_app/lib/ui/v43_theme.dart
+PASS | Dart structural balance apps/pos_app/lib/widgets/customer_account_dialog.dart
+PASS | Dart structural balance apps/pos_app/lib/widgets/activity_timeline_card.dart
+PASS | Dart structural balance apps/pos_app/lib/services/backend_compatibility_service.dart
+PASS | Dart structural balance apps/pos_app/lib/services/client_session_service.dart
+PASS | Dart structural balance apps/pos_app/lib/services/device_installation_service.dart
+PASS | Dart structural balance apps/pos_app/lib/services/client_auth_service.dart
+PASS | Dart structural balance apps/pos_app/lib/services/purchase_service.dart
+PASS | Dart structural balance apps/pos_app/lib/services/pos_completion_service.dart
+PASS | Dart structural balance apps/pos_app/lib/services/tenant_settings_service.dart
+PASS | Dart structural balance apps/pos_app/lib/services/cashier_shift_service.dart
+PASS | Dart structural balance apps/pos_app/lib/services/return_receipt_service.dart
+PASS | Dart structural balance apps/pos_app/lib/services/activity_timeline_service.dart
+PASS | Dart structural balance apps/pos_app/lib/services/navigation_service.dart
+PASS | Dart structural balance apps/pos_app/lib/services/invoice_pdf_service.dart
+PASS | Dart structural balance apps/pos_app/lib/services/return_search_service.dart
+PASS | Dart structural balance apps/pos_app/lib/services/pos_local_backup_service.dart
+PASS | Dart structural balance apps/pos_app/lib/services/customer_service.dart
+PASS | Dart structural balance apps/pos_app/lib/services/dashboard_service.dart
+PASS | Dart structural balance apps/pos_app/lib/services/location_scope_service.dart
+PASS | Dart structural balance apps/pos_app/lib/services/report_service.dart
+PASS | Dart structural balance apps/pos_app/lib/services/invoice_template_service.dart
+PASS | Dart structural balance apps/pos_app/lib/services/support_service.dart
+PASS | Dart structural balance apps/pos_app/lib/services/accounting_service.dart
+PASS | Dart structural balance apps/pos_app/lib/services/expense_service.dart
+PASS | Dart structural balance apps/pos_app/lib/services/pos_hardware_service.dart
+PASS | Dart structural balance apps/pos_app/lib/services/device_heartbeat_service.dart
+PASS | Dart structural balance apps/pos_app/lib/services/ui_design_service.dart
+PASS | Dart structural balance apps/pos_app/lib/services/sales_service.dart
+PASS | Dart structural balance apps/pos_app/lib/services/app_log_service.dart
+PASS | Dart structural balance apps/pos_app/lib/services/party_statement_service.dart
+PASS | Dart structural balance apps/pos_app/lib/services/supplier_service.dart
+PASS | Dart structural balance apps/pos_app/lib/services/restaurant_service.dart
+PASS | Dart structural balance apps/pos_app/lib/services/bulk_import_service.dart
+PASS | Dart structural balance apps/pos_app/lib/services/payment_center_service.dart
+PASS | Dart structural balance apps/pos_app/lib/services/terminal_day_service.dart
+PASS | Dart structural balance apps/pos_app/lib/services/customer_account_service.dart
+PASS | Dart structural balance apps/pos_app/lib/services/terminal_day_export_service.dart
+PASS | Dart structural balance apps/pos_app/lib/services/inventory_service.dart
+PASS | Dart structural balance apps/pos_app/lib/services/notification_service.dart
+PASS | Dart structural balance apps/pos_app/lib/models/customer.dart
+PASS | Dart structural balance apps/pos_app/lib/models/accounting_summary.dart
+PASS | Dart structural balance apps/pos_app/lib/models/sale_detail.dart
+PASS | Dart structural balance apps/pos_app/lib/models/party_statement.dart
+PASS | Dart structural balance apps/pos_app/lib/models/app_error_log.dart
+PASS | Dart structural balance apps/pos_app/lib/models/payment_pending.dart
+PASS | Dart structural balance apps/pos_app/lib/models/sale.dart
+PASS | Dart structural balance apps/pos_app/lib/models/inventory_product_detail.dart
+PASS | Dart structural balance apps/pos_app/lib/models/dashboard_insights.dart
+PASS | Dart structural balance apps/pos_app/lib/models/report_summary.dart
+PASS | Dart structural balance apps/pos_app/lib/models/stock_movement.dart
+PASS | Dart structural balance apps/pos_app/lib/models/dashboard_data.dart
+PASS | Dart structural balance apps/pos_app/lib/models/inventory_product.dart
+PASS | Dart structural balance apps/pos_app/lib/models/app_menu_node.dart
+PASS | Dart structural balance apps/pos_app/lib/models/expense.dart
+PASS | Dart structural balance apps/pos_app/lib/models/client_session.dart
+PASS | Dart structural balance apps/pos_app/lib/models/purchase.dart
+PASS | Dart structural balance apps/pos_app/lib/models/purchase_detail.dart
+PASS | Dart structural balance apps/pos_app/lib/models/supplier.dart
+PASS | Dart structural balance apps/pos_app/lib/screens/business_activity_screen.dart
+PASS | Dart structural balance apps/pos_app/lib/screens/client_login_screen.dart
+PASS | Dart structural balance apps/pos_app/lib/screens/industry_workspace_screen.dart
+PASS | Dart structural balance apps/pos_app/lib/screens/terminal_day_screen.dart
+PASS | Dart structural balance apps/pos_app/lib/screens/inventory_products_screen.dart
+PASS | Dart structural balance apps/pos_app/lib/screens/customers_screen.dart
+PASS | Dart structural balance apps/pos_app/lib/screens/return_center_screen.dart
+PASS | Dart structural balance apps/pos_app/lib/screens/suppliers_screen.dart
+PASS | Dart structural balance apps/pos_app/lib/screens/purchases_screen.dart
+PASS | Dart structural balance apps/pos_app/lib/screens/restaurant_screen.dart
+PASS | Dart structural balance apps/pos_app/lib/screens/pos_home_screen.dart
+PASS | Dart structural balance apps/pos_app/lib/screens/purchase_detail_screen.dart
+PASS | Dart structural balance apps/pos_app/lib/screens/bulk_import_screen.dart
+PASS | Dart structural balance apps/pos_app/lib/screens/party_statement_screen.dart
+PASS | Dart structural balance apps/pos_app/lib/screens/dashboard_screen.dart
+PASS | Dart structural balance apps/pos_app/lib/screens/pos_screen.dart
+PASS | Dart structural balance apps/pos_app/lib/screens/device_activation_screen.dart
+PASS | Dart structural balance apps/pos_app/lib/screens/business_settings_screen.dart
+PASS | Dart structural balance apps/pos_app/lib/screens/accounting_screen.dart
+PASS | Dart structural balance apps/pos_app/lib/screens/error_logs_screen.dart
+PASS | Dart structural balance apps/pos_app/lib/screens/pos_entry_screen.dart
+PASS | Dart structural balance apps/pos_app/lib/screens/sale_detail_screen.dart
+PASS | Dart structural balance apps/pos_app/lib/screens/business_selector_screen.dart
+PASS | Dart structural balance apps/pos_app/lib/screens/sales_screen.dart
+PASS | Dart structural balance apps/pos_app/lib/screens/pos_settings_screen.dart
+PASS | Dart structural balance apps/pos_app/lib/screens/reports_screen.dart
+PASS | Dart structural balance apps/pos_app/lib/screens/tracking_lookup_screen.dart
+PASS | Dart structural balance apps/pos_app/lib/screens/payment_center_screen.dart
+PASS | Dart structural balance apps/pos_app/lib/screens/pos_bootstrap_screen.dart
+PASS | Dart structural balance apps/pos_app/lib/screens/add_product_screen.dart
+PASS | Dart structural balance apps/pos_app/lib/screens/expenses_screen.dart
+PASS | Dart structural balance apps/pos_app/lib/screens/client_home_screen.dart
+PASS | Dart structural balance apps/pos_app/lib/screens/cashier_shift_screen.dart
+PASS | Dart structural balance apps/pos_app/lib/screens/notifications_screen.dart
+PASS | Dart structural balance apps/pos_app/lib/screens/support_screen.dart
+PASS | Dart structural balance apps/pos_app/lib/screens/client_bootstrap_screen.dart
+PASS | Dart structural balance apps/pos_app/lib/screens/invoice_preview_screen.dart
+PASS | Dart structural balance apps/pos_app/lib/screens/pos_login_screen.dart
+PASS | Dart structural balance apps/pos_app/lib/screens/product_detail_screen.dart
+PASS | Dart structural balance packages/erp_core/lib/erp_core.dart
+PASS | Dart structural balance packages/erp_core/lib/src/release_contract.dart
+PASS | Dart structural balance packages/erp_core/lib/src/erp_failure.dart
+PASS | Dart structural balance packages/erp_core/lib/src/money.dart
+PASS | migration 119 SQL dollar quotes paired
+PASS | migration 119 transaction boundaries
+PASS | migration 119 no invalid expenses.view permission
+PASS | release tree excludes generated/VCS clutter

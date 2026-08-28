@@ -1,0 +1,27 @@
+FLEXI ERP V3.2 STATIC VALIDATION REPORT
+
+admin_panel: local Dart imports resolved
+client_app: local Dart imports resolved
+pos_app: local Dart imports resolved
+Dart/TypeScript delimiter structural scan: PASS
+V3.2 Flutter RPC names: all found in bundled SQL migrations
+Edge Function TypeScript syntax transpile: PASS
+V3.2 migrations 021-029 dollar-quote structural check: PASS
+Client POS menu exclusion: PASS
+Client Windows CMake target: client_app (stabilized for the previously observed target mismatch)
+Client Android applicationId: com.flexierp.client_app
+POS Android applicationId: com.flexierp.pos_app
+No service-role/secret credential is embedded in Flutter source. One Admin informational sentence explicitly states that Flutter never receives the service-role key.
+
+FINAL LOCATION SECURITY PASS
+- Sales/Purchases/Expenses: atomic location/device scoped creates
+- Dashboard/Reports/Accounting/Payments: selected-location or merged-store reads
+- Production runs: location scoped; BOM/recipes remain shared tenant configuration
+- Transport vehicles/jobs: store assigned and location scoped
+- Restaurant tables/orders/KOT/status/billing: registered device + store scoped; POS also honors per-terminal restaurant module selection
+
+IMPORTANT LIMIT
+Physical inventory quantity remains on the existing tenant/default inventory stock engine. V3.2 does not claim true separate branch stock balances. Use docs/EXPORT_LIVE_CORE_SQL_FOR_BRANCH_STOCK.sql after V3.2 is stable so the live stock/moving-average SQL can be upgraded without guessing.
+
+NOTE
+Flutter/Dart SDK is not installed in this artifact environment. On the Windows workstation run flutter pub get, dart fix --apply, dart format lib, and flutter analyze in all three apps. The user's workstation analyzer is the authoritative Flutter compile check.

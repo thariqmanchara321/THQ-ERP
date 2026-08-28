@@ -1,0 +1,87 @@
+PASS | no .git in release
+PASS | no node_modules in release
+PASS | no supabase temp in release
+PASS | valid YAML apps/admin_panel/pubspec.yaml
+PASS | valid YAML apps/client_app/pubspec.yaml
+PASS | valid YAML apps/pos_app/pubspec.yaml
+PASS | valid YAML packages/erp_core/pubspec.yaml
+PASS | admin_panel version 4.7.0+1 | 4.7.0+1
+PASS | client_app version 4.7.0+1 | 4.7.0+1
+PASS | pos_app version 4.7.0+1 | 4.7.0+1
+PASS | client_app consumes erp_core
+PASS | client_app lock YAML valid
+PASS | pos_app consumes erp_core
+PASS | pos_app lock YAML valid
+PASS | migration 101 present exactly once | 101_v47_release_contract.sql
+PASS | migration 102 present exactly once | 102_v47_accounting_integrity.sql
+PASS | migration 103 present exactly once | 103_v47_idempotent_transactions.sql
+PASS | migration 104 present exactly once | 104_v47_idempotent_operations.sql
+PASS | migration 105 present exactly once | 105_v47_system_installations.sql
+PASS | migration 106 present exactly once | 106_v47_inventory_atomicity.sql
+PASS | migration 107 present exactly once | 107_v47_integrity_health.sql
+PASS | migration 108 present exactly once | 108_v47_security_access.sql
+PASS | migration 109 present exactly once | 109_v47_release_register_verify.sql
+PASS | migration 110 present exactly once | 110_v47_runtime_hardening.sql
+PASS | upgrade_from_100 contains only 101-110 | [101, 102, 103, 104, 105, 106, 107, 108, 109, 110]
+PASS | combined upgrade SQL exists
+PASS | 101_v47_release_contract.sql: dollar quotes balanced | 2
+PASS | 101_v47_release_contract.sql: transaction has begin
+PASS | 101_v47_release_contract.sql: transaction has commit
+PASS | 102_v47_accounting_integrity.sql: dollar quotes balanced | 8
+PASS | 102_v47_accounting_integrity.sql: transaction has begin
+PASS | 102_v47_accounting_integrity.sql: transaction has commit
+PASS | 103_v47_idempotent_transactions.sql: dollar quotes balanced | 8
+PASS | 103_v47_idempotent_transactions.sql: transaction has begin
+PASS | 103_v47_idempotent_transactions.sql: transaction has commit
+PASS | 104_v47_idempotent_operations.sql: dollar quotes balanced | 22
+PASS | 104_v47_idempotent_operations.sql: transaction has begin
+PASS | 104_v47_idempotent_operations.sql: transaction has commit
+PASS | 105_v47_system_installations.sql: dollar quotes balanced | 6
+PASS | 105_v47_system_installations.sql: transaction has begin
+PASS | 105_v47_system_installations.sql: transaction has commit
+PASS | 106_v47_inventory_atomicity.sql: dollar quotes balanced | 2
+PASS | 106_v47_inventory_atomicity.sql: transaction has begin
+PASS | 106_v47_inventory_atomicity.sql: transaction has commit
+PASS | 107_v47_integrity_health.sql: dollar quotes balanced | 4
+PASS | 107_v47_integrity_health.sql: transaction has begin
+PASS | 107_v47_integrity_health.sql: transaction has commit
+PASS | 108_v47_security_access.sql: dollar quotes balanced | 2
+PASS | 108_v47_security_access.sql: transaction has begin
+PASS | 108_v47_security_access.sql: transaction has commit
+PASS | 109_v47_release_register_verify.sql: dollar quotes balanced | 2
+PASS | 109_v47_release_register_verify.sql: transaction has begin
+PASS | 109_v47_release_register_verify.sql: transaction has commit
+PASS | 110_v47_runtime_hardening.sql: dollar quotes balanced | 2
+PASS | 110_v47_runtime_hardening.sql: transaction has begin
+PASS | 110_v47_runtime_hardening.sql: transaction has commit
+PASS | release contract
+PASS | strict accounting
+PASS | sales idempotency
+PASS | operation idempotency
+PASS | installations
+PASS | stock lock
+PASS | health scan
+PASS | fail closed
+PASS | release verify
+PASS | heartbeat sync
+PASS | strict accounting does not swallow posting error
+PASS | activation uses atomic v47 RPC
+PASS | activation never sends raw secret to SQL
+PASS | login validates active installation
+PASS | POS holds checkout request ID across retry
+PASS | POS sends checkout request ID
+PASS | client_app uses sales_create_v47
+PASS | client_app checks shared backend contract
+PASS | client_app verifies backend before business load
+PASS | pos_app uses sales_create_v47
+PASS | pos_app checks shared backend contract
+PASS | pos_app verifies backend before business load
+PASS | Admin System Health screen exists
+PASS | Admin business page exposes System Health
+PASS | shared core exports Money
+PASS | shared core exports failure model
+PASS | shared core exports release contract
+PASS | client_app heartbeat is 4.7.0
+PASS | pos_app heartbeat is 4.7.0
+
+SUMMARY: 85/85 checks passed

@@ -1,0 +1,622 @@
+FLEXI ERP – MASTER PRODUCT ROADMAP & UI/UX IMPROVEMENT NOTE
+=========================================================
+
+Version: Planning Master Note
+Project: Flexi ERP Platform
+Purpose: Long-term product roadmap, production-readiness plan, industry expansion plan,
+UI/UX modernization guide, and commercial release checklist.
+
+1. PRODUCT VISION
+-----------------
+Flexi ERP should be built as a configurable business platform rather than a single-purpose shop application.
+
+Core model:
+PLATFORM -> SUBSCRIPTION -> BUSINESS TEMPLATE -> MODULES -> SETTINGS -> LOCATIONS -> DEVICES/POS -> USERS/ROLES/PERMISSIONS
+
+Target industries:
+- General Retail
+- Grocery
+- Auto Electrical / Spare Parts
+- Hardware
+- Mobile Shop
+- Clothing
+- Wholesale / Distribution
+- Workshop / Garage
+- Restaurant / Cafe / Bakery
+- Taxi / Truck / Transport
+- Manufacturing / Production
+- Pharmacy
+- Clinic
+- Hospital
+- Diagnostic Lab
+- Service Businesses
+- Custom Business Types
+
+Architectural rule: business-specific behavior should come from enabled modules/configuration, not hard-coded businessType checks throughout the app.
+
+2. CORE PLATFORM FOUNDATION
+---------------------------
+- Multi-tenant architecture and strict tenant isolation.
+- Module catalogue with dependencies/conflicts.
+- Business templates.
+- Subscription plans and feature entitlements.
+- Trial plans and grace period.
+- Plan limits for users, locations, terminals, products, invoices and storage.
+- Platform feature flags and beta controls.
+- Maintenance mode and minimum supported app version.
+- Tenant suspension/reactivation.
+- Business archival instead of destructive deletion.
+- Platform audit/error logs.
+- Support access logging.
+
+Access should be decided by: subscription -> tenant module -> user permission -> location access -> terminal module access.
+Critical rules must be enforced by backend/RPC, not only UI visibility.
+
+3. BUSINESS / LOCATION / DEVICE ARCHITECTURE
+--------------------------------------------
+Every business should have a unique Business ID, MAIN store, optional child stores, warehouses, multiple Client systems and multiple POS terminals.
+
+Each location should have:
+- Unique Location ID
+- Code/name
+- Parent location
+- GSTIN
+- Phone/email
+- Address
+- Invoice prefix
+- Active/inactive status
+- Location-specific settings
+
+Each device should have:
+- Unique Device ID
+- Friendly system name
+- Location assignment
+- App type: Client ERP or POS
+- Platform: Windows/Android/Web where supported
+- Activation status
+- Last seen
+- App version
+- Allowed terminal modules
+- Invoice prefix
+- Activation/revocation history
+
+One-time activation flow:
+Admin/Owner creates system -> activation code -> device activates -> device is bound to business/location -> user logs in with username/password.
+
+4. TRUE BRANCH-WISE INVENTORY
+-----------------------------
+This is a top-priority remaining backend improvement.
+Stock must be physically separated by location.
+
+Required:
+- Stock balance per branch/warehouse
+- Stock movement per branch
+- Transfer request/approval/dispatch/receive
+- Goods in transit
+- Warehouse replenishment
+- Reserved/available/damaged/quarantine stock
+- Physical stock count and cycle count
+- Variance report
+- Branch stock valuation
+- Merged company stock view
+
+Keep stock_balances + stock_movements ledger design. Do not use a simple mutable products.stock field.
+
+5. PRODUCT MASTER
+-----------------
+Products should support:
+- Product ID and SKU
+- Auto next SKU such as SKU-000001
+- Editable but unique SKU
+- Product name/description
+- Barcode and multiple barcodes
+- Manufacturer/alternate part numbers
+- Brand/category/subcategory
+- Unit and item type: stock/non-stock/service
+- Variants such as size/color/model
+- Images/tags/notes/attachments
+- Preferred supplier
+- Reorder/max stock
+- Retail/wholesale/MRP/minimum price
+- Purchase cost/moving average/last purchase price
+- Tax and HSN/SAC
+- Warranty/serial/batch/expiry tracking
+- Related/substitute products
+- Bundles/kits
+- Custom fields
+
+Friendly IDs should be shown to users while UUIDs remain internal, for example PRD-000001, CUS-000001, SUP-000001, LOC-000001, DEV-000001.
+
+6. INVENTORY OPERATIONS
+-----------------------
+- Opening stock
+- Purchase/sale movements
+- Sale return/purchase return
+- Adjustment in/out
+- Transfers
+- Physical stock count
+- Damaged/lost/scrap stock
+- Reserved stock
+- Reorder suggestions
+- Low/overstock alerts
+- Dead/slow/fast-moving stock
+- Aging and valuation
+- Full stock timeline
+
+7. BARCODE & LABELS
+-------------------
+- Generate barcodes
+- Use existing barcodes
+- USB/camera scanner
+- POS scan
+- Barcode product lookup
+- Label templates
+- Shelf/price labels
+- Batch label printing
+
+8. POS APPLICATION
+------------------
+POS remains a separate app and should be optimized for speed, touch and keyboard use.
+
+Terminal modules must be configurable per device. Example: Counter 1 Sales only; Counter 2 Sales+Expenses; back-office POS Sales+Purchases+Expenses+Customers+Suppliers.
+
+Billing flow:
+STEP 1 Products/Order -> customer/order type/products/category/cart/discount/notes
+STEP 2 Payment -> total/payment method/cash received/change/split/credit/reference
+STEP 3 Review -> confirm -> complete -> optional invoice preview -> reset automatically
+
+Quick cash buttons: Exact, 10, 20, 50, 100, 200, 500, 1000, 2000.
+
+Additional POS features:
+- Collapsible sidebar
+- Search by name/SKU/barcode/part number/brand/category
+- Category/brand filter and sorting
+- Favorites/recently sold
+- Hold/resume/multiple parked carts
+- Full-screen cashier mode
+- Keyboard shortcuts
+- Touch mode
+- Product details panel
+- Quick customer creation/editing
+- Product/supplier/purchase/expense access if terminal is permitted
+- Restaurant mode when enabled
+- Offline cart preservation
+- Duplicate-sale prevention
+
+9. CASHIER SHIFT / CASH DRAWER
+-----------------------------
+Before commercial release, add:
+Open shift -> opening cash -> sales/cash in/cash out/expenses -> close shift -> expected cash -> counted cash -> variance -> manager confirmation.
+
+10. SALES
+---------
+Long-term flow: Quotation -> Sales Order -> Delivery Note -> Invoice -> Payment -> Return/Credit Note.
+
+Track sale ID, invoice number, terminal invoice number, customer, store, device, cashier, salesperson, date, due date, items, price, discount, tax, charges, cost snapshot, gross profit, payment status, notes, attachments, activity timeline and audit history.
+
+Posted financial sales should not be silently edited. Use Void, Cancel, Reverse, Return, Credit Note or Reverse & Recreate. Metadata edits can be permission-controlled.
+
+11. PURCHASES
+-------------
+Purchase Request -> Purchase Order -> Goods Receipt -> Supplier Invoice -> Payment -> Purchase Return.
+Add partial delivery, backorder, expected delivery, approval, landed cost, freight, supplier price comparison and price history.
+
+12. CUSTOMERS
+-------------
+- Customer ID/code
+- Multiple phones/email/GSTIN/addresses
+- Credit limit/days
+- Outstanding/aging/statement/payment history
+- Purchase history
+- Loyalty/membership/price group
+- Tags/notes/attachments/custom fields
+- Activity timeline and profitability
+- Protected Walk-in Customer
+
+13. SUPPLIERS
+-------------
+- Supplier ID/code
+- GSTIN/contact people/addresses
+- Products supplied
+- Outstanding/aging/statement/payment history
+- Last prices/rating/lead time
+- Notes/attachments
+
+14. PAYMENTS & RECEIVABLES/PAYABLES
+-----------------------------------
+- Customer receipts and supplier payments
+- Invoice allocation
+- Advances/refunds/reversals
+- Cash/bank/UPI/card references
+- Aging buckets: Current, 1-30, 31-60, 61-90, 90+
+- Overdue alerts/promised dates/collection notes/reminder history
+
+15. EXPENSES
+------------
+Categories/subcategories, recurring expenses, location assignment, tax, vendor, employee reimbursement, attachments, approvals, limits, audit/edit history and reversal.
+
+16. ACCOUNTING
+--------------
+Chart of Accounts, General Ledger, customer/supplier ledger, cash/bank books, journals, Trial Balance, P&L, Balance Sheet, Cash Flow, COGS, inventory asset, GST accounts, opening balances, fiscal years, accounting periods and period locking.
+
+17. BANKING
+-----------
+Multiple accounts, bank reconciliation, statement import, payment matching, deposits, cheques, bounced payments, UPI/card settlement.
+
+18. GST / INDIA TAX
+-------------------
+GSTIN, HSN/SAC, CGST/SGST/IGST, tax-inclusive/exclusive pricing, place of supply, intra/inter-state logic, reverse charge, GST reports, HSN summaries and GSTR-ready exports.
+
+19. INVOICE & PRINTING SYSTEM
+-----------------------------
+Support A4, 80mm and optional 58mm.
+
+Template features:
+- Business/branch logo and identity
+- GSTIN/phone/email/address
+- Customer GST details
+- Invoice/sale/terminal numbers
+- HSN/SAC
+- Items/qty/price/discount/tax
+- Payment/balance
+- Bank/UPI QR
+- Terms/footer/signature
+- Duplicate/reprint marking
+- Print history
+- PDF/email/WhatsApp
+- Printer assignment per terminal
+- Default template per business/store/device
+
+Keep internal transaction IDs and separate terminal/local invoice sequence, e.g. SAL-000001 plus MAIN-POS01-INV-000001.
+
+20. REPORTS
+-----------
+Filters: date, store, user, cashier, product, category, brand, customer, supplier, payment method.
+Reports: sales/purchases/expenses/profit/tax/inventory valuation/stock movement/low stock/dead stock/top products/top customers/top suppliers/cashier/store/category/brand/hourly/daily/monthly/payment-method/credit/aging/returns/discounts/voids. Export CSV/Excel/PDF.
+
+21. DASHBOARD
+-------------
+Customizable widgets: today/month sales, purchases, expenses, gross/net profit, receivables/payables, low stock, top products/customers, trends, cash flow, alerts, approvals and store comparison.
+Industry widgets for Restaurant, Workshop and Production.
+
+22. GLOBAL SEARCH
+-----------------
+Client and POS global search across products/SKU/barcode/part number/customers/phones/suppliers/sales/invoices/purchases/payments/tracking IDs. Add Ctrl+K, recent searches, categorized results and quick open.
+
+23. USERS & PERMISSIONS
+-----------------------
+Roles: Owner, Manager, Cashier, Salesperson, Store Keeper, Accountant and custom roles.
+Support username/password, Client/POS access, location assignment, multiple location assignment, view/operate/manage, active/inactive, reset, login history, sessions, force logout, optional 2FA and later trusted-device POS PIN.
+
+Permissions should be granular: view/create/edit metadata/void/return/receive payment/discount/override price/view cost/view profit/adjust stock/transfer/export/approve/manage users/settings. Also location scoped.
+
+24. APPROVAL WORKFLOW
+---------------------
+Configurable approvals for discounts, voids, refunds, large expenses/purchases, stock adjustments, price overrides, supplier payments and journals.
+
+25. AUDIT / ERROR LOGGING / SUPPORT
+-----------------------------------
+Audit every important change with user/business/store/device/entity/before/after/time/reason/app version.
+Error logs should capture message, stack trace, tenant, location, device, screen, app version and severity.
+Add Report Issue, screenshot attachment, Generate Support Report and downloadable diagnostics.
+
+26. NOTIFICATIONS / TASKS / DOCUMENTS
+-------------------------------------
+Notifications: low stock, overdue balances, subscription expiry, approvals, production delays, delayed KOT, device offline, failed sync/backup, app updates.
+Tasks: assign user, due date, priority, customer/supplier follow-up, comments/reminders.
+Attachments: images/PDFs for products, customers, suppliers, sales, purchases, expenses, jobs, production, vehicles, patients and lab results.
+
+27. PRODUCTION / MANUFACTURING
+------------------------------
+BOM/recipe, raw materials, production order, planned quantity, material issue/return, actual consumption, wastage/scrap/by-products, labour/machine cost, batch/stages, completion, finished stock and production costing/history.
+
+28. TRANSPORT / TAXI / TRUCK
+----------------------------
+Vehicle/driver/customer/trip/start/destination/distance/load/rate/km or ton/fuel/toll/driver expense/status/billing/profit/maintenance/service/insurance/permit reminders.
+
+29. WORKSHOP / GARAGE
+---------------------
+Customer -> Vehicle -> Job Card -> Inspection -> Estimate -> Approval -> Parts+Labour -> Work -> Invoice -> Service History.
+Add VIN/chassis, odometer, technician, checklist, status, expected completion, attachments and service reminders.
+
+30. RESTAURANT
+--------------
+Dine-in/takeaway/delivery, tables/floor layout, waiters, menu, modifiers/add-ons/combos, KOT, kitchen status, prep timer, chef notes, table transfer/merge, split bill, multiple KOTs, hold order, item availability and delivery address history.
+
+31. PHARMACY / CLINIC / LAB
+---------------------------
+Pharmacy: medicine/generic/manufacturer/batch/expiry/MRP/rack/prescription/near-expiry/expired-stock blocking/substitutes.
+Clinic/Hospital: patients/doctors/appointments/consultation/prescription/billing/pharmacy/departments with strict clinical permissions/auditing.
+Lab: patient/test/panel/order/sample barcode/collection/processing/result/verification/referral/turnaround/billing/report.
+
+32. CUSTOM FIELDS
+-----------------
+Tenant-created text/number/date/dropdown/checkbox/multi-select fields for products/customers/suppliers/vehicles/job cards/patients/lab/service. Support required/searchable/role-visible/invoice-visible options.
+
+33. BULK IMPORT / EXPORT
+------------------------
+Products/customers/suppliers/opening stock/categories/prices/users via CSV/Excel. Include templates, mapping preview, validation, duplicate detection, error rows, retries, progress and import history. Export CSV/Excel/PDF/full business export.
+
+34. BACKUP / OFFLINE / RELEASE MANAGEMENT
+-----------------------------------------
+Backup status/verification/restore/data portability/archive/migration/recovery tests.
+POS offline resilience: preserve cart, network indicator, idempotent retries, duplicate prevention and later controlled offline transaction queue.
+Release management: device version, latest/minimum version, update required, release notes, optional/mandatory updates.
+
+35. SUBSCRIPTIONS / ONBOARDING / PLATFORM ADMIN
+----------------------------------------------
+Plans: Trial, Starter, Business, Professional, Enterprise, Custom with modules/users/locations/POS/product/invoice/API/support limits.
+Onboarding: Industry -> Template -> Business -> GST -> Main Store -> Modules -> Subscription -> Owner -> Invoice -> Product Import -> POS Activation -> Finish. Show setup completion percentage.
+Platform roles: Super Admin, Support, Billing, Sales, Technical, Auditor. Platform features: businesses/modules/templates/subscriptions/admins/settings/logs/templates/versions/announcements/support/maintenance/feature flags/usage.
+
+36. INTEGRATIONS / API / AI
+---------------------------
+Future integrations: WhatsApp, Email, SMS, UPI, gateway, printers, scanners, scales, Tally/export, e-commerce, delivery, API/webhooks, ANPR/CCTV.
+API: tenant keys, scopes, limits, logs, versioning, docs, sandbox.
+AI later: natural-language reports, report summaries, categorization, import mapping, expense classification, OCR, reordering, anomaly detection and error diagnosis. Never let AI silently change stock/accounting/payments/permissions.
+
+37. TESTING / OBSERVABILITY / DISASTER RECOVERY
+-----------------------------------------------
+Automated tests for auth, username uniqueness, device activation, tenant/location isolation, permissions/modules/subscriptions, products/SKU, sales/purchases/stock/cost/negative stock/walk-in/credit/payments/returns/tax/reports/POS duplicate submit/restaurant/production/transport.
+Observe Edge Function/RPC errors, slow queries, login/device/payment/import/report failures and app crashes. Add System Health dashboard.
+Document backup/restore/migration rollback/emergency access/incident handling/lost-terminal revocation/credential rotation.
+
+============================================================
+UI / UX MASTER IMPROVEMENT PLAN
+============================================================
+
+38. GLOBAL DESIGN SYSTEM
+------------------------
+Use Material 3 with consistent typography, spacing, iconography, cards, tables, dialogs and form fields.
+Recommended spacing scale: 4, 8, 12, 16, 24, 32px.
+Recommended radius: 8-10px controls, 14-18px cards, 18-24px dialogs.
+Use subtle shadows; avoid clutter and excessive borders.
+
+39. CLIENT ERP NAVIGATION
+-------------------------
+Desktop sidebar:
+- Logo/business
+- Search
+- Dashboard
+- Inventory
+- Sales
+- Purchases
+- Customers
+- Suppliers
+- Payments
+- Expenses
+- Accounting
+- Reports
+- Production
+- Service
+- Restaurant
+- Locations & Systems
+- Team & Access
+- Settings
+
+Top bar:
+- Breadcrumb
+- Store selector
+- Global search
+- Notifications
+- Help
+- User profile
+
+Sidebar should be collapsible, searchable and remember its state.
+
+40. PAGE HEADER PATTERN
+-----------------------
+Every page should use:
+Title + short description + context selector + primary action + secondary actions.
+Avoid squeezing many buttons into one Row; use responsive Wrap.
+
+41. TABLES & FILTERS
+--------------------
+Sticky headers, search, filters, sort, pagination, column visibility, export, row click, selection/bulk actions, saved views and consistent status badges.
+Reusable filters: date range/store/status/customer/supplier/payment/category/brand/cashier. Include Clear All and Save View.
+
+42. EMPTY / LOADING / ERROR / SUCCESS STATES
+---------------------------------------------
+Never show a blank page. Use helpful empty-state text and actions.
+Use skeleton cards/table rows rather than only spinners.
+Show friendly errors with Retry and optional Technical Details.
+Use lightweight success toasts with contextual actions such as View Sale / Print.
+
+43. DASHBOARD UI
+----------------
+Top summary cards: Today Sales, Gross Profit, Receivables, Expenses.
+Middle: sales trend, store comparison, payment methods.
+Bottom: low stock, top products/customers, alerts.
+Allow configurable widgets later.
+
+44. INVENTORY UI
+----------------
+Header: Inventory + Store selector + Add Product + Import.
+Filters: search/category/brand/stock status.
+Rows/cards: name/SKU/part number/brand/category/stock/cost/selling price/status.
+Product detail tabs: Overview, Stock by Store, Movements, Purchases, Sales, Pricing, Files, Audit.
+
+45. SALES UI
+------------
+Sales list filters by search/date/store/customer/status/payment.
+Columns: Invoice, Sale ID, Date, Customer, Store, Total, Paid, Balance, Cashier, Status.
+New Sale should use large autocomplete search, keyboard navigation, recent products, clear customer selection, sticky totals and Complete Sale.
+
+46. POS UI
+----------
+Desktop layout:
+LEFT collapsible navigation.
+CENTER product search/categories/grid/list.
+RIGHT cart.
+BOTTOM sticky total + Checkout.
+
+Product cards: name, SKU, price, stock and optional image only. Keep them uncluttered.
+Auto-focus search. Suggested shortcuts: F2 Search, F4 Customer, F8 Payment, Esc Back, Enter Confirm.
+
+47. POS PAYMENT UI
+------------------
+Large total at top.
+Payment methods as large buttons.
+Cash received field.
+Quick cash buttons.
+Large change display.
+Back and Confirm Payment actions separated clearly.
+
+48. CUSTOMER / SUPPLIER DETAIL UI
+---------------------------------
+Tabs: Overview, Transactions, Outstanding, Payments, Statement, Notes, Files, Activity.
+Summary cards: Outstanding, Total Sales/Purchases, Last Transaction, Credit Limit.
+
+49. ACCOUNTING / REPORT UI
+--------------------------
+Accounting home should start with understandable cards: Revenue, COGS, Gross Profit, Expenses, Net Profit, Receivables, Payables, Cash, Bank. Then quick links to P&L, Balance Sheet, Trial Balance, Ledger, GST, Cash Book.
+Reports: filters at top/left, cards + graph in middle, detailed table below, export actions.
+
+50. ADMIN PANEL UI
+------------------
+Sidebar: Home, Businesses, Modules, Templates, Subscriptions, Platform Admins, Invoice Templates, App Versions, Feature Flags, Error Logs, Audit Log, Support, Settings.
+Always provide Home, breadcrumb and Back navigation. Add business search, quick actions, recent businesses and platform alerts.
+
+51. RESPONSIVE / THEME / ACCESSIBILITY
+--------------------------------------
+Client: desktop/web/tablet/mobile where practical.
+POS: Windows/Android tablet/touch.
+Use LayoutBuilder/Wrap/Flexible/Expanded and responsive breakpoints; never allow header overflow.
+Support Light/Dark/System theme and optional tenant accent color/logo.
+Accessibility: keyboard-only navigation, focus indicators, high contrast, proper touch targets, screen reader labels and large text.
+
+52. PERFORMANCE UX
+------------------
+Use server pagination/search, debounced search, indexed columns, lazy loading, cached reference data and background generation for heavy reports later. Do not load thousands of rows at once.
+
+53. USER PREFERENCES
+--------------------
+Remember last store, sidebar state, table columns, page size, theme, saved filters and favorite modules.
+
+54. UX SAFETY
+-------------
+Dangerous actions such as Delete/Void/Refund/Stock Adjustment/Permission Change should show exactly what will happen, require permission, optionally require a reason and always create an audit record.
+
+============================================================
+PRODUCTION-READINESS ROADMAP
+============================================================
+
+55. BEFORE FLEXI ERP 1.0
+------------------------
+Highest priority:
+1. True branch-wise stock.
+2. Stock transfer.
+3. Sales/purchase returns.
+4. Safe void/reversal.
+5. Professional A4/80mm printing.
+6. Cashier shifts/cash drawer.
+7. Receivables/payables aging.
+8. Payment allocation.
+9. Backup/export.
+10. Error/support tooling.
+11. App update/version control.
+12. Permission/RLS audit.
+13. Regression testing.
+14. Multi-store security testing.
+15. GST validation.
+
+56. PILOT PHASE
+---------------
+Test with 2-3 real businesses, ideally Retail/Auto Parts, Workshop and Restaurant.
+Observe cashier speed, product search, purchases, stock accuracy, invoice printing, payments, reports, permissions, branches and real support issues. Fix real-user pain before adding many more modules.
+
+57. INDUSTRY PACK ORDER
+-----------------------
+Recommended: Retail/Wholesale -> Workshop -> Restaurant -> Production -> Transport -> Pharmacy -> Clinic -> Diagnostic Lab -> Hospital.
+Healthcare comes later because security/privacy requirements are much higher.
+
+58. COMMERCIAL READINESS
+------------------------
+Prepare installation guides, admin/owner/cashier manuals, troubleshooting, FAQ, release notes, demo tenant, support system, Privacy Policy, Terms of Service, Subscription Terms, data retention/cancellation/support/backup policies.
+
+59. THINGS TO AVOID
+-------------------
+- Never place Supabase service-role keys in Flutter.
+- Never rely only on hidden UI for permissions.
+- Never silently rewrite posted financial records.
+- Never hard-code industries everywhere.
+- Never create one huge table for every industry.
+- Never expose tenant data to Platform Admin by default.
+- Never create separate stock/accounting engines for POS/Restaurant/Workshop.
+- Never sacrifice ledger integrity for easy editing.
+- Never add dozens of modules before the core is proven.
+- Never make UI complicated simply to look advanced.
+
+60. FINAL PRODUCT PRINCIPLES
+----------------------------
+Flexi ERP should always be:
+- Simple for a cashier.
+- Powerful for an owner.
+- Accurate for an accountant.
+- Configurable for different industries.
+- Secure for every tenant.
+- Traceable for support.
+- Fast with large datasets.
+- Flexible for multiple stores.
+- Easy to deploy, update and support.
+- Modular, auditable and reliable.
+
+The strongest Flexi ERP architecture is one where the same trusted engines for inventory, sales, purchases, payments, accounting, permissions, stores, users and audit can safely power many different industries.
+
+END OF MASTER NOTE
+
+
+Finish true branch-wise stock. This is probably the biggest remaining architectural item. MAIN, Branch 1, Branch 2, Warehouse, etc. should each have their own physical stock balances, with stock transfer between locations and merged/company-wide reporting.
+Add proper transaction correction instead of free editing. Posted Sales/Purchases should support Void, Cancel, Return, Credit Note, Debit Note, and Reverse & Recreate. This preserves stock, GST, payments, profit, and audit history.
+Cashier shift / cash register management. For POS, add Opening Cash → cashier shift → cash sales/expenses → Closing Cash → expected cash → counted cash → difference. This is extremely useful for real shops/restaurants.
+Finish invoice/printing as a proper subsystem. A4 and 80mm templates, business/branch logo, GSTIN, phone/address, customer GST details, payment method, QR/UPI area, terms, configurable footer, duplicate/reprint marking, printer selection, PDF save/share, and separate designs per branch/terminal.
+Inventory operations: Stock Transfer, Physical Stock Count, damaged/lost stock, reorder level, low-stock alerts, barcode/label printing, serial-number tracking, batch/expiry support, multiple selling prices and purchase history.
+Sales flow expansion: Quotation → Sales Order → Delivery → Invoice → Payment → Return. This will make Flexi useful to wholesale/distribution/service businesses too.
+Purchasing flow expansion: Purchase Order → Goods Received → Supplier Invoice → Payment → Purchase Return.
+Better receivables/payables. Add aging buckets like Current, 1–30 days, 31–60, 61–90, 90+, plus promised-payment date, overdue reminders, customer/supplier statements, and payment allocation against specific invoices.
+Approval system. Examples: discount above 20% requires Manager, expense above ₹10,000 requires Owner, stock adjustment requires approval, voided invoice requires reason. Make thresholds configurable per business.
+Custom fields. Let a business add fields without code: Product → OEM Number; Customer → Vehicle Number; Workshop → Chassis; Lab → Referral Doctor, etc. This will make industry customization much easier.
+File attachments. Attach supplier invoices, warranty photos, prescriptions, job-card images, purchase documents, customer documents, etc., with permission controls.
+Notifications Center. Low stock, overdue customer payments, supplier dues, subscription expiry, failed sync, pending approvals, production delays, restaurant KOT delay, etc.
+Offline/reconnect safety. Especially important for POS. If internet disappears temporarily, at minimum the UI should clearly preserve the cart and prevent accidental duplicate billing when connection returns. A later phase could support a controlled offline queue.
+Backup / export / migration tools. Full business export, CSV/Excel import, customer/product/supplier exports, accounting export, scheduled backup metadata, and a clear restore/migration procedure. This is very important before selling the software.
+Release/update system. Admin should know every installed system: Counter 1 → POS v3.2.1, Office PC → Client v3.2.0. Then show Update Required, Latest, Unsupported, and optionally force critical updates.
+Better error/support center. You already have logs; take it further with app version, device ID, business ID, terminal ID, screen, timestamp, exception, stack trace, and a “Generate Support Report” button. That will save you enormous time once clients start calling.
+Security hardening. Keep username/password for normal login, optional 4-digit quick PIN only on already-activated POS terminals, 2FA for Owner/Platform Admin, device revocation, session history, login attempts, forced logout, and permissions such as sales.view_profit and inventory.view_cost.
+Onboarding Wizard. When creating a business: Industry → Template → Locations → Tax → Invoice → Modules → Owner → Products import → POS activation. Then show a setup percentage like 85% Complete. This could make Flexi much easier to deploy to new customers.
+Feature Flags / Beta modules. Super Admin should be able to make a feature Stable, Beta, Hidden, or enable it only for selected businesses. This will let you test Restaurant/Production/etc. without risking every customer.
+Dashboard customization. Let Owner choose widgets. Retail may want Sales/Profit/Low Stock; Restaurant wants Today's Orders/Table Status/KOT Times; Workshop wants Open Jobs/Vehicle Deliveries; Production wants Active Runs/Material Consumption.
+Saved views and powerful filtering. For Sales, Inventory, Purchases, Customers, etc.: date, branch, cashier, category, payment status, amount, product, customer, salesperson. Let users save filters like Overdue Customers or Today's Cash Sales.
+Activity timeline everywhere. Open a Sale/Product/Customer and show: created by, modified by, payments, returns, stock movements, notes, invoice reprints, location, terminal and timestamps.
+Internal notes/tasks. “Call customer tomorrow”, “Supplier promised delivery Friday”, “Vehicle waiting for alternator”, with assignment to users and due dates.
+Restaurant Phase 2: table merge/split, transfer table, split bill, multiple KOTs, waiter assignment, kitchen display, modifiers/add-ons, combo items, item availability, preparation-time warnings, delivery customer/address history.
+Workshop Phase 2: vehicle history, odometer, job card, technician assignment, inspection checklist, estimated delivery, labour charges, parts consumption, quotation approval and service reminders.
+Production Phase 2: BOM/recipe, planned quantity vs actual, wastage/by-product, production stages, batch number, raw-material reservation and finished-goods costing.
+Integrations later: WhatsApp/email invoices, payment gateway/UPI, e-commerce, API/webhooks, accounting exports, barcode scanners, weighing scales and printer integrations. I would keep these as separate integration modules so the ERP core stays clean.
+
+
+34. Another exception was thrown: A RenderFlex overflowed by 31 pixels on the right.
+     Another exception was thrown: ListTile background color or ink splashes may be invisible.
+35. pos: 
+    a. in billing under current sale - move customer selection details to middle panel with category and sort.
+	b. reduce the size of produt selected or cart. make it so its simple and can show more products without scrolling. 
+	C. move discount options to payment page.
+	d. need to confirm payment in 2nd page. show all deatils in 3rd confirmation page in payment page itself. 
+    e. make it two panel left and right. left payment , right details. make payment method a dropdown or somthing small and simple. 	
+    f. make the ui clean.
+36. need an option to add , edit , remove new accounts for accounting. 	
+37. need to make an credit account for credit transactions, a bank account for bank , upi , card transactions. and cash account for cash trasnsactions. this will be acoounts we manage the accounting.
+	and purchase acc, sales account , etc etc.
+38. 	client: 
+   a. sales and purchase have errors.
+   b. make in client sale and purchase are in the there menus. no need to move to a new page when clicking new sale or purachase.
+   c. also merge find in menu and search ERP option one. and remove search erp.
+   d. in inventory and all other menus like sale or purchase or expence, in client app we should be able to add or edit product or sale of individual child stores. and terminals. right now every product i add is adding for all the child store.change it.
+   
+39. also show details of who is loged in top. in both pos and client.
+40. also reacord when and who or which user made the sale. only for admin purpose. maybe just save it in table in subspace
+41. in case of any issues we need a backup of all details. like invoice , purchase, expense , customers etc etc. all..
+42.   accounting need submenus. like sales register, purchase register, etc etc...
+43. in accounts and date search options or product wise or invoie number search. 
+
+

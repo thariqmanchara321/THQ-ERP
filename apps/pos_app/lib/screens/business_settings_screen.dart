@@ -1,0 +1,224 @@
+import 'package:flutter/material.dart';
+
+import '../models/client_session.dart';
+import '../services/tenant_settings_service.dart';
+
+class BusinessSettingsScreen extends StatefulWidget {
+  final ClientSession session;
+  const BusinessSettingsScreen({super.key, required this.session});
+  @override
+  State<BusinessSettingsScreen> createState() => _BusinessSettingsScreenState();
+}
+
+class _BusinessSettingsScreenState extends State<BusinessSettingsScreen> {
+  final _service = TenantSettingsService();
+  bool _loading = true;
+  bool _saving = false;
+  String? _error;
+  Map<String, dynamic> _settings = {};
+
+  bool get _canManage =>
+      widget.session.hasRole('owner') ||
+      widget.session.hasPermission('settings.manage');
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      _settings = await _service.getSettings(widget.session.business.id);
+    } catch (error) {
+      _error = error.toString();
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  T _value<T>(String key, T fallback) {
+    final value = _settings[key];
+    return value is T ? value : fallback;
+  }
+
+  Future<void> _save() async {
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
+    try {
+      await _service.setSettings(widget.session.business.id, _settings);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Business settings saved. Sign out/in to refresh session-wide settings.',
+          ),
+        ),
+      );
+    } catch (error) {
+      if (mounted) setState(() => _error = error.toString());
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading) return const Center(child: CircularProgressIndicator());
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(28),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 900),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Business Settings',
+                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Tenant-level behavior. These settings override platform/template defaults.',
+                style: TextStyle(color: Colors.grey.shade600),
+              ),
+              const SizedBox(height: 22),
+              _section('Sales & POS', [
+                SwitchListTile(
+                  title: const Text('Tax-inclusive selling prices'),
+                  subtitle: const Text(
+                    'When future invoice/POS pricing supports inclusive tax, treat displayed selling price as tax-inclusive.',
+                  ),
+                  value: _value('sales.tax_inclusive', false),
+                  onChanged: !_canManage
+                      ? null
+                      : (v) => setState(
+                          () => _settings['sales.tax_inclusive'] = v,
+                        ),
+                ),
+                SwitchListTile(
+                  title: const Text('Allow negative stock'),
+                  value: _value('inventory.allow_negative_stock', false),
+                  onChanged: !_canManage
+                      ? null
+                      : (v) => setState(
+                          () => _settings['inventory.allow_negative_stock'] = v,
+                        ),
+                ),
+                DropdownButtonFormField<String>(
+                  initialValue: _value('pos.default_payment_method', 'cash'),
+                  decoration: const InputDecoration(
+                    labelText: 'POS default payment method',
+                    border: OutlineInputBorder(),
+                  ),
+                  items: const [
+                    DropdownMenuItem(value: 'cash', child: Text('Cash')),
+                    DropdownMenuItem(value: 'upi', child: Text('UPI')),
+                    DropdownMenuItem(value: 'card', child: Text('Card')),
+                    DropdownMenuItem(value: 'bank', child: Text('Bank')),
+                  ],
+                  onChanged: !_canManage
+                      ? null
+                      : (v) {
+                          if (v != null) {
+                            setState(
+                              () => _settings['pos.default_payment_method'] = v,
+                            );
+                          }
+                        },
+                ),
+              ]),
+              const SizedBox(height: 16),
+              _section('Documents', [
+                TextFormField(
+                  initialValue: _value('documents.invoice_footer', ''),
+                  enabled: _canManage,
+                  decoration: const InputDecoration(
+                    labelText: 'Invoice footer',
+                    border: OutlineInputBorder(),
+                  ),
+                  onChanged: (v) => _settings['documents.invoice_footer'] = v,
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  initialValue: _value('documents.terms', ''),
+                  enabled: _canManage,
+                  maxLines: 3,
+                  decoration: const InputDecoration(
+                    labelText: 'Default terms / notes',
+                    border: OutlineInputBorder(),
+                  ),
+                  onChanged: (v) => _settings['documents.terms'] = v,
+                ),
+              ]),
+              const SizedBox(height: 16),
+              _section('Operations', [
+                SwitchListTile(
+                  title: const Text('Require approval for large discounts'),
+                  value: _value('approvals.discount_enabled', false),
+                  onChanged: !_canManage
+                      ? null
+                      : (v) => setState(
+                          () => _settings['approvals.discount_enabled'] = v,
+                        ),
+                ),
+                TextFormField(
+                  initialValue: '${_value('approvals.discount_percent', 20)}',
+                  enabled: _canManage,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: 'Discount approval threshold %',
+                    border: OutlineInputBorder(),
+                  ),
+                  onChanged: (v) => _settings['approvals.discount_percent'] =
+                      double.tryParse(v) ?? 20,
+                ),
+              ]),
+              if (_error != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 16),
+                  child: Text(
+                    _error!,
+                    style: const TextStyle(color: Colors.red),
+                  ),
+                ),
+              const SizedBox(height: 20),
+              if (_canManage)
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: FilledButton.icon(
+                    onPressed: _saving ? null : _save,
+                    icon: const Icon(Icons.save_outlined),
+                    label: Text(_saving ? 'Saving...' : 'Save Settings'),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _section(String title, List<Widget> children) => Card(
+    child: Padding(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(fontSize: 19, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 14),
+          ...children,
+        ],
+      ),
+    ),
+  );
+}

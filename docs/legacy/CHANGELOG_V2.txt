@@ -1,0 +1,41 @@
+FLEXI ERP PLATFORM V2 - 2026-08-15
+
+ADMIN PANEL
+- Wired Module Catalogue screen; supports creating/editing module metadata.
+- Added module dependencies, business-type recommendations, active/beta/config flags.
+- Added Business Templates editor.
+- Added Subscription Plans editor with module entitlements and usage-limit metadata.
+- Added per-business subscription management.
+- Added platform admin role management (existing authenticated users only).
+- Added Platform Settings editor.
+- Added Platform Audit Log screen.
+- Added platform overview metrics.
+- Upgraded Create Business to apply templates, plan constraints and tenant settings.
+- Business module changes now call the V2 protected dependency/entitlement RPC.
+- Removed unused/broken inventory UI remnants from admin_panel; tenant inventory belongs in client_app.
+
+CLIENT APP
+- Preserved existing ERP transaction modules and previous V1 extension work.
+- Added subscription and entitlement context to ClientSession.
+- Added subscription status banner/restricted module handling.
+- Added real POS screen over existing inventory/customers/sales_create.
+- POS supports search/barcode/SKU quick add, quantity, line discount, payment methods and cash change.
+- Added tenant Business Settings screen.
+- Added industry-pack workspace navigation for Restaurant, Workshop, Healthcare, Pharmacy and Lab.
+- Added POS/Settings/industry module icons/routes.
+
+BACKEND
+- Preserved additive V1 migrations 001-005.
+- Added Platform V2 schema: module metadata/dependencies, templates, plans, subscriptions, settings, platform admin roles, audit log.
+- Seeded POS and industry modules/templates/plans.
+- Added protected platform/admin/client RPCs.
+- Added dependency- and subscription-aware tenant-module update RPC.
+- Existing tenants receive Settings module; no subscription is forced on existing tenants.
+
+NOT INCLUDED AS COMPLETED DOMAIN WORKFLOWS
+- Restaurant KOT/table/order database workflows
+- Workshop job-card database workflow
+- Hospital/clinic clinical records
+- Lab sample/result records
+- Pharmacy batch/expiry schema
+These should be separate industry packs. The V2 module/template platform is prepared for them, but the bundle does not pretend generic placeholders are production domain systems.

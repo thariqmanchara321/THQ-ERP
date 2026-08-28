@@ -1,0 +1,39 @@
+CURRENT LIVE PROJECT: migrations 001-029 are already installed. DO NOT RERUN THEM.
+
+RUN ONE AT A TIME:
+030_v4_branch_inventory.sql
+031_v4_branch_transactions.sql
+032_v4_stock_transfers_counts.sql
+033_v4_returns_reversals.sql
+034_v4_cashier_shifts.sql
+035_v4_accounting_core.sql
+036_v4_accounting_posting_registers.sql
+037_v4_invoice_printing.sql
+038_v4_backup_export.sql
+039_v4_notifications_tasks_files.sql
+040_v4_approvals_custom_fields.sql
+041_v4_saved_views_activity.sql
+042_v4_release_support.sql
+043_v4_industry_phase2.sql
+044_v4_reports_analytics_gst.sql
+045_v4_modules_permissions_templates.sql
+046_v4_runtime_search.sql
+047_v4_verify.sql
+048_v4_scoped_dashboard_reports.sql
+049_v4_final_verify.sql
+050_v4_complete_backup.sql
+051_v4_actor_attribution.sql
+052_v4_final_verify_complete.sql
+053_v4_return_accounting_balances.sql
+054_v4_financial_verify.sql
+055_v4_configuration_notifications.sql
+056_v4_final_verification.sql
+057_v4_workshop_operations.sql
+058_v4_verify_everything.sql
+059_v4_location_branding_invoice_context.sql
+060_v4_absolute_final_verify.sql
+061_v4_rpc_security_hardening.sql
+062_v4_release_candidate_verify.sql
+
+FINAL EXPECTED MESSAGE:
+FLEXI ERP V4 RELEASE CANDIDATE VERIFICATION PASSED

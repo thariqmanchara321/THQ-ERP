@@ -1,0 +1,26 @@
+FLEXI ERP PLATFORM V3
+
+Added:
+- Username authentication facade for Admin/Client/POS.
+- Globally unique usernames and V3 user management.
+- Standalone POS app.
+- Human-readable immutable entity tracking codes and lookup.
+- Tenant error/issue logs, platform error logs, business audit history.
+- Safe sale metadata editing and audited expense editing.
+- Invoice-template management and A4/80mm samples/assignment/preview.
+- Pending receivables/payables centre.
+- Top product/customer analytics and sales trend.
+- Bulk products/customers/suppliers import.
+- Sales product autocomplete.
+- Modern Material 3 polish.
+
+Preserved:
+- Existing inventory ledger and stock balances.
+- Existing moving-average costing.
+- Existing sales_create / purchases_create transaction engines.
+- Existing sale/purchase payment engines.
+- Multi-tenant module/permission/subscription architecture.
+
+Intentional safety limits:
+- Posted sale quantities/prices/taxes are not silently mutated.
+- Direct PDF/thermal printer spooler is not included in this V3 validation pass.

@@ -1,0 +1,29 @@
+# Dart / Flutter
+.gradle/
+**/.gradle/
+.dart_tool/
+.packages
+build/
+**/build/
+.flutter-plugins
+.flutter-plugins-dependencies
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# Node / Supabase local
+node_modules/
+supabase/.temp/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Secrets / local env
+.env
+.env.*
+*.jks
+*.keystore
+key.properties
