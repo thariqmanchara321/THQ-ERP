@@ -109,7 +109,7 @@ class PurchaseService {
     required String purchaseId,
   }) async {
     final result = await _supabase.rpc(
-      'purchases_get_detail_v32',
+      'purchases_get_detail_v520',
       params: {'p_tenant_id': tenantId, 'p_purchase_id': purchaseId},
     );
     if (result is Map) {

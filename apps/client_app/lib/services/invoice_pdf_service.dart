@@ -59,6 +59,85 @@ class InvoicePdfService {
     return local.isNotEmpty ? local : sale.saleNumber;
   }
 
+  String _dateLabel(DateTime value) {
+    final local = value.toLocal();
+    return '${local.day.toString().padLeft(2, '0')}/'
+        '${local.month.toString().padLeft(2, '0')}/'
+        '${local.year}';
+  }
+
+  String _integerWords(int value) {
+    if (value == 0) return 'Zero';
+    const ones = [
+      '',
+      'One',
+      'Two',
+      'Three',
+      'Four',
+      'Five',
+      'Six',
+      'Seven',
+      'Eight',
+      'Nine',
+      'Ten',
+      'Eleven',
+      'Twelve',
+      'Thirteen',
+      'Fourteen',
+      'Fifteen',
+      'Sixteen',
+      'Seventeen',
+      'Eighteen',
+      'Nineteen',
+    ];
+    const tens = [
+      '',
+      '',
+      'Twenty',
+      'Thirty',
+      'Forty',
+      'Fifty',
+      'Sixty',
+      'Seventy',
+      'Eighty',
+      'Ninety',
+    ];
+    String belowHundred(int number) {
+      if (number < 20) return ones[number];
+      final tail = number % 10;
+      return '${tens[number ~/ 10]}${tail == 0 ? '' : ' ${ones[tail]}'}';
+    }
+
+    final parts = <String>[];
+    var remaining = value;
+    void take(int unit, String label) {
+      if (remaining < unit) return;
+      parts.add('${_integerWords(remaining ~/ unit)} $label');
+      remaining %= unit;
+    }
+
+    take(10000000, 'Crore');
+    take(100000, 'Lakh');
+    take(1000, 'Thousand');
+    take(100, 'Hundred');
+    if (remaining > 0) parts.add(belowHundred(remaining));
+    return parts.join(' ');
+  }
+
+  String _amountInWords(ClientSession session, double value) {
+    final minor = (value.abs() * 100).round();
+    final major = minor ~/ 100;
+    final remainder = minor % 100;
+    final prefix = value < 0 ? 'Minus ' : '';
+    if (session.currencyCode != 'INR') {
+      return '$prefix${_integerWords(major)} ${session.currencyCode} Only';
+    }
+    final paise = remainder == 0
+        ? ''
+        : ' and ${_integerWords(remainder)} Paise';
+    return '$prefix${_integerWords(major)} Rupees$paise Only';
+  }
+
   Future<Uint8List> build({
     required ClientSession session,
     required SaleDetail sale,
@@ -315,9 +394,21 @@ class InvoicePdfService {
               style: pw.TextStyle(fontSize: baseFont - .5),
             ),
           pw.Text(
-            'Date: ${sale.saleDate.toLocal().toString().split(' ').first}',
+            'Date: ${_dateLabel(sale.saleDate)}',
             style: pw.TextStyle(fontSize: baseFont - .5),
           ),
+          if (sale.gst?.authoritative == true) ...[
+            if ((sale.gst!.placeOfSupplyCode ?? '').isNotEmpty)
+              pw.Text(
+                'Place of Supply: ${sale.gst!.placeOfSupplyCode}',
+                style: pw.TextStyle(fontSize: baseFont - .5),
+              ),
+            pw.Text(
+              'Reverse Charge: '
+              '${(sale.gst!.taxMode ?? '').toLowerCase().contains('reverse') ? 'Yes' : 'No'}',
+              style: pw.TextStyle(fontSize: baseFont - .5),
+            ),
+          ],
           if (_flag(config, 'show_customer', true)) ...[
             pw.Text(
               'Customer: ${sale.customerName}',
@@ -519,6 +610,90 @@ class InvoicePdfService {
       );
     }
 
+    pw.Widget taxSummary() {
+      final gst = sale.gst;
+      final rows = gst?.rateSummaries ?? const <SaleGstRateSummary>[];
+      if (gst?.authoritative != true || rows.isEmpty) {
+        return pw.SizedBox();
+      }
+      pw.Widget cell(String value, {bool bold = false}) => pw.Padding(
+        padding: const pw.EdgeInsets.symmetric(horizontal: 3, vertical: 4),
+        child: pw.Text(
+          value,
+          style: pw.TextStyle(
+            fontSize: narrow ? baseFont - 1.4 : baseFont - 1,
+            fontWeight: bold ? pw.FontWeight.bold : null,
+          ),
+        ),
+      );
+      if (narrow) {
+        return pw.Column(
+          crossAxisAlignment: pw.CrossAxisAlignment.start,
+          children: [
+            pw.Text(
+              'TAX SUMMARY',
+              style: pw.TextStyle(
+                fontSize: baseFont,
+                fontWeight: pw.FontWeight.bold,
+              ),
+            ),
+            ...rows.map(
+              (row) => pw.Text(
+                '${row.rate.toStringAsFixed(2)}% | '
+                'Taxable ${_money(session, row.taxable)} | '
+                'Tax ${_money(session, row.taxTotal)}',
+                style: pw.TextStyle(fontSize: baseFont - 1),
+              ),
+            ),
+          ],
+        );
+      }
+      return pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.stretch,
+        children: [
+          pw.Text(
+            'TAX SUMMARY',
+            textAlign: pw.TextAlign.center,
+            style: pw.TextStyle(
+              fontSize: baseFont,
+              fontWeight: pw.FontWeight.bold,
+            ),
+          ),
+          pw.SizedBox(height: 4),
+          pw.Table(
+            border: pw.TableBorder.all(color: PdfColors.grey400, width: .4),
+            children: [
+              pw.TableRow(
+                decoration: const pw.BoxDecoration(color: PdfColors.grey200),
+                children: [
+                  cell('GST %', bold: true),
+                  cell('Taxable', bold: true),
+                  cell('CGST', bold: true),
+                  cell('SGST/UTGST', bold: true),
+                  cell('IGST', bold: true),
+                  cell('Cess', bold: true),
+                  cell('Total', bold: true),
+                ],
+              ),
+              ...rows.map(
+                (row) => pw.TableRow(
+                  children: [
+                    cell('${row.rate.toStringAsFixed(2)}%'),
+                    cell(_money(session, row.taxable)),
+                    cell(_money(session, row.cgst)),
+                    cell(_money(session, row.sgst + row.utgst)),
+                    cell(_money(session, row.igst)),
+                    cell(_money(session, row.cess)),
+                    cell(_money(session, row.total)),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
+      );
+    }
+
     pw.Widget totals() {
       pw.Widget row(String name, double value, {bool bold = false}) =>
           pw.Padding(
@@ -590,7 +765,19 @@ class InvoicePdfService {
           summary(),
           items(),
           pw.SizedBox(height: narrow ? 4 : 10),
+          taxSummary(),
+          if (sale.gst?.authoritative == true &&
+              sale.gst!.rateSummaries.isNotEmpty)
+            pw.SizedBox(height: narrow ? 4 : 10),
           totals(),
+          pw.SizedBox(height: narrow ? 4 : 8),
+          pw.Text(
+            'Amount in words: ${_amountInWords(session, sale.grandTotal)}',
+            style: pw.TextStyle(
+              fontSize: baseFont - .4,
+              fontWeight: pw.FontWeight.bold,
+            ),
+          ),
           if ((sale.notes ?? '').trim().isNotEmpty) ...[
             pw.SizedBox(height: narrow ? 4 : 8),
             pw.Text(

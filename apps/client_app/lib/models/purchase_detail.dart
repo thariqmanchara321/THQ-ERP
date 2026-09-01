@@ -27,6 +27,7 @@ class PurchaseDetail {
 
   final double paidAmount;
   final double balanceDue;
+  final PurchaseGstDetail? gst;
 
   const PurchaseDetail({
     required this.purchaseId,
@@ -50,6 +51,7 @@ class PurchaseDetail {
     required this.payments,
     required this.paidAmount,
     required this.balanceDue,
+    this.gst,
   });
 
   String get paymentStatus {
@@ -121,8 +123,170 @@ class PurchaseDetail {
           .toList(),
       paidAmount: number(map['paid_amount']),
       balanceDue: number(map['balance_due']),
+      gst: map['gst'] is Map
+          ? PurchaseGstDetail.fromMap(
+              Map<String, dynamic>.from(map['gst'] as Map),
+            )
+          : null,
     );
   }
+}
+
+class PurchaseGstDetail {
+  final bool authoritative;
+  final bool interstate;
+  final String? taxMode;
+  final String? supplyType;
+  final String? placeOfSupplyCode;
+  final double taxableTotal;
+  final double cgstTotal;
+  final double sgstTotal;
+  final double utgstTotal;
+  final double igstTotal;
+  final double cessTotal;
+  final double taxCollectedTotal;
+  final List<PurchaseGstLine> lines;
+
+  const PurchaseGstDetail({
+    required this.authoritative,
+    required this.interstate,
+    required this.taxMode,
+    required this.supplyType,
+    required this.placeOfSupplyCode,
+    required this.taxableTotal,
+    required this.cgstTotal,
+    required this.sgstTotal,
+    required this.utgstTotal,
+    required this.igstTotal,
+    required this.cessTotal,
+    required this.taxCollectedTotal,
+    required this.lines,
+  });
+
+  bool get hasComponentTax =>
+      cgstTotal.abs() > .0001 ||
+      sgstTotal.abs() > .0001 ||
+      utgstTotal.abs() > .0001 ||
+      igstTotal.abs() > .0001 ||
+      cessTotal.abs() > .0001;
+
+  List<PurchaseGstRateSummary> get rateSummaries {
+    final grouped = <String, PurchaseGstRateSummary>{};
+    for (final line in lines) {
+      final key = line.gstRate.toStringAsFixed(4);
+      grouped[key] =
+          (grouped[key] ?? PurchaseGstRateSummary(rate: line.gstRate)).add(
+            line,
+          );
+    }
+    final rows = grouped.values.toList()
+      ..sort((a, b) => a.rate.compareTo(b.rate));
+    return rows;
+  }
+
+  factory PurchaseGstDetail.fromMap(Map<String, dynamic> map) {
+    double n(dynamic value) => value is num
+        ? value.toDouble()
+        : double.tryParse(value?.toString() ?? '') ?? 0;
+    return PurchaseGstDetail(
+      authoritative: map['authoritative'] == true,
+      interstate: map['interstate'] == true,
+      taxMode: map['tax_mode']?.toString(),
+      supplyType: map['supply_type']?.toString(),
+      placeOfSupplyCode: map['place_of_supply_code']?.toString(),
+      taxableTotal: n(map['taxable_total']),
+      cgstTotal: n(map['cgst_total']),
+      sgstTotal: n(map['sgst_total']),
+      utgstTotal: n(map['utgst_total']),
+      igstTotal: n(map['igst_total']),
+      cessTotal: n(map['cess_total']),
+      taxCollectedTotal: n(map['tax_collected_total']),
+      lines: (map['lines'] as List? ?? const [])
+          .whereType<Map>()
+          .map((row) => PurchaseGstLine.fromMap(Map<String, dynamic>.from(row)))
+          .toList(growable: false),
+    );
+  }
+}
+
+class PurchaseGstLine {
+  final String sourceLineId;
+  final int lineNo;
+  final String hsnSac;
+  final double gstRate;
+  final double taxableValue;
+  final double cgst;
+  final double sgst;
+  final double utgst;
+  final double igst;
+  final double cess;
+  final double taxAmount;
+
+  const PurchaseGstLine({
+    required this.sourceLineId,
+    required this.lineNo,
+    required this.hsnSac,
+    required this.gstRate,
+    required this.taxableValue,
+    required this.cgst,
+    required this.sgst,
+    required this.utgst,
+    required this.igst,
+    required this.cess,
+    required this.taxAmount,
+  });
+
+  factory PurchaseGstLine.fromMap(Map<String, dynamic> map) {
+    double n(dynamic value) => value is num
+        ? value.toDouble()
+        : double.tryParse(value?.toString() ?? '') ?? 0;
+    return PurchaseGstLine(
+      sourceLineId: map['source_line_id']?.toString() ?? '',
+      lineNo: (map['line_no'] as num?)?.toInt() ?? 0,
+      hsnSac: map['hsn_sac']?.toString() ?? '',
+      gstRate: n(map['gst_rate']),
+      taxableValue: n(map['taxable_value']),
+      cgst: n(map['cgst']),
+      sgst: n(map['sgst']),
+      utgst: n(map['utgst']),
+      igst: n(map['igst']),
+      cess: n(map['cess']),
+      taxAmount: n(map['tax_amount']),
+    );
+  }
+}
+
+class PurchaseGstRateSummary {
+  final double rate;
+  final double taxable;
+  final double cgst;
+  final double sgst;
+  final double utgst;
+  final double igst;
+  final double cess;
+
+  const PurchaseGstRateSummary({
+    required this.rate,
+    this.taxable = 0,
+    this.cgst = 0,
+    this.sgst = 0,
+    this.utgst = 0,
+    this.igst = 0,
+    this.cess = 0,
+  });
+
+  double get taxTotal => cgst + sgst + utgst + igst + cess;
+  double get total => taxable + taxTotal;
+
+  PurchaseGstRateSummary add(PurchaseGstLine line) => PurchaseGstRateSummary(
+    rate: rate,
+    taxable: taxable + line.taxableValue,
+    cgst: cgst + line.cgst,
+    sgst: sgst + line.sgst,
+    utgst: utgst + line.utgst,
+    igst: igst + line.igst,
+    cess: cess + line.cess,
+  );
 }
 
 class PurchaseDetailItem {

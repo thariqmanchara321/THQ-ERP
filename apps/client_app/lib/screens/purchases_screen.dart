@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:erp_core/erp_core.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../features/gst/gst_compliance_v520_service.dart';
 import '../models/client_session.dart';
 import '../models/inventory_product.dart';
 import '../models/purchase.dart';
@@ -35,6 +37,7 @@ class _PurchasesScreenState extends State<PurchasesScreen> {
   late Future<List<Purchase>> _purchasesFuture;
 
   bool _creating = false;
+  int _purchaseGeneration = 0;
 
   bool get _canManage => widget.session.hasPermission('purchases.manage');
 
@@ -94,12 +97,22 @@ class _PurchasesScreenState extends State<PurchasesScreen> {
   void _finishNewPurchase(bool created) {
     if (!mounted) return;
     setState(() {
-      _creating = false;
-      if (created) _load();
+      if (created) {
+        _load();
+        _purchaseGeneration++;
+        _creating =
+            widget.startInCreate &&
+            _canManage &&
+            LocationScopeService.selectedLocationId.value != null;
+      } else {
+        _creating = false;
+      }
     });
     if (created) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Purchase posted successfully.')),
+        const SnackBar(
+          content: Text('Purchase posted. Ready for the next purchase.'),
+        ),
       );
     }
   }
@@ -162,6 +175,7 @@ class _PurchasesScreenState extends State<PurchasesScreen> {
     }
     if (_creating) {
       return NewPurchaseScreen(
+        key: ValueKey(_purchaseGeneration),
         session: widget.session,
         locationId: LocationScopeService.currentForCreate(widget.session),
         embedded: true,
@@ -451,6 +465,7 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
 
   List<Supplier> _suppliers = [];
   List<InventoryProduct> _products = [];
+  Map<String, Map<String, dynamic>> _gstProfiles = const {};
 
   String? _supplierId;
 
@@ -462,11 +477,44 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
 
   final List<_PurchaseLine> _lines = [];
 
+  Supplier? get _selectedSupplier {
+    final id = _supplierId;
+    if (id == null) return null;
+    for (final supplier in _suppliers) {
+      if (supplier.id == id) return supplier;
+    }
+    return null;
+  }
+
   @override
   void initState() {
     super.initState();
 
     _loadData();
+  }
+
+  Future<Map<String, Map<String, dynamic>>> _loadGstProfiles() async {
+    try {
+      final service = GstComplianceV520Service(
+        client: Supabase.instance.client,
+        tenantId: widget.session.business.id,
+      );
+      await service.initialize(locationId: widget.locationId, documentLimit: 1);
+      final rows = await service.listProductProfiles(limit: 500);
+      return {
+        for (final row in rows)
+          if (row['variant_id']?.toString().isNotEmpty == true)
+            row['variant_id'].toString(): row,
+      };
+    } catch (_) {
+      // Non-GST businesses and users without GST workspace access remain usable.
+      return const {};
+    }
+  }
+
+  String _hsnFor(String variantId) {
+    final value = _gstProfiles[variantId]?['hsn_sac']?.toString().trim() ?? '';
+    return value.isEmpty ? '—' : value;
   }
 
   Future<void> _loadData() async {
@@ -477,6 +525,7 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
           tenantId: widget.session.business.id,
           locationId: widget.locationId,
         ),
+        _loadGstProfiles(),
       ]);
 
       if (!mounted) {
@@ -486,6 +535,7 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
       final suppliers = results[0] as List<Supplier>;
 
       final products = results[1] as List<InventoryProduct>;
+      final gstProfiles = results[2] as Map<String, Map<String, dynamic>>;
 
       setState(() {
         _suppliers = suppliers.where((supplier) => supplier.isActive).toList();
@@ -498,6 +548,7 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
                   product.variantStatus == 'active',
             )
             .toList();
+        _gstProfiles = gstProfiles;
 
         if (_suppliers.isNotEmpty) {
           _supplierId = _suppliers.first.id;
@@ -536,6 +587,29 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
   double get _beforeRoundOff => _subtotal - _discount + _tax + _additional;
 
   double get _grandTotal => _beforeRoundOff + _roundOff;
+
+  double get _taxableAmount => _subtotal - _discount;
+
+  String get _placeOfSupply {
+    final value = _selectedSupplier?.state?.trim() ?? '';
+    return value.isEmpty ? 'Not configured' : value;
+  }
+
+  bool? get _interstatePreview {
+    final origin =
+        widget.session.settings['business.state']
+            ?.toString()
+            .trim()
+            .toLowerCase() ??
+        '';
+    final destination = _selectedSupplier?.state?.trim().toLowerCase() ?? '';
+    if (origin.isEmpty || destination.isEmpty) return null;
+    return origin != destination;
+  }
+
+  double get _cgstPreview => _interstatePreview == false ? _tax / 2 : 0;
+  double get _sgstPreview => _interstatePreview == false ? _tax / 2 : 0;
+  double get _igstPreview => _interstatePreview == true ? _tax : 0;
 
   void _applyRoundOff() {
     final delta = _beforeRoundOff.roundToDouble() - _beforeRoundOff;
@@ -622,6 +696,25 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
     return '${date.day.toString().padLeft(2, '0')}-'
         '${date.month.toString().padLeft(2, '0')}-'
         '${date.year}';
+  }
+
+  String _friendlyPostError(Object error) {
+    final message = error.toString();
+    final productMatch = RegExp(
+      r'Product\s+([^\s\]]+)\s+GST profile requires review',
+      caseSensitive: false,
+    ).firstMatch(message);
+    if (productMatch != null) {
+      return 'Cannot confirm this GST purchase. Review and validate the GST '
+          'profile for product ${productMatch.group(1)}, then retry this '
+          'unchanged purchase.';
+    }
+    if (message.contains('not compliance-ready')) {
+      return 'Cannot confirm this GST purchase because one or more GST profiles '
+          'are not compliance-ready. Review them in GST & Compliance, then '
+          'retry this unchanged purchase.';
+    }
+    return message;
   }
 
   Future<void> _post({bool printAfter = false}) async {
@@ -759,7 +852,7 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
       }
 
       setState(() {
-        _error = error.toString();
+        _error = _friendlyPostError(error);
       });
     } finally {
       if (mounted) {
@@ -787,43 +880,28 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
         ? const Center(child: CircularProgressIndicator())
         : _suppliers.isEmpty
         ? const Center(child: Text('No active suppliers available.'))
-        : SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(18, 12, 18, 18),
-            child: Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 1150),
-                child: Column(
-                  children: [
-                    if (widget.embedded)
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 10),
-                        child: Row(
-                          children: [
-                            IconButton.filledTonal(
-                              onPressed: _saving
-                                  ? null
-                                  : () => widget.onFinished?.call(false),
-                              icon: const Icon(Icons.arrow_back),
-                            ),
-                            const SizedBox(width: 10),
-                            const Expanded(
-                              child: Text(
-                                'New Purchase',
-                                style: TextStyle(
-                                  fontSize: 22,
-                                  fontWeight: FontWeight.w800,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    _headerCard(),
-                    const SizedBox(height: 14),
-                    _itemsCard(),
-                    const SizedBox(height: 14),
-                    _summaryCard(),
-                  ],
+        : LayoutBuilder(
+            builder: (context, constraints) => SingleChildScrollView(
+              padding: EdgeInsets.fromLTRB(
+                constraints.maxWidth < 720 ? 10 : 18,
+                12,
+                constraints.maxWidth < 720 ? 10 : 18,
+                24,
+              ),
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 1280),
+                  child: Column(
+                    children: [
+                      _documentHeader(),
+                      const SizedBox(height: 12),
+                      _headerCard(),
+                      const SizedBox(height: 12),
+                      _itemsCard(),
+                      const SizedBox(height: 12),
+                      _summaryCard(),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -843,77 +921,45 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
     );
   }
 
-  Widget _headerCard() {
-    return _PurchaseCard(
-      title: 'Purchase Details',
-      child: Column(
+  Widget _documentHeader() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE3E7EE)),
+      ),
+      child: Row(
         children: [
-          SearchableSelect<String>(
-            value: _supplierId,
-            labelText: 'Supplier',
-            isRequired: true,
-            enabled: !_saving,
-            hintText: 'Search supplier name, ID, phone or GSTIN',
-            prefixIcon: Icons.local_shipping_outlined,
-            options: _suppliers
-                .map(
-                  (supplier) => SearchableSelectOption<String>(
-                    value: supplier.id,
-                    label: supplier.name,
-                    subtitle:
-                        [supplier.publicId, supplier.phone, supplier.taxNumber]
-                            .where(
-                              (value) =>
-                                  value != null && value.trim().isNotEmpty,
-                            )
-                            .join(' • '),
-                    searchText:
-                        '${supplier.name} ${supplier.publicId} ${supplier.phone ?? ''} ${supplier.email ?? ''} ${supplier.taxNumber ?? ''}',
-                  ),
-                )
-                .toList(),
-            onChanged: _saving
-                ? null
-                : (value) => setState(() => _supplierId = value),
+          if (widget.embedded) ...[
+            IconButton.filledTonal(
+              tooltip: 'Back',
+              onPressed: _saving ? null : () => widget.onFinished?.call(false),
+              icon: const Icon(Icons.arrow_back),
+            ),
+            const SizedBox(width: 12),
+          ],
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'NEW PURCHASE',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
+                ),
+                SizedBox(height: 2),
+                Text('Purchase Entry', style: TextStyle(color: Colors.black54)),
+              ],
+            ),
           ),
-
-          const SizedBox(height: 16),
-
-          Row(
+          const Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              Expanded(
-                child: TextField(
-                  controller: _invoiceController,
-                  enabled: !_saving,
-                  decoration: const InputDecoration(
-                    labelText: 'Supplier Invoice No.',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-              ),
-
-              const SizedBox(width: 14),
-
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: _saving ? null : _choosePurchaseDate,
-                  icon: const Icon(Icons.calendar_month),
-                  label: Text('Purchase Date: ${_date(_purchaseDate)}'),
-                ),
-              ),
-
-              const SizedBox(width: 14),
-
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: _saving ? null : _chooseDueDate,
-                  icon: const Icon(Icons.event),
-                  label: Text(
-                    _dueDate == null
-                        ? 'Set Due Date'
-                        : 'Due: ${_date(_dueDate!)}',
-                  ),
-                ),
+              Text('PURCHASE NO.', style: TextStyle(fontSize: 11)),
+              SizedBox(height: 3),
+              Text(
+                'AUTO ON CONFIRM',
+                style: TextStyle(fontWeight: FontWeight.w800),
               ),
             ],
           ),
@@ -922,9 +968,147 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
     );
   }
 
+  Widget _headerCard() {
+    final supplier = _selectedSupplier;
+    return _PurchaseCard(
+      title: 'PURCHASE DETAILS',
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final compact = constraints.maxWidth < 760;
+          final gap = compact ? 10.0 : 12.0;
+          final fieldWidth = compact
+              ? constraints.maxWidth
+              : (constraints.maxWidth - gap * 2) / 3;
+
+          return Wrap(
+            spacing: gap,
+            runSpacing: 12,
+            children: [
+              SizedBox(
+                width: compact ? constraints.maxWidth : fieldWidth * 2 + gap,
+                child: SearchableSelect<String>(
+                  value: _supplierId,
+                  labelText: 'Supplier',
+                  isRequired: true,
+                  enabled: !_saving,
+                  hintText: 'Search supplier name, ID, phone or GSTIN',
+                  prefixIcon: Icons.local_shipping_outlined,
+                  options: _suppliers
+                      .map(
+                        (entry) => SearchableSelectOption<String>(
+                          value: entry.id,
+                          label: entry.name,
+                          subtitle:
+                              [entry.publicId, entry.phone, entry.taxNumber]
+                                  .where(
+                                    (value) => value?.trim().isNotEmpty == true,
+                                  )
+                                  .join(' • '),
+                          searchText:
+                              '${entry.name} ${entry.publicId} ${entry.phone ?? ''} '
+                              '${entry.email ?? ''} ${entry.taxNumber ?? ''}',
+                        ),
+                      )
+                      .toList(),
+                  onChanged: _saving
+                      ? null
+                      : (value) => setState(() {
+                          _supplierId = value;
+                          _error = null;
+                        }),
+                ),
+              ),
+              SizedBox(
+                width: fieldWidth,
+                child: _purchaseReadOnlyField(
+                  label: 'Supplier GSTIN',
+                  value: supplier?.taxNumber?.trim().isNotEmpty == true
+                      ? supplier!.taxNumber!
+                      : 'Not registered',
+                  icon: Icons.receipt_long_outlined,
+                ),
+              ),
+              SizedBox(
+                width: fieldWidth,
+                child: TextField(
+                  controller: _invoiceController,
+                  enabled: !_saving,
+                  decoration: const InputDecoration(
+                    labelText: 'Supplier Invoice No.',
+                    prefixIcon: Icon(Icons.tag_outlined),
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+              ),
+              SizedBox(
+                width: fieldWidth,
+                child: OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size.fromHeight(56),
+                    alignment: Alignment.centerLeft,
+                  ),
+                  onPressed: _saving ? null : _choosePurchaseDate,
+                  icon: const Icon(Icons.calendar_month_outlined),
+                  label: Text('Invoice Date  ${_date(_purchaseDate)}'),
+                ),
+              ),
+              SizedBox(
+                width: fieldWidth,
+                child: OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size.fromHeight(56),
+                    alignment: Alignment.centerLeft,
+                  ),
+                  onPressed: _saving ? null : _chooseDueDate,
+                  icon: const Icon(Icons.event_outlined),
+                  label: Text(
+                    _dueDate == null
+                        ? 'Due Date  Not set'
+                        : 'Due Date  ${_date(_dueDate!)}',
+                  ),
+                ),
+              ),
+              SizedBox(
+                width: fieldWidth,
+                child: _purchaseReadOnlyField(
+                  label: 'Place of Supply',
+                  value: _placeOfSupply,
+                  icon: Icons.place_outlined,
+                ),
+              ),
+              SizedBox(
+                width: fieldWidth,
+                child: _purchaseReadOnlyField(
+                  label: 'Reverse Charge',
+                  value: 'Automatic from GST profile',
+                  icon: Icons.sync_alt_outlined,
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _purchaseReadOnlyField({
+    required String label,
+    required String value,
+    required IconData icon,
+  }) {
+    return InputDecorator(
+      decoration: InputDecoration(
+        labelText: label,
+        prefixIcon: Icon(icon),
+        border: const OutlineInputBorder(),
+      ),
+      child: Text(value, maxLines: 1, overflow: TextOverflow.ellipsis),
+    );
+  }
+
   Widget _itemsCard() {
     return _PurchaseCard(
-      title: 'Items',
+      title: 'ADD PRODUCTS',
       trailing: FilledButton.icon(
         onPressed: _saving ? null : _addLine,
         icon: const Icon(Icons.add),
@@ -932,177 +1116,239 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
       ),
       child: _lines.isEmpty
           ? const Padding(
-              padding: EdgeInsets.symmetric(vertical: 35),
-              child: Center(child: Text('No products added yet.')),
+              padding: EdgeInsets.symmetric(vertical: 34),
+              child: Center(
+                child: Text('Search or scan a product to start this purchase.'),
+              ),
             )
-          : Column(
-              children: [
-                for (var i = 0; i < _lines.length; i++)
-                  _PurchaseLineRow(
-                    line: _lines[i],
-                    money: _money,
-                    onDelete: _saving
-                        ? null
-                        : () {
-                            setState(() {
-                              _lines.removeAt(i);
-                            });
-                          },
-                  ),
-              ],
+          : SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: SizedBox(
+                width: 1120,
+                child: Column(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 10,
+                      ),
+                      color: const Color(0xFFF1F4F8),
+                      child: Row(
+                        children: [
+                          _purchaseHeaderCell('#', 1),
+                          _purchaseHeaderCell('Product', 4),
+                          _purchaseHeaderCell('HSN/SAC', 2),
+                          _purchaseHeaderCell('Qty', 2),
+                          _purchaseHeaderCell('Rate', 2),
+                          _purchaseHeaderCell('Disc.', 2),
+                          _purchaseHeaderCell('GST', 1),
+                          _purchaseHeaderCell('Amount', 2),
+                          const SizedBox(width: 44),
+                        ],
+                      ),
+                    ),
+                    for (var i = 0; i < _lines.length; i++)
+                      _PurchaseLineRow(
+                        index: i + 1,
+                        line: _lines[i],
+                        hsnSac: _hsnFor(_lines[i].product.variantId),
+                        money: _money,
+                        onDelete: _saving
+                            ? null
+                            : () => setState(() => _lines.removeAt(i)),
+                      ),
+                  ],
+                ),
+              ),
             ),
     );
   }
 
+  Widget _purchaseHeaderCell(String label, int flex) {
+    return Expanded(
+      flex: flex,
+      child: Text(
+        label,
+        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
+      ),
+    );
+  }
+
   Widget _summaryCard() {
+    final paymentInputs = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Payment & Charges',
+          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
+        ),
+        const SizedBox(height: 10),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            for (final entry in const [
+              ('cash', 'Cash', Icons.payments_outlined),
+              ('bank', 'Bank', Icons.account_balance_outlined),
+              ('upi', 'UPI', Icons.qr_code_2_outlined),
+              ('card', 'Card', Icons.credit_card_outlined),
+              ('cheque', 'Cheque', Icons.receipt_long_outlined),
+              ('other', 'Other', Icons.more_horiz),
+            ])
+              ChoiceChip(
+                avatar: Icon(entry.$3, size: 17),
+                label: Text(entry.$2),
+                selected: _paymentMethod == entry.$1,
+                onSelected: _saving
+                    ? null
+                    : (_) => setState(() => _paymentMethod = entry.$1),
+              ),
+          ],
+        ),
+        const SizedBox(height: 14),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final compact = constraints.maxWidth < 580;
+            final payment = TextField(
+              controller: _paymentController,
+              enabled: !_saving,
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
+              onChanged: (_) => setState(() {}),
+              decoration: const InputDecoration(
+                labelText: 'Initial Payment',
+                prefixText: '₹ ',
+                border: OutlineInputBorder(),
+              ),
+            );
+            final additional = TextField(
+              controller: _additionalController,
+              enabled: !_saving,
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
+              onChanged: (_) => setState(() {}),
+              decoration: const InputDecoration(
+                labelText: 'Freight / Other Charges',
+                prefixText: '₹ ',
+                border: OutlineInputBorder(),
+              ),
+            );
+            if (compact) {
+              return Column(
+                children: [payment, const SizedBox(height: 10), additional],
+              );
+            }
+            return Row(
+              children: [
+                Expanded(child: payment),
+                const SizedBox(width: 12),
+                Expanded(child: additional),
+              ],
+            );
+          },
+        ),
+        const SizedBox(height: 12),
+        TextField(
+          controller: _roundOffController,
+          enabled: !_saving,
+          keyboardType: const TextInputType.numberWithOptions(
+            decimal: true,
+            signed: true,
+          ),
+          onChanged: (_) => setState(() {}),
+          decoration: InputDecoration(
+            labelText: 'Round Off',
+            helperText: 'Allowed: -1.00 to 1.00',
+            prefixText: '₹ ',
+            suffixIcon: IconButton(
+              tooltip: 'Round total',
+              onPressed: _saving ? null : _applyRoundOff,
+              icon: const Icon(Icons.exposure_zero),
+            ),
+            border: const OutlineInputBorder(),
+          ),
+        ),
+        const SizedBox(height: 12),
+        TextField(
+          controller: _notesController,
+          enabled: !_saving,
+          maxLines: 2,
+          decoration: const InputDecoration(
+            labelText: 'Notes',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        const SizedBox(height: 6),
+        const Text(
+          'For a credit purchase, leave Initial Payment at ₹0.00.',
+          style: TextStyle(fontSize: 11, color: Colors.black54),
+        ),
+      ],
+    );
+
+    final taxSummary = Column(
+      children: [
+        _TotalRow(label: 'Subtotal', value: _money(_subtotal)),
+        if (_discount > .0001)
+          _TotalRow(label: 'Discount', value: '- ${_money(_discount)}'),
+        _TotalRow(label: 'Taxable Amount', value: _money(_taxableAmount)),
+        if (_interstatePreview == false) ...[
+          _TotalRow(label: 'CGST', value: _money(_cgstPreview)),
+          _TotalRow(label: 'SGST', value: _money(_sgstPreview)),
+        ] else if (_interstatePreview == true)
+          _TotalRow(label: 'IGST', value: _money(_igstPreview))
+        else
+          _TotalRow(label: 'GST / Tax', value: _money(_tax)),
+        if (_additional > .0001)
+          _TotalRow(label: 'Additional Charges', value: _money(_additional)),
+        if (_roundOff.abs() > .000001)
+          _TotalRow(label: 'Round Off', value: _money(_roundOff)),
+        const Divider(height: 24),
+        _TotalRow(label: 'GRAND TOTAL', value: _money(_grandTotal), bold: true),
+        _TotalRow(label: 'Payment', value: _money(_number(_paymentController))),
+        _TotalRow(
+          label: 'Balance Due',
+          value: _money(_grandTotal - _number(_paymentController)),
+          bold: true,
+        ),
+        const SizedBox(height: 8),
+        const Text(
+          'GST split shown here is an estimate. The confirmed purchase uses the '
+          'authoritative GST v5.2 snapshot.',
+          style: TextStyle(fontSize: 10, color: Colors.black54),
+        ),
+      ],
+    );
+
     return _PurchaseCard(
-      title: 'Totals & Payment',
+      title: 'TOTALS & PAYMENT',
       child: Column(
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: _additionalController,
-                  enabled: !_saving,
-                  keyboardType: const TextInputType.numberWithOptions(
-                    decimal: true,
-                  ),
-                  onChanged: (_) => setState(() {}),
-                  decoration: const InputDecoration(
-                    labelText: 'Additional Charges',
-                    prefixText: '₹ ',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: TextField(
-                  controller: _paymentController,
-                  enabled: !_saving,
-                  keyboardType: const TextInputType.numberWithOptions(
-                    decimal: true,
-                  ),
-                  onChanged: (_) => setState(() {}),
-                  decoration: const InputDecoration(
-                    labelText: 'Initial Payment',
-                    prefixText: '₹ ',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: DropdownButtonFormField<String>(
-                  initialValue: _paymentMethod,
-                  decoration: const InputDecoration(
-                    labelText: 'Payment Method',
-                    border: OutlineInputBorder(),
-                  ),
-                  items: const [
-                    DropdownMenuItem(value: 'cash', child: Text('Cash')),
-                    DropdownMenuItem(value: 'bank', child: Text('Bank')),
-                    DropdownMenuItem(value: 'upi', child: Text('UPI')),
-                    DropdownMenuItem(value: 'card', child: Text('Card')),
-                    DropdownMenuItem(value: 'cheque', child: Text('Cheque')),
-                    DropdownMenuItem(value: 'other', child: Text('Other')),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              if (constraints.maxWidth < 860) {
+                return Column(
+                  children: [
+                    paymentInputs,
+                    const SizedBox(height: 22),
+                    taxSummary,
                   ],
-                  onChanged: _saving
-                      ? null
-                      : (value) {
-                          if (value != null) {
-                            setState(() {
-                              _paymentMethod = value;
-                            });
-                          }
-                        },
-                ),
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: _roundOffController,
-                  enabled: !_saving,
-                  keyboardType: const TextInputType.numberWithOptions(
-                    decimal: true,
-                    signed: true,
-                  ),
-                  onChanged: (_) => setState(() {}),
-                  decoration: const InputDecoration(
-                    labelText: 'Round Off',
-                    helperText: 'Post-tax adjustment (-1.00 to 1.00)',
-                    prefixText: '₹ ',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 10),
-              OutlinedButton.icon(
-                onPressed: _saving ? null : _applyRoundOff,
-                icon: const Icon(Icons.exposure_zero),
-                label: const Text('Round Total'),
-              ),
-              const Spacer(flex: 2),
-            ],
-          ),
-
-          const SizedBox(height: 16),
-
-          TextField(
-            controller: _notesController,
-            enabled: !_saving,
-            maxLines: 2,
-            decoration: const InputDecoration(
-              labelText: 'Notes',
-              border: OutlineInputBorder(),
-            ),
-          ),
-
-          const SizedBox(height: 22),
-
-          Align(
-            alignment: Alignment.centerRight,
-            child: SizedBox(
-              width: 380,
-              child: Column(
+                );
+              }
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _TotalRow(label: 'Subtotal', value: _money(_subtotal)),
-                  _TotalRow(label: 'Discount', value: '- ${_money(_discount)}'),
-                  _TotalRow(label: 'Tax', value: _money(_tax)),
-                  _TotalRow(
-                    label: 'Additional Charges',
-                    value: _money(_additional),
-                  ),
-                  if (_roundOff.abs() > 0.000001)
-                    _TotalRow(label: 'Round Off', value: _money(_roundOff)),
-                  const Divider(),
-                  _TotalRow(
-                    label: 'Grand Total',
-                    value: _money(_grandTotal),
-                    bold: true,
-                  ),
-                  _TotalRow(
-                    label: 'Payment',
-                    value: _money(_number(_paymentController)),
-                  ),
-                  _TotalRow(
-                    label: 'Balance Due',
-                    value: _money(_grandTotal - _number(_paymentController)),
-                    bold: true,
-                  ),
+                  Expanded(flex: 3, child: paymentInputs),
+                  const SizedBox(width: 36),
+                  Expanded(flex: 2, child: taxSummary),
                 ],
-              ),
-            ),
+              );
+            },
           ),
-
           if (_error != null) ...[
-            const SizedBox(height: 18),
+            const SizedBox(height: 16),
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(12),
@@ -1116,35 +1362,44 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
               ),
             ),
           ],
-
-          const SizedBox(height: 22),
-
-          Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              OutlinedButton(
-                onPressed: _saving ? null : () => Navigator.of(context).pop(),
-                child: const Text('Cancel'),
-              ),
-              const SizedBox(width: 12),
-              OutlinedButton.icon(
-                onPressed: _saving ? null : () => _post(printAfter: false),
-                icon: const Icon(Icons.check_circle_outline),
-                label: const Text('Just Confirm'),
-              ),
-              const SizedBox(width: 10),
-              FilledButton.icon(
-                onPressed: _saving ? null : () => _post(printAfter: true),
-                icon: _saving
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.print_outlined),
-                label: Text(_saving ? 'Confirming...' : 'Print & Confirm'),
-              ),
-            ],
+          const SizedBox(height: 18),
+          Align(
+            alignment: Alignment.centerRight,
+            child: Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              alignment: WrapAlignment.end,
+              children: [
+                OutlinedButton(
+                  onPressed: _saving
+                      ? null
+                      : () {
+                          if (widget.embedded) {
+                            widget.onFinished?.call(false);
+                          } else {
+                            Navigator.of(context).pop();
+                          }
+                        },
+                  child: const Text('Cancel'),
+                ),
+                OutlinedButton.icon(
+                  onPressed: _saving ? null : () => _post(printAfter: false),
+                  icon: const Icon(Icons.check_circle_outline),
+                  label: const Text('Just Confirm'),
+                ),
+                FilledButton.icon(
+                  onPressed: _saving ? null : () => _post(printAfter: true),
+                  icon: _saving
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.print_outlined),
+                  label: Text(_saving ? 'Confirming...' : 'Print & Confirm'),
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -1919,62 +2174,78 @@ class _PurchaseBatchDialogState extends State<_PurchaseBatchDialog> {
 }
 
 class _PurchaseLineRow extends StatelessWidget {
+  final int index;
   final _PurchaseLine line;
-
+  final String hsnSac;
   final String Function(double) money;
-
   final VoidCallback? onDelete;
 
   const _PurchaseLineRow({
+    required this.index,
     required this.line,
+    required this.hsnSac,
     required this.money,
     required this.onDelete,
   });
 
+  String _quantity(double value) =>
+      value % 1 == 0 ? value.toStringAsFixed(0) : value.toStringAsFixed(2);
+
   @override
   Widget build(BuildContext context) {
+    Widget cell(Widget child, int flex) => Expanded(
+      flex: flex,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 4),
+        child: child,
+      ),
+    );
+
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 14),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
       decoration: BoxDecoration(
         border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
       ),
       child: Row(
         children: [
-          Expanded(
-            flex: 3,
-            child: Column(
+          cell(Text('$index'), 1),
+          cell(
+            Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   line.product.productName,
-                  style: const TextStyle(fontWeight: FontWeight.w600),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontWeight: FontWeight.w700),
                 ),
                 Text(
                   line.product.sku,
-                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                  style: const TextStyle(fontSize: 11, color: Colors.black54),
                 ),
               ],
             ),
+            4,
           ),
-
-          Expanded(child: Text('${line.quantity} ${line.unitCode}')),
-
-          Expanded(child: Text(money(line.unitCost))),
-
-          Expanded(child: Text(money(line.discount))),
-
-          Expanded(child: Text('${line.taxRate.toStringAsFixed(2)}%')),
-
-          Expanded(
-            child: Text(
+          cell(Text(hsnSac), 2),
+          cell(Text('${_quantity(line.quantity)} ${line.unitCode}'), 2),
+          cell(Text(money(line.unitCost)), 2),
+          cell(Text(money(line.discount)), 2),
+          cell(Text('${line.taxRate.toStringAsFixed(0)}%'), 1),
+          cell(
+            Text(
               money(line.total),
-              style: const TextStyle(fontWeight: FontWeight.bold),
+              style: const TextStyle(fontWeight: FontWeight.w800),
             ),
+            2,
           ),
-
-          IconButton(
-            onPressed: onDelete,
-            icon: const Icon(Icons.delete_outline),
+          SizedBox(
+            width: 44,
+            child: IconButton(
+              tooltip: 'Remove product',
+              onPressed: onDelete,
+              icon: const Icon(Icons.delete_outline),
+            ),
           ),
         ],
       ),

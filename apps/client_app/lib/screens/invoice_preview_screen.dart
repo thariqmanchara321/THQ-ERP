@@ -154,6 +154,80 @@ class _InvoicePreviewScreenState extends State<InvoicePreviewScreen> {
     }
   }
 
+  String _integerWords(int value) {
+    if (value == 0) return 'Zero';
+    const ones = [
+      '',
+      'One',
+      'Two',
+      'Three',
+      'Four',
+      'Five',
+      'Six',
+      'Seven',
+      'Eight',
+      'Nine',
+      'Ten',
+      'Eleven',
+      'Twelve',
+      'Thirteen',
+      'Fourteen',
+      'Fifteen',
+      'Sixteen',
+      'Seventeen',
+      'Eighteen',
+      'Nineteen',
+    ];
+    const tens = [
+      '',
+      '',
+      'Twenty',
+      'Thirty',
+      'Forty',
+      'Fifty',
+      'Sixty',
+      'Seventy',
+      'Eighty',
+      'Ninety',
+    ];
+    String belowHundred(int number) {
+      if (number < 20) return ones[number];
+      final tail = number % 10;
+      return '${tens[number ~/ 10]}${tail == 0 ? '' : ' ${ones[tail]}'}';
+    }
+
+    final parts = <String>[];
+    var remaining = value;
+    void take(int unit, String label) {
+      if (remaining < unit) return;
+      parts.add('${_integerWords(remaining ~/ unit)} $label');
+      remaining %= unit;
+    }
+
+    take(10000000, 'Crore');
+    take(100000, 'Lakh');
+    take(1000, 'Thousand');
+    take(100, 'Hundred');
+    if (remaining > 0) parts.add(belowHundred(remaining));
+    return parts.join(' ');
+  }
+
+  String _amountInWords(double value) {
+    final minor = (value.abs() * 100).round();
+    final rupees = minor ~/ 100;
+    final paise = minor % 100;
+    final prefix = value < 0 ? 'Minus ' : '';
+    final paiseText = paise == 0 ? '' : ' and ${_integerWords(paise)} Paise';
+    return '$prefix${_integerWords(rupees)} Rupees$paiseText Only';
+  }
+
+  String _dateLabel(DateTime value) {
+    final local = value.toLocal();
+    return '${local.day.toString().padLeft(2, '0')}/'
+        '${local.month.toString().padLeft(2, '0')}/'
+        '${local.year}';
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -388,9 +462,24 @@ class _InvoicePreviewScreenState extends State<InvoicePreviewScreen> {
                       Text(address, textAlign: TextAlign.center),
                     const Divider(height: 26),
                     Text(
-                      'TAX INVOICE • $invoiceNumber',
-                      style: const TextStyle(fontWeight: FontWeight.bold),
+                      'TAX INVOICE',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: narrow ? 16 : 21,
+                        fontWeight: FontWeight.w900,
+                      ),
                     ),
+                    const SizedBox(height: 12),
+                    if (narrow) ...[
+                      Text('Invoice No: $invoiceNumber'),
+                      Text('Date: ${_dateLabel(widget.sale.saleDate)}'),
+                    ] else
+                      Row(
+                        children: [
+                          Expanded(child: Text('Invoice No: $invoiceNumber')),
+                          Text('Date: ${_dateLabel(widget.sale.saleDate)}'),
+                        ],
+                      ),
                     if (invoiceNumber != widget.sale.saleNumber)
                       Text(
                         'ERP Ref: ${widget.sale.saleNumber}',
@@ -399,54 +488,49 @@ class _InvoicePreviewScreenState extends State<InvoicePreviewScreen> {
                           color: Colors.grey.shade600,
                         ),
                       ),
-                    Text(
-                      'Date: ${widget.sale.saleDate.toLocal().toString().split(' ').first}',
-                    ),
+                    if (widget.sale.gst?.authoritative == true) ...[
+                      if ((widget.sale.gst!.placeOfSupplyCode ?? '').isNotEmpty)
+                        Text(
+                          'Place of Supply: ${widget.sale.gst!.placeOfSupplyCode}',
+                        ),
+                      Text(
+                        'Reverse Charge: '
+                        '${(widget.sale.gst!.taxMode ?? '').toLowerCase().contains('reverse') ? 'Yes' : 'No'}',
+                      ),
+                    ],
                     if (_flag(config, 'show_customer', true)) ...[
-                      Text('Customer: ${widget.sale.customerName}'),
+                      const Divider(height: 24),
+                      const Text(
+                        'BILL TO',
+                        style: TextStyle(fontWeight: FontWeight.w900),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        widget.sale.customerName,
+                        style: const TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                      if ((widget.sale.customerAddress ?? '').trim().isNotEmpty)
+                        Text(widget.sale.customerAddress!),
                       if ((widget.sale.customerTaxNumber ?? '')
                           .trim()
                           .isNotEmpty)
-                        Text(
-                          'Customer GSTIN: ${widget.sale.customerTaxNumber}',
-                        ),
+                        Text('GSTIN: ${widget.sale.customerTaxNumber}'),
                       if ((widget.sale.customerPhone ?? '').trim().isNotEmpty)
-                        Text('Customer Phone: ${widget.sale.customerPhone}'),
+                        Text('Phone: ${widget.sale.customerPhone}'),
                       if ((widget.sale.customerEmail ?? '').trim().isNotEmpty)
-                        Text('Customer Email: ${widget.sale.customerEmail}'),
-                      if ((widget.sale.customerAddress ?? '').trim().isNotEmpty)
-                        Text(
-                          'Customer Address: ${widget.sale.customerAddress}',
-                        ),
+                        Text('Email: ${widget.sale.customerEmail}'),
                     ],
-                    const Divider(),
-                    ...widget.sale.items.map(
-                      (item) => Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 5),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Expanded(
-                              child: Text(
-                                '${item.productName}\n${item.quantity} × ${_money(item.unitPrice)}',
-                                style: TextStyle(fontSize: narrow ? 11 : 13),
-                              ),
-                            ),
-                            Text(
-                              _money(item.lineTotal),
-                              style: TextStyle(
-                                fontSize: narrow ? 11 : 13,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    const Divider(),
+                    const SizedBox(height: 12),
+                    _invoiceItems(narrow),
+                    if (widget.sale.gst?.authoritative == true &&
+                        widget.sale.gst!.rateSummaries.isNotEmpty) ...[
+                      const SizedBox(height: 18),
+                      _gstRateSummary(narrow),
+                    ],
+                    const SizedBox(height: 14),
                     if (widget.sale.discountTotal > 0)
                       _row('Discount', _money(widget.sale.discountTotal)),
-                    _row('Taxable', _money(widget.sale.taxableTotal)),
+                    _row('Taxable Value', _money(widget.sale.taxableTotal)),
                     if (widget.sale.gst?.authoritative == true) ...[
                       if (widget.sale.gst!.cgstTotal.abs() > 0.0001)
                         _row('CGST', _money(widget.sale.gst!.cgstTotal)),
@@ -463,9 +547,20 @@ class _InvoicePreviewScreenState extends State<InvoicePreviewScreen> {
                         _row('GST / Tax', _money(widget.sale.taxTotal)),
                     ] else
                       _row('Tax', _money(widget.sale.taxTotal)),
-                    _row('Total', _money(widget.sale.grandTotal), bold: true),
+                    const Divider(height: 18),
+                    _row('TOTAL', _money(widget.sale.grandTotal), bold: true),
                     _row('Paid', _money(widget.sale.paidAmount)),
-                    _row('Balance', _money(widget.sale.balanceDue), bold: true),
+                    _row(
+                      'Balance',
+                      _money(widget.sale.balanceDue),
+                      bold: widget.sale.balanceDue > .0001,
+                    ),
+                    const SizedBox(height: 14),
+                    Text(
+                      'Amount in words:\n${_amountInWords(widget.sale.grandTotal)}',
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                    const SizedBox(height: 12),
                     if ((_flag(config, 'show_bank_details', false) &&
                             bankDetails.isNotEmpty) ||
                         (_flag(config, 'show_payment_details', true) &&
@@ -595,6 +690,168 @@ class _InvoicePreviewScreenState extends State<InvoicePreviewScreen> {
           );
         },
       ),
+    );
+  }
+
+  Widget _invoiceItems(bool narrow) {
+    if (narrow) {
+      return Column(
+        children: [
+          for (final item in widget.sale.items)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 5),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Text(
+                      '${item.productName}\n'
+                      '${item.quantity} × ${_money(item.unitPrice)}'
+                      '${(item.hsnSac ?? '').trim().isEmpty ? '' : '\nHSN: ${item.hsnSac}'}',
+                      style: const TextStyle(fontSize: 11),
+                    ),
+                  ),
+                  Text(
+                    _money(item.lineTotal),
+                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      );
+    }
+
+    Widget cell(String value, {bool header = false}) => Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 7),
+      child: Text(
+        value,
+        style: TextStyle(
+          fontSize: 11,
+          fontWeight: header ? FontWeight.w800 : FontWeight.normal,
+        ),
+      ),
+    );
+
+    return Table(
+      border: TableBorder.all(color: const Color(0xFFD8DDE6)),
+      columnWidths: const {
+        0: FlexColumnWidth(.6),
+        1: FlexColumnWidth(3.2),
+        2: FlexColumnWidth(1.1),
+        3: FlexColumnWidth(.8),
+        4: FlexColumnWidth(1.2),
+        5: FlexColumnWidth(1.1),
+        6: FlexColumnWidth(1.3),
+        7: FlexColumnWidth(1.3),
+      },
+      children: [
+        TableRow(
+          decoration: const BoxDecoration(color: Color(0xFFF1F4F8)),
+          children: [
+            cell('No', header: true),
+            cell('Description', header: true),
+            cell('HSN', header: true),
+            cell('Qty', header: true),
+            cell('Rate', header: true),
+            cell('Disc.', header: true),
+            cell('Taxable', header: true),
+            cell('Amount', header: true),
+          ],
+        ),
+        for (var i = 0; i < widget.sale.items.length; i++)
+          TableRow(
+            children: [
+              cell('${i + 1}'),
+              cell(widget.sale.items[i].productName),
+              cell(
+                widget.sale.items[i].hsnSac?.trim().isNotEmpty == true
+                    ? widget.sale.items[i].hsnSac!.trim()
+                    : '—',
+              ),
+              cell(widget.sale.items[i].quantity.toStringAsFixed(2)),
+              cell(_money(widget.sale.items[i].unitPrice)),
+              cell(_money(widget.sale.items[i].discountAmount)),
+              cell(_money(widget.sale.items[i].taxableAmount)),
+              cell(_money(widget.sale.items[i].lineTotal)),
+            ],
+          ),
+      ],
+    );
+  }
+
+  Widget _gstRateSummary(bool narrow) {
+    final rows = widget.sale.gst?.rateSummaries ?? const <SaleGstRateSummary>[];
+    if (rows.isEmpty) return const SizedBox.shrink();
+    if (narrow) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Text(
+            'TAX SUMMARY',
+            style: TextStyle(fontWeight: FontWeight.w900),
+          ),
+          const SizedBox(height: 5),
+          for (final row in rows)
+            Text(
+              '${row.rate.toStringAsFixed(2)}% • Taxable ${_money(row.taxable)} '
+              '• Tax ${_money(row.taxTotal)}',
+              style: const TextStyle(fontSize: 10),
+            ),
+        ],
+      );
+    }
+
+    Widget cell(String value, {bool header = false}) => Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 6),
+      child: Text(
+        value,
+        style: TextStyle(
+          fontSize: 10,
+          fontWeight: header ? FontWeight.w800 : FontWeight.normal,
+        ),
+      ),
+    );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const Text(
+          'TAX SUMMARY',
+          textAlign: TextAlign.center,
+          style: TextStyle(fontWeight: FontWeight.w900),
+        ),
+        const SizedBox(height: 6),
+        Table(
+          border: TableBorder.all(color: const Color(0xFFD8DDE6)),
+          children: [
+            TableRow(
+              decoration: const BoxDecoration(color: Color(0xFFF1F4F8)),
+              children: [
+                cell('GST %', header: true),
+                cell('Taxable', header: true),
+                cell('CGST', header: true),
+                cell('SGST/UTGST', header: true),
+                cell('IGST', header: true),
+                cell('Cess', header: true),
+                cell('Total', header: true),
+              ],
+            ),
+            for (final row in rows)
+              TableRow(
+                children: [
+                  cell('${row.rate.toStringAsFixed(2)}%'),
+                  cell(_money(row.taxable)),
+                  cell(_money(row.cgst)),
+                  cell(_money(row.sgst + row.utgst)),
+                  cell(_money(row.igst)),
+                  cell(_money(row.cess)),
+                  cell(_money(row.total)),
+                ],
+              ),
+          ],
+        ),
+      ],
     );
   }
 
