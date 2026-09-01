@@ -581,7 +581,6 @@ class _PosHomeScreenState extends State<PosHomeScreen> {
                             _refreshing ? () {} : _requestRefresh,
                           ),
                           _action(Icons.logout, 'Sign Out', expanded, _logout),
-                          DesktopReleaseStatus(compact: !expanded),
                           const SizedBox(height: 4),
                         ],
                       ),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:erp_core/erp_core.dart';
 
 import '../models/client_session.dart';
 import '../services/pos_completion_service.dart';
@@ -533,6 +534,20 @@ class _PosSettingsScreenState extends State<PosSettingsScreen> {
                     label: const Text('Change Store / Business'),
                   ),
                 ],
+              ),
+            ),
+            const SizedBox(height: 10),
+            _section(
+              title: 'System',
+              icon: Icons.info_outline,
+              child: ListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('THQ POS'),
+                subtitle: const Text('Installed application version'),
+                trailing: Text(
+                  'v${ThqReleaseContract.appVersion} • Build ${ThqReleaseContract.buildNumber}',
+                  style: const TextStyle(fontWeight: FontWeight.w700),
+                ),
               ),
             ),
             const SizedBox(height: 14),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:erp_core/erp_core.dart';
 
 import '../models/client_session.dart';
 import '../models/dashboard_data.dart';
@@ -29,7 +30,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
   void _load() {
     _summary = _service.load(session: widget.session);
     _insights = _service.insights(session: widget.session);
-    _businessIntelligence = _service.businessIntelligence(session: widget.session);
+    _businessIntelligence = _service.businessIntelligence(
+      session: widget.session,
+    );
   }
 
   Future<void> _refresh() async {
@@ -67,6 +70,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
           children: [
+            const Align(
+              alignment: Alignment.centerRight,
+              child: DesktopReleaseStatus(
+                showVersion: false,
+                padding: EdgeInsets.zero,
+              ),
+            ),
+            const SizedBox(height: 6),
             _pageHeader(context),
             const SizedBox(height: 18),
             FutureBuilder<DashboardData>(
@@ -99,10 +110,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
               future: _businessIntelligence,
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const SizedBox(height: 96, child: Center(child: CircularProgressIndicator()));
+                  return const SizedBox(
+                    height: 96,
+                    child: Center(child: CircularProgressIndicator()),
+                  );
                 }
-                if (snapshot.hasError) return _ErrorCard(message: snapshot.error.toString(), onRetry: _refresh);
-                return _v5BusinessIntelligencePanel(snapshot.data ?? const <String, dynamic>{});
+                if (snapshot.hasError) {
+                  return _ErrorCard(
+                    message: snapshot.error.toString(),
+                    onRetry: _refresh,
+                  );
+                }
+                return _v5BusinessIntelligencePanel(
+                  snapshot.data ?? const <String, dynamic>{},
+                );
               },
             ),
             const SizedBox(height: 18),
@@ -179,62 +200,207 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _v5BusinessIntelligencePanel(Map<String, dynamic> data) {
-    double n(dynamic value) => value is num ? value.toDouble() : double.tryParse(value?.toString() ?? '') ?? 0;
-    int i(dynamic value) => value is num ? value.toInt() : int.tryParse(value?.toString() ?? '') ?? 0;
+    double n(dynamic value) => value is num
+        ? value.toDouble()
+        : double.tryParse(value?.toString() ?? '') ?? 0;
+    int i(dynamic value) => value is num
+        ? value.toInt()
+        : int.tryParse(value?.toString() ?? '') ?? 0;
     List<Map<String, dynamic>> rows(String key) => data[key] is List
-        ? (data[key] as List).whereType<Map>().map((x) => Map<String, dynamic>.from(x)).toList()
+        ? (data[key] as List)
+              .whereType<Map>()
+              .map((x) => Map<String, dynamic>.from(x))
+              .toList()
         : const <Map<String, dynamic>>[];
     final storeRows = rows('store_comparison');
     final posRows = rows('pos_comparison');
     return V43Surface(
       padding: const EdgeInsets.all(14),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const Text('Business Intelligence v5', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800)),
-        const SizedBox(height: 4),
-        Text('Return-aware profit, cash/bank, dead stock and store/POS comparison', style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant)),
-        const SizedBox(height: 12),
-        Wrap(spacing: 10, runSpacing: 10, children: [
-          _biChip('Gross profit', _money(n(data['gross_profit'])), Icons.insights_outlined),
-          _biChip('Gross margin', '${n(data['gross_margin_pct']).toStringAsFixed(2)}%', Icons.percent),
-          _biChip('Expenses', _money(n(data['expenses'])), Icons.receipt_long_outlined),
-          _biChip('Cash / bank', _money(n(data['cash_bank'])), Icons.account_balance_wallet_outlined),
-          _biChip('Customer outstanding', _money(n(data['receivables'])), Icons.request_quote_outlined),
-          _biChip('Supplier dues', _money(n(data['payables'])), Icons.payments_outlined),
-          _biChip('Low stock', '${i(data['low_stock_count'])}', Icons.warning_amber_rounded),
-          _biChip('Dead stock', '${i(data['dead_stock_count'])}', Icons.inventory_2_outlined),
-        ]),
-        if (storeRows.isNotEmpty || posRows.isNotEmpty) ...[
-          const SizedBox(height: 14),
-          LayoutBuilder(builder: (context, c) {
-            final children = <Widget>[
-              if (storeRows.isNotEmpty) Expanded(child: _comparisonList('Store comparison', storeRows, 'name')),
-              if (storeRows.isNotEmpty && posRows.isNotEmpty) const SizedBox(width: 12),
-              if (posRows.isNotEmpty) Expanded(child: _comparisonList('POS comparison', posRows, 'device')),
-            ];
-            if (c.maxWidth < 760) {
-              return Column(children: [if (storeRows.isNotEmpty) _comparisonList('Store comparison', storeRows, 'name'), if (storeRows.isNotEmpty && posRows.isNotEmpty) const SizedBox(height: 10), if (posRows.isNotEmpty) _comparisonList('POS comparison', posRows, 'device')]);
-            }
-            return Row(crossAxisAlignment: CrossAxisAlignment.start, children: children);
-          }),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Business Intelligence v5',
+            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Return-aware profit, cash/bank, dead stock and store/POS comparison',
+            style: TextStyle(
+              fontSize: 12,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              _biChip(
+                'Gross profit',
+                _money(n(data['gross_profit'])),
+                Icons.insights_outlined,
+              ),
+              _biChip(
+                'Gross margin',
+                '${n(data['gross_margin_pct']).toStringAsFixed(2)}%',
+                Icons.percent,
+              ),
+              _biChip(
+                'Expenses',
+                _money(n(data['expenses'])),
+                Icons.receipt_long_outlined,
+              ),
+              _biChip(
+                'Cash / bank',
+                _money(n(data['cash_bank'])),
+                Icons.account_balance_wallet_outlined,
+              ),
+              _biChip(
+                'Customer outstanding',
+                _money(n(data['receivables'])),
+                Icons.request_quote_outlined,
+              ),
+              _biChip(
+                'Supplier dues',
+                _money(n(data['payables'])),
+                Icons.payments_outlined,
+              ),
+              _biChip(
+                'Low stock',
+                '${i(data['low_stock_count'])}',
+                Icons.warning_amber_rounded,
+              ),
+              _biChip(
+                'Dead stock',
+                '${i(data['dead_stock_count'])}',
+                Icons.inventory_2_outlined,
+              ),
+            ],
+          ),
+          if (storeRows.isNotEmpty || posRows.isNotEmpty) ...[
+            const SizedBox(height: 14),
+            LayoutBuilder(
+              builder: (context, c) {
+                final children = <Widget>[
+                  if (storeRows.isNotEmpty)
+                    Expanded(
+                      child: _comparisonList(
+                        'Store comparison',
+                        storeRows,
+                        'name',
+                      ),
+                    ),
+                  if (storeRows.isNotEmpty && posRows.isNotEmpty)
+                    const SizedBox(width: 12),
+                  if (posRows.isNotEmpty)
+                    Expanded(
+                      child: _comparisonList(
+                        'POS comparison',
+                        posRows,
+                        'device',
+                      ),
+                    ),
+                ];
+                if (c.maxWidth < 760) {
+                  return Column(
+                    children: [
+                      if (storeRows.isNotEmpty)
+                        _comparisonList('Store comparison', storeRows, 'name'),
+                      if (storeRows.isNotEmpty && posRows.isNotEmpty)
+                        const SizedBox(height: 10),
+                      if (posRows.isNotEmpty)
+                        _comparisonList('POS comparison', posRows, 'device'),
+                    ],
+                  );
+                }
+                return Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: children,
+                );
+              },
+            ),
+          ],
         ],
-      ]),
+      ),
     );
   }
 
   Widget _biChip(String label, String value, IconData icon) => Container(
     width: 190,
     padding: const EdgeInsets.all(11),
-    decoration: BoxDecoration(border: Border.all(color: Theme.of(context).dividerColor), borderRadius: BorderRadius.circular(10)),
-    child: Row(children: [Icon(icon, size: 18), const SizedBox(width: 8), Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(label, style: const TextStyle(fontSize: 10.5)), Text(value, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w800))]))]),
+    decoration: BoxDecoration(
+      border: Border.all(color: Theme.of(context).dividerColor),
+      borderRadius: BorderRadius.circular(10),
+    ),
+    child: Row(
+      children: [
+        Icon(icon, size: 18),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(label, style: const TextStyle(fontSize: 10.5)),
+              Text(
+                value,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontWeight: FontWeight.w800),
+              ),
+            ],
+          ),
+        ),
+      ],
+    ),
   );
 
-  Widget _comparisonList(String title, List<Map<String, dynamic>> rows, String labelKey) => Card(
+  Widget _comparisonList(
+    String title,
+    List<Map<String, dynamic>> rows,
+    String labelKey,
+  ) => Card(
     margin: EdgeInsets.zero,
-    child: Padding(padding: const EdgeInsets.all(10), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
-      const SizedBox(height: 6),
-      ...rows.take(6).map((r) => Padding(padding: const EdgeInsets.symmetric(vertical: 3), child: Row(children: [Expanded(child: Text((r[labelKey] ?? r['location_code'] ?? 'Unknown').toString(), overflow: TextOverflow.ellipsis)), Text(_money((r['net_sales'] is num ? r['net_sales'] as num : num.tryParse(r['net_sales']?.toString() ?? '') ?? 0).toDouble()), style: const TextStyle(fontWeight: FontWeight.w700))]))),
-    ])),
+    child: Padding(
+      padding: const EdgeInsets.all(10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
+          const SizedBox(height: 6),
+          ...rows
+              .take(6)
+              .map(
+                (r) => Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 3),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          (r[labelKey] ?? r['location_code'] ?? 'Unknown')
+                              .toString(),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      Text(
+                        _money(
+                          (r['net_sales'] is num
+                                  ? r['net_sales'] as num
+                                  : num.tryParse(
+                                          r['net_sales']?.toString() ?? '',
+                                        ) ??
+                                        0)
+                              .toDouble(),
+                        ),
+                        style: const TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+        ],
+      ),
+    ),
   );
 
   Widget _pageHeader(BuildContext context) {

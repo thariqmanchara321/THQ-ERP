@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:erp_core/erp_core.dart';
 
 import '../models/client_session.dart';
 import '../services/tenant_settings_service.dart';
-import '../services/device_installation_service.dart';
 import 'custom_fields_screen.dart';
-import 'client_entry_screen.dart';
 
 class BusinessSettingsScreen extends StatefulWidget {
   final ClientSession session;
@@ -42,37 +40,6 @@ class _BusinessSettingsScreenState extends State<BusinessSettingsScreen> {
       _error = error.toString();
     } finally {
       if (mounted) setState(() => _loading = false);
-    }
-  }
-
-  Future<void> _resetInstallation() async {
-    if (!_canManage) return;
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Reset Installation / Change Business?'),
-        content: const Text(
-          'This signs out this THQ Client and removes the saved business, device and store activation from this PC. '
-          'The installation ID is preserved. You will need a Business Code and one-time Activation Code to use THQ again.',
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Reset Installation')),
-        ],
-      ),
-    );
-    if (confirmed != true || !mounted) return;
-    try {
-      await Supabase.instance.client.auth.signOut();
-      await DeviceInstallationService().clearActivation();
-      if (!mounted) return;
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => const ClientEntryScreen()),
-        (_) => false,
-      );
-    } catch (error) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Could not reset installation: $error')));
     }
   }
 
@@ -328,17 +295,16 @@ class _BusinessSettingsScreenState extends State<BusinessSettingsScreen> {
                 ),
               ]),
               const SizedBox(height: 16),
-              _section('System Installation', [
+              _section('System', [
                 ListTile(
                   contentPadding: EdgeInsets.zero,
-                  leading: const Icon(Icons.phonelink_erase_outlined),
-                  title: const Text('Reset Installation / Change Business'),
-                  subtitle: const Text(
-                    'Detach this Client from its current business/store and return to activation. The installation ID is preserved.',
+                  leading: const Icon(Icons.info_outline),
+                  title: const Text('THQ Business'),
+                  subtitle: const Text('Installed application version'),
+                  trailing: Text(
+                    'v${ThqReleaseContract.appVersion} • Build ${ThqReleaseContract.buildNumber}',
+                    style: const TextStyle(fontWeight: FontWeight.w700),
                   ),
-                  trailing: const Icon(Icons.chevron_right),
-                  enabled: _canManage,
-                  onTap: _canManage ? _resetInstallation : null,
                 ),
               ]),
               if (_error != null)

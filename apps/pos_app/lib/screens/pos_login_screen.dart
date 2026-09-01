@@ -3,7 +3,9 @@ import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../services/client_auth_service.dart';
+import '../services/device_installation_service.dart';
 import 'pos_bootstrap_screen.dart';
+import 'pos_entry_screen.dart';
 
 class PosLoginScreen extends StatefulWidget {
   const PosLoginScreen({super.key});
@@ -47,6 +49,118 @@ class _PosLoginScreenState extends State<PosLoginScreen> {
       if (mounted) setState(() => _error = error.message);
     } catch (error) {
       if (mounted) setState(() => _error = error.toString());
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _changeBusiness() async {
+    final adminUsername = TextEditingController(text: _username.text.trim());
+    final adminPassword = TextEditingController();
+    var hidePassword = true;
+
+    final credentials = await showDialog<Map<String, String>>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Change Store / Business'),
+          content: SizedBox(
+            width: 390,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const Text(
+                  'Owner or administrator authorization is required before this POS can be changed.',
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: adminUsername,
+                  autofocus: true,
+                  textInputAction: TextInputAction.next,
+                  decoration: const InputDecoration(
+                    labelText: 'Owner / Admin username',
+                    prefixIcon: Icon(Icons.admin_panel_settings_outlined),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: adminPassword,
+                  obscureText: hidePassword,
+                  textInputAction: TextInputAction.done,
+                  decoration: InputDecoration(
+                    labelText: 'Password',
+                    prefixIcon: const Icon(Icons.lock_outline),
+                    suffixIcon: IconButton(
+                      onPressed: () =>
+                          setDialogState(() => hidePassword = !hidePassword),
+                      icon: Icon(
+                        hidePassword
+                            ? Icons.visibility_outlined
+                            : Icons.visibility_off_outlined,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Cancel'),
+            ),
+            FilledButton.icon(
+              onPressed: () => Navigator.pop(dialogContext, {
+                'username': adminUsername.text.trim(),
+                'password': adminPassword.text,
+              }),
+              icon: const Icon(Icons.verified_user_outlined),
+              label: const Text('Authorize & Change'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    adminUsername.dispose();
+    adminPassword.dispose();
+    if (credentials == null || !mounted) return;
+
+    final username = credentials['username'] ?? '';
+    final password = credentials['password'] ?? '';
+    if (username.length < 4 || password.length < 8) {
+      setState(() {
+        _error =
+            'Enter a valid owner/admin username and password to change this installation.';
+      });
+      return;
+    }
+
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      await _auth.authorizeBindingChange(
+        username: username,
+        password: password,
+      );
+      await DeviceInstallationService().clearActivation();
+      if (!mounted) return;
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const PosEntryScreen()),
+        (_) => false,
+      );
+    } on AuthException catch (error) {
+      if (mounted) setState(() => _error = error.message);
+    } catch (_) {
+      if (mounted) {
+        setState(
+          () => _error =
+              'Could not change this store/business. Owner/admin authorization failed.',
+        );
+      }
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -180,6 +294,12 @@ class _PosLoginScreenState extends State<PosLoginScreen> {
                                 )
                               : const Icon(Icons.login),
                           label: Text(_loading ? 'Signing in…' : 'Open POS'),
+                        ),
+                        const SizedBox(height: 8),
+                        TextButton.icon(
+                          onPressed: _loading ? null : _changeBusiness,
+                          icon: const Icon(Icons.swap_horiz),
+                          label: const Text('Change Store / Business'),
                         ),
                       ],
                     ),

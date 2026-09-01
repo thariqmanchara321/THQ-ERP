@@ -10,11 +10,13 @@ import 'release_contract.dart';
 /// the running release and the transaction workstation time.
 class DesktopReleaseStatus extends StatefulWidget {
   final bool compact;
+  final bool showVersion;
   final EdgeInsetsGeometry padding;
 
   const DesktopReleaseStatus({
     super.key,
     this.compact = false,
+    this.showVersion = true,
     this.padding = const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
   });
 
@@ -78,7 +80,7 @@ class _DesktopReleaseStatusState extends State<DesktopReleaseStatus> {
       return Padding(
         padding: widget.padding,
         child: Tooltip(
-          message: '$version\n$timestamp',
+          message: widget.showVersion ? '$version\n$timestamp' : timestamp,
           child: Icon(Icons.schedule_outlined, size: 17, color: color),
         ),
       );
@@ -89,22 +91,30 @@ class _DesktopReleaseStatusState extends State<DesktopReleaseStatus> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            version,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              fontSize: 9.5,
-              fontWeight: FontWeight.w700,
-              color: color,
+          if (widget.showVersion) ...[
+            Text(
+              version,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 9.5,
+                fontWeight: FontWeight.w700,
+                color: color,
+              ),
             ),
-          ),
-          const SizedBox(height: 2),
+            const SizedBox(height: 2),
+          ],
           Text(
             timestamp,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: TextStyle(fontSize: 9, color: color),
+            style: TextStyle(
+              fontSize: widget.showVersion ? 9 : 12,
+              fontWeight: widget.showVersion
+                  ? FontWeight.normal
+                  : FontWeight.w700,
+              color: color,
+            ),
           ),
         ],
       ),

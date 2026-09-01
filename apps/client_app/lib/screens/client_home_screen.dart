@@ -477,7 +477,6 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
                     collapsed: _navCollapsed,
                     onTap: _logout,
                   ),
-                  DesktopReleaseStatus(compact: _navCollapsed),
                   const SizedBox(height: 8),
                 ],
               ),

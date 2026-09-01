@@ -22,8 +22,10 @@ Deno.serve(async (req) => {
     const appKey = String(body.app_key ?? 'admin').trim().toLowerCase()
     const deviceId = String(body.device_id ?? '').trim()
     const deviceSecret = String(body.device_secret ?? '').trim()
+    const authorizationScope = String(body.authorization_scope ?? '').trim().toLowerCase()
     if (username.length < 4 || !password) return json({ error: 'Username and password are required.' }, 400)
     if (!['admin','client','pos'].includes(appKey)) return json({ error: 'Invalid application.' }, 400)
+    if (!['', 'change_binding'].includes(authorizationScope)) return json({ error: 'Invalid authorization scope.' }, 400)
 
     const url = Deno.env.get('SUPABASE_URL')!
     const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
@@ -31,6 +33,7 @@ Deno.serve(async (req) => {
     const admin = createClient(url, serviceKey, { auth: { persistSession: false } })
 
     let device: any = null
+    let membership: any = null
     if (appKey !== 'admin') {
       if (!deviceId || !deviceSecret) return json({ error: 'This system must be activated before login.', code: 'DEVICE_ACTIVATION_REQUIRED' }, 403)
       const { data } = await admin.from('business_devices').select('id,tenant_id,location_id,app_type,status,device_secret_hash').eq('id',deviceId).maybeSingle()
@@ -47,13 +50,63 @@ Deno.serve(async (req) => {
     if (identityError || !identity) return json({ error: 'Invalid username or password.' }, 401)
 
     if (device) {
-      const { data: membership } = await admin.from('tenant_memberships').select('id').eq('tenant_id',device.tenant_id).eq('user_id',identity.user_id).eq('status','active').maybeSingle()
-      if (!membership) return json({ error: 'This user does not have access to this business.', code:'TENANT_ACCESS_DENIED' }, 403)
+      const { data: activeMembership } = await admin.from('tenant_memberships').select('id').eq('tenant_id',device.tenant_id).eq('user_id',identity.user_id).eq('status','active').maybeSingle()
+      if (!activeMembership) return json({ error: 'This user does not have access to this business.', code:'TENANT_ACCESS_DENIED' }, 403)
+      membership = activeMembership
     }
 
     const auth = createClient(url, anonKey, { auth: { persistSession: false } })
     const { data, error } = await auth.auth.signInWithPassword({ email: identity.auth_email, password })
     if (error || !data.session) return json({ error: 'Invalid username or password.' }, 401)
+
+    if (authorizationScope === 'change_binding') {
+      if (!device || !membership) {
+        return json({ error: 'A currently activated Client/POS is required.', code: 'DEVICE_ACTIVATION_REQUIRED' }, 403)
+      }
+
+      const { data: userRoles, error: userRolesError } = await admin
+        .from('user_roles')
+        .select('role_id')
+        .eq('tenant_id', device.tenant_id)
+        .eq('membership_id', membership.id)
+      if (userRolesError) return json({ error: 'Could not verify administrator role.' }, 500)
+
+      const roleIds = (userRoles ?? []).map((row: any) => row.role_id)
+      if (!roleIds.length) {
+        return json({ error: 'Owner or administrator password is required.', code: 'OWNER_ADMIN_REQUIRED' }, 403)
+      }
+
+      const { data: roles, error: rolesError } = await admin
+        .from('roles')
+        .select('id,key')
+        .in('id', roleIds)
+      if (rolesError) return json({ error: 'Could not verify administrator role.' }, 500)
+
+      const isOwnerOrAdminRole = (roles ?? []).some(
+        (role: any) => role.key === 'owner' || role.key === 'admin',
+      )
+      const { data: settingsPermission, error: permissionError } = await admin
+        .from('role_permissions')
+        .select('role_id')
+        .in('role_id', roleIds)
+        .eq('permission_key', 'settings.manage')
+        .limit(1)
+      if (permissionError) return json({ error: 'Could not verify administrator permission.' }, 500)
+
+      if (!isOwnerOrAdminRole && !(settingsPermission ?? []).length) {
+        return json({ error: 'Owner or administrator password is required.', code: 'OWNER_ADMIN_REQUIRED' }, 403)
+      }
+
+      const seenAt = new Date().toISOString()
+      await admin.from('business_devices').update({ last_seen_at:seenAt }).eq('id',device.id)
+      await admin.from('system_installations').update({ last_seen_at:seenAt }).eq('system_id',device.id).eq('status','active')
+      return json({
+        authorized: true,
+        tenant_id: device.tenant_id,
+        location_id: device.location_id,
+        device_id: device.id,
+      })
+    }
 
     if (device) {
       const seenAt = new Date().toISOString()
