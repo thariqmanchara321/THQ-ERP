@@ -28,6 +28,9 @@ Thumbs.db
 *.keystore
 key.properties
 
+# One-time local THQ patch scripts
+/thq_v*_fix*.py
+/thq_v*_hardening*.py
 
 .thq_*_backup_*/
 *.dart.before_*
