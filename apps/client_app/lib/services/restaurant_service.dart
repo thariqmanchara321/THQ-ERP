@@ -1,5 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../features/gst/gst_v520_gateway.dart';
+
 class RestaurantService {
   SupabaseClient get _s => Supabase.instance.client;
 
@@ -80,6 +82,8 @@ class RestaurantService {
     required String deliveryAddress,
     required List<Map<String, dynamic>> items,
   }) async {
+    // Restaurant order/KOT values are operational previews only. Final GST is
+    // authoritative at billOrder().
     final result = await _s.rpc(
       'restaurant_order_create_v32',
       params: {
@@ -95,9 +99,7 @@ class RestaurantService {
         'p_items': items,
       },
     );
-    if (result is! Map) {
-      throw Exception('Unexpected restaurant order response.');
-    }
+    if (result is! Map) throw Exception('Unexpected restaurant order response.');
     return Map<String, dynamic>.from(result);
   }
 
@@ -114,9 +116,7 @@ class RestaurantService {
         'p_device_id': deviceId,
       },
     );
-    if (result is! Map) {
-      throw Exception('Unexpected order detail response.');
-    }
+    if (result is! Map) throw Exception('Unexpected order detail response.');
     return Map<String, dynamic>.from(result);
   }
 
@@ -135,9 +135,7 @@ class RestaurantService {
         'p_note': note.trim(),
       },
     );
-    if (result is! Map) {
-      throw Exception('Unexpected KOT response.');
-    }
+    if (result is! Map) throw Exception('Unexpected KOT response.');
     return Map<String, dynamic>.from(result);
   }
 
@@ -167,26 +165,38 @@ class RestaurantService {
     required String paymentReference,
     required double roundOff,
   }) async {
-    final result = await _s.rpc(
-      'restaurant_order_bill_v489',
-      params: {
-        'p_tenant_id': tenantId,
-        'p_order_id': orderId,
-        'p_device_id': deviceId,
-        'p_customer_id': customerId,
-        'p_due_date': dueDate == null
-            ? null
-            : '${dueDate.year.toString().padLeft(4, '0')}-${dueDate.month.toString().padLeft(2, '0')}-${dueDate.day.toString().padLeft(2, '0')}',
-        'p_initial_payment': initialPayment,
-        'p_payment_method': paymentMethod,
-        'p_payment_reference': paymentReference.trim(),
-        'p_round_off': roundOff,
-      },
+    final gateway = GstV520Gateway(
+      client: _s,
+      tenantId: tenantId,
+      channel: GstV520Channel.client,
+      deviceId: deviceId,
     );
-    if (result is! Map) {
-      throw Exception('Unexpected restaurant billing response.');
+    await gateway.initialize();
+    final rpc = gateway.routeFor('restaurant_bill');
+
+    try {
+      final result = await _s.rpc(
+        rpc,
+        params: {
+          'p_tenant_id': tenantId,
+          'p_order_id': orderId,
+          'p_device_id': deviceId,
+          'p_customer_id': customerId,
+          'p_due_date': dueDate == null ? null : _date(dueDate),
+          'p_initial_payment': initialPayment,
+          'p_payment_method': paymentMethod,
+          'p_payment_reference': paymentReference.trim(),
+          'p_round_off': roundOff,
+        },
+      );
+      if (result is! Map) throw StateError('Unexpected response from $rpc.');
+      return Map<String, dynamic>.from(result);
+    } catch (error) {
+      throw StateError(
+        'Authoritative GST v5.2 restaurant billing failed. Legacy restaurant '
+        'billing fallback is disabled. $error',
+      );
     }
-    return Map<String, dynamic>.from(result);
   }
 
   Future<void> markBilledByReference(
@@ -203,4 +213,9 @@ class RestaurantService {
       'p_sale_number': saleNumber,
     },
   );
+
+  String _date(DateTime value) =>
+      '${value.year.toString().padLeft(4, '0')}-'
+      '${value.month.toString().padLeft(2, '0')}-'
+      '${value.day.toString().padLeft(2, '0')}';
 }

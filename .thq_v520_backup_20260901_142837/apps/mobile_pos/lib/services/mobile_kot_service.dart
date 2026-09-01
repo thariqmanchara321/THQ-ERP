@@ -1,0 +1,3 @@
+import 'package:supabase_flutter/supabase_flutter.dart';
+import '../models/pos_session.dart';
+class MobileKotService {SupabaseClient get _supabase=>Supabase.instance.client;Future<Map<String,dynamic>> create({required PosSession session,required String requestId,required String orderType,String? tableId,String? customerId,required List<Map<String,dynamic>> items,String note=''}) async {final raw=await _supabase.rpc('mobile_pos_kot_create_v488',params:{'p_tenant_id':session.tenantId,'p_device_id':session.deviceId,'p_request_id':requestId,'p_order_type':orderType,'p_table_id':tableId,'p_customer_id':customerId,'p_items':items,'p_note':note,'p_send_now':true});return raw is Map?Map<String,dynamic>.from(raw):<String,dynamic>{};}}

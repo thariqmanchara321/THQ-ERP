@@ -1,10 +1,12 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:uuid/uuid.dart';
 
+import '../features/gst/gst_v520_gateway.dart';
 import 'device_installation_service.dart';
+import 'gst_v520_request_id_store.dart';
 
 class TransportService {
   SupabaseClient get _supabase => Supabase.instance.client;
+  final GstV520RequestIdStore _requestIds = GstV520RequestIdStore();
 
   Future<List<Map<String, dynamic>>> vehicles(
     String tenantId, {
@@ -107,9 +109,7 @@ class TransportService {
         'p_status': status,
       },
     );
-    if (result is! Map) {
-      throw Exception('Unexpected service job response.');
-    }
+    if (result is! Map) throw Exception('Unexpected service job response.');
     return Map<String, dynamic>.from(result);
   }
 
@@ -144,22 +144,55 @@ class TransportService {
     if (activation == null || activation.tenantId != tenantId) {
       throw StateError('This system is not activated for this business.');
     }
-    final result = await _supabase.rpc(
-      'service_job_bill_v51',
-      params: {
-        'p_tenant_id': tenantId,
-        'p_job_id': jobId,
-        'p_billing_variant_id': billingVariantId,
-        'p_due_date': dueDate == null ? null : _date(dueDate),
-        'p_initial_payment': initialPayment,
-        'p_payment_method': paymentMethod,
-        'p_payment_reference': paymentReference.trim(),
-        'p_device_id': activation.deviceId,
-        'p_request_id': const Uuid().v4(),
-      },
+
+    final payload = <String, dynamic>{
+      'job_id': jobId,
+      'billing_variant_id': billingVariantId,
+      'due_date': dueDate == null ? null : _date(dueDate),
+      'initial_payment': initialPayment,
+      'payment_method': paymentMethod,
+      'payment_reference': paymentReference.trim(),
+      'device_id': activation.deviceId,
+    };
+    final lease = await _requestIds.acquire(
+      tenantId: tenantId,
+      operation: 'service_bill',
+      payload: payload,
     );
-    if (result is! Map) throw Exception('Unexpected service billing response.');
-    return Map<String, dynamic>.from(result);
+
+    final gateway = GstV520Gateway(
+      client: _supabase,
+      tenantId: tenantId,
+      channel: GstV520Channel.client,
+      deviceId: activation.deviceId,
+    );
+    await gateway.initialize();
+    final rpc = gateway.routeFor('service_bill');
+
+    try {
+      final result = await _supabase.rpc(
+        rpc,
+        params: {
+          'p_tenant_id': tenantId,
+          'p_job_id': jobId,
+          'p_billing_variant_id': billingVariantId,
+          'p_due_date': dueDate == null ? null : _date(dueDate),
+          'p_initial_payment': initialPayment,
+          'p_payment_method': paymentMethod,
+          'p_payment_reference': paymentReference.trim(),
+          'p_device_id': activation.deviceId,
+          'p_request_id': lease.requestId,
+        },
+      );
+      if (result is! Map) throw StateError('Unexpected response from $rpc.');
+      await _requestIds.complete(lease);
+      return Map<String, dynamic>.from(result);
+    } catch (error) {
+      throw StateError(
+        'Authoritative GST v5.2 service billing failed. Legacy billing fallback '
+        'is disabled. Retry the unchanged bill. $error',
+      );
+    }
   }
 
   Future<Map<String, dynamic>> linkSaleByReference({

@@ -1,12 +1,15 @@
-import 'package:erp_core/erp_core.dart';
+﻿import 'package:erp_core/erp_core.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/client_session.dart';
+import '../features/gst/gst_v520_gateway.dart';
+import 'gst_v520_request_id_store.dart';
 import 'location_scope_service.dart';
 import 'thq_api_service.dart';
 
 class PurchasingV2Service {
   final ThqApiService _api = ThqApiService();
+  final GstV520RequestIdStore _gstRequestIds = GstV520RequestIdStore();
   SupabaseClient get _supabase => Supabase.instance.client;
 
   bool _isReadOnly(ThqApiRequest request) {
@@ -618,27 +621,61 @@ class PurchasingV2Service {
     double additionalCharges = 0,
     double roundOff = 0,
     String notes = '',
-  }) async =>
-      _map(
-        await _call(
-          ThqApiRequest(
-            tenantId: session.business.id,
-            resource: 'purchase-invoices',
-            action: 'create',
-            payload: {
-              'purchase_order_id': purchaseOrderId,
-              'supplier_invoice_number': supplierInvoiceNumber,
-              'invoice_date':
-                  (invoiceDate ?? DateTime.now()).toIso8601String().split('T').first,
-              'due_date': dueDate?.toIso8601String().split('T').first,
-              'items': items,
-              'additional_charges': additionalCharges,
-              'round_off': roundOff,
-              'notes': notes,
-            },
-          ),
-        ),
+  }) async {
+    final invoiceDay =
+        (invoiceDate ?? DateTime.now()).toIso8601String().split('T').first;
+    final dueDay = dueDate?.toIso8601String().split('T').first;
+    final payload = <String, dynamic>{
+      'purchase_order_id': purchaseOrderId,
+      'supplier_invoice_number': supplierInvoiceNumber.trim(),
+      'invoice_date': invoiceDay,
+      'due_date': dueDay,
+      'items': items,
+      'additional_charges': additionalCharges,
+      'round_off': roundOff,
+      'notes': notes.trim(),
+    };
+
+    final lease = await _gstRequestIds.acquire(
+      tenantId: session.business.id,
+      operation: 'purchase_invoice_v2',
+      payload: payload,
+    );
+    final gateway = GstV520Gateway(
+      client: _supabase,
+      tenantId: session.business.id,
+      channel: GstV520Channel.client,
+      deviceId: session.device?.deviceId,
+    );
+    await gateway.initialize();
+    final rpc = gateway.routeFor('purchase_invoice_v2');
+
+    try {
+      final raw = await _supabase.rpc(
+        rpc,
+        params: {
+          'p_tenant_id': session.business.id,
+          'p_purchase_order_id': purchaseOrderId,
+          'p_supplier_invoice_number': supplierInvoiceNumber.trim(),
+          'p_invoice_date': invoiceDay,
+          'p_due_date': dueDay,
+          'p_items': items,
+          'p_additional_charges': additionalCharges,
+          'p_round_off': roundOff,
+          'p_notes': notes.trim(),
+          'p_request_id': lease.requestId,
+        },
       );
+      if (raw is! Map) throw StateError('Unexpected response from $rpc.');
+      await _gstRequestIds.complete(lease);
+      return Map<String, dynamic>.from(raw);
+    } catch (error) {
+      throw StateError(
+        'Authoritative GST v5.2 Purchase Invoice failed. Legacy invoice '
+        'fallback is disabled. Retry the unchanged invoice. $error',
+      );
+    }
+  }
 
   Future<void> postInvoice(ClientSession session, String invoiceId) async {
     await _call(

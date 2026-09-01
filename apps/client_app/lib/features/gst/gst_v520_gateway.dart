@@ -1,4 +1,4 @@
-import 'dart:convert';
+﻿import 'dart:convert';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -135,8 +135,15 @@ class GstV520Gateway {
     final loaded = _asMap(raw, fieldName: 'cutover_contract');
 
     if (loaded['cutover_ready'] != true) {
-      throw const GstV520Exception(
-        'Backend has not approved GST v5.2 application cutover.',
+      final blockingReason = loaded['blocking_reason']?.toString();
+      final taxMode = loaded['tax_mode']?.toString() ?? 'unconfigured';
+      final detail = blockingReason == 'tax_mode_unconfigured'
+          ? 'Choose GST Registered or Non-GST in GST & Compliance first.'
+          : (blockingReason == null || blockingReason.isEmpty
+              ? 'Backend has not approved GST v5.2 application cutover.'
+              : blockingReason);
+      throw GstV520Exception(
+        'GST v5.2 cutover blocked: $detail (tax mode: $taxMode).',
       );
     }
 

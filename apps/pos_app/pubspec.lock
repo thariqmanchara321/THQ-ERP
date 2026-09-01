@@ -319,7 +319,7 @@ packages:
       path: "../../packages/erp_core"
       relative: true
     source: path
-    version: "5.1.0"
+    version: "5.2.0"
   excel:
     dependency: "direct main"
     description:

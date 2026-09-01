@@ -1,7 +1,7 @@
-name: mobile_pos
+﻿name: mobile_pos
 description: THQ ERP Mobile POS
 publish_to: 'none'
-version: 5.1.0+27
+version: 5.2.0+28
 environment:
   sdk: ^3.12.2
 dependencies:

@@ -1,9 +1,10 @@
-import 'dart:async';
+﻿import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:erp_core/erp_core.dart';
 
 import '../models/client_session.dart';
+import '../features/gst/gst_v520_entry_screen.dart';
 import '../models/app_menu_node.dart';
 import '../services/client_auth_service.dart';
 import '../services/client_session_service.dart';
@@ -262,6 +263,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
     'suppliers' => Icons.local_shipping_outlined,
     'expenses' => Icons.payments_outlined,
     'accounting' => Icons.account_balance_outlined,
+    'gst_compliance' => Icons.receipt_long_outlined,
     'reports' => Icons.insights_outlined,
     'barcode' => Icons.qr_code_scanner_outlined,
     'warranty' => Icons.verified_user_outlined,
@@ -380,7 +382,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
                         },
                         decoration: const InputDecoration(
                           isDense: true,
-                          hintText: 'Find menu or search THQ…',
+                          hintText: 'Find menu or search THQâ€¦',
                           prefixIcon: Icon(Icons.search, size: 20),
                         ),
                       ),
@@ -472,7 +474,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
                   },
                   decoration: const InputDecoration(
                     isDense: true,
-                    hintText: 'Find menu or search THQ…',
+                    hintText: 'Find menu or search THQâ€¦',
                     prefixIcon: Icon(Icons.search),
                   ),
                 ),
@@ -559,8 +561,8 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
                   const SizedBox(height: 2),
                   Text(
                     device == null
-                        ? 'THQ Business • v${ThqReleaseContract.appVersion}'
-                        : '${device.locationCode} • ${device.deviceCode}',
+                        ? 'THQ Business â€¢ v${ThqReleaseContract.appVersion}'
+                        : '${device.locationCode} â€¢ ${device.deviceCode}',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
@@ -953,7 +955,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
                       device.locationCode,
                     if (device != null && device.deviceName.isNotEmpty)
                       device.deviceName,
-                  ].join(' • '),
+                  ].join(' â€¢ '),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
@@ -971,7 +973,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
             icon: _refreshing
                 ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
                 : const Icon(Icons.refresh, size: 18),
-            label: Text(_updatesAvailable ? 'Updates • Refresh' : 'Refresh'),
+            label: Text(_updatesAvailable ? 'Updates â€¢ Refresh' : 'Refresh'),
           ),
           const SizedBox(width: 8),
           FilledButton.tonalIcon(
@@ -981,7 +983,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
           ),
           const SizedBox(width: 10),
           Tooltip(
-            message: '${_session.username} • ${_session.roleLabel}',
+            message: '${_session.username} â€¢ ${_session.roleLabel}',
             child: Container(
               constraints: const BoxConstraints(maxWidth: 210),
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
@@ -1081,13 +1083,13 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
               if (_session.canViewAllLocations)
                 const DropdownMenuItem<String?>(
                   value: null,
-                  child: Text('All stores • merged'),
+                  child: Text('All stores â€¢ merged'),
                 ),
               ...LocationScopeService.orderedLocations(_session).map(
                 (location) => DropdownMenuItem<String?>(
                   value: location.id,
                   child: Text(
-                    '${location.code} • ${location.name} • ${location.roleLabel}',
+                    '${location.code} â€¢ ${location.name} â€¢ ${location.roleLabel}',
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
@@ -1135,7 +1137,7 @@ class _SubscriptionBanner extends StatelessWidget {
           const SizedBox(width: 8),
           Expanded(
             child: Text(
-              'Subscription ${status.replaceAll('_', ' ')}${blocked ? ' — contact your administrator to restore module access.' : '.'}',
+              'Subscription ${status.replaceAll('_', ' ')}${blocked ? ' â€” contact your administrator to restore module access.' : '.'}',
             ),
           ),
         ],
@@ -1171,6 +1173,7 @@ class _ModulePage extends StatelessWidget {
       ),
       'expenses' => ExpensesScreen(session: session),
       'accounting' => AccountingScreen(session: session),
+      'gst_compliance' => GstV520EntryScreen(session: session),
       'reports' => ReportsScreen(session: session),
       'returns' => ReturnsRegisterScreen(session: session),
       'invoice_templates' => InvoiceDesignerScreen(session: session),
@@ -1239,7 +1242,7 @@ class _ComingSoon extends StatelessWidget {
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    '${session.currencyCode} • ${session.locale}',
+                    '${session.currencyCode} â€¢ ${session.locale}',
                     style: TextStyle(
                       color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
