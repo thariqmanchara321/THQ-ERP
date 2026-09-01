@@ -1,9 +1,12 @@
+import 'package:erp_core/erp_core.dart';
 import 'package:flutter/material.dart';
 
 import '../models/client_session.dart';
 import '../models/inventory_product_detail.dart';
 import '../models/stock_movement.dart';
 import '../services/inventory_service.dart';
+import '../widgets/product_unit_editor.dart';
+import 'product_tracking_policy_screen.dart';
 
 class ProductDetailScreen extends StatefulWidget {
   final ClientSession session;
@@ -219,7 +222,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       }
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Stock adjusted successfully.')),
+        const SnackBar(content: Text('Stock adjustment submitted for approval.')),
       );
     }
   }
@@ -305,6 +308,11 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
               _buildPricingCard(product),
 
               const SizedBox(height: 22),
+
+              if (product.itemType == 'stock') ...[
+                _buildTrackingCard(product),
+                const SizedBox(height: 22),
+              ],
 
               _buildStockCard(product),
 
@@ -442,6 +450,30 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     );
   }
 
+  Widget _buildTrackingCard(InventoryProductDetail product) {
+    return _SectionCard(
+      title: 'Serial / Batch / Warranty',
+      trailing: _canManage
+          ? FilledButton.icon(
+              onPressed: () async {
+                await Navigator.of(context).push<void>(
+                  MaterialPageRoute(
+                    builder: (_) => ProductTrackingPolicyScreen(
+                      session: widget.session,
+                      variantId: product.variantId,
+                      productName: product.productName,
+                    ),
+                  ),
+                );
+              },
+              icon: const Icon(Icons.qr_code_scanner_outlined),
+              label: const Text('Tracking Policy'),
+            )
+          : null,
+      child: const Text('Configure serial, batch/expiry and warranty tracking for this product.'),
+    );
+  }
+
   Widget _buildStockCard(InventoryProductDetail product) {
     final isStock = product.itemType == 'stock';
 
@@ -575,6 +607,8 @@ class _EditProductDialogState extends State<_EditProductDialog> {
   late final TextEditingController _reorderController;
 
   bool _saving = false;
+  bool _unitsLoading = true;
+  ProductUnitEditorController? _unitEditor;
 
   String? _error;
 
@@ -619,6 +653,31 @@ class _EditProductDialogState extends State<_EditProductDialog> {
     _reorderController = TextEditingController(
       text: product.reorderLevel.toString(),
     );
+    _loadUnits();
+  }
+
+  Future<void> _loadUnits() async {
+    try {
+      final results = await Future.wait(<Future<dynamic>>[
+        _service.getUnits(tenantId: widget.session.business.id),
+        _service.getProductUnits(tenantId: widget.session.business.id, variantId: widget.product.variantId),
+      ]);
+      if (!mounted) return;
+      setState(() {
+        _unitEditor = ProductUnitEditorController(
+          units: results[0] as List<InventoryUnit>,
+          baseCode: widget.product.unitCode ?? 'PCS',
+          configured: results[1] as List<ProductUnitOption>,
+        );
+        _unitsLoading = false;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _unitsLoading = false;
+        _error = 'Product units could not be loaded: $error';
+      });
+    }
   }
 
   String? _required(String? value, String label) {
@@ -677,6 +736,11 @@ class _EditProductDialogState extends State<_EditProductDialog> {
     }
 
     final tax = _number(_taxController);
+    final unitError = _unitEditor?.validate();
+    if (unitError != null) {
+      setState(() => _error = unitError);
+      return;
+    }
 
     if (tax > 100) {
       setState(() {
@@ -718,6 +782,15 @@ class _EditProductDialogState extends State<_EditProductDialog> {
         taxRate: tax,
         reorderLevel: _number(_reorderController),
       );
+      final editor = _unitEditor;
+      if (editor != null) {
+        await _service.saveProductUnits(
+          tenantId: widget.session.business.id,
+          variantId: widget.product.variantId,
+          baseUnitCode: editor.baseCode,
+          units: editor.toPayload(),
+        );
+      }
 
       if (!mounted) {
         return;
@@ -913,7 +986,14 @@ class _EditProductDialogState extends State<_EditProductDialog> {
                   ),
                 ),
 
-                const SizedBox(height: 16),
+                const SizedBox(height: 20),
+
+                if (_unitsLoading)
+                  const LinearProgressIndicator()
+                else if (_unitEditor != null)
+                  ProductUnitEditor(controller: _unitEditor!, enabled: !_saving, currencySymbol: widget.session.currencyCode),
+
+                const SizedBox(height: 20),
 
                 TextFormField(
                   controller: _reorderController,
@@ -926,7 +1006,7 @@ class _EditProductDialogState extends State<_EditProductDialog> {
                       : _numberValidator(value, 'Reorder level'),
                   decoration: InputDecoration(
                     labelText: 'Reorder Level',
-                    suffixText: widget.product.unitCode ?? '',
+                    suffixText: _unitEditor?.baseCode ?? widget.product.unitCode ?? '',
                     border: const OutlineInputBorder(),
                   ),
                 ),

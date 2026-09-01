@@ -96,7 +96,7 @@ class _CustomerAccountsScreenState extends State<CustomerAccountsScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('Customer Receivables')),
       body: Padding(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
         child: Column(
           children: [
             Row(
@@ -120,42 +120,45 @@ class _CustomerAccountsScreenState extends State<CustomerAccountsScreen> {
               ],
             ),
             const SizedBox(height: 14),
-            Row(
-              children: [
-                Expanded(
-                  child: Card(
-                    child: ListTile(
-                      leading:
-                          const Icon(Icons.account_balance_wallet_outlined),
-                      title: const Text('Outstanding in your permitted scope'),
-                      trailing: Text(
-                        _money(totalOutstanding),
-                        style: const TextStyle(
-                          fontSize: 21,
-                          fontWeight: FontWeight.w900,
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final narrow = constraints.maxWidth < 720;
+                final outstandingCard = Card(
+                  child: ListTile(
+                    leading: const Icon(Icons.account_balance_wallet_outlined),
+                    title: const Text('Outstanding in your permitted scope'),
+                    trailing: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 190),
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerRight,
+                        child: Text(
+                          _money(totalOutstanding),
+                          style: const TextStyle(fontSize: 21, fontWeight: FontWeight.w900),
                         ),
                       ),
                     ),
                   ),
-                ),
-                const SizedBox(width: 12),
-                SizedBox(
-                  width: 260,
-                  child: Card(
-                    child: ListTile(
-                      leading: const Icon(Icons.people_outline),
-                      title: const Text('Customers with balance'),
-                      trailing: Text(
-                        '$dueCustomers',
-                        style: const TextStyle(
-                          fontSize: 21,
-                          fontWeight: FontWeight.w900,
-                        ),
-                      ),
+                );
+                final countCard = Card(
+                  child: ListTile(
+                    leading: const Icon(Icons.people_outline),
+                    title: const Text('Customers with balance'),
+                    trailing: Text(
+                      '$dueCustomers',
+                      style: const TextStyle(fontSize: 21, fontWeight: FontWeight.w900),
                     ),
                   ),
-                ),
-              ],
+                );
+                if (narrow) return Column(children: [outstandingCard, countCard]);
+                return Row(
+                  children: [
+                    Expanded(child: outstandingCard),
+                    const SizedBox(width: 12),
+                    SizedBox(width: 280, child: countCard),
+                  ],
+                );
+              },
             ),
             if (_error != null)
               Padding(
@@ -189,56 +192,83 @@ class _CustomerAccountsScreenState extends State<CustomerAccountsScreen> {
                                   ? '?'
                                   : customerName.trim().characters.first;
                               return Card(
-                                child: ListTile(
-                                  leading: CircleAvatar(
-                                    child: Text(first.toUpperCase()),
-                                  ),
-                                  title: Text(
-                                    customerName,
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.w800,
-                                    ),
-                                  ),
-                                  subtitle: Text(
-                                    '${row['public_id'] ?? ''} • ${row['phone'] ?? ''}\n'
-                                    '${row['open_invoice_count'] ?? 0} open invoice(s) • Last sale ${row['last_sale_date'] ?? '-'}',
-                                  ),
-                                  isThreeLine: true,
-                                  trailing: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Column(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.center,
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.end,
-                                        children: [
-                                          const Text(
-                                            'Outstanding',
-                                            style: TextStyle(fontSize: 11),
+                                child: LayoutBuilder(
+                                  builder: (context, constraints) {
+                                    final narrow = constraints.maxWidth < 720;
+                                    final identity = Row(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        CircleAvatar(child: Text(first.toUpperCase())),
+                                        const SizedBox(width: 12),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Text(customerName, style: const TextStyle(fontWeight: FontWeight.w800)),
+                                              const SizedBox(height: 3),
+                                              Text('${row['public_id'] ?? ''} • ${row['phone'] ?? ''}'),
+                                              Text('${row['open_invoice_count'] ?? 0} open invoice(s) • Last sale ${row['last_sale_date'] ?? '-'}'),
+                                            ],
                                           ),
-                                          Text(
-                                            _money(outstanding),
-                                            style: TextStyle(
-                                              fontSize: 17,
-                                              fontWeight: FontWeight.w900,
-                                              color: outstanding > 0.005
-                                                  ? Colors.orange.shade800
-                                                  : Colors.green.shade700,
+                                        ),
+                                      ],
+                                    );
+                                    final amountBlock = ConstrainedBox(
+                                      constraints: const BoxConstraints(maxWidth: 190),
+                                      child: Column(
+                                        crossAxisAlignment: narrow ? CrossAxisAlignment.start : CrossAxisAlignment.end,
+                                        children: [
+                                          const Text('Outstanding', style: TextStyle(fontSize: 11)),
+                                          FittedBox(
+                                            fit: BoxFit.scaleDown,
+                                            alignment: narrow ? Alignment.centerLeft : Alignment.centerRight,
+                                            child: Text(
+                                              _money(outstanding),
+                                              maxLines: 1,
+                                              style: TextStyle(
+                                                fontSize: 17,
+                                                fontWeight: FontWeight.w900,
+                                                color: outstanding > 0.005 ? Colors.orange.shade800 : Colors.green.shade700,
+                                              ),
                                             ),
                                           ),
                                         ],
                                       ),
-                                      const SizedBox(width: 12),
-                                      FilledButton.tonalIcon(
-                                        onPressed: () => _open(row),
-                                        icon: const Icon(
-                                          Icons.receipt_long_outlined,
-                                        ),
-                                        label: const Text('Account'),
-                                      ),
-                                    ],
-                                  ),
+                                    );
+                                    final accountButton = FilledButton.tonalIcon(
+                                      onPressed: () => _open(row),
+                                      icon: const Icon(Icons.receipt_long_outlined),
+                                      label: const Text('Account'),
+                                    );
+                                    return Padding(
+                                      padding: const EdgeInsets.all(14),
+                                      child: narrow
+                                          ? Column(
+                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                              children: [
+                                                identity,
+                                                const SizedBox(height: 12),
+                                                Row(
+                                                  children: [
+                                                    const SizedBox(width: 52),
+                                                    Expanded(child: amountBlock),
+                                                    const SizedBox(width: 10),
+                                                    accountButton,
+                                                  ],
+                                                ),
+                                              ],
+                                            )
+                                          : Row(
+                                              children: [
+                                                Expanded(child: identity),
+                                                const SizedBox(width: 18),
+                                                amountBlock,
+                                                const SizedBox(width: 12),
+                                                accountButton,
+                                              ],
+                                            ),
+                                    );
+                                  },
                                 ),
                               );
                             },

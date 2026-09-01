@@ -38,6 +38,8 @@ class UiDesignProfile {
       'success': '#22A06B',
       'warning': '#E6A700',
       'danger': '#E05252',
+      'text_primary': '#211F27',
+      'text_secondary': '#625E6A',
       'radius': appKey == 'pos' ? 18 : 18,
       'density': 'comfortable',
       'card_style': 'soft',
@@ -70,6 +72,10 @@ class UiDesignProfile {
   Color get success => parseColor(config['success'], const Color(0xFF22A06B));
   Color get warning => parseColor(config['warning'], const Color(0xFFE6A700));
   Color get danger => parseColor(config['danger'], const Color(0xFFE05252));
+  Color get textPrimary =>
+      parseColor(config['text_primary'], const Color(0xFF211F27));
+  Color get textSecondary =>
+      parseColor(config['text_secondary'], const Color(0xFF625E6A));
   double get radius => ((config['radius'] as num?)?.toDouble() ?? 18)
       .clamp(8.0, 28.0)
       .toDouble();
@@ -98,6 +104,8 @@ class UiDesignProfile {
           error: danger,
           outline: border,
           outlineVariant: border,
+          onSurface: textPrimary,
+          onSurfaceVariant: textSecondary,
           surfaceContainerLowest: surface,
           surfaceContainerLow: Color.alphaBlend(
             primary.withValues(alpha: 0.025),
@@ -123,22 +131,22 @@ class UiDesignProfile {
       colorScheme: scheme,
       scaffoldBackgroundColor: background,
       fontFamily: null,
-      textTheme: const TextTheme(
-        displayLarge: TextStyle(fontSize: 34, fontWeight: FontWeight.w800),
-        displayMedium: TextStyle(fontSize: 30, fontWeight: FontWeight.w800),
-        displaySmall: TextStyle(fontSize: 27, fontWeight: FontWeight.w800),
-        headlineLarge: TextStyle(fontSize: 24, fontWeight: FontWeight.w800),
-        headlineMedium: TextStyle(fontSize: 21, fontWeight: FontWeight.w800),
-        headlineSmall: TextStyle(fontSize: 19, fontWeight: FontWeight.w700),
-        titleLarge: TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
-        titleMedium: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
-        titleSmall: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
-        bodyLarge: TextStyle(fontSize: 14),
-        bodyMedium: TextStyle(fontSize: 12.5),
-        bodySmall: TextStyle(fontSize: 10.5),
-        labelLarge: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
-        labelMedium: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600),
-        labelSmall: TextStyle(fontSize: 9.5, fontWeight: FontWeight.w600),
+      textTheme: TextTheme(
+        displayLarge: TextStyle(fontSize: 34, fontWeight: FontWeight.w800, color: textPrimary),
+        displayMedium: TextStyle(fontSize: 30, fontWeight: FontWeight.w800, color: textPrimary),
+        displaySmall: TextStyle(fontSize: 27, fontWeight: FontWeight.w800, color: textPrimary),
+        headlineLarge: TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: textPrimary),
+        headlineMedium: TextStyle(fontSize: 21, fontWeight: FontWeight.w800, color: textPrimary),
+        headlineSmall: TextStyle(fontSize: 19, fontWeight: FontWeight.w700, color: textPrimary),
+        titleLarge: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: textPrimary),
+        titleMedium: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: textPrimary),
+        titleSmall: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: textPrimary),
+        bodyLarge: TextStyle(fontSize: 14, color: textPrimary),
+        bodyMedium: TextStyle(fontSize: 12.5, color: textPrimary),
+        bodySmall: TextStyle(fontSize: 10.5, color: textSecondary),
+        labelLarge: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: textPrimary),
+        labelMedium: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600, color: textPrimary),
+        labelSmall: TextStyle(fontSize: 9.5, fontWeight: FontWeight.w600, color: textSecondary),
       ),
       appBarTheme: AppBarTheme(
         backgroundColor: surface,
@@ -161,6 +169,11 @@ class UiDesignProfile {
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
+        labelStyle: TextStyle(color: textSecondary),
+        floatingLabelStyle: TextStyle(color: primary),
+        hintStyle: TextStyle(color: textSecondary),
+        prefixIconColor: textSecondary,
+        suffixIconColor: textSecondary,
         fillColor: surface,
         isDense: compact,
         contentPadding: EdgeInsets.symmetric(
@@ -192,6 +205,7 @@ class UiDesignProfile {
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
+          foregroundColor: primary,
           minimumSize: Size(0, compact ? 38 : 42),
           side: BorderSide(color: border),
           shape: RoundedRectangleBorder(
@@ -202,6 +216,7 @@ class UiDesignProfile {
       ),
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
+          foregroundColor: primary,
           textStyle: const TextStyle(fontWeight: FontWeight.w600),
         ),
       ),
@@ -215,7 +230,9 @@ class UiDesignProfile {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(r * 0.60),
         ),
-        labelStyle: const TextStyle(fontWeight: FontWeight.w600),
+        labelStyle: TextStyle(fontWeight: FontWeight.w600, color: textPrimary),
+        secondaryLabelStyle: TextStyle(fontWeight: FontWeight.w600, color: textPrimary),
+        iconTheme: IconThemeData(color: textSecondary),
       ),
       navigationRailTheme: NavigationRailThemeData(
         backgroundColor: sidebar,
@@ -239,6 +256,8 @@ class UiDesignProfile {
         ),
       ),
       dataTableTheme: DataTableThemeData(
+        headingTextStyle: TextStyle(fontWeight: FontWeight.w700, color: textPrimary),
+        dataTextStyle: TextStyle(color: textPrimary),
         headingRowColor: WidgetStatePropertyAll(
           Color.alphaBlend(primary.withValues(alpha: 0.035), surface),
         ),
@@ -251,6 +270,8 @@ class UiDesignProfile {
       ),
       listTileTheme: ListTileThemeData(
         dense: compact,
+        textColor: textPrimary,
+        iconColor: textSecondary,
         minVerticalPadding: compact ? 3 : 6,
         horizontalTitleGap: compact ? 8 : 12,
         contentPadding: EdgeInsets.symmetric(horizontal: compact ? 10 : 14),

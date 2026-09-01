@@ -2,9 +2,9 @@ import 'package:erp_core/erp_core.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  test('THQ V4.8.2 release contract is locked to migration 134', () {
-    expect(ThqReleaseContract.appVersion, '4.8.2');
-    expect(ThqReleaseContract.minimumMigration, 134);
+  test('THQ V5.1 release contract is locked to migration 213', () {
+    expect(ThqReleaseContract.appVersion, '5.1.0');
+    expect(ThqReleaseContract.minimumMigration, 213);
     expect(ThqReleaseContract.apiVersion, 'v1');
   });
 

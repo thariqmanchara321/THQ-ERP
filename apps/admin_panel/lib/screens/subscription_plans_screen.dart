@@ -200,6 +200,42 @@ class _PlanDialogState extends State<_PlanDialog> {
     _active = p?.isActive ?? true;
     _selected = Set<String>.from(p?.moduleKeys ?? const ['dashboard']);
     _selected.add('dashboard');
+    _normalizeCompanionModules();
+  }
+
+  bool _moduleExists(String key) => widget.modules.any((m) => m.key == key);
+
+  void _normalizeCompanionModules() {
+    if (_selected.contains('sales') && _moduleExists('sales_details')) {
+      _selected.add('sales_details');
+    }
+    if (_selected.contains('purchases') && _moduleExists('purchase_details')) {
+      _selected.add('purchase_details');
+    }
+  }
+
+  bool _isRequiredCompanion(String key) =>
+      (key == 'sales_details' && _selected.contains('sales')) ||
+      (key == 'purchase_details' && _selected.contains('purchases'));
+
+  void _addModule(String key) {
+    final module = widget.modules.firstWhere((m) => m.key == key);
+    setState(() {
+      _selected.add(module.key);
+      for (final dep in module.dependencies) {
+        _selected.add(dep);
+      }
+      _normalizeCompanionModules();
+    });
+  }
+
+  void _removeModule(String key) {
+    if (key == 'dashboard' || _isRequiredCompanion(key)) return;
+    setState(() {
+      _selected.remove(key);
+      if (key == 'sales') _selected.remove('sales_details');
+      if (key == 'purchases') _selected.remove('purchase_details');
+    });
   }
 
   int _int(TextEditingController c, int fallback) =>
@@ -246,10 +282,10 @@ class _PlanDialogState extends State<_PlanDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
+      scrollable: true,
       title: Text(widget.plan == null ? 'Create Plan' : 'Edit Plan'),
       content: SizedBox(
         width: 760,
-        height: 690,
         child: Column(
           children: [
             Row(
@@ -354,37 +390,53 @@ class _PlanDialogState extends State<_PlanDialog> {
             const Divider(),
             const Align(
               alignment: Alignment.centerLeft,
-              child: Text(
-                'Entitled modules',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
+              child: Text('Entitled modules', style: TextStyle(fontWeight: FontWeight.bold)),
             ),
-            Expanded(
-              child: ListView(
-                children: widget.modules
-                    .where((m) => m.isActive)
-                    .map(
-                      (m) => CheckboxListTile(
-                        dense: true,
-                        value:
-                            _selected.contains(m.key) || m.key == 'dashboard',
-                        onChanged: m.key == 'dashboard'
+            const SizedBox(height: 8),
+            DropdownButtonFormField<String>(
+              key: ValueKey('module-picker-${_selected.length}'),
+              initialValue: null,
+              decoration: const InputDecoration(
+                labelText: 'Add module',
+                hintText: 'Choose a module',
+                border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.extension_outlined),
+              ),
+              items: widget.modules
+                  .where((m) => m.isActive && !_selected.contains(m.key))
+                  .map((m) => DropdownMenuItem<String>(
+                        value: m.key,
+                        child: Text('${m.name}  •  ${m.category}'),
+                      ))
+                  .toList(),
+              onChanged: (key) {
+                if (key != null) _addModule(key);
+              },
+            ),
+            const SizedBox(height: 10),
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxHeight: 180),
+              child: SingleChildScrollView(
+                child: Align(
+                  alignment: Alignment.topLeft,
+                  child: Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: _selected.map((key) {
+                      final matches = widget.modules.where((m) => m.key == key);
+                      final label = matches.isEmpty ? key : matches.first.name;
+                      return InputChip(
+                        avatar: key == 'dashboard'
+                            ? const Icon(Icons.lock_outline, size: 16)
+                            : null,
+                        label: Text(label),
+                        onDeleted: key == 'dashboard' || _isRequiredCompanion(key)
                             ? null
-                            : (v) => setState(() {
-                                if (v == true) {
-                                  _selected.add(m.key);
-                                  for (final dep in m.dependencies) {
-                                    _selected.add(dep);
-                                  }
-                                } else {
-                                  _selected.remove(m.key);
-                                }
-                              }),
-                        title: Text(m.name),
-                        subtitle: Text('${m.category} • ${m.key}'),
-                      ),
-                    )
-                    .toList(),
+                            : () => _removeModule(key),
+                      );
+                    }).toList(),
+                  ),
+                ),
               ),
             ),
             if (_error != null)

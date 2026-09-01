@@ -428,7 +428,7 @@ class _AddUserDialogState extends State<_AddUserDialog> {
   String? _roleKey;
 
   bool _saving = false;
-  bool _hidePassword = true;
+  bool _hidePassword = false;
 
   String? _error;
 
@@ -505,7 +505,41 @@ class _AddUserDialogState extends State<_AddUserDialog> {
         return;
       }
 
-      Navigator.of(context).pop(true);
+      await showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (dialogContext) => AlertDialog(
+          icon: const Icon(Icons.key_outlined),
+          title: const Text('User Login Details'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Save these details now. The password is shown here only and is not stored as readable text.',
+              ),
+              const SizedBox(height: 14),
+              SelectableText(
+                'Username: $username\nPassword: $password',
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('I saved it'),
+            ),
+          ],
+        ),
+      );
+
+      if (mounted) {
+        Navigator.of(context).pop(true);
+      }
     } catch (error) {
       if (!mounted) {
         return;
@@ -703,7 +737,7 @@ class _ResetPasswordDialogState extends State<_ResetPasswordDialog> {
   final BusinessUserService _service = BusinessUserService();
 
   bool _saving = false;
-  bool _hidePassword = true;
+  bool _hidePassword = false;
 
   String? _error;
 
@@ -742,7 +776,44 @@ class _ResetPasswordDialogState extends State<_ResetPasswordDialog> {
         return;
       }
 
-      Navigator.of(context).pop(true);
+      final display = widget.user.username.isNotEmpty
+          ? widget.user.username
+          : widget.user.name;
+      await showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (dialogContext) => AlertDialog(
+          icon: const Icon(Icons.key_outlined),
+          title: const Text('New Login Password'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Save the new password now. It is shown here only and is not stored as readable text.',
+              ),
+              const SizedBox(height: 14),
+              SelectableText(
+                'Username: $display\nPassword: $password',
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('I saved it'),
+            ),
+          ],
+        ),
+      );
+
+      if (mounted) {
+        Navigator.of(context).pop(true);
+      }
     } catch (error) {
       if (!mounted) {
         return;

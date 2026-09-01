@@ -74,7 +74,7 @@ class _BusinessActivityScreenState extends State<BusinessActivityScreen> {
           }
 
           return ListView.separated(
-            padding: const EdgeInsets.all(24),
+            padding: const EdgeInsets.all(14),
             itemCount: rows.length,
             separatorBuilder: (_, _) => const SizedBox(height: 8),
             itemBuilder: (context, index) {

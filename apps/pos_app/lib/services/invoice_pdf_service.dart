@@ -65,13 +65,14 @@ class InvoicePdfService {
     required String paperType,
     required Map<String, dynamic> template,
     required Map<String, dynamic> origin,
+    Map<String, dynamic>? settingsOverride,
   }) async {
     final doc = pw.Document();
     final narrow = paperType.toLowerCase() != 'a4';
     final config = Map<String, dynamic>.from(
       template['config'] as Map? ?? const {},
     );
-    final settings = session.settings;
+    final settings = settingsOverride ?? session.settings;
     final accent = _accent(config);
     final align = _alignment(config);
     final baseFont = _number(
@@ -99,7 +100,11 @@ class InvoicePdfService {
       'phone',
       settings['business.phone']?.toString() ?? '',
     );
-    final email = settings['business.email']?.toString().trim() ?? '';
+    final email = _text(
+      origin,
+      'email',
+      settings['business.email']?.toString() ?? '',
+    );
     final website = settings['business.website']?.toString().trim() ?? '';
     final configuredHeader =
         settings['documents.invoice_header']?.toString().trim() ?? '';
@@ -110,22 +115,51 @@ class InvoicePdfService {
         settings['documents.bank_details']?.toString().trim() ?? '';
     final paymentDetails =
         settings['documents.payment_details']?.toString().trim() ?? '';
-    final addressParts =
-        [
-              origin['address_line1'],
-              origin['address_line2'],
-              origin['city'],
-              origin['state'],
-              origin['postal_code'],
-            ]
-            .where(
-              (value) => value != null && value.toString().trim().isNotEmpty,
-            )
-            .map((value) => value.toString().trim())
-            .toList();
-    final address = addressParts.isNotEmpty
-        ? addressParts.join(', ')
-        : settings['business.address']?.toString().trim() ?? '';
+    final paymentQrUrl =
+        settings['documents.payment_qr_url']?.toString().trim() ?? '';
+    final paymentQrLabel =
+        settings['documents.payment_qr_label']?.toString().trim().isNotEmpty == true
+        ? settings['documents.payment_qr_label'].toString().trim()
+        : 'Scan to Pay';
+    final businessAddress =
+        settings['business.address']?.toString().trim() ?? '';
+    final locationCoreParts = <dynamic>[
+      origin['address_line1'],
+      origin['address_line2'],
+      origin['city'],
+      origin['postal_code'],
+    ];
+    final hasDetailedLocationAddress = locationCoreParts.any(
+      (value) => value != null && value.toString().trim().isNotEmpty,
+    );
+    final locationAddressParts = <dynamic>[
+      origin['address_line1'],
+      origin['address_line2'],
+      origin['city'],
+      origin['state'],
+      origin['postal_code'],
+      origin['country'],
+    ]
+        .where(
+          (value) => value != null && value.toString().trim().isNotEmpty,
+        )
+        .map((value) => value.toString().trim())
+        .toList();
+    final addressParts = <String>[];
+    if (hasDetailedLocationAddress) {
+      addressParts.addAll(locationAddressParts);
+    } else {
+      if (businessAddress.isNotEmpty) addressParts.add(businessAddress);
+      for (final key in const ['state', 'country']) {
+        final value = origin[key]?.toString().trim() ?? '';
+        if (value.isEmpty) continue;
+        final duplicate = addressParts.any(
+          (part) => part.toLowerCase().contains(value.toLowerCase()),
+        );
+        if (!duplicate) addressParts.add(value);
+      }
+    }
+    final address = addressParts.join(', ');
     final branchName = _text(origin, 'location_name');
     final invoiceNumber = _invoiceNumber(sale, origin);
     final footer = (config['footer']?.toString().trim().isNotEmpty == true)
@@ -148,11 +182,25 @@ class InvoicePdfService {
       }
     }
 
+    pw.ImageProvider? paymentQr;
+    if (_flag(config, 'show_payment_qr', false) && paymentQrUrl.isNotEmpty) {
+      try {
+        paymentQr = await networkImage(paymentQrUrl);
+      } catch (_) {
+        paymentQr = null;
+      }
+    }
+
     pw.Widget header() {
       final children = <pw.Widget>[];
       if (logo != null) {
         children.add(
-          pw.Image(logo, height: narrow ? 30 : 50, fit: pw.BoxFit.contain),
+          pw.Container(
+            width: narrow ? 55 : 120,
+            height: narrow ? 30 : 52,
+            alignment: pw.Alignment.center,
+            child: pw.Image(logo, fit: pw.BoxFit.contain),
+          ),
         );
         children.add(pw.SizedBox(height: narrow ? 2 : 5));
       }
@@ -278,6 +326,21 @@ class InvoicePdfService {
                 'Customer GSTIN: ${sale.customerTaxNumber}',
                 style: pw.TextStyle(fontSize: baseFont - .5),
               ),
+            if ((sale.customerPhone ?? '').trim().isNotEmpty)
+              pw.Text(
+                'Phone: ${sale.customerPhone}',
+                style: pw.TextStyle(fontSize: baseFont - .5),
+              ),
+            if ((sale.customerEmail ?? '').trim().isNotEmpty)
+              pw.Text(
+                'Email: ${sale.customerEmail}',
+                style: pw.TextStyle(fontSize: baseFont - .5),
+              ),
+            if ((sale.customerAddress ?? '').trim().isNotEmpty)
+              pw.Text(
+                sale.customerAddress!,
+                style: pw.TextStyle(fontSize: baseFont - .5),
+              ),
           ],
         ],
       ),
@@ -310,14 +373,25 @@ class InvoicePdfService {
         'hsn_sac',
         'qty',
         'quantity',
+        'unit',
         'rate',
         'price',
         'discount',
         'tax',
+        'tax_amount',
+        'taxable',
         'total',
       };
-      final clean = requested.where(allowed.contains).toList();
-      return clean.isEmpty ? defaults : clean;
+      final clean = requested.where(allowed.contains).where((column) {
+        if (!_flag(config, 'show_hsn', true) &&
+            (column == 'hsn' || column == 'hsn_sac')) {
+          return false;
+        }
+        return true;
+      }).toList();
+      return clean.isEmpty ? defaults.where((column) {
+        return _flag(config, 'show_hsn', true) || column != 'hsn';
+      }).toList() : clean;
     }
 
     String normalized(String column) => switch (column) {
@@ -332,9 +406,12 @@ class InvoicePdfService {
       'sku' => 'SKU',
       'hsn' => 'HSN/SAC',
       'qty' => 'Qty',
+      'unit' => 'Unit',
       'rate' => 'Rate',
-      'discount' => 'Disc.',
-      'tax' => 'Tax',
+      'discount' => 'Discount',
+      'tax' => 'Tax %',
+      'tax_amount' => 'Tax Amt',
+      'taxable' => 'Taxable',
       _ => 'Total',
     };
 
@@ -343,9 +420,12 @@ class InvoicePdfService {
       'sku' => 2,
       'hsn' => 2,
       'qty' => 1,
+      'unit' => 1,
       'rate' => 2,
       'discount' => 2,
       'tax' => 1,
+      'tax_amount' => 2,
+      'taxable' => 2,
       _ => 2,
     };
 
@@ -356,11 +436,13 @@ class InvoicePdfService {
       'sku' => item.sku,
       'hsn' =>
         item.hsnSac?.trim().isNotEmpty == true ? item.hsnSac!.trim() : '-',
-      'qty' =>
-        '${item.quantity.toStringAsFixed(item.quantity % 1 == 0 ? 0 : 2)}${(item.unitCode ?? '').trim().isEmpty ? '' : ' ${item.unitCode}'}',
+      'qty' => item.quantity.toStringAsFixed(item.quantity % 1 == 0 ? 0 : 2),
+      'unit' => (item.unitCode ?? '').trim().isEmpty ? '-' : item.unitCode!.trim(),
       'rate' => _money(session, item.unitPrice),
       'discount' => _money(session, item.discountAmount),
       'tax' => '${item.taxRate.toStringAsFixed(2)}%',
+      'tax_amount' => _money(session, item.taxAmount),
+      'taxable' => _money(session, item.taxableAmount),
       _ => _money(session, item.lineTotal),
     };
 
@@ -393,7 +475,7 @@ class InvoicePdfService {
       return pw.Column(
         children: [
           pw.Container(
-            color: PdfColors.grey200,
+            color: narrow ? PdfColors.grey200 : accent,
             child: pw.Row(
               children: columns
                   .map(
@@ -401,7 +483,7 @@ class InvoicePdfService {
                       label(column),
                       flex(column),
                       bold: true,
-                      color: accent,
+                      color: narrow ? accent : PdfColors.white,
                     ),
                   )
                   .toList(),
@@ -469,7 +551,7 @@ class InvoicePdfService {
                 row('GST / Tax', sale.taxTotal),
               if (sale.additionalCharges > 0)
                 row('Additional Charges', sale.additionalCharges),
-              pw.Divider(),
+              pw.Divider(color: accent),
               row('Grand Total', sale.grandTotal, bold: true),
               row('Paid', sale.paidAmount),
               row('Balance', sale.balanceDue, bold: sale.balanceDue > .005),
@@ -496,21 +578,103 @@ class InvoicePdfService {
               style: pw.TextStyle(fontSize: baseFont - .5),
             ),
           ],
-          if (_flag(config, 'show_bank_details', false) &&
-              bankDetails.isNotEmpty) ...[
-            pw.SizedBox(height: narrow ? 4 : 8),
-            pw.Text(
-              'Bank: $bankDetails',
-              style: pw.TextStyle(fontSize: baseFont - .5),
-            ),
-          ],
-          if (_flag(config, 'show_payment_details', true) &&
-              paymentDetails.isNotEmpty) ...[
-            pw.SizedBox(height: narrow ? 3 : 6),
-            pw.Text(
-              paymentDetails,
-              style: pw.TextStyle(fontSize: baseFont - .5),
-            ),
+          if ((_flag(config, 'show_bank_details', false) &&
+                  bankDetails.isNotEmpty) ||
+              (_flag(config, 'show_payment_details', true) &&
+                  paymentDetails.isNotEmpty) ||
+              paymentQr != null) ...[
+            pw.SizedBox(height: narrow ? 4 : 9),
+            if (narrow)
+              pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  if (_flag(config, 'show_bank_details', false) &&
+                      bankDetails.isNotEmpty)
+                    pw.Text(
+                      'Bank: $bankDetails',
+                      style: pw.TextStyle(fontSize: baseFont - .5),
+                    ),
+                  if (_flag(config, 'show_payment_details', true) &&
+                      paymentDetails.isNotEmpty) ...[
+                    pw.SizedBox(height: 3),
+                    pw.Text(
+                      paymentDetails,
+                      style: pw.TextStyle(fontSize: baseFont - .5),
+                    ),
+                  ],
+                  if (paymentQr != null) ...[
+                    pw.SizedBox(height: 7),
+                    pw.Center(
+                      child: pw.Column(
+                        mainAxisSize: pw.MainAxisSize.min,
+                        children: [
+                          pw.Text(
+                            paymentQrLabel,
+                            style: pw.TextStyle(
+                              fontSize: baseFont - .3,
+                              fontWeight: pw.FontWeight.bold,
+                            ),
+                          ),
+                          pw.SizedBox(height: 4),
+                          pw.SizedBox(
+                            width: 72,
+                            height: 72,
+                            child: pw.Image(paymentQr, fit: pw.BoxFit.contain),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ],
+              )
+            else
+              pw.Row(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  pw.Expanded(
+                    child: pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.start,
+                      children: [
+                        if (_flag(config, 'show_bank_details', false) &&
+                            bankDetails.isNotEmpty)
+                          pw.Text(
+                            'Bank: $bankDetails',
+                            style: pw.TextStyle(fontSize: baseFont - .5),
+                          ),
+                        if (_flag(config, 'show_payment_details', true) &&
+                            paymentDetails.isNotEmpty) ...[
+                          pw.SizedBox(height: 4),
+                          pw.Text(
+                            paymentDetails,
+                            style: pw.TextStyle(fontSize: baseFont - .5),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  if (paymentQr != null) ...[
+                    pw.SizedBox(width: 20),
+                    pw.Column(
+                      mainAxisSize: pw.MainAxisSize.min,
+                      children: [
+                        pw.Text(
+                          paymentQrLabel,
+                          style: pw.TextStyle(
+                            fontSize: baseFont - .3,
+                            fontWeight: pw.FontWeight.bold,
+                          ),
+                        ),
+                        pw.SizedBox(height: 4),
+                        pw.SizedBox(
+                          width: 92,
+                          height: 92,
+                          child: pw.Image(paymentQr, fit: pw.BoxFit.contain),
+                        ),
+                      ],
+                    ),
+                  ],
+                ],
+              ),
           ],
           if (_flag(config, 'show_terms', true) && terms.isNotEmpty) ...[
             pw.SizedBox(height: narrow ? 4 : 8),

@@ -33,6 +33,7 @@ class SalesService {
     required DateTime? dueDate,
     required List<Map<String, dynamic>> items,
     required double additionalCharges,
+    double roundOff = 0,
     required double initialPayment,
     required String paymentMethod,
     required String paymentReference,
@@ -41,7 +42,7 @@ class SalesService {
     String? requestId,
   }) async {
     final result = await _supabase.rpc(
-      'sales_create_v482',
+      'sales_create_v489',
       params: {
         'p_tenant_id': tenantId,
         'p_customer_id': customerId,
@@ -49,6 +50,7 @@ class SalesService {
         'p_due_date': dueDate == null ? null : _dateOnly(dueDate),
         'p_items': items,
         'p_additional_charges': additionalCharges,
+        'p_round_off': roundOff,
         'p_initial_payment': initialPayment,
         'p_payment_method': paymentMethod,
         'p_payment_reference': paymentReference.trim(),
@@ -70,7 +72,7 @@ class SalesService {
     required String saleId,
   }) async {
     final result = await _supabase.rpc(
-      'sales_get_detail_v482',
+      'sales_get_detail_v495',
       params: {'p_tenant_id': tenantId, 'p_sale_id': saleId},
     );
     if (result is Map) {
@@ -149,7 +151,7 @@ class SalesService {
   }) async {
     final origin = await _originParams(tenantId);
     final result = await _supabase.rpc(
-      'sales_return_create_v481',
+      'sales_return_create_v483',
       params: {
         'p_tenant_id': tenantId,
         'p_sale_id': saleId,
@@ -171,7 +173,7 @@ class SalesService {
   }) async {
     final origin = await _originParams(tenantId);
     await _supabase.rpc(
-      'sales_void_v47',
+      'sales_void_v483',
       params: {
         'p_tenant_id': tenantId,
         'p_sale_id': saleId,

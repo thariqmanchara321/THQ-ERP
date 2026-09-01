@@ -87,13 +87,13 @@ class _ApprovalsScreenState extends State<ApprovalsScreen> {
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.surfaceContainerLowest,
       body: Padding(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.all(14),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
               'Approvals',
-              style: TextStyle(fontSize: 28, fontWeight: FontWeight.w900),
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
             ),
             const Text(
               'Review sensitive business actions before they are finalized.',

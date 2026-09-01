@@ -13,17 +13,20 @@ import '../services/location_scope_service.dart';
 import '../services/pricing_service.dart';
 import '../services/sales_service.dart';
 import 'sale_detail_screen.dart';
+import '../widgets/searchable_select.dart';
 
 class SalesScreen extends StatefulWidget {
   final ClientSession session;
   final bool startInCreate;
   final bool historyOnly;
+  final String? titleOverride;
 
   const SalesScreen({
     super.key,
     required this.session,
     this.startInCreate = false,
     this.historyOnly = false,
+    this.titleOverride,
   });
 
   @override
@@ -175,7 +178,8 @@ class _SalesScreenState extends State<SalesScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      widget.historyOnly ? 'Sales History' : 'Sales',
+                      widget.titleOverride ??
+                          (widget.historyOnly ? 'Sales History' : 'Sales'),
                       style: TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.bold,
@@ -223,7 +227,7 @@ class _SalesScreenState extends State<SalesScreen> {
                           textAlign: TextAlign.center,
                         ),
 
-                        const SizedBox(height: 18),
+                        const SizedBox(height: 10),
 
                         OutlinedButton.icon(
                           onPressed: _refresh,
@@ -244,7 +248,7 @@ class _SalesScreenState extends State<SalesScreen> {
                       children: [
                         const Icon(Icons.point_of_sale_outlined, size: 72),
 
-                        const SizedBox(height: 18),
+                        const SizedBox(height: 10),
 
                         const Text(
                           'No Sales Yet',
@@ -262,7 +266,7 @@ class _SalesScreenState extends State<SalesScreen> {
                         ),
 
                         if (_canManage && !widget.historyOnly) ...[
-                          const SizedBox(height: 22),
+                          const SizedBox(height: 10),
 
                           FilledButton.icon(
                             onPressed: _newSale,
@@ -502,6 +506,8 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
     text: '0',
   );
 
+  final TextEditingController _roundOffController = TextEditingController(text: '0');
+
   final TextEditingController _paymentController = TextEditingController(
     text: '0',
   );
@@ -637,7 +643,17 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
 
   double get _additional => _number(_additionalController) + _cuttingCharges;
 
-  double get _grandTotal => _subtotal - _discount + _tax + _additional;
+  double get _roundOff => _number(_roundOffController);
+
+  double get _beforeRoundOff => _subtotal - _discount + _tax + _additional;
+
+  double get _grandTotal => _beforeRoundOff + _roundOff;
+
+  void _applyRoundOff() {
+    final delta = _beforeRoundOff.roundToDouble() - _beforeRoundOff;
+    _roundOffController.text = delta.abs() < 0.000001 ? '0.00' : delta.toStringAsFixed(2);
+    setState(() {});
+  }
 
   double get _payment => _number(_paymentController);
 
@@ -792,6 +808,13 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
       return;
     }
 
+    if (_roundOff.abs() > 1.000001) {
+      setState(() {
+        _error = 'Round off must be between -1.00 and 1.00.';
+      });
+      return;
+    }
+
     if (_payment < 0) {
       setState(() {
         _error = 'Payment cannot be negative.';
@@ -846,11 +869,14 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
                 'discount_amount': line.discount,
 
                 'tax_rate': line.taxRate,
+                if (line.serialNumbers.isNotEmpty) 'serial_numbers': line.serialNumbers,
               },
             )
             .toList(),
 
         additionalCharges: _additional,
+
+        roundOff: _roundOff,
 
         initialPayment: _payment,
 
@@ -891,6 +917,8 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
   @override
   void dispose() {
     _additionalController.dispose();
+
+    _roundOffController.dispose();
 
     _paymentController.dispose();
 
@@ -976,39 +1004,33 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
               Expanded(
                 flex: 2,
 
-                child: DropdownButtonFormField<String>(
-                  initialValue: _customerId,
-
-                  isExpanded: true,
-
-                  decoration: const InputDecoration(
-                    labelText: 'Customer *',
-
-                    border: OutlineInputBorder(),
-                  ),
-
-                  items: _customers
+                child: SearchableSelect<String>(
+                  value: _customerId,
+                  labelText: 'Customer',
+                  isRequired: true,
+                  enabled: !_saving,
+                  hintText: 'Search customer name, ID, phone or email',
+                  prefixIcon: Icons.person_search_outlined,
+                  options: _customers
                       .map(
-                        (customer) => DropdownMenuItem(
+                        (customer) => SearchableSelectOption<String>(
                           value: customer.id,
-
-                          child: Text(
-                            customer.isWalkIn
-                                ? '${customer.name} — Counter Sale'
-                                : customer.name,
-
-                            overflow: TextOverflow.ellipsis,
-                          ),
+                          label: customer.isWalkIn
+                              ? '${customer.name} — Counter Sale'
+                              : customer.name,
+                          subtitle: [customer.publicId, customer.phone, customer.email]
+                              .where((value) => value != null && value.trim().isNotEmpty)
+                              .join(' • '),
+                          searchText:
+                              '${customer.name} ${customer.publicId} ${customer.phone ?? ''} ${customer.email ?? ''}',
                         ),
                       )
                       .toList(),
-
                   onChanged: _saving
                       ? null
                       : (value) {
                           setState(() {
                             _customerId = value;
-
                             _error = null;
                           });
                           unawaited(_repriceLines());
@@ -1243,6 +1265,34 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
             ],
           ),
 
+          const SizedBox(height: 12),
+
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _roundOffController,
+                  enabled: !_saving,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true, signed: true),
+                  onChanged: (_) => setState(() {}),
+                  decoration: const InputDecoration(
+                    labelText: 'Round Off',
+                    helperText: 'Post-tax adjustment (-1.00 to 1.00)',
+                    prefixText: '₹ ',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              OutlinedButton.icon(
+                onPressed: _saving ? null : _applyRoundOff,
+                icon: const Icon(Icons.exposure_zero),
+                label: const Text('Round Total'),
+              ),
+              const Spacer(flex: 2),
+            ],
+          ),
+
           const SizedBox(height: 16),
 
           Row(
@@ -1307,6 +1357,9 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
                     value: _money(_additional),
                   ),
 
+                  if (_roundOff.abs() > 0.000001)
+                    _SaleTotalRow(label: 'Round Off', value: _money(_roundOff)),
+
                   const Divider(),
 
                   _SaleTotalRow(
@@ -1332,7 +1385,7 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
           ),
 
           if (_error != null) ...[
-            const SizedBox(height: 18),
+            const SizedBox(height: 10),
 
             Container(
               width: double.infinity,
@@ -1353,7 +1406,7 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
             ),
           ],
 
-          const SizedBox(height: 22),
+          const SizedBox(height: 10),
 
           Row(
             mainAxisAlignment: MainAxisAlignment.end,
@@ -1405,6 +1458,7 @@ class _SaleLine {
   final bool cuttingChargeApplied;
 
   final String? pricingSource;
+  final List<String> serialNumbers;
 
   const _SaleLine({
     required this.product,
@@ -1415,6 +1469,7 @@ class _SaleLine {
     required this.taxRate,
     required this.cuttingChargeApplied,
     this.pricingSource,
+    this.serialNumbers = const [],
   });
 
   String get unitCode => unit?.code ?? product.baseUnitCode;
@@ -1439,6 +1494,7 @@ class _SaleLine {
         taxRate: taxRate,
         cuttingChargeApplied: cuttingChargeApplied,
         pricingSource: pricingSource ?? this.pricingSource,
+        serialNumbers: serialNumbers,
       );
 }
 
@@ -1468,6 +1524,7 @@ class _AddSaleItemDialogState extends State<_AddSaleItemDialog> {
   );
 
   final TextEditingController _taxController = TextEditingController();
+  final TextEditingController _serialsController = TextEditingController();
 
   String? _error;
 
@@ -1502,6 +1559,8 @@ class _AddSaleItemDialogState extends State<_AddSaleItemDialog> {
 
       final product = _product;
 
+      _serialsController.clear();
+
       if (product != null) {
         final unit = product.defaultSaleUnit;
         _unitId = unit?.unitId;
@@ -1524,6 +1583,13 @@ class _AddSaleItemDialogState extends State<_AddSaleItemDialog> {
         '${product.stockQuantity.toStringAsFixed(2)} '
         '${product.baseUnitCode}';
   }
+
+  List<String> _serialValues() => _serialsController.text
+      .split(RegExp(r'[\n,;]+'))
+      .map((e) => e.trim())
+      .where((e) => e.isNotEmpty)
+      .toSet()
+      .toList();
 
   void _add() {
     final product = _product;
@@ -1573,6 +1639,19 @@ class _AddSaleItemDialogState extends State<_AddSaleItemDialog> {
       return;
     }
 
+    final baseQuantity = quantity * (selectedUnit?.conversionToBase ?? 1);
+    final serialNumbers = _serialValues();
+    if (product.trackingMode == 'serial') {
+      if (baseQuantity != baseQuantity.truncateToDouble()) {
+        setState(() => _error = 'Serial-tracked products require a whole base-unit quantity.');
+        return;
+      }
+      if (serialNumbers.length != baseQuantity.round()) {
+        setState(() => _error = 'Serial count must match the base quantity (${baseQuantity.toStringAsFixed(0)}).');
+        return;
+      }
+    }
+
     if (price == null || price < 0) {
       setState(() {
         _error = 'Enter a valid selling price.';
@@ -1611,6 +1690,7 @@ class _AddSaleItemDialogState extends State<_AddSaleItemDialog> {
 
         taxRate: tax,
         cuttingChargeApplied: _cuttingChargeApplied,
+        serialNumbers: product.trackingMode == 'serial' ? serialNumbers : const [],
       ),
     );
   }
@@ -1624,6 +1704,7 @@ class _AddSaleItemDialogState extends State<_AddSaleItemDialog> {
     _discountController.dispose();
 
     _taxController.dispose();
+    _serialsController.dispose();
 
     super.dispose();
   }
@@ -1647,16 +1728,21 @@ class _AddSaleItemDialogState extends State<_AddSaleItemDialog> {
               optionsBuilder: (value) {
                 final q = value.text.trim().toLowerCase();
                 if (q.isEmpty) return widget.products.take(12);
-                return widget.products
-                    .where(
-                      (p) =>
-                          p.productName.toLowerCase().contains(q) ||
-                          p.sku.toLowerCase().contains(q) ||
-                          (p.partNumber ?? '').toLowerCase().contains(q) ||
-                          (p.barcode ?? '').toLowerCase().contains(q) ||
-                          p.searchCodes.toLowerCase().contains(q),
-                    )
-                    .take(20);
+                bool starts(InventoryProduct p) =>
+                    p.productName.toLowerCase().startsWith(q) ||
+                    p.sku.toLowerCase().startsWith(q) ||
+                    (p.partNumber ?? '').toLowerCase().startsWith(q) ||
+                    (p.barcode ?? '').toLowerCase().startsWith(q) ||
+                    p.searchCodes.toLowerCase().split(RegExp(r'\s+')).any((v) => v.startsWith(q));
+                bool contains(InventoryProduct p) =>
+                    p.productName.toLowerCase().contains(q) ||
+                    p.sku.toLowerCase().contains(q) ||
+                    (p.partNumber ?? '').toLowerCase().contains(q) ||
+                    (p.barcode ?? '').toLowerCase().contains(q) ||
+                    p.searchCodes.toLowerCase().contains(q);
+                final first = widget.products.where(starts);
+                final rest = widget.products.where((p) => !starts(p) && contains(p));
+                return [...first, ...rest].take(30);
               },
               onSelected: (p) => _selectProduct(p.variantId),
               fieldViewBuilder: (context, controller, focusNode, onSubmitted) =>
@@ -1821,6 +1907,27 @@ class _AddSaleItemDialogState extends State<_AddSaleItemDialog> {
                 ),
               ],
             ),
+
+            if (_product?.trackingMode == 'serial') ...[
+              const SizedBox(height: 16),
+              TextField(
+                controller: _serialsController,
+                minLines: 3,
+                maxLines: 6,
+                decoration: const InputDecoration(
+                  labelText: 'Serial numbers to sell',
+                  hintText: 'Scan or enter one serial per base unit',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            ],
+            if (_product?.trackingMode == 'batch') ...[
+              const SizedBox(height: 12),
+              const Align(
+                alignment: Alignment.centerLeft,
+                child: Text('Batch stock will be allocated automatically using FEFO (earliest expiry first).'),
+              ),
+            ],
 
             if (_error != null) ...[
               const SizedBox(height: 14),
@@ -1995,7 +2102,7 @@ class _SaleCard extends StatelessWidget {
             ],
           ),
 
-          const SizedBox(height: 20),
+          const SizedBox(height: 10),
 
           child,
         ],

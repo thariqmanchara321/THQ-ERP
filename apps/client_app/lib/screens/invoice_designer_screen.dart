@@ -1,3 +1,4 @@
+import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 
 import '../models/client_session.dart';
@@ -23,6 +24,8 @@ class _InvoiceDesignerScreenState extends State<InvoiceDesignerScreen>
   late final TabController _tabs;
   bool _loading = true;
   bool _saving = false;
+  bool _uploadingLogo = false;
+  bool _uploadingPaymentQr = false;
   String? _error;
   List<Map<String, dynamic>> _rows = const [];
   Map<String, dynamic> _settings = {};
@@ -39,6 +42,8 @@ class _InvoiceDesignerScreenState extends State<InvoiceDesignerScreen>
   final _terms = TextEditingController();
   final _bank = TextEditingController();
   final _payment = TextEditingController();
+  final _paymentQrUrl = TextEditingController();
+  final _paymentQrLabel = TextEditingController();
 
   bool get _canManage =>
       widget.session.hasRole('owner') ||
@@ -66,6 +71,8 @@ class _InvoiceDesignerScreenState extends State<InvoiceDesignerScreen>
       _terms,
       _bank,
       _payment,
+      _paymentQrUrl,
+      _paymentQrLabel,
     ]) {
       controller.dispose();
     }
@@ -104,6 +111,8 @@ class _InvoiceDesignerScreenState extends State<InvoiceDesignerScreen>
       _terms.text = value('documents.terms');
       _bank.text = value('documents.bank_details');
       _payment.text = value('documents.payment_details');
+      _paymentQrUrl.text = value('documents.payment_qr_url');
+      _paymentQrLabel.text = value('documents.payment_qr_label', 'Scan to Pay');
     } catch (error) {
       _error = error.toString();
     } finally {
@@ -127,7 +136,9 @@ class _InvoiceDesignerScreenState extends State<InvoiceDesignerScreen>
         ..['documents.invoice_footer'] = _footer.text.trim()
         ..['documents.terms'] = _terms.text.trim()
         ..['documents.bank_details'] = _bank.text.trim()
-        ..['documents.payment_details'] = _payment.text.trim();
+        ..['documents.payment_details'] = _payment.text.trim()
+        ..['documents.payment_qr_url'] = _paymentQrUrl.text.trim()
+        ..['documents.payment_qr_label'] = _paymentQrLabel.text.trim();
       await _settingsService.setSettings(widget.session.business.id, next);
       _settings = next;
       _message('Invoice identity saved.');
@@ -135,6 +146,78 @@ class _InvoiceDesignerScreenState extends State<InvoiceDesignerScreen>
       _message(error.toString());
     } finally {
       if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  Future<void> _uploadLogo() async {
+    if (!_canManage || _uploadingLogo) return;
+    final file = await openFile(
+      acceptedTypeGroups: const [
+        XTypeGroup(
+          label: 'Logo image',
+          extensions: ['png', 'jpg', 'jpeg'],
+        ),
+      ],
+    );
+    if (file == null) return;
+    final extension = file.name.contains('.')
+        ? file.name.split('.').last.toLowerCase()
+        : '';
+    if (!const {'png', 'jpg', 'jpeg'}.contains(extension)) {
+      _message('Please choose a PNG or JPEG logo.');
+      return;
+    }
+    setState(() => _uploadingLogo = true);
+    try {
+      final bytes = await file.readAsBytes();
+      final url = await _templates.uploadBusinessLogo(
+        tenantId: widget.session.business.id,
+        bytes: bytes,
+        extension: extension,
+      );
+      if (!mounted) return;
+      setState(() => _logoUrl.text = url);
+      _message('Logo uploaded. Save Identity to apply it.');
+    } catch (error) {
+      _message(error.toString());
+    } finally {
+      if (mounted) setState(() => _uploadingLogo = false);
+    }
+  }
+
+  Future<void> _uploadPaymentQr() async {
+    if (!_canManage || _uploadingPaymentQr) return;
+    final file = await openFile(
+      acceptedTypeGroups: const [
+        XTypeGroup(
+          label: 'Payment QR image',
+          extensions: ['png', 'jpg', 'jpeg'],
+        ),
+      ],
+    );
+    if (file == null) return;
+    final extension = file.name.contains('.')
+        ? file.name.split('.').last.toLowerCase()
+        : '';
+    if (!const {'png', 'jpg', 'jpeg'}.contains(extension)) {
+      _message('Please choose a PNG or JPEG QR image.');
+      return;
+    }
+    setState(() => _uploadingPaymentQr = true);
+    try {
+      final bytes = await file.readAsBytes();
+      final url = await _templates.uploadPaymentQr(
+        tenantId: widget.session.business.id,
+        bytes: bytes,
+        extension: extension,
+      );
+      if (!mounted) return;
+      setState(() => _paymentQrUrl.text = url);
+      _message('Payment QR uploaded. Save Identity to apply it.');
+    } catch (error) {
+      _message(error.toString());
+    } finally {
+      if (mounted) setState(() => _uploadingPaymentQr = false);
     }
   }
 
@@ -346,11 +429,26 @@ class _InvoiceDesignerScreenState extends State<InvoiceDesignerScreen>
     final margin = TextEditingController(
       text: '${draft['margin_mm'] ?? (row['paper_type'] == '80mm' ? 4 : 12)}',
     );
-    final columnText = TextEditingController(
-      text: draft['columns'] is List
-          ? (draft['columns'] as List).join(', ')
-          : 'item, sku, qty, rate, discount, tax, total',
-    );
+    const availableColumns = <(String, String)>[
+      ('item', 'Item / Description'),
+      ('sku', 'SKU / Code'),
+      ('hsn', 'HSN / SAC'),
+      ('qty', 'Quantity'),
+      ('unit', 'Unit'),
+      ('rate', 'Rate'),
+      ('discount', 'Discount'),
+      ('tax', 'Tax %'),
+      ('tax_amount', 'Tax Amount'),
+      ('taxable', 'Taxable Amount'),
+      ('total', 'Line Total'),
+    ];
+    final selectedColumns = <String>{
+      ...((draft['columns'] is List
+              ? draft['columns'] as List
+              : const ['item', 'sku', 'hsn', 'qty', 'rate', 'discount', 'tax', 'total'])
+          .map((value) => value.toString().trim().toLowerCase())
+          .where((value) => value.isNotEmpty)),
+    };
 
     bool flag(String key, bool fallback) =>
         draft.containsKey(key) ? draft[key] == true : fallback;
@@ -359,11 +457,14 @@ class _InvoiceDesignerScreenState extends State<InvoiceDesignerScreen>
     var showGstin = flag('show_gstin', true);
     var showPhone = flag('show_phone', true);
     var showEmail = flag('show_email', false);
+    var showWebsite = flag('show_website', false);
     var showAddress = flag('show_address', true);
     var showHsn = flag('show_hsn', true);
     var showTax = flag('show_tax_breakup', true);
     var showCustomer = flag('show_customer', true);
     var showBank = flag('show_bank_details', false);
+    var showPayment = flag('show_payment_details', true);
+    var showPaymentQr = flag('show_payment_qr', false);
     var showTerms = flag('show_terms', true);
     var showHeader = flag('show_header', true);
     var showFooter = flag('show_footer', true);
@@ -375,6 +476,7 @@ class _InvoiceDesignerScreenState extends State<InvoiceDesignerScreen>
       'show_gstin': showGstin,
       'show_phone': showPhone,
       'show_email': showEmail,
+      'show_website': showWebsite,
       'show_address': showAddress,
       'show_customer': showCustomer,
       'show_hsn': showHsn,
@@ -383,15 +485,16 @@ class _InvoiceDesignerScreenState extends State<InvoiceDesignerScreen>
       'show_footer': showFooter,
       'show_terms': showTerms,
       'show_bank_details': showBank,
+      'show_payment_details': showPayment,
+      'show_payment_qr': showPaymentQr,
       'header_alignment': alignment,
       'accent': accent.text.trim(),
       'font_size': double.tryParse(font.text) ?? 10,
       'margin_mm': double.tryParse(margin.text) ?? 8,
       'footer': footer.text.trim(),
-      'columns': columnText.text
-          .split(',')
-          .map((entry) => entry.trim())
-          .where((entry) => entry.isNotEmpty)
+      'columns': availableColumns
+          .where((entry) => selectedColumns.contains(entry.$1))
+          .map((entry) => entry.$1)
           .toList(),
     };
 
@@ -442,6 +545,11 @@ class _InvoiceDesignerScreenState extends State<InvoiceDesignerScreen>
                                 (value) => setLocal(() => showEmail = value),
                               ),
                               _toggle(
+                                'Website',
+                                showWebsite,
+                                (value) => setLocal(() => showWebsite = value),
+                              ),
+                              _toggle(
                                 'Address',
                                 showAddress,
                                 (value) => setLocal(() => showAddress = value),
@@ -480,6 +588,17 @@ class _InvoiceDesignerScreenState extends State<InvoiceDesignerScreen>
                                 'Bank details',
                                 showBank,
                                 (value) => setLocal(() => showBank = value),
+                              ),
+                              _toggle(
+                                'Payment / UPI',
+                                showPayment,
+                                (value) => setLocal(() => showPayment = value),
+                              ),
+                              _toggle(
+                                'Payment QR',
+                                showPaymentQr,
+                                (value) =>
+                                    setLocal(() => showPaymentQr = value),
                               ),
                             ],
                           ),
@@ -550,14 +669,35 @@ class _InvoiceDesignerScreenState extends State<InvoiceDesignerScreen>
                             ],
                           ),
                           const SizedBox(height: 8),
-                          TextField(
-                            controller: columnText,
-                            onChanged: refresh,
-                            minLines: 2,
-                            maxLines: 3,
-                            decoration: const InputDecoration(
-                              labelText: 'Invoice columns (comma separated)',
-                            ),
+                          const Text(
+                            'Invoice columns',
+                            style: TextStyle(fontWeight: FontWeight.w700),
+                          ),
+                          const SizedBox(height: 5),
+                          Text(
+                            'Select the columns that should appear on the printed/PDF invoice.',
+                            style: Theme.of(context).textTheme.bodySmall,
+                          ),
+                          const SizedBox(height: 6),
+                          Wrap(
+                            spacing: 6,
+                            runSpacing: 5,
+                            children: availableColumns
+                                .map(
+                                  (entry) => FilterChip(
+                                    label: Text(entry.$2),
+                                    selected: selectedColumns.contains(entry.$1),
+                                    onSelected: (value) => setLocal(() {
+                                      if (value) {
+                                        selectedColumns.add(entry.$1);
+                                      } else if (selectedColumns.length > 1) {
+                                        selectedColumns.remove(entry.$1);
+                                      }
+                                    }),
+                                    visualDensity: VisualDensity.compact,
+                                  ),
+                                )
+                                .toList(),
                           ),
                           const SizedBox(height: 8),
                           TextField(
@@ -626,7 +766,6 @@ class _InvoiceDesignerScreenState extends State<InvoiceDesignerScreen>
     footer.dispose();
     font.dispose();
     margin.dispose();
-    columnText.dispose();
   }
 
   Widget _toggle(String label, bool value, ValueChanged<bool> change) =>
@@ -664,8 +803,26 @@ class _InvoiceDesignerScreenState extends State<InvoiceDesignerScreen>
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 if (config['show_logo'] != false)
-                  const Icon(Icons.business, size: 28),
-                if (config['show_header'] != false)
+                  SizedBox(
+                    height: narrow ? 34 : 46,
+                    child: _logoUrl.text.trim().isEmpty
+                        ? const Icon(Icons.business, size: 28)
+                        : Image.network(
+                            _logoUrl.text.trim(),
+                            fit: BoxFit.contain,
+                            errorBuilder: (context, error, stackTrace) =>
+                                const Icon(Icons.broken_image_outlined, size: 28),
+                          ),
+                  ),
+                if (config['show_header'] != false) ...[
+                  if (_header.text.isNotEmpty)
+                    Text(
+                      _header.text,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: align,
+                      style: const TextStyle(fontSize: 7),
+                    ),
                   Text(
                     _legalName.text.isEmpty
                         ? widget.session.business.name
@@ -676,6 +833,7 @@ class _InvoiceDesignerScreenState extends State<InvoiceDesignerScreen>
                       fontSize: narrow ? 12 : 17,
                     ),
                   ),
+                ],
                 if (config['show_gstin'] != false && _gstin.text.isNotEmpty)
                   Text(
                     'GSTIN ${_gstin.text}',
@@ -684,7 +842,27 @@ class _InvoiceDesignerScreenState extends State<InvoiceDesignerScreen>
                   ),
                 if (config['show_phone'] != false && _phone.text.isNotEmpty)
                   Text(
-                    _phone.text,
+                    'Phone: ${_phone.text}',
+                    textAlign: align,
+                    style: const TextStyle(fontSize: 8),
+                  ),
+                if (config['show_email'] == true && _email.text.isNotEmpty)
+                  Text(
+                    'Email: ${_email.text}',
+                    textAlign: align,
+                    style: const TextStyle(fontSize: 8),
+                  ),
+                if (config['show_website'] == true && _website.text.isNotEmpty)
+                  Text(
+                    _website.text,
+                    textAlign: align,
+                    style: const TextStyle(fontSize: 8),
+                  ),
+                if (config['show_address'] != false && _address.text.isNotEmpty)
+                  Text(
+                    _address.text,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                     textAlign: align,
                     style: const TextStyle(fontSize: 8),
                   ),
@@ -769,13 +947,56 @@ class _InvoiceDesignerScreenState extends State<InvoiceDesignerScreen>
                 if (config['show_bank_details'] == true &&
                     _bank.text.isNotEmpty)
                   Text(
-                    _bank.text,
+                    'Bank: ${_bank.text}',
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                     textAlign: TextAlign.center,
                     style: const TextStyle(fontSize: 7),
                   ),
+                if (config['show_payment_details'] != false &&
+                    _payment.text.isNotEmpty)
+                  Text(
+                    _payment.text,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(fontSize: 7),
+                  ),
+                if (config['show_payment_qr'] == true &&
+                    _paymentQrUrl.text.trim().isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    _paymentQrLabel.text.trim().isEmpty
+                        ? 'Scan to Pay'
+                        : _paymentQrLabel.text.trim(),
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 7,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Align(
+                    alignment: Alignment.center,
+                    child: SizedBox(
+                      width: narrow ? 40 : 50,
+                      height: narrow ? 40 : 50,
+                      child: Image.network(
+                        _paymentQrUrl.text.trim(),
+                        fit: BoxFit.contain,
+                        errorBuilder: (_, _, _) => const Icon(
+                          Icons.qr_code_2_outlined,
+                          size: 34,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
                 if (config['show_terms'] != false && _terms.text.isNotEmpty)
                   Text(
                     _terms.text,
+                    maxLines: narrow ? 3 : 5,
+                    overflow: TextOverflow.ellipsis,
                     textAlign: TextAlign.center,
                     style: const TextStyle(fontSize: 7),
                   ),
@@ -893,7 +1114,75 @@ class _InvoiceDesignerScreenState extends State<InvoiceDesignerScreen>
           ),
           _field(_website, 'Website', Icons.language_outlined),
           _field(_address, 'Address', Icons.location_on_outlined, lines: 2),
-          _field(_logoUrl, 'Logo URL', Icons.image_outlined),
+          Container(
+            width: double.infinity,
+            constraints: const BoxConstraints(minHeight: 92),
+            margin: const EdgeInsets.only(bottom: 6),
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              border: Border.all(color: Theme.of(context).dividerColor),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Row(
+              children: [
+                SizedBox(
+                  width: 120,
+                  height: 72,
+                  child: _logoUrl.text.trim().isEmpty
+                      ? const Center(child: Icon(Icons.image_outlined, size: 32))
+                      : Image.network(
+                          _logoUrl.text.trim(),
+                          fit: BoxFit.contain,
+                          errorBuilder: (context, error, stackTrace) => const Center(
+                            child: Icon(Icons.broken_image_outlined, size: 32),
+                          ),
+                        ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Business logo',
+                        style: TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                      const Text(
+                        'PNG / JPG / JPEG • max 5 MB • fitted inside a fixed box',
+                        style: TextStyle(fontSize: 10),
+                      ),
+                      const SizedBox(height: 5),
+                      Wrap(
+                        spacing: 6,
+                        children: [
+                          OutlinedButton.icon(
+                            onPressed: !_canManage || _uploadingLogo ? null : _uploadLogo,
+                            icon: _uploadingLogo
+                                ? const SizedBox(
+                                    width: 14,
+                                    height: 14,
+                                    child: CircularProgressIndicator(strokeWidth: 2),
+                                  )
+                                : const Icon(Icons.upload_outlined, size: 16),
+                            label: Text(_uploadingLogo ? 'Uploading…' : 'Upload'),
+                          ),
+                          if (_logoUrl.text.trim().isNotEmpty)
+                            TextButton(
+                              onPressed: !_canManage
+                                  ? null
+                                  : () => setState(() => _logoUrl.clear()),
+                              child: const Text('Remove'),
+                            ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          _field(_logoUrl, 'Logo URL (advanced / optional)', Icons.link_outlined),
           _field(_header, 'Header text', Icons.vertical_align_top, lines: 2),
           _field(_footer, 'Footer text', Icons.vertical_align_bottom, lines: 2),
           _field(_terms, 'Terms & conditions', Icons.notes_outlined, lines: 2),
@@ -908,6 +1197,98 @@ class _InvoiceDesignerScreenState extends State<InvoiceDesignerScreen>
             'Payment / UPI details',
             Icons.payments_outlined,
             lines: 2,
+          ),
+          Container(
+            width: double.infinity,
+            constraints: const BoxConstraints(minHeight: 118),
+            margin: const EdgeInsets.only(bottom: 6),
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              border: Border.all(color: Theme.of(context).dividerColor),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                SizedBox(
+                  width: 96,
+                  height: 96,
+                  child: _paymentQrUrl.text.trim().isEmpty
+                      ? const Center(
+                          child: Icon(Icons.qr_code_2_outlined, size: 46),
+                        )
+                      : Image.network(
+                          _paymentQrUrl.text.trim(),
+                          fit: BoxFit.contain,
+                          errorBuilder: (context, error, stackTrace) =>
+                              const Center(
+                                child: Icon(
+                                  Icons.broken_image_outlined,
+                                  size: 36,
+                                ),
+                              ),
+                        ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Payment QR image (optional)',
+                        style: TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                      const Text(
+                        'Static QR only for now • PNG / JPG / JPEG • max 5 MB',
+                        style: TextStyle(fontSize: 10),
+                      ),
+                      const SizedBox(height: 6),
+                      Wrap(
+                        spacing: 6,
+                        children: [
+                          OutlinedButton.icon(
+                            onPressed: !_canManage || _uploadingPaymentQr
+                                ? null
+                                : _uploadPaymentQr,
+                            icon: _uploadingPaymentQr
+                                ? const SizedBox(
+                                    width: 14,
+                                    height: 14,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : const Icon(Icons.upload_outlined, size: 16),
+                            label: Text(
+                              _uploadingPaymentQr ? 'Uploading…' : 'Upload QR',
+                            ),
+                          ),
+                          if (_paymentQrUrl.text.trim().isNotEmpty)
+                            TextButton(
+                              onPressed: !_canManage
+                                  ? null
+                                  : () =>
+                                        setState(() => _paymentQrUrl.clear()),
+                              child: const Text('Remove'),
+                            ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          _field(
+            _paymentQrLabel,
+            'QR label',
+            Icons.label_outline,
+          ),
+          _field(
+            _paymentQrUrl,
+            'Payment QR URL (advanced / optional)',
+            Icons.link_outlined,
           ),
           SizedBox(
             width: double.infinity,

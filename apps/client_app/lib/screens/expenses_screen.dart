@@ -70,7 +70,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
 
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.all(28),
+    padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -82,7 +82,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                 children: [
                   Text(
                     'Expenses',
-                    style: TextStyle(fontSize: 30, fontWeight: FontWeight.bold),
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
                   ),
                   SizedBox(height: 5),
                   Text('Operating expenses and cash payments'),
@@ -97,7 +97,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
               ),
           ],
         ),
-        const SizedBox(height: 22),
+        const SizedBox(height: 10),
         Expanded(
           child: FutureBuilder<List<Expense>>(
             future: _future,
@@ -226,6 +226,7 @@ class _ExpenseDialogState extends State<_ExpenseDialog> {
       _desc = TextEditingController(),
       _amount = TextEditingController(),
       _tax = TextEditingController(text: '0'),
+      _round = TextEditingController(text: '0'),
       _ref = TextEditingController(),
       _notes = TextEditingController();
   late Future<List<ExpenseCategory>> _cats;
@@ -243,6 +244,7 @@ class _ExpenseDialogState extends State<_ExpenseDialog> {
       _desc.text = e.description;
       _amount.text = e.amount.toStringAsFixed(2);
       _tax.text = e.taxAmount.toStringAsFixed(2);
+      _round.text = (e.totalAmount - e.amount - e.taxAmount).toStringAsFixed(2);
       _ref.text = e.referenceNumber ?? '';
       _notes.text = e.notes ?? '';
       _cat = e.categoryId;
@@ -265,6 +267,10 @@ class _ExpenseDialogState extends State<_ExpenseDialog> {
 
   Future<void> _save() async {
     if (!_form.currentState!.validate() || _cat == null) return;
+    if (_n(_round).abs() > 1.000001) {
+      setState(() => _error = 'Round off must be between -1.00 and 1.00.');
+      return;
+    }
     setState(() {
       _saving = true;
       _error = null;
@@ -279,6 +285,7 @@ class _ExpenseDialogState extends State<_ExpenseDialog> {
           description: _desc.text,
           amount: _n(_amount),
           taxAmount: _n(_tax),
+          roundOff: _n(_round),
           paymentMethod: _method,
           referenceNumber: _ref.text,
           notes: _notes.text,
@@ -293,6 +300,7 @@ class _ExpenseDialogState extends State<_ExpenseDialog> {
           description: _desc.text,
           amount: _n(_amount),
           taxAmount: _n(_tax),
+          roundOff: _n(_round),
           paymentMethod: _method,
           referenceNumber: _ref.text,
           notes: _notes.text,
@@ -308,7 +316,7 @@ class _ExpenseDialogState extends State<_ExpenseDialog> {
 
   @override
   void dispose() {
-    for (final c in [_payee, _desc, _amount, _tax, _ref, _notes]) {
+    for (final c in [_payee, _desc, _amount, _tax, _round, _ref, _notes]) {
       c.dispose();
     }
     super.dispose();
@@ -411,6 +419,32 @@ class _ExpenseDialogState extends State<_ExpenseDialog> {
                         border: OutlineInputBorder(),
                       ),
                     ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextFormField(
+                      controller: _round,
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true, signed: true),
+                      decoration: const InputDecoration(
+                        labelText: 'Round Off',
+                        helperText: 'Post-tax adjustment (-1.00 to 1.00)',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  OutlinedButton.icon(
+                    onPressed: () {
+                      final before = _n(_amount) + _n(_tax);
+                      final delta = before.roundToDouble() - before;
+                      setState(() => _round.text = delta.abs() < 0.000001 ? '0.00' : delta.toStringAsFixed(2));
+                    },
+                    icon: const Icon(Icons.exposure_zero),
+                    label: const Text('Round Total'),
                   ),
                 ],
               ),

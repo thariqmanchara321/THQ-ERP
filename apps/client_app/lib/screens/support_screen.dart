@@ -1,3 +1,4 @@
+import 'package:erp_core/erp_core.dart';
 import 'package:flutter/material.dart';
 
 import '../models/client_session.dart';
@@ -46,7 +47,7 @@ class _SupportScreenState extends State<SupportScreen> {
         locationId: widget.session.device?.locationId,
         deviceId: widget.session.device?.deviceId,
         appKey: widget.appKey,
-        appVersion: '4.6.0',
+        appVersion: ThqReleaseContract.appVersion,
         category: _category,
         priority: _priority,
         subject: _subject.text,
@@ -74,7 +75,7 @@ class _SupportScreenState extends State<SupportScreen> {
     return Scaffold(
       backgroundColor: Theme.of(context).colorScheme.surfaceContainerLowest,
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.all(14),
         child: Center(
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 760),
@@ -83,7 +84,7 @@ class _SupportScreenState extends State<SupportScreen> {
               children: [
                 const Text(
                   'Support Centre',
-                  style: TextStyle(fontSize: 28, fontWeight: FontWeight.w900),
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
                 ),
                 const SizedBox(height: 4),
                 Text(

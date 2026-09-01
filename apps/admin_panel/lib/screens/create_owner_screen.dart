@@ -27,8 +27,8 @@ class _CreateOwnerScreenState extends State<CreateOwnerScreen> {
 
   bool _saving = false;
 
-  bool _hidePassword = true;
-  bool _hideConfirmPassword = true;
+  bool _hidePassword = false;
+  bool _hideConfirmPassword = false;
 
   String? _error;
 
@@ -85,7 +85,25 @@ class _CreateOwnerScreenState extends State<CreateOwnerScreen> {
         return;
       }
 
-      Navigator.of(context).pop(result);
+      await showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (dialogContext) => AlertDialog(
+          icon: const Icon(Icons.key_outlined),
+          title: const Text('Owner Login Details'),
+          content: SelectableText(
+            'Username: $username\nPassword: $password',
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+          ),
+          actions: [
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('I saved it'),
+            ),
+          ],
+        ),
+      );
+      if (mounted) Navigator.of(context).pop(result);
     } catch (error) {
       if (!mounted) {
         return;

@@ -53,7 +53,7 @@ class _BackupExportScreenState extends State<BackupExportScreen> {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -94,7 +94,7 @@ class _BackupExportScreenState extends State<BackupExportScreen> {
                 ),
             ],
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 10),
           if (_error != null)
             Card(
               child: Padding(

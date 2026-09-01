@@ -27,6 +27,8 @@ class InventoryProduct {
   final double taxRate;
   final double reorderLevel;
   final double stockQuantity;
+  final String trackingMode;
+  final double? trackedStockQuantity;
   final String productStatus;
   final String variantStatus;
   final DateTime? updatedAt;
@@ -58,6 +60,8 @@ class InventoryProduct {
     required this.taxRate,
     required this.reorderLevel,
     required this.stockQuantity,
+    required this.trackingMode,
+    required this.trackedStockQuantity,
     required this.productStatus,
     required this.variantStatus,
     required this.updatedAt,
@@ -139,6 +143,8 @@ class InventoryProduct {
       taxRate: number(map['tax_rate']),
       reorderLevel: number(map['reorder_level']),
       stockQuantity: number(map['stock_quantity']),
+      trackingMode: map['tracking_mode']?.toString() ?? 'none',
+      trackedStockQuantity: map['tracked_stock_quantity'] == null ? null : number(map['tracked_stock_quantity']),
       productStatus: map['product_status']?.toString() ?? '',
       variantStatus: map['variant_status']?.toString() ?? '',
       updatedAt: DateTime.tryParse(map['updated_at']?.toString() ?? ''),

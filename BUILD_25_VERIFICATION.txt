@@ -1,0 +1,43 @@
+THQ ERP v5.0.0 — Build 25 Verification
+Database migration: 211
+Verification date: 2026-08-30
+
+LIVE SUPABASE
+Project: flexi-erp-dev
+Build contract: 25
+Schema version: 5.0.0
+Migration: 211
+thq_v500_verify(): ready=true, missing=[]
+
+FINANCIAL RECONCILIATION
+Authenticated verification completed for all 3 active tenants.
+For each tenant: AR difference=0, AP difference=0, Inventory difference=0, COGS difference=0, Input GST difference=0, Output GST difference=0.
+Integrity counters for each tenant: missing source journals=0, duplicate source journals=0, unbalanced posted journals=0, zero-value posted lines=0.
+
+REPORTS CENTER
+35/35 report keys executed successfully under authenticated context for each of 3 active tenants.
+Total authenticated report executions: 105/105 passed.
+
+SOURCE / RPC CROSS-CHECK
+Dart RPC names referenced: 315
+Dart RPC names missing from source SQL: 0
+Private helper dependency candidates missing from source SQL: 0
+Migration SQL files present: 211 (001 through 211)
+THQ API copies: backend/functions/thq-api/index.ts and supabase/functions/thq-api/index.ts retained in sync.
+
+RLS / ACCESS
+Direct live inspection confirms RLS enabled for tenants, opening_balance_batches_v500 and stock_adjustment_requests_v500.
+Build-25 control tables do not grant direct authenticated table access; operations go through validated RPCs.
+
+APP VERSIONS
+apps/pos_app/pubspec.yaml: 5.0.0+25
+apps/client_mobile/pubspec.yaml: 5.0.0+25
+apps/mobile_pos/pubspec.yaml: 5.0.0+25
+apps/admin_panel/pubspec.yaml: 5.0.0+25
+apps/client_app/pubspec.yaml: 5.0.0+25
+
+LIMITATIONS
+Flutter/Dart SDK is not installed in this execution environment, so no compiled Flutter binaries or flutter analyze/build result is claimed. Runtime database/RPC/report verification was performed directly against the connected Supabase development project.
+
+PACKAGE
+This package is the source release for THQ ERP v5.0.0 Build 25 / migration 211.

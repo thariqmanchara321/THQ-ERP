@@ -18,7 +18,9 @@ import 'customers_screen.dart';
 import 'error_logs_screen.dart';
 import 'expenses_screen.dart';
 import 'inventory_products_screen.dart';
+import 'loan_screen.dart';
 import 'notifications_screen.dart';
+import 'offline_pos_sync_screen.dart';
 import 'pos_login_screen.dart';
 import 'pos_screen.dart';
 import 'pos_settings_screen.dart';
@@ -170,6 +172,12 @@ class _PosHomeScreenState extends State<PosHomeScreen> {
         Icons.point_of_sale,
         PosScreen(session: session),
       );
+      pages['offline_sync'] = _PosPage(
+        'offline_sync',
+        'Offline Sync',
+        Icons.cloud_sync_outlined,
+        OfflinePosSyncScreen(session: session),
+      );
     }
     if (_allowed('returns')) {
       pages['returns'] = _PosPage(
@@ -233,6 +241,14 @@ class _PosHomeScreenState extends State<PosHomeScreen> {
         'Purchases',
         Icons.shopping_cart_outlined,
         PurchasesScreen(session: session),
+      );
+    }
+    if (_allowed('loans')) {
+      pages['loans'] = _PosPage(
+        'loans',
+        'Loans',
+        Icons.account_balance_wallet_outlined,
+        LoanScreen(session: session),
       );
     }
     if (_allowed('expenses')) {
@@ -549,6 +565,7 @@ class _PosHomeScreenState extends State<PosHomeScreen> {
                             _refreshing ? () {} : _requestRefresh,
                           ),
                           _action(Icons.logout, 'Sign Out', expanded, _logout),
+                          DesktopReleaseStatus(compact: !expanded),
                           const SizedBox(height: 4),
                         ],
                       ),

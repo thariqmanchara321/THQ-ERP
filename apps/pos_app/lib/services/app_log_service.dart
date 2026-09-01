@@ -1,3 +1,4 @@
+import 'package:erp_core/erp_core.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/app_error_log.dart';
@@ -29,7 +30,7 @@ class AppLogService {
           'p_context': context ?? <String, dynamic>{},
           'p_tenant_id': tenantId ?? activeTenantId,
           'p_severity': severity,
-          'p_app_version': '4.6.0',
+          'p_app_version': ThqReleaseContract.appVersion,
         },
       );
     } catch (_) {
@@ -55,7 +56,7 @@ class AppLogService {
         },
         'p_tenant_id': tenantId,
         'p_severity': 'issue',
-        'p_app_version': '4.6.0',
+        'p_app_version': ThqReleaseContract.appVersion,
       },
     );
   }

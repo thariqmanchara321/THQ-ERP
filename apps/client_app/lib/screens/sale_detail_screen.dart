@@ -6,6 +6,7 @@ import '../services/return_receipt_service.dart';
 import '../services/customer_service.dart';
 import '../services/activity_timeline_service.dart';
 import '../widgets/activity_timeline_card.dart';
+import '../widgets/searchable_select.dart';
 import '../models/customer.dart';
 import 'invoice_preview_screen.dart';
 
@@ -258,7 +259,7 @@ class _SaleDetailScreenState extends State<SaleDetailScreen> {
   Widget _content() {
     final s = _sale!;
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(28),
+      padding: const EdgeInsets.all(14),
       child: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 1100),
@@ -274,7 +275,7 @@ class _SaleDetailScreenState extends State<SaleDetailScreen> {
                         Text(
                           s.saleNumber,
                           style: const TextStyle(
-                            fontSize: 30,
+                            fontSize: 22,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -1012,16 +1013,21 @@ class _EditSaleDialogState extends State<_EditSaleDialog> {
             'Financial lines are protected after posting. You can safely change customer, due date and notes; corrections to quantities/prices should use a controlled void/recreate workflow.',
           ),
           const SizedBox(height: 14),
-          DropdownButtonFormField<String>(
-            initialValue: _customerId,
-            items: widget.customers
-                .where((c) => c.isActive)
-                .map((c) => DropdownMenuItem(value: c.id, child: Text(c.name)))
-                .toList(),
+          SearchableSelect<String>(
+            value: _customerId,
+            labelText: 'Customer',
+            isRequired: true,
+            hintText: 'Search customer name, ID, phone or GSTIN',
+            prefixIcon: Icons.person_search_outlined,
+            options: widget.customers.where((c) => c.isActive).map((customer) => SearchableSelectOption<String>(
+              value: customer.id,
+              label: customer.name,
+              subtitle: [customer.publicId, customer.phone, customer.taxNumber].whereType<String>().where((v) => v.trim().isNotEmpty).join(' • '),
+              searchText: '${customer.name} ${customer.publicId} ${customer.phone ?? ''} ${customer.email ?? ''} ${customer.taxNumber ?? ''}',
+            )).toList(),
             onChanged: (v) {
               if (v != null) setState(() => _customerId = v);
             },
-            decoration: const InputDecoration(labelText: 'Customer'),
           ),
           const SizedBox(height: 12),
           ListTile(

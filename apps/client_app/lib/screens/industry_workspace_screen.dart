@@ -113,7 +113,7 @@ class IndustryWorkspaceScreen extends StatelessWidget {
     final features =
         _features[module.key] ?? const <(IconData, String, String)>[];
     return Padding(
-      padding: const EdgeInsets.all(28),
+      padding: const EdgeInsets.all(14),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

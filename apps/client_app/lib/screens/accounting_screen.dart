@@ -3,7 +3,10 @@ import 'package:flutter/material.dart';
 import '../models/accounting_summary.dart';
 import '../models/client_session.dart';
 import '../services/accounting_service.dart';
+import '../services/accounting_export_service.dart';
 import '../services/location_scope_service.dart';
+import '../widgets/searchable_select.dart';
+import 'finance_controls_screen.dart';
 
 class AccountingScreen extends StatefulWidget {
   final ClientSession session;
@@ -15,6 +18,8 @@ class AccountingScreen extends StatefulWidget {
 
 class _AccountingScreenState extends State<AccountingScreen> {
   final AccountingService _service = AccountingService();
+  final AccountingExportService _exportService = AccountingExportService();
+  bool _exporting = false;
   final TextEditingController _search = TextEditingController();
   late DateTime _from;
   late DateTime _to;
@@ -115,6 +120,65 @@ class _AccountingScreenState extends State<AccountingScreen> {
       _error = error.toString();
     } finally {
       if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _export(String format) async {
+    if (_exporting || _loading) return;
+    setState(() => _exporting = true);
+    try {
+      final bytes = await _exportService.buildPdf(
+        businessName: widget.session.business.name,
+        currencyCode: widget.session.currencyCode,
+        section: _section,
+        sectionLabel: _sectionLabel(_section),
+        from: _from,
+        to: _to,
+        summary: _summary,
+        gst: _gst,
+        accounts: _accounts,
+        rows: _rows,
+        statement: _statement,
+      );
+      if (format == 'print') {
+        await _exportService.printReport(
+          bytes: bytes,
+          name: '${widget.session.business.name} - ${_sectionLabel(_section)}',
+        );
+      } else if (format == 'xlsx') {
+        await _exportService.saveExcel(
+          businessName: widget.session.business.name,
+          currencyCode: widget.session.currencyCode,
+          section: _section,
+          sectionLabel: _sectionLabel(_section),
+          from: _from,
+          to: _to,
+          summary: _summary,
+          gst: _gst,
+          accounts: _accounts,
+          rows: _rows,
+          statement: _statement,
+        );
+      } else {
+        await _exportService.savePdf(
+          bytes: bytes,
+          businessName: widget.session.business.name,
+          section: _section,
+          from: _from,
+          to: _to,
+        );
+      }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(format == 'print' ? 'Print dialog opened.' : '${format.toUpperCase()} created.')),
+        );
+      }
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.toString())));
+      }
+    } finally {
+      if (mounted) setState(() => _exporting = false);
     }
   }
 
@@ -301,19 +365,20 @@ class _AccountingScreenState extends State<AccountingScreen> {
                 separatorBuilder: (_, _) => const SizedBox(height: 10),
                 itemBuilder: (context, index) {
                   final entry = keys[index];
-                  return DropdownButtonFormField<String>(
-                    initialValue: selected[entry.$1],
-                    isExpanded: true,
-                    decoration: InputDecoration(labelText: entry.$2),
-                    items: _accounts
+                  return SearchableSelect<String>(
+                    value: selected[entry.$1],
+                    labelText: entry.$2,
+                    isRequired: true,
+                    hintText: 'Search account code, name or type',
+                    prefixIcon: Icons.account_balance_outlined,
+                    options: _accounts
                         .where((account) => account['active'] != false)
                         .map(
-                          (account) => DropdownMenuItem(
+                          (account) => SearchableSelectOption<String>(
                             value: account['id'].toString(),
-                            child: Text(
-                              '${account['code']} • ${account['name']}',
-                              overflow: TextOverflow.ellipsis,
-                            ),
+                            label: '${account['code']} • ${account['name']}',
+                            subtitle: account['account_type']?.toString(),
+                            searchText: '${account['code']} ${account['name']} ${account['account_type'] ?? ''}',
                           ),
                         )
                         .toList(),
@@ -592,7 +657,7 @@ class _AccountingScreenState extends State<AccountingScreen> {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(18, 14, 18, 18),
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
       child: LayoutBuilder(
         builder: (context, constraints) {
           final compact = constraints.maxWidth < 1040;
@@ -612,7 +677,7 @@ class _AccountingScreenState extends State<AccountingScreen> {
                         const Text(
                           'Accounting',
                           style: TextStyle(
-                            fontSize: 24,
+                            fontSize: 19,
                             fontWeight: FontWeight.w800,
                           ),
                         ),
@@ -642,6 +707,28 @@ class _AccountingScreenState extends State<AccountingScreen> {
                     onPressed: _load,
                     tooltip: 'Refresh',
                     icon: const Icon(Icons.refresh),
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+                      builder: (_) => FinanceControlsScreen(session: widget.session),
+                    )),
+                    icon: const Icon(Icons.account_balance_outlined, size: 18),
+                    label: const Text('Finance Controls'),
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: _exporting || _loading ? null : () => _export('print'),
+                    icon: const Icon(Icons.print_outlined, size: 18),
+                    label: const Text('Print'),
+                  ),
+                  FilledButton.tonalIcon(
+                    onPressed: _exporting || _loading ? null : () => _export('pdf'),
+                    icon: const Icon(Icons.picture_as_pdf_outlined, size: 18),
+                    label: const Text('PDF'),
+                  ),
+                  FilledButton.tonalIcon(
+                    onPressed: _exporting || _loading ? null : () => _export('xlsx'),
+                    icon: const Icon(Icons.table_view_outlined, size: 18),
+                    label: const Text('Excel'),
                   ),
                 ],
               ),
@@ -749,7 +836,7 @@ class _AccountingScreenState extends State<AccountingScreen> {
               )
               .toList(),
         ),
-        const SizedBox(height: 18),
+        const SizedBox(height: 10),
         Card(
           child: Padding(
             padding: const EdgeInsets.all(20),
@@ -1269,20 +1356,19 @@ class _ManualJournalDialogState extends State<_ManualJournalDialog> {
                       children: [
                         Expanded(
                           flex: 5,
-                          child: DropdownButtonFormField<String>(
-                            initialValue: line.accountId,
-                            isExpanded: true,
-                            decoration: InputDecoration(
-                              labelText: 'Account ${index + 1}',
-                            ),
-                            items: widget.accounts
+                          child: SearchableSelect<String>(
+                            value: line.accountId,
+                            labelText: 'Account ${index + 1}',
+                            isRequired: true,
+                            hintText: 'Search account code, name or type',
+                            prefixIcon: Icons.account_balance_outlined,
+                            options: widget.accounts
                                 .map(
-                                  (a) => DropdownMenuItem(
+                                  (a) => SearchableSelectOption<String>(
                                     value: a['id'].toString(),
-                                    child: Text(
-                                      '${a['code']} • ${a['name']}',
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
+                                    label: '${a['code']} • ${a['name']}',
+                                    subtitle: a['account_type']?.toString(),
+                                    searchText: '${a['code']} ${a['name']} ${a['account_type'] ?? ''}',
                                   ),
                                 )
                                 .toList(),

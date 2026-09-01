@@ -215,7 +215,7 @@ class _CustomFieldsScreenState extends State<CustomFieldsScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('Custom Fields')),
       body: Padding(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.all(14),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

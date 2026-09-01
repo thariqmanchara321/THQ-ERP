@@ -291,7 +291,7 @@ class _PurchaseDetailScreenState extends State<PurchaseDetailScreen> {
             textAlign: TextAlign.center,
           ),
 
-          const SizedBox(height: 18),
+          const SizedBox(height: 10),
 
           OutlinedButton.icon(
             onPressed: _load,
@@ -307,7 +307,7 @@ class _PurchaseDetailScreenState extends State<PurchaseDetailScreen> {
     final purchase = _purchase!;
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(28),
+      padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
 
       child: Center(
         child: ConstrainedBox(
@@ -318,23 +318,23 @@ class _PurchaseDetailScreenState extends State<PurchaseDetailScreen> {
             children: [
               _header(purchase),
 
-              const SizedBox(height: 22),
+              const SizedBox(height: 10),
 
               _supplierCard(purchase),
 
-              const SizedBox(height: 22),
+              const SizedBox(height: 10),
 
               _itemsCard(purchase),
 
-              const SizedBox(height: 22),
+              const SizedBox(height: 10),
 
               _totalsCard(purchase),
 
-              const SizedBox(height: 22),
+              const SizedBox(height: 10),
 
               _paymentsCard(purchase),
 
-              const SizedBox(height: 22),
+              const SizedBox(height: 10),
 
               ActivityTimelineCard(
                 future: ActivityTimelineService().load(
@@ -900,7 +900,7 @@ class _PurchasePaymentDialogState extends State<_PurchasePaymentDialog> {
               ),
             ),
 
-            const SizedBox(height: 20),
+            const SizedBox(height: 10),
 
             TextField(
               controller: _amountController,
@@ -1197,7 +1197,7 @@ class _Card extends StatelessWidget {
             ],
           ),
 
-          const SizedBox(height: 20),
+          const SizedBox(height: 10),
 
           child,
         ],

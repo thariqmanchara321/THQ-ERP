@@ -10,6 +10,7 @@ import '../models/client_session.dart';
 import '../services/bulk_import_service.dart';
 import '../services/inventory_service.dart';
 import '../services/location_scope_service.dart';
+import 'transaction_bulk_import_panel.dart';
 
 class BulkImportScreen extends StatefulWidget {
   final ClientSession session;
@@ -106,7 +107,7 @@ class _BulkImportScreenState extends State<BulkImportScreen> {
       TextCellValue(_selectedLocation()?.code ?? 'MAIN'),
     ]);
     final instructions = excel['Instructions'];
-    instructions.appendRow([TextCellValue('THQ Product Bulk Import V4.6')]);
+    instructions.appendRow([TextCellValue('THQ Product Bulk Import')]);
     instructions.appendRow([
       TextCellValue('Required'),
       TextCellValue(
@@ -465,7 +466,7 @@ class _BulkImportScreenState extends State<BulkImportScreen> {
                       ),
                     ),
                     Text(
-                      'Excel-first product import with preview, validation and store-safe opening stock.',
+                      'Validated imports for products, parties, sales and purchases.',
                       style: TextStyle(fontSize: 11),
                     ),
                   ],
@@ -480,6 +481,8 @@ class _BulkImportScreenState extends State<BulkImportScreen> {
                   ),
                   ButtonSegment(value: 'customers', label: Text('Customers')),
                   ButtonSegment(value: 'suppliers', label: Text('Suppliers')),
+                  ButtonSegment(value: 'sales', label: Text('Sales'), icon: Icon(Icons.receipt_long_outlined)),
+                  ButtonSegment(value: 'purchases', label: Text('Purchases'), icon: Icon(Icons.shopping_cart_outlined)),
                 ],
                 selected: {_type},
                 onSelectionChanged: _busy
@@ -494,7 +497,15 @@ class _BulkImportScreenState extends State<BulkImportScreen> {
             ],
           ),
           const SizedBox(height: 10),
-          if (_type == 'products') ...[
+          if (_type == 'sales' || _type == 'purchases') ...[
+            Expanded(
+              child: TransactionBulkImportPanel(
+                key: ValueKey('transaction-import-$_type'),
+                session: widget.session,
+                type: _type,
+              ),
+            ),
+          ] else if (_type == 'products') ...[
             Wrap(
               spacing: 8,
               runSpacing: 8,

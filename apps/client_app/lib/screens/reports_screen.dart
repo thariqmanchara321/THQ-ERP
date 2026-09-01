@@ -8,6 +8,7 @@ import '../services/location_scope_service.dart';
 import 'purchases_screen.dart';
 import 'sales_screen.dart';
 import 'returns_register_screen.dart';
+import 'reports_center_v500_screen.dart';
 
 class ReportsScreen extends StatefulWidget {
   final ClientSession session;
@@ -172,8 +173,8 @@ class _ReportsScreenState extends State<ReportsScreen> {
             style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
           ),
           const SizedBox(height: 5),
-          const Text('Sales, purchase, tax, profit and stock summary'),
-          const SizedBox(height: 20),
+          Row(children: [const Expanded(child: Text('Sales, purchase, tax, profit and stock summary')), FilledButton.icon(onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => ReportsCenterV500Screen(session: widget.session))), icon: const Icon(Icons.analytics_outlined), label: const Text('Reports Center v5'))]),
+          const SizedBox(height: 10),
           Wrap(
             spacing: 10,
             runSpacing: 10,
@@ -230,7 +231,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
               ),
             ],
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 10),
           Expanded(
             child: FutureBuilder<ReportSummary>(
               future: _future,

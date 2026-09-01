@@ -137,7 +137,7 @@ class _OperationsIntelligenceScreenState
               children: [
                 Text('Operations Intelligence', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
                 SizedBox(height: 2),
-                Text('Stock, credit, payables and purchase planning from live ERP data.'),
+                Text('Live cross-module ERP intelligence: stock, credit, purchasing, transfers, offline POS, tracking and restaurant operations.'),
               ],
             ),
           ),
@@ -175,7 +175,7 @@ class _OperationsIntelligenceScreenState
           constraints: const BoxConstraints(maxWidth: 620),
           child: Card(
             child: Padding(
-              padding: const EdgeInsets.all(24),
+              padding: const EdgeInsets.all(14),
               child: Column(mainAxisSize: MainAxisSize.min, children: [
                 const Icon(Icons.cloud_off_outlined, size: 42),
                 const SizedBox(height: 12),
@@ -198,7 +198,16 @@ class _OperationsIntelligenceScreenState
       ('Inventory value', _money(_attention['inventory_value']), Icons.warehouse_outlined),
       ('Receivables', _money(_attention['receivables']), Icons.account_balance_wallet_outlined),
       ('Overdue receivables', _money(_attention['overdue_receivables']), Icons.schedule_outlined),
-      ('Payables', _money(_attention['payables']), Icons.payments_outlined),
+      ('Supplier payables', _money(_attention['payables']), Icons.payments_outlined),
+      ('PR approvals', '${_attention['purchase_requests_awaiting_approval'] ?? 0}', Icons.approval_outlined),
+      ('PO approvals', '${_attention['purchase_orders_awaiting_approval'] ?? 0}', Icons.fact_check_outlined),
+      ('Draft GRNs', '${_attention['draft_grns'] ?? 0}', Icons.inventory_outlined),
+      ('Draft purchase invoices', '${_attention['draft_purchase_invoices'] ?? 0}', Icons.receipt_long_outlined),
+      ('Transfers in transit', '${_attention['transfers_in_transit'] ?? 0}', Icons.local_shipping_outlined),
+      ('Offline POS conflicts', '${_attention['offline_pos_conflicts'] ?? 0}', Icons.sync_problem_outlined),
+      ('Batches expiring ≤30d', '${_attention['batches_expiring_30d'] ?? 0}', Icons.event_busy_outlined),
+      ('Warranties expiring ≤30d', '${_attention['warranties_expiring_30d'] ?? 0}', Icons.verified_user_outlined),
+      ('Restaurant open orders', '${_attention['restaurant_open_orders'] ?? 0}', Icons.restaurant_outlined),
     ];
     return ListView(
       padding: const EdgeInsets.all(18),
@@ -231,7 +240,7 @@ class _OperationsIntelligenceScreenState
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               const Text('What needs attention', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800)),
               const SizedBox(height: 8),
-              Text('Demand window: $_days days. Use the tabs above to drill into products, customer credit, supplier dues and suggested purchase orders.'),
+              Text('Demand window: $_days days. These cards now include Purchasing V2 approvals/drafts, warehouse transfers, offline POS conflicts, expiring trace stock/warranties and live restaurant orders. Use the tabs for detailed stock, credit, payables and purchasing analysis.'),
             ]),
           ),
         ),
@@ -321,39 +330,86 @@ class _OperationsIntelligenceScreenState
 
   List<String> _nextStatuses(String status) => switch (status) {
         'draft' => const ['submitted', 'cancelled'],
-        'submitted' => const ['approved', 'draft', 'cancelled'],
+        'submitted' => const ['approve', 'reject'],
         'approved' => const ['ordered', 'cancelled'],
         'ordered' => const ['cancelled'],
+        'rejected' => const ['submitted', 'cancelled'],
         _ => const <String>[],
       };
 
-  Future<void> _changeOrderStatus(Map<String, dynamic> row, String status) async {
-    String reason = '';
-    if (status == 'cancelled') {
-      var draftReason = '';
-      final result = await showDialog<String>(
-        context: context,
-        builder: (dialogContext) => AlertDialog(
-          title: const Text('Cancel purchase order'),
-          content: TextField(
-            onChanged: (value) => draftReason = value,
-            decoration: const InputDecoration(labelText: 'Reason'),
-            autofocus: true,
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Back')),
-            FilledButton(onPressed: () => Navigator.pop(dialogContext, draftReason.trim()), child: const Text('Cancel PO')),
-          ],
-        ),
-      );
-      if (result == null || result.trim().isEmpty) return;
-      reason = result;
-    }
+  Future<void> _changeOrderStatus(Map<String, dynamic> row, String action) async {
+    final purchaseOrderId = row['id'].toString();
     try {
-      await _service.setPurchaseOrderStatus(tenantId: _tenantId, purchaseOrderId: row['id'].toString(), status: status, reason: reason);
+      if (action == 'approve' || action == 'reject') {
+        var draftNote = '';
+        final approving = action == 'approve';
+        final note = await showDialog<String>(
+          context: context,
+          builder: (dialogContext) => AlertDialog(
+            title: Text(approving ? 'Approve purchase order' : 'Reject purchase order'),
+            content: TextField(
+              onChanged: (value) => draftNote = value,
+              decoration: InputDecoration(
+                labelText: approving ? 'Approval note (optional)' : 'Rejection reason',
+              ),
+              autofocus: !approving,
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Back')),
+              FilledButton(
+                onPressed: () {
+                  final value = draftNote.trim();
+                  if (!approving && value.isEmpty) return;
+                  Navigator.pop(dialogContext, value);
+                },
+                child: Text(approving ? 'Approve' : 'Reject'),
+              ),
+            ],
+          ),
+        );
+        if (note == null) return;
+        await _service.decidePurchaseOrder(
+          tenantId: _tenantId,
+          purchaseOrderId: purchaseOrderId,
+          approve: approving,
+          note: note,
+        );
+      } else {
+        String reason = '';
+        if (action == 'cancelled') {
+          var draftReason = '';
+          final result = await showDialog<String>(
+            context: context,
+            builder: (dialogContext) => AlertDialog(
+              title: const Text('Cancel purchase order'),
+              content: TextField(
+                onChanged: (value) => draftReason = value,
+                decoration: const InputDecoration(labelText: 'Reason'),
+                autofocus: true,
+              ),
+              actions: [
+                TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Back')),
+                FilledButton(onPressed: () => Navigator.pop(dialogContext, draftReason.trim()), child: const Text('Cancel PO')),
+              ],
+            ),
+          );
+          if (result == null || result.trim().isEmpty) return;
+          reason = result;
+        }
+        await _service.setPurchaseOrderStatus(
+          tenantId: _tenantId,
+          purchaseOrderId: purchaseOrderId,
+          status: action,
+          reason: reason,
+        );
+      }
       await _load();
     } catch (error) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('PO update failed: $error')));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('PO update failed: $error')),
+        );
+      }
     }
   }
 

@@ -1,3 +1,6 @@
+import 'dart:async';
+
+import 'package:erp_core/erp_core.dart';
 import 'package:flutter/material.dart';
 
 import '../models/client_session.dart';
@@ -5,7 +8,10 @@ import '../models/customer.dart';
 import '../models/inventory_product.dart';
 import '../services/customer_service.dart';
 import '../services/inventory_service.dart';
+import '../services/location_scope_service.dart';
+import '../services/pricing_service.dart';
 import '../services/sales_service.dart';
+import '../widgets/searchable_select.dart';
 
 class PosScreen extends StatefulWidget {
   final ClientSession session;
@@ -20,6 +26,7 @@ class _PosScreenState extends State<PosScreen> {
   final InventoryService _inventory = InventoryService();
   final CustomerService _customersService = CustomerService();
   final SalesService _sales = SalesService();
+  final PricingService _pricing = PricingService();
   final TextEditingController _search = TextEditingController();
   final TextEditingController _tendered = TextEditingController();
   final List<_PosLine> _cart = <_PosLine>[];
@@ -31,6 +38,7 @@ class _PosScreenState extends State<PosScreen> {
   List<Customer> _customers = <Customer>[];
   String? _customerId;
   String _paymentMethod = 'cash';
+  double _roundOff = 0.0;
 
   bool get _canUse {
     return widget.session.hasPermission('pos.use') ||
@@ -52,7 +60,7 @@ class _PosScreenState extends State<PosScreen> {
     return _cart.fold<double>(
       0.0,
       (double sum, _PosLine line) =>
-          sum + (line.quantity * line.product.sellingPrice),
+          sum + (line.quantity * line.unitPrice),
     );
   }
 
@@ -66,12 +74,22 @@ class _PosScreenState extends State<PosScreen> {
   double get _tax {
     return _cart.fold<double>(0.0, (double sum, _PosLine line) {
       final double taxable =
-          (line.quantity * line.product.sellingPrice) - line.discount;
+          (line.quantity * line.unitPrice) - line.discount;
       return sum + (taxable * line.product.taxRate / 100.0);
     });
   }
 
-  double get _total => _subtotal - _discount + _tax;
+  double get _beforeRoundOff => _subtotal - _discount + _tax;
+
+  double get _total => _beforeRoundOff + _roundOff;
+
+  void _applyRoundOff() {
+    setState(() {
+      final delta = _beforeRoundOff.roundToDouble() - _beforeRoundOff;
+      _roundOff = delta.abs() < 0.000001 ? 0.0 : double.parse(delta.toStringAsFixed(2));
+      _syncTendered();
+    });
+  }
 
   double get _tenderedAmount {
     return double.tryParse(_tendered.text.trim()) ?? 0.0;
@@ -204,28 +222,106 @@ class _PosScreenState extends State<PosScreen> {
     final int index = _cart.indexWhere(
       (_PosLine line) => line.product.variantId == product.variantId,
     );
-
+    _PosLine? changed;
     setState(() {
       if (index >= 0) {
-        _cart[index].quantity += 1.0;
+        final line = _cart[index];
+        final next = line.quantity + line.quantityStep;
+        if (product.itemType != 'stock' || next * line.conversionToBase <= product.stockQuantity + 0.000001) {
+          line.quantity = next;
+          line.resolvedUnitPrice = null;
+          changed = line;
+        }
       } else {
-        _cart.add(_PosLine(product: product));
+        final line = _PosLine(product: product);
+        if (product.itemType != 'stock' || line.baseQuantity <= product.stockQuantity + 0.000001) {
+          _cart.add(line);
+          changed = line;
+        }
       }
-
       _syncTendered();
     });
+    if (changed != null) unawaited(_resolveLinePrice(changed!));
   }
 
   void _quantity(_PosLine line, double delta) {
+    var keep = true;
     setState(() {
-      line.quantity += delta;
-
-      if (line.quantity <= 0.0) {
+      final next = line.quantity + (delta.sign * line.quantityStep);
+      if (next <= 0.000001) {
         _cart.remove(line);
+        keep = false;
+      } else if (line.product.itemType != 'stock' || next * line.conversionToBase <= line.product.stockQuantity + 0.000001) {
+        line.quantity = next;
+        line.resolvedUnitPrice = null;
       }
-
       _syncTendered();
     });
+    if (keep) unawaited(_resolveLinePrice(line));
+  }
+
+  Future<void> _chooseUnit(_PosLine line) async {
+    final units = line.product.saleUnits.where((unit) => unit.allowSale && unit.active).toList();
+    if (units.length <= 1) return;
+    final selected = await showDialog<ProductUnitOption>(
+      context: context,
+      builder: (dialogContext) => SimpleDialog(
+        title: Text('Billing unit • ${line.product.productName}'),
+        children: units.map((unit) => SimpleDialogOption(
+          onPressed: () => Navigator.pop(dialogContext, unit),
+          child: ListTile(
+            contentPadding: EdgeInsets.zero,
+            title: Text('${unit.name} (${unit.code})'),
+            subtitle: Text('1 ${unit.code} = ${unit.conversionToBase} ${line.product.baseUnitCode}'),
+            trailing: Text(_money(unit.salePriceFor(line.product.sellingPrice))),
+          ),
+        )).toList(),
+      ),
+    );
+    if (selected == null || !mounted) return;
+    var quantity = line.quantity;
+    if (!selected.acceptsQuantity(quantity)) quantity = selected.quantityStep > 1 ? selected.quantityStep : 1;
+    if (line.product.itemType == 'stock' && quantity * selected.conversionToBase > line.product.stockQuantity + 0.000001) {
+      setState(() => _error = 'Insufficient ${line.product.baseUnitCode} stock for ${selected.code}.');
+      return;
+    }
+    setState(() {
+      line.unit = selected;
+      line.quantity = quantity;
+      line.resolvedUnitPrice = null;
+      line.pricingSource = null;
+      _syncTendered();
+    });
+    await _resolveLinePrice(line);
+  }
+
+  Future<void> _resolveLinePrice(_PosLine line) async {
+    if (!_cart.contains(line)) return;
+    final customerId = _customerId;
+    final unitId = line.unit?.unitId;
+    final quantity = line.quantity;
+    try {
+      final resolution = await _pricing.resolve(
+        tenantId: widget.session.business.id,
+        variantId: line.product.variantId,
+        customerId: customerId,
+        unitId: unitId,
+        quantity: quantity,
+        locationId: LocationScopeService.selectedLocationId.value,
+      );
+      if (!mounted || !_cart.contains(line) || _customerId != customerId || line.unit?.unitId != unitId || (line.quantity - quantity).abs() > 0.000001) return;
+      setState(() {
+        line.resolvedUnitPrice = resolution.unitPrice;
+        line.pricingSource = resolution.sourceLabel;
+        _syncTendered();
+      });
+    } catch (error) {
+      if (mounted) setState(() => _error = 'Pricing refresh failed: $error');
+    }
+  }
+
+  Future<void> _resolveAllPrices() async {
+    await Future.wait(List<_PosLine>.from(_cart).map(_resolveLinePrice));
   }
 
   Future<void> _editDiscount(_PosLine line) async {
@@ -272,7 +368,7 @@ class _PosScreenState extends State<PosScreen> {
       return;
     }
 
-    final double maximumDiscount = line.quantity * line.product.sellingPrice;
+    final double maximumDiscount = line.quantity * line.unitPrice;
 
     setState(() {
       line.discount = value.clamp(0.0, maximumDiscount).toDouble();
@@ -357,13 +453,15 @@ class _PosScreenState extends State<PosScreen> {
               (_PosLine line) => <String, dynamic>{
                 'variant_id': line.product.variantId,
                 'quantity': line.quantity,
-                'unit_price': line.product.sellingPrice,
+                'unit_id': line.unit?.unitId,
+                'unit_price': line.unitPrice,
                 'discount_amount': line.discount,
                 'tax_rate': line.product.taxRate,
               },
             )
             .toList(),
         additionalCharges: 0.0,
+        roundOff: _roundOff,
         initialPayment: payment,
         paymentMethod: _paymentMethod == 'credit' ? 'credit' : _paymentMethod,
         paymentReference: '',
@@ -388,6 +486,7 @@ class _PosScreenState extends State<PosScreen> {
         _cart.clear();
         _search.clear();
         _tendered.clear();
+        _roundOff = 0.0;
       });
 
       await _load();
@@ -432,7 +531,7 @@ class _PosScreenState extends State<PosScreen> {
                     Text(
                       'Point of Sale',
                       style: TextStyle(
-                        fontSize: 30,
+                        fontSize: 22,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
@@ -604,31 +703,30 @@ class _PosScreenState extends State<PosScreen> {
         padding: const EdgeInsets.all(16),
         child: Column(
           children: <Widget>[
-            DropdownButtonFormField<String>(
-              initialValue: _customerId,
-              isExpanded: true,
-              decoration: const InputDecoration(
-                labelText: 'Customer',
-                border: OutlineInputBorder(),
-              ),
-              items: _customers
-                  .map(
-                    (Customer customer) => DropdownMenuItem<String>(
-                      value: customer.id,
-                      child: Text(
-                        customer.isWalkIn
-                            ? '${customer.name} (Default)'
-                            : customer.name,
-                      ),
-                    ),
-                  )
-                  .toList(),
+            SearchableSelect<String>(
+              value: _customerId,
+              labelText: 'Customer',
+              isRequired: true,
+              enabled: !_saving,
+              hintText: 'Search customer name, ID, phone or GSTIN',
+              prefixIcon: Icons.person_search_outlined,
+              options: _customers.map((customer) => SearchableSelectOption<String>(
+                value: customer.id,
+                label: customer.isWalkIn ? '${customer.name} (Default)' : customer.name,
+                subtitle: [customer.publicId, customer.phone, customer.taxNumber].whereType<String>().where((v) => v.trim().isNotEmpty).join(' • '),
+                searchText: '${customer.name} ${customer.publicId} ${customer.phone ?? ''} ${customer.email ?? ''} ${customer.taxNumber ?? ''}',
+              )).toList(),
               onChanged: _saving
                   ? null
                   : (String? value) {
                       setState(() {
                         _customerId = value;
+                        for (final line in _cart) {
+                          line.resolvedUnitPrice = null;
+                          line.pricingSource = null;
+                        }
                       });
+                      unawaited(_resolveAllPrices());
                     },
             ),
             const SizedBox(height: 10),
@@ -658,7 +756,7 @@ class _PosScreenState extends State<PosScreen> {
                                     ),
                                   ),
                                   Text(
-                                    '${_money(line.product.sellingPrice)} • tax ${line.product.taxRate.toStringAsFixed(0)}%${line.discount > 0.0 ? ' • disc ${_money(line.discount)}' : ''}',
+                                    '${_money(line.unitPrice)} / ${line.unitCode} • tax ${line.product.taxRate.toStringAsFixed(0)}%${line.pricingSource == null ? '' : ' • ${line.pricingSource}'}${line.discount > 0.0 ? ' • disc ${_money(line.discount)}' : ''}',
                                     style: TextStyle(
                                       fontSize: 11,
                                       color: Colors.grey.shade600,
@@ -667,6 +765,11 @@ class _PosScreenState extends State<PosScreen> {
                                 ],
                               ),
                             ),
+                            if (line.product.saleUnits.length > 1)
+                              TextButton(
+                                onPressed: () => _chooseUnit(line),
+                                child: Text(line.unitCode),
+                              ),
                             IconButton(
                               onPressed: () => _quantity(line, -1.0),
                               icon: const Icon(Icons.remove_circle_outline),
@@ -694,7 +797,17 @@ class _PosScreenState extends State<PosScreen> {
             _totalRow('Subtotal', _subtotal),
             _totalRow('Discount', -_discount),
             _totalRow('Tax', _tax),
+            if (_roundOff.abs() > 0.000001) _totalRow('Round Off', _roundOff),
             _totalRow('Total', _total, bold: true),
+            const SizedBox(height: 6),
+            Align(
+              alignment: Alignment.centerRight,
+              child: OutlinedButton.icon(
+                onPressed: _saving ? null : _applyRoundOff,
+                icon: const Icon(Icons.exposure_zero),
+                label: const Text('Round Total'),
+              ),
+            ),
             const SizedBox(height: 10),
             Row(
               children: <Widget>[
@@ -803,8 +916,23 @@ class _PosScreenState extends State<PosScreen> {
 
 class _PosLine {
   final InventoryProduct product;
+  ProductUnitOption? unit;
   double quantity;
   double discount;
+  double? resolvedUnitPrice;
+  String? pricingSource;
 
-  _PosLine({required this.product}) : discount = 0.0, quantity = 1.0;
+  _PosLine({required this.product})
+      : unit = product.defaultSaleUnit,
+        discount = 0.0,
+        quantity = (product.defaultSaleUnit?.quantityStep ?? product.quantityStep) > 1
+            ? (product.defaultSaleUnit?.quantityStep ?? product.quantityStep)
+            : 1.0,
+        resolvedUnitPrice = null;
+
+  double get conversionToBase => unit?.conversionToBase ?? 1.0;
+  double get baseQuantity => quantity * conversionToBase;
+  double get quantityStep => (unit?.quantityStep ?? product.quantityStep) > 0 ? (unit?.quantityStep ?? product.quantityStep) : 1.0;
+  double get unitPrice => resolvedUnitPrice ?? unit?.salePriceFor(product.sellingPrice) ?? product.sellingPrice;
+  String get unitCode => unit?.code ?? product.baseUnitCode;
 }

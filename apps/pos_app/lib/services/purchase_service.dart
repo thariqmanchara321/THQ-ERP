@@ -34,13 +34,14 @@ class PurchaseService {
     required DateTime? dueDate,
     required List<Map<String, dynamic>> items,
     required double additionalCharges,
+    double roundOff = 0,
     required double initialPayment,
     required String paymentMethod,
     required String notes,
     String? requestId,
   }) async {
     final result = await _supabase.rpc(
-      'purchases_create_v481',
+      'purchases_create_v489',
       params: {
         'p_tenant_id': tenantId,
         'p_supplier_id': supplierId,
@@ -49,6 +50,7 @@ class PurchaseService {
         'p_due_date': dueDate == null ? null : _dateOnly(dueDate),
         'p_items': items,
         'p_additional_charges': additionalCharges,
+        'p_round_off': roundOff,
         'p_initial_payment': initialPayment,
         'p_payment_method': paymentMethod,
         'p_notes': notes.trim(),
@@ -142,7 +144,7 @@ class PurchaseService {
   }) async {
     final origin = await _originParams(tenantId);
     final result = await _supabase.rpc(
-      'purchase_return_create_v481',
+      'purchase_return_create_v483',
       params: {
         'p_tenant_id': tenantId,
         'p_purchase_id': purchaseId,
@@ -163,7 +165,7 @@ class PurchaseService {
   }) async {
     final origin = await _originParams(tenantId);
     await _supabase.rpc(
-      'purchase_void_v47',
+      'purchase_void_v483',
       params: {
         'p_tenant_id': tenantId,
         'p_purchase_id': purchaseId,

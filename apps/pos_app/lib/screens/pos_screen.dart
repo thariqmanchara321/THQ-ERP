@@ -8,15 +8,17 @@ import '../models/client_session.dart';
 import '../models/customer.dart';
 import '../models/inventory_product.dart';
 import '../models/sale_detail.dart';
-import '../services/customer_service.dart';
 import '../services/cashier_shift_service.dart';
-import '../services/inventory_service.dart';
 import '../services/pricing_service.dart';
 import '../services/sales_service.dart';
+import '../services/tracking_service.dart';
 import '../services/pos_completion_service.dart';
 import '../services/pos_hardware_service.dart';
 import '../services/invoice_pdf_service.dart';
 import '../services/invoice_template_service.dart';
+import '../services/offline_pos_service.dart';
+import '../services/offline_pos_sync_service.dart';
+import '../services/offline_receipt_service.dart';
 import '../ui/v43_theme.dart';
 import '../widgets/customer_account_dialog.dart';
 
@@ -32,21 +34,24 @@ class PosScreen extends StatefulWidget {
 enum _PosWorkspace { products, hold, heldInvoices, quantity }
 
 class _PosScreenState extends State<PosScreen> {
-  final InventoryService _inventory = InventoryService();
   final PricingService _pricing = PricingService();
-  final CustomerService _customerService = CustomerService();
   final CashierShiftService _shiftService = CashierShiftService();
   final SalesService _sales = SalesService();
+  final TrackingService _tracking = TrackingService();
   final PosCompletionService _completion = PosCompletionService();
   final PosHardwareService _hardware = PosHardwareService();
   final InvoicePdfService _invoicePdf = InvoicePdfService();
   final InvoiceTemplateService _invoiceTemplates = InvoiceTemplateService();
+  final OfflinePosService _offlineLocal = OfflinePosService.instance;
+  final OfflinePosSyncService _offlineSync = OfflinePosSyncService();
+  final OfflineReceiptService _offlineReceipt = OfflineReceiptService();
   final TextEditingController _search = TextEditingController();
   final TextEditingController _tendered = TextEditingController();
   final TextEditingController _paymentReference = TextEditingController();
   final TextEditingController _orderDiscount = TextEditingController(
     text: '0.00',
   );
+  final TextEditingController _roundOff = TextEditingController(text: '0.00');
   final TextEditingController _notes = TextEditingController();
   final TextEditingController _holdLabel = TextEditingController();
   final FocusNode _searchFocus = FocusNode();
@@ -70,6 +75,9 @@ class _PosScreenState extends State<PosScreen> {
   String _orderMode = 'counter';
   int _step = 0;
   Timer? _searchDebounce;
+  Timer? _offlineSyncTimer;
+  bool _offlineMode = false;
+  bool _offlineHeartbeatBusy = false;
 
   bool get _canUse =>
       widget.session.hasPermission('pos.use') ||
@@ -114,7 +122,19 @@ class _PosScreenState extends State<PosScreen> {
     return sum + (taxable * line.product.taxRate / 100.0);
   });
 
-  double get _total => _subtotal - _discount + _tax + _cuttingCharges;
+  double get _roundOffAmount => double.tryParse(_roundOff.text.trim()) ?? 0.0;
+
+  double get _beforeRoundOff => _subtotal - _discount + _tax + _cuttingCharges;
+
+  double get _total => _beforeRoundOff + _roundOffAmount;
+
+  void _applyRoundOff() {
+    final delta = _beforeRoundOff.roundToDouble() - _beforeRoundOff;
+    setState(() {
+      _roundOff.text = delta.abs() < 0.000001 ? '0.00' : delta.toStringAsFixed(2);
+      _syncTendered();
+    });
+  }
 
   double get _tenderedAmount => double.tryParse(_tendered.text.trim()) ?? 0.0;
 
@@ -185,16 +205,20 @@ class _PosScreenState extends State<PosScreen> {
             .setting('pos.default_payment_method', 'cash')
             ?.toString() ??
         'cash';
+    unawaited(_offlineLocal.initialize());
     _load();
+    _offlineSyncTimer = Timer.periodic(const Duration(seconds: 20), (_) => unawaited(_offlineHeartbeat()));
   }
 
   @override
   void dispose() {
+    _offlineSyncTimer?.cancel();
     _searchDebounce?.cancel();
     _search.dispose();
     _tendered.dispose();
     _paymentReference.dispose();
     _orderDiscount.dispose();
+    _roundOff.dispose();
     _notes.dispose();
     _holdLabel.dispose();
     _searchFocus.dispose();
@@ -202,32 +226,31 @@ class _PosScreenState extends State<PosScreen> {
   }
 
   Future<void> _load() async {
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
+    if (mounted) {
+      setState(() {
+        _loading = true;
+        _error = null;
+      });
+    }
     try {
-      final result = await Future.wait([
-        _inventory.getProducts(
-          tenantId: widget.session.business.id,
-          locationId: widget.session.device?.locationId,
-        ),
-        _customerService.getCustomers(tenantId: widget.session.business.id),
-      ]);
-      final products = (result[0] as List<InventoryProduct>)
-          .where(
-            (product) =>
-                product.productStatus == 'active' &&
-                product.variantStatus == 'active',
-          )
+      await _offlineLocal.initialize();
+      OfflineCatalogue catalogue;
+      var offline = false;
+      try {
+        catalogue = await _offlineSync.refreshCatalogue(widget.session);
+      } catch (onlineError) {
+        offline = true;
+        catalogue = await _offlineSync.cachedCatalogue(widget.session);
+        if (catalogue.products.isEmpty || catalogue.customers.isEmpty) {
+          throw StateError('POS is offline and no local product/customer cache is available yet. Connect once and refresh the POS before using offline billing. $onlineError');
+        }
+      }
+      final products = catalogue.products
+          .where((product) => product.productStatus == 'active' && product.variantStatus == 'active')
           .toList();
-      final customers = (result[1] as List<Customer>)
-          .where((customer) => customer.isActive)
-          .toList();
-
+      final customers = catalogue.customers.where((customer) => customer.isActive).toList();
       String? selectedCustomer = _customerId;
-      if (selectedCustomer == null ||
-          !customers.any((customer) => customer.id == selectedCustomer)) {
+      if (selectedCustomer == null || !customers.any((customer) => customer.id == selectedCustomer)) {
         for (final customer in customers) {
           if (customer.isWalkIn) {
             selectedCustomer = customer.id;
@@ -236,19 +259,44 @@ class _PosScreenState extends State<PosScreen> {
         }
         selectedCustomer ??= customers.isEmpty ? null : customers.first.id;
       }
-
       if (!mounted) return;
       setState(() {
         _products = products;
         _customers = customers;
         _customerId = selectedCustomer;
+        _offlineMode = offline;
         if (!_categories.contains(_category)) _category = 'All';
       });
-      await _refreshHeldSales(silent: true);
+      if (!offline) {
+        try { await _refreshHeldSales(silent: true); } catch (_) {}
+      }
     } catch (error) {
       if (mounted) setState(() => _error = error.toString());
     } finally {
       if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _offlineHeartbeat() async {
+    if (_offlineHeartbeatBusy || _saving || !mounted || widget.session.device == null) return;
+    _offlineHeartbeatBusy = true;
+    try {
+      final result = await _offlineSync.syncPending(widget.session);
+      if (result.synced > 0 || _offlineMode) {
+        final catalogue = await _offlineSync.refreshCatalogue(widget.session);
+        if (!mounted) return;
+        final products = catalogue.products.where((p) => p.productStatus == 'active' && p.variantStatus == 'active').toList();
+        final customers = catalogue.customers.where((c) => c.isActive).toList();
+        setState(() {
+          _products = products;
+          _customers = customers;
+          _offlineMode = false;
+        });
+      }
+    } catch (_) {
+      if (mounted && !_offlineMode) setState(() => _offlineMode = true);
+    } finally {
+      _offlineHeartbeatBusy = false;
     }
   }
 
@@ -257,6 +305,10 @@ class _PosScreenState extends State<PosScreen> {
       : '${widget.session.currencyCode} ${value.toStringAsFixed(2)}';
 
   void _add(InventoryProduct product) {
+    if (product.trackingMode == 'serial') {
+      unawaited(_promptSerial(product));
+      return;
+    }
     if (product.itemType == 'stock' && product.stockQuantity <= 0) {
       _message('${product.productName} is out of stock.');
       return;
@@ -292,10 +344,105 @@ class _PosScreenState extends State<PosScreen> {
     _searchFocus.requestFocus();
   }
 
+  Future<void> _promptSerial(InventoryProduct product) async {
+    if (product.stockQuantity <= 0) {
+      _message('${product.productName} is out of stock.');
+      return;
+    }
+    final controller = TextEditingController();
+    final serial = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text('Serial • ${product.productName}'),
+        content: SizedBox(
+          width: 430,
+          child: TextField(
+            controller: controller,
+            autofocus: true,
+            onSubmitted: (value) => Navigator.of(dialogContext).pop(value.trim()),
+            decoration: const InputDecoration(
+              labelText: 'Scan / enter serial number',
+              prefixIcon: Icon(Icons.qr_code_scanner_outlined),
+              border: OutlineInputBorder(),
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Cancel')),
+          FilledButton(onPressed: () => Navigator.pop(dialogContext, controller.text.trim()), child: const Text('Add Serial')),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (serial == null || serial.trim().isEmpty || !mounted) return;
+    await _addSerialByCode(product, serial.trim());
+  }
+
+  Future<void> _addSerialByCode(InventoryProduct product, String serialNumber) async {
+    final device = widget.session.device;
+    if (device == null) {
+      _message('POS device context is unavailable.');
+      return;
+    }
+    try {
+      Map<String, dynamic>? resolved = await _offlineLocal.findAvailableSerial(
+        tenantId: widget.session.business.id,
+        locationId: device.locationId,
+        serialNumber: serialNumber,
+      );
+      if (resolved == null && !_offlineMode) {
+        resolved = await _tracking.resolveSerial(
+          tenantId: widget.session.business.id,
+          serialNumber: serialNumber,
+        );
+      }
+      if (resolved == null || resolved['status']?.toString() != 'in_stock') {
+        _message('Serial $serialNumber is not available at this POS store or offline cache.');
+        return;
+      }
+      if (resolved['variant_id']?.toString() != product.variantId) {
+        _message('Serial $serialNumber belongs to a different product.');
+        return;
+      }
+      _addResolvedSerial(product, resolved['serial_number']?.toString() ?? serialNumber);
+    } catch (error) {
+      _message(error.toString());
+    }
+  }
+
+  void _addResolvedSerial(InventoryProduct product, String serialNumber) {
+    final normalized = serialNumber.trim().toLowerCase();
+    if (_cart.any((line) => line.serialNumbers.any((value) => value.trim().toLowerCase() == normalized))) {
+      _message('Serial $serialNumber is already in this invoice.');
+      return;
+    }
+    var index = _cart.indexWhere((line) => line.product.variantId == product.variantId);
+    _PosLine line;
+    setState(() {
+      _selectedProduct = product;
+      if (index < 0) {
+        line = _PosLine(product: product);
+        _cart.add(line);
+        index = _cart.length - 1;
+      }
+      line = _cart[index];
+      line.serialNumbers.add(serialNumber.trim());
+      line.quantity = line.serialNumbers.length.toDouble();
+      line.resolvedUnitPrice = null;
+      _syncTendered();
+    });
+    unawaited(_resolveLinePrice(_cart[index]));
+    _searchFocus.requestFocus();
+  }
+
   String _formatStock(double value, String unitCode) =>
       '${value.toStringAsFixed(value % 1 == 0 ? 0 : 3)} $unitCode';
 
   void _changeQuantity(_PosLine line, double delta) {
+    if (line.product.trackingMode == 'serial') {
+      _message('Serial-tracked quantity is controlled by scanned serial numbers. Remove the line and rescan if needed.');
+      return;
+    }
     setState(() {
       final next = line.quantity + delta;
       if (next <= 0.000001) {
@@ -318,6 +465,10 @@ class _PosScreenState extends State<PosScreen> {
 
   void _openQuantityEditor(_PosLine line) {
     if (_saving) return;
+    if (line.product.trackingMode == 'serial') {
+      _message('Serial-tracked quantity is controlled by scanned serial numbers.');
+      return;
+    }
     setState(() {
       _editingLine = line;
       _workspace = _PosWorkspace.quantity;
@@ -326,6 +477,10 @@ class _PosScreenState extends State<PosScreen> {
   }
 
   void _setLineUnit(_PosLine line, ProductUnitOption unit) {
+    if (line.product.trackingMode == 'serial' && !unit.isBase) {
+      _message('Serial-tracked POS lines use the base unit.');
+      return;
+    }
     var nextQuantity = line.quantity;
     if (!unit.acceptsQuantity(nextQuantity)) {
       nextQuantity = unit.quantityStep > 1 ? unit.quantityStep : 1.0;
@@ -353,6 +508,12 @@ class _PosScreenState extends State<PosScreen> {
 
   Future<void> _resolveLinePrice(_PosLine line) async {
     if (!_cart.contains(line)) return;
+    if (_offlineMode) {
+      line.resolvedUnitPrice = null;
+      line.pricingSource = 'Offline cached price';
+      line.priceListId = null;
+      return;
+    }
     final customerId = _customerId;
     final unitId = line.unit?.unitId;
     final quantity = line.quantity;
@@ -398,8 +559,9 @@ class _PosScreenState extends State<PosScreen> {
     });
   }
 
-  void _searchSubmitted(String value) {
-    final query = value.trim().toLowerCase();
+  Future<void> _searchSubmitted(String value) async {
+    final raw = value.trim();
+    final query = raw.toLowerCase();
     if (query.isEmpty) return;
     InventoryProduct? exact;
     for (final product in _products) {
@@ -414,8 +576,40 @@ class _PosScreenState extends State<PosScreen> {
     if (exact != null) {
       _add(exact);
       _search.clear();
-      setState(() {});
+      if (mounted) setState(() {});
+      return;
     }
+    try {
+      final device = widget.session.device;
+      Map<String, dynamic>? serial;
+      if (device != null) {
+        serial = await _offlineLocal.findAvailableSerial(
+          tenantId: widget.session.business.id,
+          locationId: device.locationId,
+          serialNumber: raw,
+        );
+      }
+      if (serial == null && !_offlineMode) {
+        serial = await _tracking.resolveSerial(
+          tenantId: widget.session.business.id,
+          serialNumber: raw,
+        );
+      }
+      if (serial != null && serial['status']?.toString() == 'in_stock') {
+        final variantId = serial['variant_id']?.toString();
+        InventoryProduct? product;
+        for (final row in _products) {
+          if (row.variantId == variantId) { product = row; break; }
+        }
+        if (product != null) {
+          _addResolvedSerial(product, serial['serial_number']?.toString() ?? raw);
+          _search.clear();
+          if (mounted) setState(() {});
+          return;
+        }
+      }
+    } catch (_) {}
+    _message('No product or available serial found for "$raw".');
   }
 
   Future<void> _chooseCustomer() async {
@@ -539,10 +733,21 @@ class _PosScreenState extends State<PosScreen> {
       _error = 'Choose a customer.';
       return false;
     }
+    for (final line in _cart) {
+      if (line.product.trackingMode == 'serial' &&
+          (line.baseQuantity - line.serialNumbers.length).abs() > 0.000001) {
+        _error = '${line.product.productName}: scan exactly ${line.baseQuantity.toStringAsFixed(0)} serial number(s).';
+        return false;
+      }
+    }
     return true;
   }
 
   bool _validatePayment() {
+    if (_roundOffAmount.abs() > 1.000001) {
+      _error = 'Round off must be between -1.00 and 1.00.';
+      return false;
+    }
     final customer = _customer;
     if (customer == null) return false;
     if (_tenderedAmount < -0.0001) {
@@ -586,6 +791,7 @@ class _PosScreenState extends State<PosScreen> {
     'customer_id': _customerId,
     'order_mode': _orderMode,
     'order_discount': _orderDiscount.text,
+    'round_off': _roundOff.text,
     'notes': _notes.text,
     'payment_method': _paymentMethod,
     'tendered': _tendered.text,
@@ -598,6 +804,7 @@ class _PosScreenState extends State<PosScreen> {
             'unit_id': line.unit?.unitId,
             'cutting_charge_applied': line.cuttingChargeApplied,
             'discount': line.discount,
+            if (line.serialNumbers.isNotEmpty) 'serial_numbers': line.serialNumbers,
           },
         )
         .toList(),
@@ -756,6 +963,12 @@ class _PosScreenState extends State<PosScreen> {
             (item['discount'] as num?)?.toDouble() ??
             double.tryParse('${item['discount']}') ??
             0.0;
+        if (item['serial_numbers'] is List) {
+          line.serialNumbers
+            ..clear()
+            ..addAll((item['serial_numbers'] as List).map((e) => e.toString()));
+          if (product.trackingMode == 'serial') line.quantity = line.serialNumbers.length.toDouble();
+        }
         restored.add(line);
       }
       if (restored.isEmpty) {
@@ -774,6 +987,7 @@ class _PosScreenState extends State<PosScreen> {
         }
         _orderMode = state['order_mode']?.toString() ?? 'counter';
         _orderDiscount.text = state['order_discount']?.toString() ?? '0.00';
+        _roundOff.text = state['round_off']?.toString() ?? '0.00';
         _notes.text = state['notes']?.toString() ?? '';
         _paymentMethod = state['payment_method']?.toString() ?? 'cash';
         _tendered.text = state['tendered']?.toString() ?? '';
@@ -916,115 +1130,146 @@ class _PosScreenState extends State<PosScreen> {
     }
     final customer = _customer!;
     final device = widget.session.device;
-    if (device != null &&
-        device.allowedModules.contains('cashier_shifts') &&
-        widget.session.hasModule('cashier_shifts')) {
+    if (device == null) {
+      setState(() => _error = 'POS device context is required for billing.');
+      return;
+    }
+    if (device.allowedModules.contains('cashier_shifts') && widget.session.hasModule('cashier_shifts')) {
+      var hasShift = false;
       try {
         final shift = await _shiftService.current(
           tenantId: widget.session.business.id,
           deviceId: device.deviceId,
         );
-        if (shift == null || shift.isEmpty) {
-          setState(() => _error = 'Cashier Shift is enabled for this POS. Start a shift from Cashier Shift before billing.');
-          return;
+        hasShift = shift != null && shift.isNotEmpty;
+        if (hasShift) {
+          await _offlineLocal.setMeta('shift:${widget.session.business.id}:${device.deviceId}', shift);
         }
-      } catch (error) {
-        setState(() => _error = error.toString());
+      } catch (_) {
+        hasShift = await _offlineSync.hasVerifiedOpenShift(widget.session);
+      }
+      if (!hasShift) {
+        setState(() => _error = 'Cashier Shift is enabled. Start a shift while online before offline billing.');
         return;
       }
     }
+
     final payment = _appliedPayment;
     final outstanding = _accountBalance;
-
+    final now = DateTime.now();
+    final due = outstanding > 0.005 ? now.add(const Duration(days: 30)) : null;
+    final change = _change;
     setState(() {
       _saving = true;
       _error = null;
     });
     try {
       _checkoutRequestId ??= const Uuid().v4();
-      final result = await _sales.createSale(
-        tenantId: widget.session.business.id,
-        customerId: customer.id,
-        saleDate: DateTime.now(),
-        dueDate: outstanding > 0.005
-            ? DateTime.now().add(const Duration(days: 30))
-            : null,
-        items: _cart
-            .map(
-              (line) => {
-                'variant_id': line.product.variantId,
-                'quantity': line.quantity,
-                'unit_id': line.unit?.unitId,
-                'unit_price': line.unitPrice,
-                'discount_amount': _effectiveLineDiscount(line),
-                'tax_rate': line.product.taxRate,
-              },
-            )
-            .toList(),
-        additionalCharges: _cuttingCharges,
-        initialPayment: payment,
-        paymentMethod: _paymentMethod,
-        paymentReference: _paymentReference.text.trim(),
-        notes: [
+      final requestId = _checkoutRequestId!;
+      final payload = <String, dynamic>{
+        'customer_id': customer.id,
+        'customer_name': customer.name,
+        'sale_date': now.toIso8601String().split('T').first,
+        'sale_time': now.toUtc().toIso8601String(),
+        'due_date': due?.toIso8601String().split('T').first,
+        'items': _cart.map((line) => <String, dynamic>{
+          'variant_id': line.product.variantId,
+          'product_name': line.product.productName,
+          'sku': line.product.sku,
+          'quantity': line.quantity,
+          'unit_id': line.unit?.unitId,
+          'unit_code': line.unitCode,
+          'unit_price': line.unitPrice,
+          'discount_amount': _effectiveLineDiscount(line),
+          'tax_rate': line.product.taxRate,
+          'conversion_to_base': line.conversionToBase,
+          'base_quantity': line.baseQuantity,
+          if (line.serialNumbers.isNotEmpty) 'serial_numbers': List<String>.from(line.serialNumbers),
+        }).toList(),
+        'additional_charges': _cuttingCharges,
+        'round_off': _roundOffAmount,
+        'initial_payment': payment,
+        'payment_method': _paymentMethod,
+        'payment_reference': _paymentReference.text.trim(),
+        'notes': [
           'POS • ${_orderMode.replaceAll('_', ' ')}',
           if (_notes.text.trim().isNotEmpty) _notes.text.trim(),
         ].join(' • '),
-        requestId: _checkoutRequestId,
+        'total': _total,
+        'outstanding': outstanding,
+      };
+
+      final localNumber = await _offlineLocal.queueSale(
+        requestId: requestId,
+        tenantId: widget.session.business.id,
+        locationId: device.locationId,
+        deviceId: device.deviceId,
+        payload: payload,
+        printRequested: printAfter,
       );
 
-      final saleNumber =
-          result['sale_number']?.toString() ??
-          result['number']?.toString() ??
-          '';
-      String? saleId = result['sale_id']?.toString();
-      if ((saleId == null || saleId.isEmpty) && saleNumber.isNotEmpty) {
-        saleId = await _sales.resolveSaleId(
-          tenantId: widget.session.business.id,
-          saleNumber: saleNumber,
-        );
+      try {
+        await _offlineSync.syncPending(widget.session, onlyRequestId: requestId);
+      } catch (_) {
+        // The durable local queue is the source of truth during a network outage.
       }
-      SaleDetail? detail;
-      if (saleId != null && saleId.isNotEmpty) {
-        try {
-          detail = await _sales.getSaleDetail(
-            tenantId: widget.session.business.id,
-            saleId: saleId,
-          );
-        } catch (_) {
-          detail = null;
+      final record = await _offlineLocal.invoice(requestId);
+      if (record == null) throw StateError('Offline invoice queue record could not be reloaded.');
+
+      String? printWarning;
+      String completedNumber = localNumber;
+      if (record.status == 'synced') {
+        _offlineMode = false;
+        final result = record.serverResponse ?? const <String, dynamic>{};
+        final saleNumber = result['sale_number']?.toString() ?? result['number']?.toString() ?? '';
+        completedNumber = saleNumber.isEmpty ? localNumber : saleNumber;
+        String? saleId = result['sale_id']?.toString();
+        if ((saleId == null || saleId.isEmpty) && saleNumber.isNotEmpty) {
+          try {
+            saleId = await _sales.resolveSaleId(tenantId: widget.session.business.id, saleNumber: saleNumber);
+          } catch (_) {}
+        }
+        SaleDetail? detail;
+        if (saleId != null && saleId.isNotEmpty) {
+          try { detail = await _sales.getSaleDetail(tenantId: widget.session.business.id, saleId: saleId); } catch (_) {}
+        }
+        if (printAfter && saleId != null && saleId.isNotEmpty && detail != null) {
+          try {
+            await _autoPrintCompletedSale(saleId: saleId, detail: detail, cashPayment: _paymentMethod == 'cash', forcePrint: true);
+          } catch (error) {
+            printWarning = error.toString();
+          }
+        }
+      } else if (record.status == 'pending' || record.status == 'error') {
+        _offlineMode = true;
+        if (printAfter) {
+          try {
+            printWarning = await _offlineReceipt.printQueuedReceipt(
+              session: widget.session,
+              localInvoiceNumber: localNumber,
+              payload: record.payload,
+            );
+          } catch (error) {
+            printWarning = error.toString();
+          }
         }
       }
 
       if (!mounted) return;
-      final change = _change;
-      final cashPayment = _paymentMethod == 'cash';
-      String? printWarning;
-      if (printAfter && saleId != null && saleId.isNotEmpty && detail != null) {
-        try {
-          await _autoPrintCompletedSale(
-            saleId: saleId,
-            detail: detail,
-            cashPayment: cashPayment,
-            forcePrint: true,
-          );
-        } catch (error) {
-          printWarning = error.toString();
-        }
-      }
+      final status = record.status;
       _resetSale();
-      final completedNumber = saleNumber.isEmpty
-          ? 'Sale completed'
-          : saleNumber;
-      if (printWarning != null) {
-        _message('$completedNumber saved. Print/drawer: $printWarning');
+      if (status == 'synced') {
+        _message('$completedNumber synchronized${printWarning != null ? ' • Print: $printWarning' : ''}${change > 0 ? ' • Change ${_money(change)}' : ''}${outstanding > 0.005 ? ' • ${_money(outstanding)} added to ${customer.name} account' : ''}.');
+        try { await _load(); } catch (_) {}
+      } else if (status == 'conflict') {
+        _message('$localNumber saved locally but needs attention: ${record.conflictCode ?? 'CONFLICT'} • ${record.conflictMessage ?? 'Open Offline Sync.'}');
+        final catalogue = await _offlineSync.cachedCatalogue(widget.session);
+        if (mounted) setState(() { _products = catalogue.products; _customers = catalogue.customers; });
       } else {
-        _message(
-          printAfter
-              ? '$completedNumber confirmed & sent to printer${change > 0 ? ' • Change ${_money(change)}' : ''}${outstanding > 0.005 ? ' • ${_money(outstanding)} added to ${customer.name} account' : ''}.'
-              : '$completedNumber confirmed${change > 0 ? ' • Change ${_money(change)}' : ''}${outstanding > 0.005 ? ' • ${_money(outstanding)} added to ${customer.name} account' : ''}. Next invoice ready.',
-        );
+        _message('$localNumber saved offline and queued for automatic sync${printWarning != null ? ' • Print: $printWarning' : ''}.');
+        final catalogue = await _offlineSync.cachedCatalogue(widget.session);
+        if (mounted) setState(() { _products = catalogue.products; _customers = catalogue.customers; });
       }
-      await _load();
       _searchFocus.requestFocus();
     } catch (error) {
       if (mounted) setState(() => _error = error.toString());
@@ -1044,6 +1289,7 @@ class _PosScreenState extends State<PosScreen> {
       _step = 0;
       _paymentReference.clear();
       _orderDiscount.text = '0.00';
+      _roundOff.text = '0.00';
       _notes.clear();
       _tendered.clear();
       _paymentMethod =
@@ -1160,6 +1406,11 @@ class _PosScreenState extends State<PosScreen> {
             runSpacing: 4,
             alignment: WrapAlignment.end,
             children: [
+              Chip(
+                avatar: Icon(_offlineMode ? Icons.cloud_off_outlined : Icons.cloud_done_outlined, size: 16),
+                label: Text(_offlineMode ? 'OFFLINE' : 'ONLINE'),
+                visualDensity: VisualDensity.compact,
+              ),
               if (_step == 0)
                 OutlinedButton.icon(
                   onPressed: _cart.isEmpty || _saving || _workspace == _PosWorkspace.hold
@@ -2482,6 +2733,29 @@ class _PosScreenState extends State<PosScreen> {
               },
             ),
             const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _roundOff,
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true, signed: true),
+                    decoration: const InputDecoration(
+                      labelText: 'Round Off',
+                      helperText: 'Post-tax adjustment (-1.00 to 1.00)',
+                      prefixIcon: Icon(Icons.exposure_zero),
+                    ),
+                    onChanged: (_) => setState(() { _syncTendered(); }),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                OutlinedButton.icon(
+                  onPressed: _saving ? null : _applyRoundOff,
+                  icon: const Icon(Icons.exposure_zero),
+                  label: const Text('Round Total'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
             if (_paymentMethod == 'credit')
               Container(
                 padding: const EdgeInsets.all(12),
@@ -2638,6 +2912,7 @@ class _PosScreenState extends State<PosScreen> {
             _reviewRow('Subtotal', _money(_subtotal)),
             if (_discount > 0) _reviewRow('Discount', '- ${_money(_discount)}'),
             _reviewRow('Tax', _money(_tax)),
+            if (_roundOffAmount.abs() > 0.000001) _reviewRow('Round Off', _money(_roundOffAmount)),
             const Divider(height: 18),
             _reviewRow('Grand Total', _money(_total), strong: true),
             _reviewRow('Amount Received', _money(_appliedPayment)),
@@ -2707,6 +2982,8 @@ class _PosScreenState extends State<PosScreen> {
                                   '- ${_money(_discount)}',
                                 ),
                               _reviewRow('Tax', _money(_tax)),
+                              if (_roundOffAmount.abs() > 0.000001)
+                                _reviewRow('Round Off', _money(_roundOffAmount)),
                               const Divider(height: 16),
                               _reviewRow(
                                 'Grand Total',
@@ -2841,6 +3118,18 @@ class _PosScreenState extends State<PosScreen> {
   }
 }
 
+ProductUnitOption? _preferredPosUnit(InventoryProduct product) {
+  if (product.trackingMode == 'serial') {
+    for (final unit in product.saleUnits) {
+      if (unit.isBase && unit.allowSale && unit.active) return unit;
+    }
+    for (final unit in product.saleUnits) {
+      if ((unit.conversionToBase - 1).abs() <= 0.000001 && unit.allowSale && unit.active) return unit;
+    }
+  }
+  return product.defaultSaleUnit;
+}
+
 class _PosLine {
   final InventoryProduct product;
   ProductUnitOption? unit;
@@ -2850,9 +3139,10 @@ class _PosLine {
   double? resolvedUnitPrice;
   String? pricingSource;
   String? priceListId;
+  final List<String> serialNumbers = [];
 
   _PosLine({required this.product})
-      : unit = product.defaultSaleUnit,
+      : unit = _preferredPosUnit(product),
         quantity = (product.defaultSaleUnit?.quantityStep ?? product.quantityStep) > 1
             ? (product.defaultSaleUnit?.quantityStep ?? product.quantityStep)
             : 1.0,

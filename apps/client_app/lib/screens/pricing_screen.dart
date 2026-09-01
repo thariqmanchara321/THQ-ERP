@@ -6,6 +6,7 @@ import '../models/inventory_product.dart';
 import '../services/customer_service.dart';
 import '../services/inventory_service.dart';
 import '../services/pricing_service.dart';
+import '../widgets/searchable_select.dart';
 
 class PricingScreen extends StatefulWidget {
   final ClientSession session;
@@ -237,11 +238,18 @@ class _PricingScreenState extends State<PricingScreen>
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  DropdownButtonFormField<String>(
-                    initialValue: variantId,
-                    isExpanded: true,
-                    decoration: const InputDecoration(labelText: 'Product'),
-                    items: _products.map((p) => DropdownMenuItem(value: p.variantId, child: Text('${p.productName} • ${p.sku}', overflow: TextOverflow.ellipsis))).toList(),
+                  SearchableSelect<String>(
+                    value: variantId,
+                    labelText: 'Product',
+                    isRequired: true,
+                    hintText: 'Search product, SKU, barcode or part number',
+                    prefixIcon: Icons.inventory_2_outlined,
+                    options: _products.map((p) => SearchableSelectOption<String>(
+                      value: p.variantId,
+                      label: p.productName,
+                      subtitle: [p.sku, p.barcode, p.partNumber].where((v) => v != null && v.toString().trim().isNotEmpty).join(' • '),
+                      searchText: '${p.productName} ${p.sku} ${p.barcode ?? ''} ${p.partNumber ?? ''} ${p.searchCodes}',
+                    )).toList(),
                     onChanged: (value) {
                       if (value == null) return;
                       setDialogState(() {

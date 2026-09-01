@@ -156,6 +156,39 @@ class RestaurantService {
     },
   );
 
+  Future<Map<String, dynamic>> billOrder({
+    required String tenantId,
+    required String orderId,
+    required String deviceId,
+    required String customerId,
+    DateTime? dueDate,
+    required double initialPayment,
+    required String paymentMethod,
+    required String paymentReference,
+    required double roundOff,
+  }) async {
+    final result = await _s.rpc(
+      'restaurant_order_bill_v489',
+      params: {
+        'p_tenant_id': tenantId,
+        'p_order_id': orderId,
+        'p_device_id': deviceId,
+        'p_customer_id': customerId,
+        'p_due_date': dueDate == null
+            ? null
+            : '${dueDate.year.toString().padLeft(4, '0')}-${dueDate.month.toString().padLeft(2, '0')}-${dueDate.day.toString().padLeft(2, '0')}',
+        'p_initial_payment': initialPayment,
+        'p_payment_method': paymentMethod,
+        'p_payment_reference': paymentReference.trim(),
+        'p_round_off': roundOff,
+      },
+    );
+    if (result is! Map) {
+      throw Exception('Unexpected restaurant billing response.');
+    }
+    return Map<String, dynamic>.from(result);
+  }
+
   Future<void> markBilledByReference(
     String tenantId,
     String orderId,

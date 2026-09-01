@@ -412,3 +412,10 @@ enabled = true
 # declarative_schema_path = "./database"
 # JSON string passed through to pg-delta SQL formatting.
 # format_options = "{\"keywordCase\":\"upper\",\"indent\":2,\"maxWidth\":80,\"commaStyle\":\"trailing\"}"
+
+# Functions that must be callable before a normal authenticated session exists.
+[functions.username-login]
+verify_jwt = false
+
+[functions.device-activate]
+verify_jwt = false

@@ -20,6 +20,23 @@ class DashboardService {
     return DashboardData.fromMap(Map<String, dynamic>.from(result));
   }
 
+  Future<Map<String, dynamic>> businessIntelligence({
+    required ClientSession session,
+    DateTime? day,
+  }) async {
+    final target = day ?? DateTime.now();
+    final result = await _supabase.rpc(
+      'dashboard_business_intelligence_v500',
+      params: {
+        'p_tenant_id': session.business.id,
+        'p_location_id': LocationScopeService.currentForRead(session),
+        'p_day': '${target.year.toString().padLeft(4, '0')}-${target.month.toString().padLeft(2, '0')}-${target.day.toString().padLeft(2, '0')}',
+      },
+    );
+    if (result is! Map) throw Exception('Unexpected v5 BI response.');
+    return Map<String, dynamic>.from(result);
+  }
+
   Future<DashboardInsights> insights({required ClientSession session}) async {
     final result = await _supabase.rpc(
       'dashboard_v3_insights_v32',

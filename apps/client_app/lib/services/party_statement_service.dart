@@ -23,8 +23,14 @@ class PartyStatementService {
     required String supplierId,
   }) async {
     final result = await _supabase.rpc(
-      'suppliers_get_statement',
-      params: {'p_tenant_id': tenantId, 'p_supplier_id': supplierId},
+      'suppliers_get_statement_v484',
+      params: {
+        'p_tenant_id': tenantId,
+        'p_supplier_id': supplierId,
+        'p_from': null,
+        'p_to': null,
+        'p_location_id': null,
+      },
     );
     if (result is! Map) {
       throw Exception('Unexpected supplier statement response.');

@@ -267,6 +267,7 @@ class _ModuleDialogState extends State<_ModuleDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
+      scrollable: true,
       title: Text(
         widget.module == null
             ? 'Create Module'

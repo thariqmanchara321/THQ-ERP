@@ -7,6 +7,7 @@ import '../services/location_scope_service.dart';
 import '../widgets/customer_account_dialog.dart';
 import 'party_statement_screen.dart';
 import 'customer_accounts_screen.dart';
+import 'customer_crm_screen.dart';
 
 class CustomersScreen extends StatefulWidget {
   final ClientSession session;
@@ -141,6 +142,13 @@ class _CustomersScreenState extends State<CustomersScreen> {
     );
   }
 
+  Future<void> _openCrm(Customer customer) async {
+    if (customer.isWalkIn) return;
+    await Navigator.of(context).push(MaterialPageRoute(
+      builder: (_) => CustomerCrmScreen(session: widget.session, customer: customer),
+    ));
+  }
+
   Future<void> _openStatement(Customer customer) async {
     await Navigator.of(context).push(
       MaterialPageRoute(
@@ -173,7 +181,7 @@ class _CustomersScreenState extends State<CustomersScreen> {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.all(28),
+      padding: const EdgeInsets.all(14),
 
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -317,6 +325,7 @@ class _CustomersScreenState extends State<CustomersScreen> {
                         onEdit: () => _editCustomer(customer),
                         onStatement: () => _openStatement(customer),
                         onAccount: () => _openAccount(customer),
+                        onCrm: () => _openCrm(customer),
                       );
                     },
                   ),
@@ -340,6 +349,7 @@ class _CustomerCard extends StatelessWidget {
   final VoidCallback onEdit;
   final VoidCallback onStatement;
   final VoidCallback onAccount;
+  final VoidCallback onCrm;
 
   const _CustomerCard({
     required this.customer,
@@ -348,6 +358,7 @@ class _CustomerCard extends StatelessWidget {
     required this.onEdit,
     required this.onStatement,
     required this.onAccount,
+    required this.onCrm,
   });
 
   @override
@@ -562,6 +573,12 @@ class _CustomerCard extends StatelessWidget {
           ),
 
           const SizedBox(width: 8),
+          if (!customer.isWalkIn)
+            IconButton(
+              tooltip: 'Customer CRM',
+              onPressed: onCrm,
+              icon: const Icon(Icons.people_alt_outlined),
+            ),
           if (!customer.isWalkIn)
             IconButton(
               tooltip: 'Customer Account / Receive Payment',

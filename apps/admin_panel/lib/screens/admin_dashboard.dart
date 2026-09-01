@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:erp_core/erp_core.dart';
 
 import '../services/admin_auth_service.dart';
 import '../services/platform_config_service.dart';
@@ -79,9 +80,9 @@ class _AdminDashboardState extends State<AdminDashboard> {
     return Scaffold(
       backgroundColor: UiDesignProfile.fallback('client').background,
       appBar: AppBar(
-        title: const Text(
-          'THQ Platform',
-          style: TextStyle(fontWeight: FontWeight.bold),
+        title: Text(
+          'THQ Platform • v${ThqReleaseContract.appVersion} • Build ${ThqReleaseContract.buildNumber}',
+          style: const TextStyle(fontWeight: FontWeight.bold),
         ),
         actions: [
           Padding(
@@ -139,6 +140,10 @@ class _AdminDashboardState extends State<AdminDashboard> {
                   spacing: 12,
                   runSpacing: 12,
                   children: [
+                    _Metric(
+                      'Current Release',
+                      'v${ThqReleaseContract.appVersion} • B${ThqReleaseContract.buildNumber}',
+                    ),
                     _Metric('Businesses', d['businesses']?.toString() ?? '—'),
                     _Metric(
                       'Active',

@@ -31,6 +31,18 @@ class LocationDeviceService {
         .toList();
   }
 
+  Future<String> nextPosInvoicePrefix(String tenantId) async {
+    final result = await _supabase.rpc(
+      'platform_next_pos_invoice_prefix_v500',
+      params: {'p_tenant_id': tenantId},
+    );
+    final value = result?.toString().trim() ?? '';
+    if (value.isEmpty) {
+      throw Exception('Could not allocate the next POS invoice prefix.');
+    }
+    return value;
+  }
+
   Future<void> saveLocation({
     required String tenantId,
     String? id,

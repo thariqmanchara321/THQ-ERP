@@ -6,6 +6,7 @@ import '../models/supplier.dart';
 import '../services/label_printing_service.dart';
 import '../services/product_identification_service.dart';
 import '../services/supplier_service.dart';
+import '../widgets/searchable_select.dart';
 
 class ProductIdentifiersScreen extends StatefulWidget {
   final ClientSession session;
@@ -165,13 +166,18 @@ class _ProductIdentifiersScreenState extends State<ProductIdentifiersScreen> {
                 TextField(controller: code, decoration: const InputDecoration(labelText: 'Code')),
                 const SizedBox(height: 10),
                 if (type == 'supplier')
-                  DropdownButtonFormField<String?>(
-                    initialValue: supplierId,
-                    decoration: const InputDecoration(labelText: 'Supplier'),
-                    items: [
-                      const DropdownMenuItem<String?>(value: null, child: Text('Not linked')),
-                      ..._suppliers.where((e) => e.isActive).map((s) => DropdownMenuItem<String?>(value: s.id, child: Text(s.name))),
-                    ],
+                  SearchableSelect<String>(
+                    value: supplierId,
+                    labelText: 'Supplier',
+                    allowClear: true,
+                    hintText: 'Search supplier name, ID, phone or GSTIN',
+                    prefixIcon: Icons.local_shipping_outlined,
+                    options: _suppliers.where((e) => e.isActive).map((supplier) => SearchableSelectOption<String>(
+                      value: supplier.id,
+                      label: supplier.name,
+                      subtitle: [supplier.publicId, supplier.phone, supplier.taxNumber].whereType<String>().where((v) => v.trim().isNotEmpty).join(' • '),
+                      searchText: '${supplier.name} ${supplier.publicId} ${supplier.phone ?? ''} ${supplier.email ?? ''} ${supplier.taxNumber ?? ''}',
+                    )).toList(),
                     onChanged: (value) => setDialogState(() => supplierId = value),
                   ),
                 if (type == 'supplier') const SizedBox(height: 10),

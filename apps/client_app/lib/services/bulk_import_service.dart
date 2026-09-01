@@ -126,6 +126,52 @@ class BulkImportService {
     };
   }
 
+  Future<Map<String, dynamic>> importTransactions({
+    required String tenantId,
+    required String importType,
+    required String locationId,
+    required String sourceName,
+    required String sourceKey,
+    required List<Map<String, dynamic>> documents,
+    String? deviceId,
+  }) async {
+    final result = await _supabase.rpc(
+      'transaction_bulk_import_v490',
+      params: {
+        'p_tenant_id': tenantId,
+        'p_import_type': importType,
+        'p_location_id': locationId,
+        'p_device_id': deviceId,
+        'p_source_name': sourceName,
+        'p_source_key': sourceKey,
+        'p_documents': documents,
+      },
+    );
+    if (result is! Map) {
+      throw Exception('Unexpected transaction import response.');
+    }
+    return Map<String, dynamic>.from(result);
+  }
+
+  Future<List<Map<String, dynamic>>> transactionImportHistory({
+    required String tenantId,
+    String? importType,
+    int limit = 50,
+  }) async {
+    final result = await _supabase.rpc(
+      'transaction_bulk_import_history_v490',
+      params: {
+        'p_tenant_id': tenantId,
+        'p_import_type': importType,
+        'p_limit': limit,
+      },
+    );
+    return (result as List? ?? const [])
+        .whereType<Map>()
+        .map((row) => Map<String, dynamic>.from(row))
+        .toList(growable: false);
+  }
+
   String _text(Map<String, dynamic> row, String key) =>
       row[key]?.toString().trim() ?? '';
 

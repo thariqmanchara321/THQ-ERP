@@ -189,7 +189,7 @@ class _InventoryProductsScreenState extends State<InventoryProductsScreen> {
     return DecoratedBox(
       decoration: BoxDecoration(color: profile.background),
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(26, 22, 26, 24),
+        padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -202,7 +202,7 @@ class _InventoryProductsScreenState extends State<InventoryProductsScreen> {
                       const Text(
                         'Inventory',
                         style: TextStyle(
-                          fontSize: 28,
+                          fontSize: 20,
                           fontWeight: FontWeight.w900,
                           letterSpacing: -.5,
                         ),
@@ -243,7 +243,7 @@ class _InventoryProductsScreenState extends State<InventoryProductsScreen> {
                 ],
               ],
             ),
-            const SizedBox(height: 18),
+            const SizedBox(height: 10),
             Expanded(
               child: FutureBuilder<List<InventoryProduct>>(
                 future: _productsFuture,
@@ -707,7 +707,7 @@ class _EmptyInventory extends StatelessWidget {
         children: [
           const Icon(Icons.inventory_2_outlined, size: 70),
 
-          const SizedBox(height: 18),
+          const SizedBox(height: 10),
 
           const Text(
             'No Products Yet',
@@ -724,7 +724,7 @@ class _EmptyInventory extends StatelessWidget {
           ),
 
           if (canManage) ...[
-            const SizedBox(height: 22),
+            const SizedBox(height: 10),
 
             FilledButton.icon(
               onPressed: onAdd,
@@ -763,7 +763,7 @@ class _ErrorView extends StatelessWidget {
 
           Text(message, textAlign: TextAlign.center),
 
-          const SizedBox(height: 20),
+          const SizedBox(height: 10),
 
           OutlinedButton.icon(
             onPressed: () => onRetry(),

@@ -341,7 +341,7 @@ class _WorkshopScreenState extends State<WorkshopScreen>
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.all(28),
+      padding: const EdgeInsets.all(14),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

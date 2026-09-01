@@ -1,4 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:uuid/uuid.dart';
+
+import 'device_installation_service.dart';
 
 class TransportService {
   SupabaseClient get _supabase => Supabase.instance.client;
@@ -8,15 +11,16 @@ class TransportService {
     String? locationId,
   }) async {
     final result = await _supabase.rpc(
-      'service_vehicles_list_v32',
+      'service_vehicles_list_v51',
       params: {'p_tenant_id': tenantId, 'p_location_id': locationId},
     );
     return (result as List? ?? const [])
-        .map((row) => Map<String, dynamic>.from(row as Map))
+        .whereType<Map>()
+        .map((row) => Map<String, dynamic>.from(row))
         .toList();
   }
 
-  Future<void> saveVehicle({
+  Future<String> saveVehicle({
     required String tenantId,
     String? vehicleId,
     required String locationId,
@@ -27,9 +31,10 @@ class TransportService {
     required String capacityUnit,
     required String driverName,
     required String driverPhone,
+    bool active = true,
   }) async {
-    await _supabase.rpc(
-      'service_vehicle_save_v32',
+    final result = await _supabase.rpc(
+      'service_vehicle_save_v51',
       params: {
         'p_tenant_id': tenantId,
         'p_vehicle_id': vehicleId,
@@ -41,30 +46,35 @@ class TransportService {
         'p_capacity_unit': capacityUnit.trim(),
         'p_driver_name': driverName.trim(),
         'p_driver_phone': driverPhone.trim(),
-        'p_active': true,
+        'p_active': active,
       },
     );
+    return result.toString();
   }
 
   Future<List<Map<String, dynamic>>> jobs(
     String tenantId, {
     String? locationId,
+    String? status,
   }) async {
     final result = await _supabase.rpc(
-      'service_jobs_list_v32',
+      'service_jobs_list_v51',
       params: {
         'p_tenant_id': tenantId,
         'p_location_id': locationId,
+        'p_status': status,
         'p_limit': 500,
       },
     );
     return (result as List? ?? const [])
-        .map((row) => Map<String, dynamic>.from(row as Map))
+        .whereType<Map>()
+        .map((row) => Map<String, dynamic>.from(row))
         .toList();
   }
 
-  Future<Map<String, dynamic>> createJob({
+  Future<Map<String, dynamic>> saveJob({
     required String tenantId,
+    String? jobId,
     required String locationId,
     String? customerId,
     String? vehicleId,
@@ -76,11 +86,13 @@ class TransportService {
     required String quantityUnit,
     required double rate,
     required String notes,
+    String status = 'planned',
   }) async {
     final result = await _supabase.rpc(
-      'service_job_create_v32',
+      'service_job_save_v51',
       params: {
         'p_tenant_id': tenantId,
+        'p_job_id': jobId,
         'p_location_id': locationId,
         'p_customer_id': customerId,
         'p_vehicle_id': vehicleId,
@@ -92,6 +104,7 @@ class TransportService {
         'p_quantity_unit': quantityUnit.trim(),
         'p_rate': rate,
         'p_notes': notes.trim(),
+        'p_status': status,
       },
     );
     if (result is! Map) {
@@ -100,19 +113,71 @@ class TransportService {
     return Map<String, dynamic>.from(result);
   }
 
-  Future<void> linkSaleByReference({
+  Future<Map<String, dynamic>> setJobStatus({
+    required String tenantId,
+    required String jobId,
+    required String status,
+  }) async {
+    final result = await _supabase.rpc(
+      'service_job_status_v51',
+      params: {
+        'p_tenant_id': tenantId,
+        'p_job_id': jobId,
+        'p_status': status,
+      },
+    );
+    return result is Map
+        ? Map<String, dynamic>.from(result)
+        : <String, dynamic>{};
+  }
+
+  Future<Map<String, dynamic>> billJob({
+    required String tenantId,
+    required String jobId,
+    required String billingVariantId,
+    DateTime? dueDate,
+    required double initialPayment,
+    required String paymentMethod,
+    required String paymentReference,
+  }) async {
+    final activation = await DeviceInstallationService().readActivation();
+    if (activation == null || activation.tenantId != tenantId) {
+      throw StateError('This system is not activated for this business.');
+    }
+    final result = await _supabase.rpc(
+      'service_job_bill_v51',
+      params: {
+        'p_tenant_id': tenantId,
+        'p_job_id': jobId,
+        'p_billing_variant_id': billingVariantId,
+        'p_due_date': dueDate == null ? null : _date(dueDate),
+        'p_initial_payment': initialPayment,
+        'p_payment_method': paymentMethod,
+        'p_payment_reference': paymentReference.trim(),
+        'p_device_id': activation.deviceId,
+        'p_request_id': const Uuid().v4(),
+      },
+    );
+    if (result is! Map) throw Exception('Unexpected service billing response.');
+    return Map<String, dynamic>.from(result);
+  }
+
+  Future<Map<String, dynamic>> linkSaleByReference({
     required String tenantId,
     required String jobId,
     required String saleNumber,
   }) async {
-    await _supabase.rpc(
-      'service_job_link_sale_by_reference_v32',
+    final result = await _supabase.rpc(
+      'service_job_link_sale_by_reference_v51',
       params: {
         'p_tenant_id': tenantId,
         'p_job_id': jobId,
-        'p_sale_number': saleNumber,
+        'p_sale_number': saleNumber.trim(),
       },
     );
+    return result is Map
+        ? Map<String, dynamic>.from(result)
+        : <String, dynamic>{};
   }
 
   String _date(DateTime value) =>

@@ -689,7 +689,7 @@ class _LocationsScreenState extends State<LocationsScreen> {
                       ],
                     ),
                     if (appType == 'pos') ...[
-                      const SizedBox(height: 18),
+                      const SizedBox(height: 10),
                       const Text(
                         'POS modules',
                         style: TextStyle(
@@ -986,7 +986,7 @@ class _LocationsScreenState extends State<LocationsScreen> {
     return RefreshIndicator(
       onRefresh: _load,
       child: ListView(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
         children: [
           Row(
             children: [
@@ -1038,9 +1038,9 @@ class _LocationsScreenState extends State<LocationsScreen> {
               ),
             ),
           ],
-          const SizedBox(height: 20),
+          const SizedBox(height: 10),
           _scopeCard(),
-          const SizedBox(height: 20),
+          const SizedBox(height: 10),
           const Text(
             'Stores',
             style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),

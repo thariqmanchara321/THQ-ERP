@@ -27,6 +27,8 @@ import 'global_search_screen.dart';
 import 'workshop_screen.dart';
 import 'industry_workspace_screen.dart';
 import 'inventory_products_screen.dart';
+import 'loan_screen.dart';
+import 'tracking_workspace_screen.dart';
 import 'invoice_designer_screen.dart';
 import 'division_overview_screen.dart';
 import 'barcode_workbench_screen.dart';
@@ -34,6 +36,7 @@ import 'locations_screen.dart';
 import 'payment_center_screen.dart';
 import 'production_screen.dart';
 import 'purchases_screen.dart';
+import 'purchasing_v2_screen.dart';
 import 'pricing_screen.dart';
 import 'reports_screen.dart';
 import 'returns_register_screen.dart';
@@ -250,7 +253,10 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
     'operations_intelligence' => Icons.monitor_heart_outlined,
     'inventory' => Icons.inventory_2_outlined,
     'sales' => Icons.receipt_long_outlined,
+    'sales_details' => Icons.history_outlined,
     'purchases' => Icons.shopping_cart_outlined,
+    'purchase_details' => Icons.list_alt_outlined,
+    'loans' => Icons.account_balance_wallet_outlined,
     'pricing' => Icons.sell_outlined,
     'customers' => Icons.groups_outlined,
     'suppliers' => Icons.local_shipping_outlined,
@@ -397,6 +403,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
                     collapsed: _navCollapsed,
                     onTap: _logout,
                   ),
+                  DesktopReleaseStatus(compact: _navCollapsed),
                   const SizedBox(height: 8),
                 ],
               ),
@@ -552,7 +559,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
                   const SizedBox(height: 2),
                   Text(
                     device == null
-                        ? 'THQ Business • V4.6'
+                        ? 'THQ Business • v${ThqReleaseContract.appVersion}'
                         : '${device.locationCode} • ${device.deviceCode}',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -1149,11 +1156,19 @@ class _ModulePage extends StatelessWidget {
       'dashboard' => DashboardScreen(session: session),
       'operations_intelligence' => OperationsIntelligenceScreen(session: session),
       'inventory' => InventoryProductsScreen(session: session),
+      'warranty' => TrackingWorkspaceScreen(session: session),
       'suppliers' => SuppliersScreen(session: session),
       'purchases' => PurchasesScreen(session: session, startInCreate: true),
+      'purchase_details' => PurchasingV2Screen(session: session),
+      'loans' => LoanScreen(session: session),
       'pricing' => PricingScreen(session: session),
       'customers' => CustomersScreen(session: session),
       'sales' => SalesScreen(session: session, startInCreate: true),
+      'sales_details' => SalesScreen(
+        session: session,
+        historyOnly: true,
+        titleOverride: 'Sales Details',
+      ),
       'expenses' => ExpensesScreen(session: session),
       'accounting' => AccountingScreen(session: session),
       'reports' => ReportsScreen(session: session),

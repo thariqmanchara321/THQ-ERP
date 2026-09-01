@@ -109,7 +109,7 @@ class _TeamAccessScreenState extends State<TeamAccessScreen> {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.all(28),
+      padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
       child: FutureBuilder<TeamData>(
         future: _future,
         builder: (context, snapshot) {
@@ -151,7 +151,7 @@ class _TeamAccessScreenState extends State<TeamAccessScreen> {
                     ),
                 ],
               ),
-              const SizedBox(height: 18),
+              const SizedBox(height: 10),
               Expanded(
                 child: data.users.isEmpty
                     ? const Center(child: Text('No business users yet.'))

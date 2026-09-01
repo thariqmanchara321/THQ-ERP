@@ -133,7 +133,7 @@ class _SuppliersScreenState extends State<SuppliersScreen> {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.all(28),
+      padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
 
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -203,7 +203,7 @@ class _SuppliersScreenState extends State<SuppliersScreen> {
             ),
           ),
 
-          const SizedBox(height: 20),
+          const SizedBox(height: 10),
 
           Expanded(
             child: FutureBuilder<List<Supplier>>(
@@ -901,7 +901,7 @@ class _SupplierFormDialogState extends State<_SupplierFormDialog> {
                 ],
 
                 if (_error != null) ...[
-                  const SizedBox(height: 18),
+                  const SizedBox(height: 10),
 
                   Container(
                     width: double.infinity,
@@ -1000,7 +1000,7 @@ class _EmptySuppliers extends StatelessWidget {
         children: [
           const Icon(Icons.local_shipping_outlined, size: 70),
 
-          const SizedBox(height: 18),
+          const SizedBox(height: 10),
 
           const Text(
             'No Suppliers Yet',
@@ -1019,7 +1019,7 @@ class _EmptySuppliers extends StatelessWidget {
           ),
 
           if (canManage) ...[
-            const SizedBox(height: 22),
+            const SizedBox(height: 10),
 
             FilledButton.icon(
               onPressed: onAdd,
@@ -1063,7 +1063,7 @@ class _SupplierErrorView extends StatelessWidget {
 
           Text(message, textAlign: TextAlign.center),
 
-          const SizedBox(height: 20),
+          const SizedBox(height: 10),
 
           OutlinedButton.icon(
             onPressed: () => onRetry(),

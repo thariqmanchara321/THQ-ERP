@@ -1,3 +1,4 @@
+import 'package:erp_core/erp_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -16,8 +17,8 @@ class DeviceHeartbeatService {
         'p_device_id': device.deviceId,
         'p_app_key': 'pos',
         'p_platform': kIsWeb ? 'web' : defaultTargetPlatform.name,
-        'p_version': '4.8.2',
-        'p_build': 1,
+        'p_version': ThqReleaseContract.appVersion,
+        'p_build': ThqReleaseContract.buildNumber,
         'p_metadata': {
           'location_code': device.locationCode,
           'device_code': device.deviceCode,

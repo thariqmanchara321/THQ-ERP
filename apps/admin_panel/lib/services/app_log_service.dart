@@ -1,4 +1,5 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:erp_core/erp_core.dart';
 
 class AdminAppLogService {
   SupabaseClient get _s => Supabase.instance.client;
@@ -18,7 +19,7 @@ class AdminAppLogService {
           'p_context': <String, dynamic>{},
           'p_tenant_id': null,
           'p_severity': severity,
-          'p_app_version': '4.6.0',
+          'p_app_version': ThqReleaseContract.appVersion,
         },
       );
     } catch (_) {}

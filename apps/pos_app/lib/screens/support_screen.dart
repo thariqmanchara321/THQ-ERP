@@ -1,3 +1,4 @@
+import 'package:erp_core/erp_core.dart';
 import 'package:flutter/material.dart';
 
 import '../models/client_session.dart';
@@ -42,7 +43,7 @@ class _SupportScreenState extends State<SupportScreen> {
         locationId: widget.session.device?.locationId,
         deviceId: widget.session.device?.deviceId,
         appKey: widget.appKey,
-        appVersion: '4.6.0',
+        appVersion: ThqReleaseContract.appVersion,
         category: _category,
         priority: _priority,
         subject: _subject.text,

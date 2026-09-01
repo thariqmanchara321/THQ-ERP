@@ -70,6 +70,16 @@ class _BusinessLocationsDevicesScreenState
     }
   }
 
+  String? _mainLocationId() {
+    for (final location in _locations) {
+      if (location['hierarchy_role']?.toString() == 'main_store' ||
+          location['location_code']?.toString().toUpperCase() == 'MAIN') {
+        return location['id']?.toString();
+      }
+    }
+    return null;
+  }
+
   Future<void> _editLocation([Map<String, dynamic>? existing]) async {
     final code = TextEditingController(
       text: existing?['location_code']?.toString() ?? '',
@@ -125,6 +135,15 @@ class _BusinessLocationsDevicesScreenState
     var active = existing?['active'] != false;
     final isExistingMain = existing != null && hierarchyRole == 'main_store';
     String? parentLocationId = existing?['parent_location_id']?.toString();
+    if (existing == null && hierarchyRole != 'main_store') {
+      for (final location in _locations) {
+        if (location['hierarchy_role']?.toString() == 'main_store' ||
+            location['location_code']?.toString().toUpperCase() == 'MAIN') {
+          parentLocationId = location['id']?.toString();
+          break;
+        }
+      }
+    }
 
     await showDialog<void>(
       context: context,
@@ -211,6 +230,9 @@ class _BusinessLocationsDevicesScreenState
                                           sortOrder = 0;
                                         } else if (value == 'warehouse') {
                                           type = 'warehouse';
+                                          parentLocationId ??= _mainLocationId();
+                                        } else {
+                                          parentLocationId ??= _mainLocationId();
                                         }
                                       });
                                     },
@@ -537,7 +559,14 @@ class _BusinessLocationsDevicesScreenState
     var systemRole = 'pos';
     var platformHint = 'windows';
     final name = TextEditingController(text: 'Counter 1');
-    final invoicePrefix = TextEditingController(text: 'POS1');
+    String suggestedPrefix;
+    try {
+      suggestedPrefix = await _service.nextPosInvoicePrefix(widget.tenantId);
+    } catch (_) {
+      suggestedPrefix = 'Automatic';
+    }
+    if (!mounted) return;
+    final invoicePrefix = TextEditingController(text: suggestedPrefix);
     final selectedModules = <String>{'sales'};
 
     await showDialog<void>(
@@ -601,7 +630,6 @@ class _BusinessLocationsDevicesScreenState
                                 systemRole = appType == 'pos' ? 'pos' : 'office';
                                 if (appType == 'client') {
                                   selectedModules.clear();
-                                  invoicePrefix.clear();
                                 }
                                 if (appType == 'pos' && selectedModules.isEmpty) {
                                   selectedModules.add('sales');
@@ -673,10 +701,12 @@ class _BusinessLocationsDevicesScreenState
                         Expanded(
                           child: TextField(
                             controller: invoicePrefix,
-                            textCapitalization: TextCapitalization.characters,
+                            readOnly: true,
                             decoration: const InputDecoration(
                               labelText: 'Terminal invoice prefix',
-                              helperText: 'POS1 → POS1-INV-000001',
+                              helperText:
+                                  'Assigned automatically and never reused. Example: POS05 → POS05-INV-000001',
+                              suffixIcon: Icon(Icons.auto_awesome_outlined),
                             ),
                           ),
                         ),
@@ -734,7 +764,7 @@ class _BusinessLocationsDevicesScreenState
                   return;
                 }
                 try {
-                  await _service.createSystem(
+                  final created = await _service.createSystem(
                     tenantId: widget.tenantId,
                     locationId: locationId,
                     name: name.text.trim().isEmpty
@@ -744,11 +774,15 @@ class _BusinessLocationsDevicesScreenState
                     systemRole: systemRole,
                     platformHint: platformHint,
                     moduleKeys: selectedModules.toList(),
-                    invoicePrefix: invoicePrefix.text.trim(),
+                    // Empty means the server atomically allocates the next permanent POS prefix.
+                    invoicePrefix: '',
                   );
                   if (dialogContext.mounted) Navigator.pop(dialogContext);
+                  final assignedPrefix = created['invoice_prefix']?.toString();
                   _message(
-                    'System created. It is now pending activation. Use Activate System to issue its one-time code.',
+                    appType == 'pos'
+                        ? 'POS created with invoice prefix ${assignedPrefix ?? 'automatic'}. Activate the system to issue its one-time code.'
+                        : 'System created. Activate the system to issue its one-time code.',
                   );
                   await _load();
                 } catch (error) {
@@ -923,7 +957,12 @@ class _BusinessLocationsDevicesScreenState
                           child: TextField(
                             controller: invoicePrefix,
                             textCapitalization: TextCapitalization.characters,
-                            decoration: const InputDecoration(labelText: 'Terminal invoice prefix'),
+                            decoration: const InputDecoration(
+                              labelText: 'Terminal invoice prefix',
+                              helperText:
+                                  'Editable until this POS has transaction history. Then it is locked by the server.',
+                              suffixIcon: Icon(Icons.edit_outlined),
+                            ),
                           ),
                         ),
                       ],

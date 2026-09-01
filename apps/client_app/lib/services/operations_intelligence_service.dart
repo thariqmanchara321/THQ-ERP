@@ -124,6 +124,25 @@ class OperationsIntelligenceService {
     ));
   }
 
+
+  Future<void> decidePurchaseOrder({
+    required String tenantId,
+    required String purchaseOrderId,
+    required bool approve,
+    String note = '',
+  }) async {
+    await _api.call(ThqApiRequest(
+      tenantId: tenantId,
+      resource: 'purchase-orders',
+      action: 'decide',
+      payload: {
+        'purchase_order_id': purchaseOrderId,
+        'approve': approve,
+        'note': note,
+      },
+    ));
+  }
+
   List<Map<String, dynamic>> _rows(dynamic data) => (data as List? ?? const [])
       .whereType<Map>()
       .map((row) => Map<String, dynamic>.from(row))

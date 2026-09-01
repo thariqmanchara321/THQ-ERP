@@ -4,6 +4,9 @@ class SaleDetail {
   final String customerId;
   final String customerName;
   final String? customerTaxNumber;
+  final String? customerPhone;
+  final String? customerEmail;
+  final String? customerAddress;
   final DateTime saleDate;
   final DateTime? dueDate;
   final String status;
@@ -28,6 +31,9 @@ class SaleDetail {
     required this.customerId,
     required this.customerName,
     required this.customerTaxNumber,
+    required this.customerPhone,
+    required this.customerEmail,
+    required this.customerAddress,
     required this.saleDate,
     required this.dueDate,
     required this.status,
@@ -64,6 +70,12 @@ class SaleDetail {
       customerId: sale['customer_id']?.toString() ?? '',
       customerName: sale['customer_name']?.toString() ?? '',
       customerTaxNumber: sale['customer_tax_number']?.toString(),
+      customerPhone: sale['customer_phone']?.toString(),
+      customerEmail: sale['customer_email']?.toString(),
+      customerAddress: [sale['customer_address_line1'], sale['customer_address_line2'], sale['customer_city'], sale['customer_state'], sale['customer_postal_code'], sale['customer_country']]
+          .where((value) => value != null && value.toString().trim().isNotEmpty)
+          .map((value) => value.toString().trim())
+          .join(', '),
       saleDate: DateTime.parse(sale['sale_date'].toString()),
       dueDate: sale['due_date'] == null
           ? null

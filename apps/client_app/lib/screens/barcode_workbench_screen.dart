@@ -140,7 +140,7 @@ class _BarcodeWorkbenchScreenState extends State<BarcodeWorkbenchScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: const [
                     Text(
-                      'V4.4 barcode workflow',
+                      'Barcode workflow',
                       style: TextStyle(fontWeight: FontWeight.w800),
                     ),
                     SizedBox(height: 8),

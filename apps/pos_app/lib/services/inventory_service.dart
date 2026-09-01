@@ -56,7 +56,7 @@ class InventoryService {
     String? locationId,
   }) async {
     final result = await _supabase.rpc(
-      'inventory_list_products_v482',
+      'inventory_list_products_v483',
       params: {
         'p_tenant_id': tenantId,
         'p_location_id':
@@ -312,7 +312,7 @@ class InventoryService {
   }) async {
     final origin = await _origin(tenantId, locationId: locationId);
     final result = await _supabase.rpc(
-      'inventory_adjust_stock_v47',
+      'inventory_adjust_stock_v483',
       params: {
         'p_tenant_id': tenantId,
         'p_location_id': origin.locationId,

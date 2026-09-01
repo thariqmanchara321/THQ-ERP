@@ -1,7 +1,58 @@
+import 'dart:typed_data';
+
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class InvoiceTemplateService {
   SupabaseClient get _supabase => Supabase.instance.client;
+
+  Future<String> _uploadInvoiceImage({
+    required String tenantId,
+    required Uint8List bytes,
+    required String extension,
+    required String filePrefix,
+    required String assetLabel,
+  }) async {
+    final ext = extension.toLowerCase().replaceAll('.', '');
+    if (!const {'png', 'jpg', 'jpeg'}.contains(ext)) {
+      throw Exception('$assetLabel must be a PNG or JPEG image.');
+    }
+    if (bytes.isEmpty || bytes.lengthInBytes > 5 * 1024 * 1024) {
+      throw Exception('$assetLabel must be smaller than 5 MB.');
+    }
+    final mime = ext == 'png' ? 'image/png' : 'image/jpeg';
+    final path =
+        '$tenantId/invoice/${filePrefix}_${DateTime.now().millisecondsSinceEpoch}.$ext';
+    await _supabase.storage.from('thq-assets').uploadBinary(
+      path,
+      bytes,
+      fileOptions: FileOptions(contentType: mime, upsert: true),
+    );
+    return _supabase.storage.from('thq-assets').getPublicUrl(path);
+  }
+
+  Future<String> uploadBusinessLogo({
+    required String tenantId,
+    required Uint8List bytes,
+    required String extension,
+  }) => _uploadInvoiceImage(
+    tenantId: tenantId,
+    bytes: bytes,
+    extension: extension,
+    filePrefix: 'logo',
+    assetLabel: 'Logo',
+  );
+
+  Future<String> uploadPaymentQr({
+    required String tenantId,
+    required Uint8List bytes,
+    required String extension,
+  }) => _uploadInvoiceImage(
+    tenantId: tenantId,
+    bytes: bytes,
+    extension: extension,
+    filePrefix: 'payment_qr',
+    assetLabel: 'Payment QR',
+  );
 
   Future<Map<String, dynamic>> getTemplate({
     required String tenantId,

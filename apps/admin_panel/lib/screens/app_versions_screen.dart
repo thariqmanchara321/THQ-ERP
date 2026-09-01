@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:erp_core/erp_core.dart';
 
 import '../services/platform_config_service.dart';
 import '../widgets/admin_home_button.dart';
@@ -47,13 +48,13 @@ class _AppVersionsScreenState extends State<AppVersionsScreen> {
   }
 
   Future<void> _addRelease() async {
-    final version = TextEditingController(text: '1.0.0');
+    final version = TextEditingController(text: ThqReleaseContract.appVersion);
     final notes = TextEditingController();
     final url = TextEditingController();
     String app = 'client';
     String platform = 'windows';
     String status = 'stable';
-    int build = 1;
+    int build = ThqReleaseContract.buildNumber;
     bool minimum = false;
     bool mandatory = false;
     final ok = await showDialog<bool>(
@@ -233,18 +234,27 @@ class _AppVersionsScreenState extends State<AppVersionsScreen> {
                     spacing: 12,
                     runSpacing: 12,
                     children: [
-                      const Column(
+                      Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
+                          const Text(
                             'Release Management',
                             style: TextStyle(
                               fontSize: 28,
                               fontWeight: FontWeight.w900,
                             ),
                           ),
-                          Text(
+                          const Text(
                             'See installed versions and publish update policy.',
+                          ),
+                          const SizedBox(height: 5),
+                          Text(
+                            'Running Admin: v${ThqReleaseContract.appVersion} • Build ${ThqReleaseContract.buildNumber} • migration ${ThqReleaseContract.minimumMigration}',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: Theme.of(context).colorScheme.primary,
+                            ),
                           ),
                         ],
                       ),

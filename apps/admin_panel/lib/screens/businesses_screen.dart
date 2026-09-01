@@ -223,20 +223,24 @@ class _BusinessesScreenState extends State<BusinessesScreen> {
           final locations = await _locationService.locations(tenantId);
           Map<String, dynamic>? root;
           for (final row in locations) {
-            if (row['location_code']?.toString().toUpperCase() == 'MAIN') {
+            if (row['hierarchy_role']?.toString() == 'main_store' ||
+                row['location_code']?.toString().toUpperCase() == 'MAIN') {
               root = row;
               break;
             }
           }
-          root ??= locations
-              .where((row) => row['parent_location_id'] == null)
-              .firstOrNull;
+          final hierarchyRole = locationType == 'warehouse'
+              ? 'warehouse'
+              : const ['production', 'office', 'scrap'].contains(locationType)
+              ? 'operational'
+              : 'child_store';
           await _locationService.saveLocation(
             tenantId: tenantId,
             parentLocationId: root?['id']?.toString(),
             code: storeCode,
             name: storeName,
             type: locationType,
+            hierarchyRole: hierarchyRole,
             invoicePrefix: invoicePrefix.text.trim().isEmpty
                 ? storeCode
                 : invoicePrefix.text.trim().toUpperCase(),

@@ -59,14 +59,14 @@ class _PartyStatementScreenState extends State<PartyStatementScreen> {
         }
         final d = s.data!;
         return Padding(
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 d.partyName,
                 style: const TextStyle(
-                  fontSize: 26,
+                  fontSize: 20,
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -84,7 +84,7 @@ class _PartyStatementScreenState extends State<PartyStatementScreen> {
                   _Box('Balance', _m(d.closingBalance)),
                 ],
               ),
-              const SizedBox(height: 18),
+              const SizedBox(height: 10),
               Expanded(
                 child: Container(
                   decoration: BoxDecoration(

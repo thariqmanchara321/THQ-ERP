@@ -3,6 +3,7 @@ import 'package:erp_core/erp_core.dart';
 
 import '../models/client_session.dart';
 import '../services/inventory_service.dart';
+import '../widgets/product_unit_editor.dart';
 
 class AddProductScreen extends StatefulWidget {
   final ClientSession session;
@@ -52,6 +53,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
   String _itemType = 'stock';
   List<InventoryUnit> _units = const [];
   String _baseUnitCode = 'PCS';
+  ProductUnitEditorController? _unitEditor;
 
   bool _saving = false;
 
@@ -130,6 +132,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
         } else if (units.isNotEmpty) {
           _baseUnitCode = units.first.code;
         }
+        _unitEditor = ProductUnitEditorController(units: units, baseCode: _baseUnitCode);
       });
     } catch (_) {
       // Product creation remains usable; PCS/HR are seeded by the backend.
@@ -142,6 +145,11 @@ class _AddProductScreenState extends State<AddProductScreen> {
     }
 
     final taxRate = _number(_taxRateController);
+    final unitError = _unitEditor?.validate();
+    if (unitError != null) {
+      setState(() => _error = unitError);
+      return;
+    }
 
     if (taxRate > 100) {
       setState(() {
@@ -184,7 +192,9 @@ class _AddProductScreenState extends State<AddProductScreen> {
             ? _number(_openingStockController)
             : 0,
         locationId: widget.locationId,
-        baseUnitCode: _baseUnitCode,
+        baseUnitCode: _unitEditor?.baseCode ?? _baseUnitCode,
+        units: _unitEditor?.toPayload() ??
+        const <Map<String, dynamic>>[],
       );
 
       if (!mounted) {
@@ -357,6 +367,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
                               final preferred = _itemType == 'service' ? 'HR' : 'PCS';
                               if (_units.any((u) => u.code == preferred)) {
                                 _baseUnitCode = preferred;
+                                _unitEditor?.setBaseCode(preferred);
                               }
                             });
                           },
@@ -443,26 +454,18 @@ class _AddProductScreenState extends State<AddProductScreen> {
 
                   const SizedBox(height: 8),
 
-                  const Text('Stock is stored in the base unit. Add Box / Coil / Carton conversions from Product Details after saving.'),
+                  const Text('Configure the base unit and every sale/purchase conversion before saving the product.'),
 
                   const SizedBox(height: 16),
 
-                  DropdownButtonFormField<String>(
-                    initialValue: _units.any((u) => u.code == _baseUnitCode) ? _baseUnitCode : null,
-                    decoration: const InputDecoration(
-                      labelText: 'Base Unit',
-                      border: OutlineInputBorder(),
-                    ),
-                    items: _units
-                        .map((u) => DropdownMenuItem(
-                              value: u.code,
-                              child: Text('${u.name} (${u.code})'),
-                            ))
-                        .toList(),
-                    onChanged: _saving
-                        ? null
-                        : (value) => setState(() => _baseUnitCode = value ?? _baseUnitCode),
-                  ),
+                  if (_unitEditor != null)
+                    ProductUnitEditor(
+                      controller: _unitEditor!,
+                      enabled: !_saving,
+                      currencySymbol: widget.session.currencyCode,
+                    )
+                  else
+                    const LinearProgressIndicator(),
 
                   const SizedBox(height: 26),
 
@@ -569,7 +572,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
                       },
                       decoration: InputDecoration(
                         labelText: 'Reorder Level',
-                        suffixText: _baseUnitCode,
+                        suffixText: _unitEditor?.baseCode ?? _baseUnitCode,
                         border: OutlineInputBorder(),
                       ),
                     ),
@@ -588,7 +591,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
                       },
                       decoration: InputDecoration(
                         labelText: 'Opening Stock',
-                        suffixText: _baseUnitCode,
+                        suffixText: _unitEditor?.baseCode ?? _baseUnitCode,
                         border: OutlineInputBorder(),
                       ),
                     ),

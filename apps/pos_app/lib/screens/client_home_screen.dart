@@ -4,8 +4,12 @@ import '../models/client_session.dart';
 import '../services/client_auth_service.dart';
 import 'client_login_screen.dart';
 import 'inventory_products_screen.dart';
+import 'tracking_workspace_screen.dart';
 import 'suppliers_screen.dart';
+import 'purchasing_v2_screen.dart';
 import 'purchases_screen.dart';
+import 'loan_screen.dart';
+import 'stock_transfers_screen.dart';
 import 'customers_screen.dart';
 import 'sales_screen.dart';
 import 'dashboard_screen.dart';
@@ -57,9 +61,18 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
 
       case 'sales':
         return Icons.point_of_sale_outlined;
+      case 'sales_details':
+        return Icons.receipt_long_outlined;
 
       case 'purchases':
         return Icons.shopping_cart_outlined;
+      case 'purchase_details':
+        return Icons.list_alt_outlined;
+      case 'loans':
+        return Icons.account_balance_wallet_outlined;
+
+      case 'stock_transfers':
+        return Icons.swap_horiz_outlined;
 
       case 'customers':
         return Icons.people_outline;
@@ -399,16 +412,28 @@ class _ModulePage extends StatelessWidget {
     if (module.key == 'inventory') {
       return InventoryProductsScreen(session: session);
     }
+    if (module.key == 'warranty') {
+      return TrackingWorkspaceScreen(session: session);
+    }
     if (module.key == 'suppliers') {
       return SuppliersScreen(session: session);
     }
     if (module.key == 'purchases') {
       return PurchasesScreen(session: session);
     }
+    if (module.key == 'purchase_details') {
+      return PurchasingV2Screen(session: session);
+    }
+    if (module.key == 'loans') {
+      return LoanScreen(session: session);
+    }
+    if (module.key == 'stock_transfers') {
+      return StockTransfersScreen(session: session);
+    }
     if (module.key == 'customers') {
       return CustomersScreen(session: session);
     }
-    if (module.key == 'sales') {
+    if (module.key == 'sales' || module.key == 'sales_details') {
       return SalesScreen(session: session);
     }
     if (module.key == 'expenses') {

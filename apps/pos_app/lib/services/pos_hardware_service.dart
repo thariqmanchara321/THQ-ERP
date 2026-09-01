@@ -1,6 +1,8 @@
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:erp_core/erp_core.dart';
+
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart' as print_pkg;
@@ -69,7 +71,7 @@ class PosHardwareService {
           crossAxisAlignment: pw.CrossAxisAlignment.start,
           children: [
             pw.Text(
-              'THQ POS V4.6',
+              'THQ POS v${ThqReleaseContract.appVersion} • Build ${ThqReleaseContract.buildNumber}',
               style: pw.TextStyle(
                 fontSize: narrow ? 15 : 24,
                 fontWeight: pw.FontWeight.bold,

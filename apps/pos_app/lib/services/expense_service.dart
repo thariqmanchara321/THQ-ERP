@@ -50,12 +50,13 @@ class ExpenseService {
     required String description,
     required double amount,
     required double taxAmount,
+    double roundOff = 0,
     required String paymentMethod,
     required String referenceNumber,
     required String notes,
   }) async {
     final result = await _supabase.rpc(
-      'expenses_create_v47',
+      'expenses_create_v489',
       params: {
         'p_tenant_id': tenantId,
         'p_category_id': categoryId,
@@ -64,6 +65,7 @@ class ExpenseService {
         'p_description': description.trim(),
         'p_amount': amount,
         'p_tax_amount': taxAmount,
+        'p_round_off': roundOff,
         'p_payment_method': paymentMethod,
         'p_reference_number': referenceNumber.trim(),
         'p_notes': notes.trim(),
@@ -84,12 +86,13 @@ class ExpenseService {
     required String description,
     required double amount,
     required double taxAmount,
+    double roundOff = 0,
     required String paymentMethod,
     required String referenceNumber,
     required String notes,
   }) async {
     await _supabase.rpc(
-      'expenses_update_v32',
+      'expenses_update_v489',
       params: {
         'p_tenant_id': tenantId,
         'p_expense_id': expenseId,
@@ -99,6 +102,7 @@ class ExpenseService {
         'p_description': description.trim(),
         'p_amount': amount,
         'p_tax_amount': taxAmount,
+        'p_round_off': roundOff,
         'p_payment_method': paymentMethod,
         'p_reference_number': referenceNumber.trim(),
         'p_notes': notes.trim(),

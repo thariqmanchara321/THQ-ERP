@@ -167,7 +167,7 @@ class _ProductUnitsScreenState extends State<ProductUnitsScreen> {
               : Form(
                   key: _formKey,
                   child: ListView(
-                    padding: const EdgeInsets.all(24),
+                    padding: const EdgeInsets.all(14),
                     children: [
                       Text('Base inventory unit', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
                       const SizedBox(height: 8),

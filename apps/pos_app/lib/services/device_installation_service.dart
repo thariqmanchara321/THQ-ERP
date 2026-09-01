@@ -1,3 +1,4 @@
+import 'package:erp_core/erp_core.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
@@ -80,7 +81,7 @@ class DeviceInstallationService {
         'activation_code': activationCode.trim().toUpperCase(),
         'installation_id': await installationId(),
         'app_key': appKey,
-        'app_version': '4.8.2',
+        'app_version': ThqReleaseContract.appVersion,
       },
     );
     if (response.data is! Map) {

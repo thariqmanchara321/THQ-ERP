@@ -1,3 +1,4 @@
+import 'package:erp_core/erp_core.dart';
 import 'package:flutter/material.dart';
 
 import '../models/client_session.dart';
@@ -7,7 +8,7 @@ import '../services/customer_service.dart';
 import '../services/inventory_service.dart';
 import '../services/location_scope_service.dart';
 import '../services/restaurant_service.dart';
-import '../services/sales_service.dart';
+import '../widgets/searchable_select.dart';
 
 class RestaurantScreen extends StatefulWidget {
   final ClientSession session;
@@ -22,7 +23,6 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
   final RestaurantService _restaurant = RestaurantService();
   final InventoryService _inventory = InventoryService();
   final CustomerService _customers = CustomerService();
-  final SalesService _sales = SalesService();
 
   bool _loading = true;
   String? _error;
@@ -250,7 +250,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
 
           double orderTotal() {
             return cart.fold<double>(0.0, (sum, line) {
-              final taxable = line.quantity * line.product.sellingPrice;
+              final taxable = line.quantity * line.unitPrice;
               return sum + taxable + (taxable * line.product.taxRate / 100.0);
             });
           }
@@ -317,26 +317,19 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                       ],
                       const SizedBox(width: 8),
                       Expanded(
-                        child: DropdownButtonFormField<String?>(
-                          initialValue: customerId,
-                          isExpanded: true,
-                          decoration: const InputDecoration(
-                            labelText: 'Customer',
-                          ),
-                          items: _customerRows
-                              .map(
-                                (customer) => DropdownMenuItem<String?>(
-                                  value: customer.id,
-                                  child: Text(
-                                    customer.isWalkIn
-                                        ? '${customer.name} (Default)'
-                                        : customer.name,
-                                  ),
-                                ),
-                              )
-                              .toList(),
-                          onChanged: (value) =>
-                              setLocalState(() => customerId = value),
+                        child: SearchableSelect<String>(
+                          value: customerId,
+                          labelText: 'Customer',
+                          allowClear: true,
+                          hintText: 'Search customer name, ID, phone or GSTIN',
+                          prefixIcon: Icons.person_search_outlined,
+                          options: _customerRows.map((customer) => SearchableSelectOption<String>(
+                            value: customer.id,
+                            label: customer.isWalkIn ? '${customer.name} (Default)' : customer.name,
+                            subtitle: [customer.publicId, customer.phone, customer.taxNumber].whereType<String>().where((v) => v.trim().isNotEmpty).join(' • '),
+                            searchText: '${customer.name} ${customer.publicId} ${customer.phone ?? ''} ${customer.email ?? ''} ${customer.taxNumber ?? ''}',
+                          )).toList(),
+                          onChanged: (value) => setLocalState(() => customerId = value),
                         ),
                       ),
                     ],
@@ -399,7 +392,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                                     maxWidth: 180,
                                   ),
                                   child: Text(
-                                    '${product.productName}\n${_money(product.sellingPrice)}',
+                                    '${product.productName}\n${_money(product.defaultSaleUnit?.salePriceFor(product.sellingPrice) ?? product.sellingPrice)}',
                                     overflow: TextOverflow.ellipsis,
                                   ),
                                 ),
@@ -411,7 +404,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                                           product.variantId,
                                     );
                                     if (index >= 0) {
-                                      cart[index].quantity += 1.0;
+                                      cart[index].quantity += cart[index].quantityStep;
                                     } else {
                                       cart.add(_RestaurantLine(product));
                                     }
@@ -448,13 +441,31 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                                         Text(
                                           '${line.product.sku} • tax ${line.product.taxRate.toStringAsFixed(0)}%',
                                         ),
+                                        if (line.product.saleUnits.length > 1)
+                                          SizedBox(
+                                            width: 180,
+                                            child: DropdownButton<ProductUnitOption>(
+                                              value: line.unit,
+                                              isExpanded: true,
+                                              items: line.product.saleUnits
+                                                  .map((unit) => DropdownMenuItem(value: unit, child: Text('${unit.code} • ${_money(unit.salePriceFor(line.product.sellingPrice))}')))
+                                                  .toList(),
+                                              onChanged: (unit) {
+                                                if (unit == null) return;
+                                                setLocalState(() {
+                                                  line.unit = unit;
+                                                  line.quantity = unit.quantityStep > 0 ? unit.quantityStep : 1;
+                                                });
+                                              },
+                                            ),
+                                          ),
                                       ],
                                     ),
                                   ),
                                   IconButton(
                                     onPressed: () {
                                       setLocalState(() {
-                                        line.quantity -= 1.0;
+                                        line.quantity -= line.quantityStep;
                                         if (line.quantity <= 0) {
                                           cart.removeAt(index);
                                         }
@@ -467,7 +478,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                                   Text(line.quantity.toStringAsFixed(0)),
                                   IconButton(
                                     onPressed: () => setLocalState(
-                                      () => line.quantity += 1.0,
+                                      () => line.quantity += line.quantityStep,
                                     ),
                                     icon: const Icon(Icons.add_circle_outline),
                                   ),
@@ -475,8 +486,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                                     width: 110,
                                     child: Text(
                                       _money(
-                                        line.quantity *
-                                            line.product.sellingPrice,
+                                        line.quantity * line.unitPrice,
                                       ),
                                       textAlign: TextAlign.end,
                                     ),
@@ -525,7 +535,8 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                                   (line) => <String, dynamic>{
                                     'variant_id': line.product.variantId,
                                     'quantity': line.quantity,
-                                    'unit_price': line.product.sellingPrice,
+                                    'unit_id': line.unit?.unitId,
+                                    'unit_price': line.unitPrice,
                                     'discount_amount': 0.0,
                                     'tax_rate': line.product.taxRate,
                                     'item_note': '',
@@ -585,25 +596,6 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
   }
 
   Future<void> _bill(Map<String, dynamic> order) async {
-    final payment = await showDialog<String>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text('Finalize ${order['order_number']}'),
-        content: const Text(
-          'Choose payment method. Finalization creates the normal Sales invoice.',
-        ),
-        actions: ['cash', 'upi', 'card', 'credit']
-            .map(
-              (method) => FilledButton.tonal(
-                onPressed: () => Navigator.pop(dialogContext, method),
-                child: Text(method.toUpperCase()),
-              ),
-            )
-            .toList(),
-      ),
-    );
-    if (payment == null) return;
-
     final deviceId = _deviceId;
     if (deviceId == null) {
       _message('This system is not registered.');
@@ -616,61 +608,71 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
         order['id'].toString(),
         deviceId,
       );
+      if (!mounted) return;
       final orderMap = Map<String, dynamic>.from(detail['order'] as Map);
       final itemRows = detail['items'] as List? ?? const [];
-      final items = itemRows.map((row) {
-        final item = Map<String, dynamic>.from(row as Map);
-        return <String, dynamic>{
-          'variant_id': item['variant_id'],
-          'quantity': item['quantity'],
-          'unit_price': item['unit_price'],
-          'discount_amount': item['discount_amount'],
-          'tax_rate': item['tax_rate'],
-        };
-      }).toList();
+
+      double storedTotal = 0;
+      for (final raw in itemRows) {
+        final item = Map<String, dynamic>.from(raw as Map);
+        final quantity = (item['quantity'] as num?)?.toDouble() ??
+            double.tryParse('${item['quantity']}') ??
+            0;
+        final unitPrice = (item['unit_price'] as num?)?.toDouble() ??
+            double.tryParse('${item['unit_price']}') ??
+            0;
+        final discount = (item['discount_amount'] as num?)?.toDouble() ??
+            double.tryParse('${item['discount_amount']}') ??
+            0;
+        final taxRate = (item['tax_rate'] as num?)?.toDouble() ??
+            double.tryParse('${item['tax_rate']}') ??
+            0;
+        final taxable = (quantity * unitPrice - discount).clamp(0, double.infinity);
+        storedTotal += taxable * (1 + taxRate / 100);
+      }
+      storedTotal = double.parse(storedTotal.toStringAsFixed(2));
+
+      final choice = await _restaurantBillingDialog(
+        orderNumber: order['order_number']?.toString() ?? 'Restaurant Order',
+        total: storedTotal,
+      );
+      if (choice == null || !mounted) return;
 
       final customerId = orderMap['customer_id']?.toString() ?? _walkIn?.id;
       if (customerId == null) {
         throw Exception('No customer is available for billing.');
       }
-      final customer = _customerRows
-          .where((value) => value.id == customerId)
-          .cast<Customer?>()
-          .firstWhere((value) => value != null, orElse: () => null);
-      if (payment == 'credit' && customer?.isWalkIn == true) {
+      Customer? customer;
+      for (final value in _customerRows) {
+        if (value.id == customerId) {
+          customer = value;
+          break;
+        }
+      }
+      if (choice.paymentMethod == 'credit' && customer?.isWalkIn == true) {
         throw Exception('Walk-in Customer cannot use credit.');
       }
 
-      final total =
-          (order['total'] as num?)?.toDouble() ??
-          double.tryParse('${order['total']}') ??
-          0.0;
-      final sale = await _sales.createSale(
+      final finalTotal = double.parse((storedTotal + choice.roundOff).toStringAsFixed(2));
+      if (finalTotal < 0) throw Exception('Rounded total cannot be negative.');
+      final sale = await _restaurant.billOrder(
         tenantId: widget.session.business.id,
+        orderId: order['id'].toString(),
+        deviceId: deviceId,
         customerId: customerId,
-        saleDate: DateTime.now(),
-        dueDate: payment == 'credit'
+        dueDate: choice.paymentMethod == 'credit'
             ? DateTime.now().add(const Duration(days: 30))
             : null,
-        items: items,
-        additionalCharges: 0,
-        initialPayment: payment == 'credit' ? 0 : total,
-        paymentMethod: payment,
+        initialPayment: choice.paymentMethod == 'credit' ? 0 : finalTotal,
+        paymentMethod: choice.paymentMethod,
         paymentReference: '',
-        notes: 'Restaurant ${order['order_number']}',
-        locationId: orderMap['location_id']?.toString(),
+        roundOff: choice.roundOff,
       );
       final saleNumber =
           sale['sale_number']?.toString() ?? sale['number']?.toString();
       if (saleNumber == null || saleNumber.isEmpty) {
         throw Exception('Sale created but number was not returned.');
       }
-      await _restaurant.markBilledByReference(
-        widget.session.business.id,
-        order['id'].toString(),
-        deviceId,
-        saleNumber,
-      );
       _message('$saleNumber billed successfully.');
       await _load();
     } catch (error) {
@@ -678,171 +680,359 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
     }
   }
 
+  Future<_RestaurantBillingChoice?> _restaurantBillingDialog({
+    required String orderNumber,
+    required double total,
+  }) async {
+    final roundController = TextEditingController(text: '0.00');
+    String paymentMethod = 'cash';
+    final result = await showDialog<_RestaurantBillingChoice>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          final roundOff = double.tryParse(roundController.text.trim()) ?? 0;
+          final finalTotal = total + roundOff;
+          return AlertDialog(
+            title: Text('Finalize $orderNumber'),
+            content: SizedBox(
+              width: 440,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text('Order total: ${_money(total)}'),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: roundController,
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                      signed: true,
+                    ),
+                    decoration: InputDecoration(
+                      labelText: 'Round Off',
+                      helperText: 'Allowed range: -1.00 to +1.00',
+                      suffixIcon: TextButton(
+                        onPressed: () {
+                          final rounded = total.roundToDouble();
+                          roundController.text = (rounded - total).toStringAsFixed(2);
+                          setDialogState(() {});
+                        },
+                        child: const Text('Round'),
+                      ),
+                    ),
+                    onChanged: (_) => setDialogState(() {}),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    'Final total: ${_money(finalTotal)}',
+                    style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
+                  ),
+                  const SizedBox(height: 16),
+                  DropdownButtonFormField<String>(
+                    initialValue: paymentMethod,
+                    decoration: const InputDecoration(labelText: 'Payment method'),
+                    items: const [
+                      DropdownMenuItem(value: 'cash', child: Text('CASH')),
+                      DropdownMenuItem(value: 'upi', child: Text('UPI')),
+                      DropdownMenuItem(value: 'card', child: Text('CARD')),
+                      DropdownMenuItem(value: 'credit', child: Text('CREDIT')),
+                    ],
+                    onChanged: (value) {
+                      if (value != null) setDialogState(() => paymentMethod = value);
+                    },
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: () {
+                  final roundOff = double.tryParse(roundController.text.trim()) ?? 0;
+                  if (roundOff.abs() > 1.000001) {
+                    ScaffoldMessenger.of(dialogContext).showSnackBar(
+                      const SnackBar(content: Text('Round off must be between -1.00 and +1.00.')),
+                    );
+                    return;
+                  }
+                  if (total + roundOff < 0) {
+                    ScaffoldMessenger.of(dialogContext).showSnackBar(
+                      const SnackBar(content: Text('Rounded total cannot be negative.')),
+                    );
+                    return;
+                  }
+                  Navigator.pop(
+                    dialogContext,
+                    _RestaurantBillingChoice(paymentMethod, roundOff),
+                  );
+                },
+                child: const Text('Create Sales Invoice'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+    roundController.dispose();
+    return result;
+  }
+
+  Map<String, dynamic>? _tableOrder(String tableId) {
+    for (final order in _orders) {
+      if (order['table_id']?.toString() == tableId &&
+          !const {'billed', 'cancelled'}.contains(order['status']?.toString())) {
+        return order;
+      }
+    }
+    return null;
+  }
+
+  Widget _orderCard(Map<String, dynamic> order, {bool compact = false}) {
+    final status = (order['status'] ?? 'open').toString();
+    final title = '${order['order_number']} • ${order['table_name'] ?? order['order_type']}';
+    return Card(
+      margin: compact ? const EdgeInsets.only(bottom: 8) : const EdgeInsets.symmetric(vertical: 5),
+      child: Padding(
+        padding: EdgeInsets.all(compact ? 10 : 14),
+        child: Row(
+          children: [
+            CircleAvatar(
+              child: Icon(
+                order['order_type'] == 'dine_in'
+                    ? Icons.table_restaurant
+                    : order['order_type'] == 'delivery'
+                        ? Icons.delivery_dining
+                        : Icons.takeout_dining,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w800)),
+                  Text('${order['customer_name'] ?? 'Walk-in'} • Prep ${order['preparation_minutes'] ?? 0} min'),
+                  if ((order['chef_note'] ?? '').toString().trim().isNotEmpty)
+                    Text('Kitchen: ${order['chef_note']}', maxLines: 2, overflow: TextOverflow.ellipsis),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            Chip(label: Text(status.replaceAll('_', ' ').toUpperCase())),
+            const SizedBox(width: 8),
+            Text(_money(order['total']), style: const TextStyle(fontWeight: FontWeight.w800)),
+            PopupMenuButton<String>(
+              tooltip: 'Order actions',
+              onSelected: (value) {
+                if (value == 'bill') {
+                  _bill(order);
+                } else {
+                  _setStatus(order, value);
+                }
+              },
+              itemBuilder: (_) => [
+                if (status == 'open' || status == 'sent_to_kitchen')
+                  const PopupMenuItem(value: 'preparing', child: Text('Start Preparing')),
+                if (status == 'preparing' || status == 'sent_to_kitchen')
+                  const PopupMenuItem(value: 'ready', child: Text('Mark Ready')),
+                if (status == 'ready')
+                  const PopupMenuItem(value: 'served', child: Text('Mark Served')),
+                if (status != 'billed' && status != 'cancelled')
+                  const PopupMenuItem(value: 'bill', child: Text('Finalize / Bill')),
+                if (status != 'billed' && status != 'cancelled')
+                  const PopupMenuItem(value: 'cancelled', child: Text('Cancel Order')),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _floorView() {
+    final active = _tables.where((table) => table['active'] != false).toList();
+    if (active.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.table_restaurant_outlined, size: 54),
+            const SizedBox(height: 10),
+            const Text('No restaurant tables configured.'),
+            const SizedBox(height: 10),
+            if (widget.session.hasPermission('restaurant.manage'))
+              FilledButton.icon(onPressed: _addTable, icon: const Icon(Icons.add), label: const Text('Add first table')),
+          ],
+        ),
+      );
+    }
+    return GridView.builder(
+      padding: const EdgeInsets.all(16),
+      gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+        maxCrossAxisExtent: 260,
+        mainAxisExtent: 180,
+        crossAxisSpacing: 12,
+        mainAxisSpacing: 12,
+      ),
+      itemCount: active.length,
+      itemBuilder: (context, index) {
+        final table = active[index];
+        final id = table['id']?.toString() ?? '';
+        final order = _tableOrder(id);
+        final occupied = order != null;
+        return Card(
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: occupied ? () => _bill(order) : _newOrder,
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      CircleAvatar(child: Icon(occupied ? Icons.restaurant : Icons.table_restaurant_outlined)),
+                      const Spacer(),
+                      Chip(label: Text(occupied ? 'OCCUPIED' : 'AVAILABLE')),
+                    ],
+                  ),
+                  const Spacer(),
+                  Text('${table['table_code']} • ${table['name']}', maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900)),
+                  Text('${table['area'] ?? 'Main floor'} • ${table['capacity'] ?? 0} seats'),
+                  if (occupied) ...[
+                    const SizedBox(height: 5),
+                    Text('${order['order_number']} • ${_money(order['total'])}', style: const TextStyle(fontWeight: FontWeight.w700)),
+                    Text((order['status'] ?? '').toString().replaceAll('_', ' ').toUpperCase()),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _ordersView() {
+    if (_orders.isEmpty) return const Center(child: Text('No live restaurant orders.'));
+    return RefreshIndicator(
+      onRefresh: _load,
+      child: ListView.builder(
+        padding: const EdgeInsets.all(16),
+        itemCount: _orders.length,
+        itemBuilder: (context, index) => _orderCard(_orders[index]),
+      ),
+    );
+  }
+
+  Widget _kitchenView() {
+    final groups = <String, List<Map<String, dynamic>>>{
+      'QUEUE': _orders.where((o) => const {'open', 'sent_to_kitchen'}.contains(o['status']?.toString())).toList(),
+      'PREPARING': _orders.where((o) => o['status']?.toString() == 'preparing').toList(),
+      'READY': _orders.where((o) => o['status']?.toString() == 'ready').toList(),
+    };
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final columns = groups.entries.map((entry) => Card(
+          margin: const EdgeInsets.all(6),
+          child: Padding(
+            padding: const EdgeInsets.all(10),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(children: [Expanded(child: Text(entry.key, style: const TextStyle(fontWeight: FontWeight.w900))), Chip(label: Text('${entry.value.length}'))]),
+                const Divider(),
+                Expanded(
+                  child: entry.value.isEmpty
+                      ? Center(child: Text('No ${entry.key.toLowerCase()} orders'))
+                      : ListView(children: entry.value.map((o) => _orderCard(o, compact: true)).toList()),
+                ),
+              ],
+            ),
+          ),
+        )).toList();
+        if (constraints.maxWidth < 900) {
+          return ListView(padding: const EdgeInsets.all(8), children: groups.entries.map((entry) => SizedBox(height: 330, child: columns[groups.keys.toList().indexOf(entry.key)])).toList());
+        }
+        return Row(children: columns.map((c) => Expanded(child: c)).toList());
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_loading) return const Center(child: CircularProgressIndicator());
 
-    return RefreshIndicator(
-      onRefresh: _load,
-      child: ListView(
-        padding: const EdgeInsets.all(24),
+    final occupied = _tables.where((t) => t['active'] != false && _tableOrder(t['id']?.toString() ?? '') != null).length;
+    final ready = _orders.where((o) => o['status']?.toString() == 'ready').length;
+
+    return DefaultTabController(
+      length: 3,
+      child: Column(
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Restaurant',
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    Text(
-                      '${widget.session.device?.locationName ?? ''} • Dine in, takeaway, delivery and KOT',
-                    ),
-                  ],
+          Padding(
+            padding: const EdgeInsets.fromLTRB(18, 14, 18, 8),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('Restaurant Operations', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900)),
+                      Text('${widget.session.device?.locationName ?? ''} • ${_orders.length} live orders • $occupied occupied tables • $ready ready'),
+                    ],
+                  ),
                 ),
-              ),
-              if (widget.session.hasPermission('restaurant.manage'))
-                OutlinedButton.icon(
-                  onPressed: _addTable,
-                  icon: const Icon(Icons.table_restaurant_outlined),
-                  label: const Text('Add Table'),
-                ),
-              const SizedBox(width: 8),
-              FilledButton.icon(
-                onPressed: _newOrder,
-                icon: const Icon(Icons.add),
-                label: const Text('New Order'),
-              ),
+                if (widget.session.hasPermission('restaurant.manage'))
+                  OutlinedButton.icon(onPressed: _addTable, icon: const Icon(Icons.table_restaurant_outlined), label: const Text('Tables')),
+                const SizedBox(width: 8),
+                FilledButton.icon(onPressed: _newOrder, icon: const Icon(Icons.add), label: const Text('New Order')),
+                const SizedBox(width: 8),
+                IconButton.filledTonal(onPressed: _load, icon: const Icon(Icons.refresh), tooltip: 'Refresh'),
+              ],
+            ),
+          ),
+          if (_error != null)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 18),
+              child: Align(alignment: Alignment.centerLeft, child: Text(_error!, style: const TextStyle(color: Colors.red))),
+            ),
+          const TabBar(
+            tabs: [
+              Tab(icon: Icon(Icons.table_restaurant_outlined), text: 'Floor'),
+              Tab(icon: Icon(Icons.receipt_long_outlined), text: 'Orders'),
+              Tab(icon: Icon(Icons.soup_kitchen_outlined), text: 'Kitchen'),
             ],
           ),
-          if (_error != null) ...[
-            const SizedBox(height: 8),
-            Text(_error!, style: const TextStyle(color: Colors.red)),
-          ],
-          const SizedBox(height: 16),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: _tables
-                .where((table) => table['active'] != false)
-                .map(
-                  (table) => Chip(
-                    avatar: const Icon(Icons.table_restaurant, size: 18),
-                    label: Text('${table['table_code']} • ${table['name']}'),
-                  ),
-                )
-                .toList(),
-          ),
-          const SizedBox(height: 16),
-          const Text(
-            'Live Orders / Kitchen',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-          ),
-          if (_orders.isEmpty)
-            const Padding(
-              padding: EdgeInsets.all(36),
-              child: Center(child: Text('No live restaurant orders.')),
-            ),
-          ..._orders.map(
-            (order) => Card(
-              child: Padding(
-                padding: const EdgeInsets.all(14),
-                child: Row(
-                  children: [
-                    CircleAvatar(
-                      child: Icon(
-                        order['order_type'] == 'dine_in'
-                            ? Icons.table_restaurant
-                            : order['order_type'] == 'delivery'
-                            ? Icons.delivery_dining
-                            : Icons.takeout_dining,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            '${order['order_number']} • ${order['table_name'] ?? order['order_type']}',
-                            style: const TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                          Text(
-                            '${order['customer_name'] ?? 'Walk-in'} • Prep ${order['preparation_minutes']} min • ${order['tracking_code'] ?? ''}',
-                          ),
-                          if ((order['chef_note'] ?? '').toString().isNotEmpty)
-                            Text(
-                              'Chef: ${order['chef_note']}',
-                              style: const TextStyle(
-                                fontStyle: FontStyle.italic,
-                              ),
-                            ),
-                        ],
-                      ),
-                    ),
-                    Chip(
-                      label: Text(
-                        (order['status'] ?? 'open')
-                            .toString()
-                            .replaceAll('_', ' ')
-                            .toUpperCase(),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      _money(order['total']),
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                    PopupMenuButton<String>(
-                      onSelected: (value) {
-                        if (value == 'bill') {
-                          _bill(order);
-                        } else {
-                          _setStatus(order, value);
-                        }
-                      },
-                      itemBuilder: (_) => const [
-                        PopupMenuItem(
-                          value: 'preparing',
-                          child: Text('Start Preparing'),
-                        ),
-                        PopupMenuItem(
-                          value: 'ready',
-                          child: Text('Mark Ready'),
-                        ),
-                        PopupMenuItem(
-                          value: 'served',
-                          child: Text('Mark Served'),
-                        ),
-                        PopupMenuItem(
-                          value: 'bill',
-                          child: Text('Finalize / Bill'),
-                        ),
-                        PopupMenuItem(
-                          value: 'cancelled',
-                          child: Text('Cancel Order'),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
+          Expanded(child: TabBarView(children: [_floorView(), _ordersView(), _kitchenView()])),
         ],
       ),
     );
   }
 }
 
+class _RestaurantBillingChoice {
+  final String paymentMethod;
+  final double roundOff;
+
+  const _RestaurantBillingChoice(this.paymentMethod, this.roundOff);
+}
+
 class _RestaurantLine {
   final InventoryProduct product;
-  double quantity = 1.0;
+  ProductUnitOption? unit;
+  double quantity;
 
-  _RestaurantLine(this.product);
+  _RestaurantLine(this.product)
+      : unit = product.defaultSaleUnit,
+        quantity = product.defaultSaleUnit?.quantityStep ?? product.quantityStep;
+
+  double get unitPrice => unit?.salePriceFor(product.sellingPrice) ?? product.sellingPrice;
+  double get quantityStep => (unit?.quantityStep ?? product.quantityStep) > 0
+      ? (unit?.quantityStep ?? product.quantityStep)
+      : 1;
 }
+

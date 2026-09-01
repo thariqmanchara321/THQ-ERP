@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../models/client_session.dart';
 import '../services/global_search_service.dart';
 import 'product_detail_screen.dart';
+import 'loan_screen.dart';
 import 'purchase_detail_screen.dart';
 import 'sale_detail_screen.dart';
 
@@ -80,6 +81,7 @@ class _GlobalSearchScreenState extends State<GlobalSearchScreen> {
     'supplier' => Icons.local_shipping_outlined,
     'sale' => Icons.receipt_long_outlined,
     'purchase' => Icons.shopping_cart_outlined,
+    'loan' => Icons.account_balance_wallet_outlined,
     'account' => Icons.account_balance_outlined,
     'stock_transfer' => Icons.swap_horiz_outlined,
     'task' => Icons.task_alt_outlined,
@@ -113,6 +115,15 @@ class _GlobalSearchScreenState extends State<GlobalSearchScreen> {
           ),
         ),
       );
+    } else if (item.entityType == 'loan') {
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => LoanScreen(
+            session: widget.session,
+            initialLoanId: item.entityId,
+          ),
+        ),
+      );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -132,7 +143,7 @@ class _GlobalSearchScreenState extends State<GlobalSearchScreen> {
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 900),
           child: Padding(
-            padding: const EdgeInsets.all(24),
+            padding: const EdgeInsets.all(14),
             child: Column(
               children: [
                 TextField(

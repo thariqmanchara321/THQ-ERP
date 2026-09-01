@@ -94,6 +94,9 @@ class ClientLocationAccess {
   final String type;
   final String? trackingCode;
   final String accessLevel;
+  final String? parentLocationId;
+  final String hierarchyRole;
+  final int sortOrder;
 
   const ClientLocationAccess({
     required this.id,
@@ -102,19 +105,53 @@ class ClientLocationAccess {
     required this.type,
     required this.trackingCode,
     required this.accessLevel,
+    this.parentLocationId,
+    this.hierarchyRole = 'child_store',
+    this.sortOrder = 100,
   });
 
+  bool get isMain =>
+      hierarchyRole == 'main_store' || code.toUpperCase() == 'MAIN';
+  bool get isWarehouse => hierarchyRole == 'warehouse' || type == 'warehouse';
+  bool get canOperate => accessLevel == 'operate' || accessLevel == 'manage';
+  bool get canManage => accessLevel == 'manage';
+
+  String get roleLabel => switch (hierarchyRole) {
+    'main_store' => 'MAIN Store',
+    'warehouse' => 'Warehouse',
+    'operational' => switch (type) {
+      'production' => 'Production',
+      'office' => 'Office',
+      'scrap' => 'Scrap',
+      _ => 'Operational Location',
+    },
+    _ => 'Child Store',
+  };
+
   factory ClientLocationAccess.fromMap(Map<String, dynamic> map) {
+    final type =
+        map['type']?.toString() ?? map['location_type']?.toString() ?? 'store';
+    final code =
+        map['code']?.toString() ?? map['location_code']?.toString() ?? '';
+    final role =
+        map['hierarchy_role']?.toString() ??
+        (code.toUpperCase() == 'MAIN'
+            ? 'main_store'
+            : type == 'warehouse'
+            ? 'warehouse'
+            : const ['production', 'office', 'scrap'].contains(type)
+            ? 'operational'
+            : 'child_store');
     return ClientLocationAccess(
       id: map['id']?.toString() ?? '',
-      code: map['code']?.toString() ?? map['location_code']?.toString() ?? '',
+      code: code,
       name: map['name']?.toString() ?? '',
-      type:
-          map['type']?.toString() ??
-          map['location_type']?.toString() ??
-          'store',
+      type: type,
       trackingCode: map['tracking_code']?.toString(),
       accessLevel: map['access_level']?.toString() ?? 'view',
+      parentLocationId: map['parent_location_id']?.toString(),
+      hierarchyRole: role,
+      sortOrder: (map['sort_order'] as num?)?.toInt() ?? 100,
     );
   }
 }
