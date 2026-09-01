@@ -1,4 +1,4 @@
-import 'dart:convert';
+﻿import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -344,7 +344,7 @@ class _GstComplianceV520ScreenState
   Widget _buildHeader(bool wide) {
     final selectedLocation = _locationById(_controller.locationId);
     final rangeLabel =
-        '${_date(_controller.from)}  →  ${_date(_controller.to)}';
+        '${_date(_controller.from)}  â†’  ${_date(_controller.to)}';
 
     return Material(
       elevation: 0.6,
@@ -732,7 +732,7 @@ class _GstComplianceV520ScreenState
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           _SectionCard(
-            title: 'Location → registration',
+            title: 'Location â†’ registration',
             icon: Icons.location_on_outlined,
             child: _locations.isEmpty
                 ? const _EmptyState(
@@ -753,10 +753,10 @@ class _GstComplianceV520ScreenState
                         [
                           _s(row['name']),
                           _s(row['location_type']),
-                          _s(row['gstin'], fallback: '—'),
+                          _s(row['gstin'], fallback: 'â€”'),
                           _s(
                             row['registration_legal_name'],
-                            fallback: '—',
+                            fallback: 'â€”',
                           ),
                           row['registration_id'] == null
                               ? 'Not mapped'
@@ -954,7 +954,7 @@ class _GstComplianceV520ScreenState
           final title = [
             _s(row['product_name']),
             _s(row['variant_name']),
-          ].where((e) => e.isNotEmpty && e != '—').join(' • ');
+          ].where((e) => e.isNotEmpty && e != 'â€”').join(' â€¢ ');
           final subtitle = [
             _s(row['sku'], fallback: ''),
             configured ? 'GST configured' : 'Not configured',
@@ -1336,7 +1336,7 @@ class _GstComplianceV520ScreenState
                 total == 0
                     ? '0'
                     : '${_transactionOffset + 1}'
-                        '–${_transactionOffset + items.length} of $total',
+                        'â€“${_transactionOffset + items.length} of $total',
               ),
             ],
           ),
@@ -2303,7 +2303,7 @@ class _RegistrationCard extends StatelessWidget {
             gstin,
             _labelize(_s(row['registration_type'], fallback: '')),
             _s(row['state_code'], fallback: ''),
-          ].where((e) => e.isNotEmpty).join('  •  '),
+          ].where((e) => e.isNotEmpty).join('  â€¢  '),
         ),
         trailing: Wrap(
           spacing: 0,
@@ -2729,7 +2729,7 @@ class _LocationMappingDialogState
                   DropdownMenuItem(
                     value: _firstText(row, ['id', 'registration_id']),
                     child: Text(
-                      '${_s(row['gstin'])} • '
+                      '${_s(row['gstin'])} â€¢ '
                       '${_firstText(row, ['legal_name', 'trade_name'])}',
                     ),
                   ),
@@ -2819,7 +2819,7 @@ class _ProductProfileCard extends StatelessWidget {
           children: [
             Expanded(
               child: Text(
-                variant.isEmpty ? name : '$name • $variant',
+                variant.isEmpty ? name : '$name â€¢ $variant',
                 style: const TextStyle(fontWeight: FontWeight.w700),
               ),
             ),
@@ -2835,12 +2835,12 @@ class _ProductProfileCard extends StatelessWidget {
         ),
         subtitle: Text(
           [
-            'HSN/SAC ${_firstText(row, ['hsn_sac'], fallback: '—')}',
+            'HSN/SAC ${_firstText(row, ['hsn_sac'], fallback: 'â€”')}',
             '${_number(row['gst_rate']).toStringAsFixed(2)}% GST',
             _labelize(_firstText(row, ['taxability'], fallback: 'taxable')),
             _truthy(row['tax_inclusive']) ? 'Inclusive' : 'Exclusive',
             _truthy(row['reverse_charge']) ? 'RCM' : '',
-          ].where((e) => e.isNotEmpty).join('  •  '),
+          ].where((e) => e.isNotEmpty).join('  â€¢  '),
         ),
         trailing: IconButton(
           tooltip: 'Edit GST profile',
@@ -2903,7 +2903,7 @@ class _ProductGstDialogState extends State<_ProductGstDialog> {
     _productLabel = [
       _firstText(row, ['product_name', 'name'], fallback: 'Product'),
       _firstText(row, ['variant_name'], fallback: ''),
-    ].where((e) => e.isNotEmpty).join(' • ');
+    ].where((e) => e.isNotEmpty).join(' â€¢ ');
 
     _supplyKind = ['goods', 'service'].contains(row['supply_kind'])
         ? row['supply_kind'].toString()
@@ -3277,7 +3277,7 @@ class _PartyProfileCard extends StatelessWidget {
             _firstText(row, ['gstin'], fallback: ''),
             _firstText(row, ['state_code'], fallback: ''),
             _firstText(row, ['place_of_supply_code'], fallback: ''),
-          ].where((e) => e.isNotEmpty).join('  •  '),
+          ].where((e) => e.isNotEmpty).join('  â€¢  '),
         ),
         trailing: IconButton(
           tooltip: 'Edit GST profile',
@@ -3429,7 +3429,7 @@ class _PartyGstDialogState extends State<_PartyGstDialog> {
                 SizedBox(
                   width: 650,
                   child: Text(
-                    '${_labelize(_partyType)} • $_partyName',
+                    '${_labelize(_partyType)} â€¢ $_partyName',
                     style: const TextStyle(fontWeight: FontWeight.w700),
                   ),
                 ),
@@ -3853,7 +3853,7 @@ class _TransactionTile extends StatelessWidget {
             'Taxable ${taxable.toStringAsFixed(2)}',
             'GST ${tax.toStringAsFixed(2)}',
             'Total ${total.toStringAsFixed(2)}',
-          ].where((e) => e.isNotEmpty).join('  •  '),
+          ].where((e) => e.isNotEmpty).join('  â€¢  '),
         ),
         trailing: const Icon(Icons.chevron_right),
       ),
@@ -3866,9 +3866,641 @@ class _EvidenceDialog extends StatelessWidget {
 
   final Map<String, dynamic> data;
 
+  Map<String, dynamic> _eMap(dynamic value) =>
+      value is Map ? Map<String, dynamic>.from(value) : <String, dynamic>{};
+
+  List<Map<String, dynamic>> _eRows(dynamic value) =>
+      (value as List? ?? const [])
+          .whereType<Map>()
+          .map((row) => Map<String, dynamic>.from(row))
+          .toList(growable: false);
+
+  String _eText(
+    Map<String, dynamic> source,
+    List<String> keys, {
+    String fallback = 'â€”',
+  }) {
+    for (final key in keys) {
+      final value = source[key];
+      final text = value?.toString().trim() ?? '';
+      if (text.isNotEmpty && text.toLowerCase() != 'null') return text;
+    }
+    return fallback;
+  }
+
+  double _eNum(Map<String, dynamic> source, String key) {
+    final value = source[key];
+    if (value is num) return value.toDouble();
+    return double.tryParse(value?.toString() ?? '') ?? 0;
+  }
+
+  String _money(double value) => 'â‚¹${value.toStringAsFixed(2)}';
+
+  String _qty(double value) {
+    if ((value - value.roundToDouble()).abs() < 0.000001) {
+      return value.toStringAsFixed(0);
+    }
+    return value.toStringAsFixed(3);
+  }
+
+  String _nice(String value) {
+    if (value.trim().isEmpty || value == 'â€”') return 'â€”';
+    return value
+        .replaceAll('_', ' ')
+        .split(' ')
+        .where((part) => part.isNotEmpty)
+        .map(
+          (part) =>
+              '${part.substring(0, 1).toUpperCase()}${part.substring(1).toLowerCase()}',
+        )
+        .join(' ');
+  }
+
+  String _dateLabel(String value) {
+    final parsed = DateTime.tryParse(value);
+    if (parsed == null) return value.isEmpty ? 'â€”' : value;
+    const months = <String>[
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    ];
+    return '${parsed.day.toString().padLeft(2, '0')} '
+        '${months[parsed.month - 1]} ${parsed.year}';
+  }
+
+  Widget _sectionHeader(
+    BuildContext context,
+    String title,
+    IconData icon, {
+    String? subtitle,
+  }) {
+    final scheme = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+              color: scheme.primaryContainer.withValues(alpha: .62),
+              borderRadius: BorderRadius.circular(9),
+            ),
+            child: Icon(icon, size: 18, color: scheme.onPrimaryContainer),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
+                ),
+                if (subtitle != null) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: scheme.onSurfaceVariant,
+                        ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _field(
+    BuildContext context,
+    String label,
+    String value, {
+    bool mono = false,
+  }) {
+    final scheme = Theme.of(context).colorScheme;
+    return ConstrainedBox(
+      constraints: const BoxConstraints(minWidth: 175, maxWidth: 285),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: scheme.surfaceContainerLow,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: scheme.outlineVariant.withValues(alpha: .6)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              label,
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: scheme.onSurfaceVariant,
+                    fontWeight: FontWeight.w700,
+                  ),
+            ),
+            const SizedBox(height: 4),
+            SelectableText(
+              value,
+              maxLines: 2,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
+                fontFamily: mono ? 'monospace' : null,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _metric(
+    BuildContext context,
+    String label,
+    double value, {
+    bool emphasize = false,
+  }) {
+    final scheme = Theme.of(context).colorScheme;
+    return Expanded(
+      child: Container(
+        constraints: const BoxConstraints(minWidth: 120),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+        decoration: BoxDecoration(
+          color: emphasize
+              ? scheme.primaryContainer.withValues(alpha: .48)
+              : scheme.surfaceContainerLow,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: scheme.outlineVariant.withValues(alpha: .55)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              label,
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: scheme.onSurfaceVariant,
+                    fontWeight: FontWeight.w700,
+                  ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              _money(value),
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w900,
+                  ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _snapshotSummary(
+    BuildContext context,
+    Map<String, dynamic> snapshot,
+  ) {
+    final interstate = snapshot['interstate'] == true;
+    final hashValid = snapshot['hash_valid'] == true;
+    final taxMode = _eText(snapshot, ['tax_mode']);
+    final sourceNumber = _eText(
+      snapshot,
+      ['document_number', 'source_number'],
+    );
+    final documentKind = _nice(_eText(snapshot, ['document_kind']));
+    final documentClass = _nice(_eText(snapshot, ['document_class']));
+    final supplyType = _nice(_eText(snapshot, ['supply_type']));
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _sectionHeader(
+          context,
+          'Document',
+          Icons.receipt_long_outlined,
+          subtitle: 'Immutable GST identity captured when this document posted.',
+        ),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            _field(context, 'Document No.', sourceNumber),
+            _field(
+              context,
+              'Document Date',
+              _dateLabel(_eText(snapshot, ['document_date'], fallback: '')),
+            ),
+            _field(context, 'Tax Mode', _nice(taxMode)),
+            _field(
+              context,
+              'Supply',
+              interstate ? 'Inter-state' : 'Intra-state',
+            ),
+            _field(context, 'Document Type', documentKind),
+            _field(context, 'Document Class', documentClass),
+            _field(context, 'Supply Type', supplyType),
+            _field(
+              context,
+              'Place of Supply',
+              _eText(snapshot, ['place_of_supply_code']),
+            ),
+            _field(
+              context,
+              'Supplier GSTIN',
+              _eText(snapshot, ['supplier_gstin']),
+              mono: true,
+            ),
+            _field(
+              context,
+              'Recipient GSTIN',
+              _eText(snapshot, ['recipient_gstin']),
+              mono: true,
+            ),
+          ],
+        ),
+        const SizedBox(height: 18),
+        _sectionHeader(
+          context,
+          'Tax Summary',
+          Icons.account_balance_outlined,
+          subtitle: 'Server-authoritative GST components for this document.',
+        ),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            SizedBox(
+              width: 168,
+              child: _metric(
+                context,
+                'Taxable Value',
+                _eNum(snapshot, 'taxable_total'),
+              ),
+            ),
+            SizedBox(
+              width: 148,
+              child: _metric(context, 'CGST', _eNum(snapshot, 'cgst_total')),
+            ),
+            SizedBox(
+              width: 148,
+              child: _metric(context, 'SGST', _eNum(snapshot, 'sgst_total')),
+            ),
+            if (_eNum(snapshot, 'utgst_total').abs() > 0.000001)
+              SizedBox(
+                width: 148,
+                child: _metric(
+                  context,
+                  'UTGST',
+                  _eNum(snapshot, 'utgst_total'),
+                ),
+              ),
+            SizedBox(
+              width: 148,
+              child: _metric(context, 'IGST', _eNum(snapshot, 'igst_total')),
+            ),
+            SizedBox(
+              width: 148,
+              child: _metric(context, 'Cess', _eNum(snapshot, 'cess_total')),
+            ),
+            SizedBox(
+              width: 172,
+              child: _metric(
+                context,
+                'GST Collected',
+                _eNum(snapshot, 'tax_collected_total'),
+              ),
+            ),
+            SizedBox(
+              width: 180,
+              child: _metric(
+                context,
+                'Grand Total',
+                _eNum(snapshot, 'grand_total'),
+                emphasize: true,
+              ),
+            ),
+          ],
+        ),
+        if (_eNum(snapshot, 'rcm_tax_payable_total').abs() > 0.000001) ...[
+          const SizedBox(height: 8),
+          _NoticeCard(
+            icon: Icons.swap_horiz_outlined,
+            title: 'Reverse charge applies',
+            message:
+                'RCM tax payable: ${_money(_eNum(snapshot, 'rcm_tax_payable_total'))}',
+          ),
+        ],
+        const SizedBox(height: 10),
+        Row(
+          children: [
+            Icon(
+              hashValid ? Icons.verified_outlined : Icons.warning_amber_outlined,
+              size: 18,
+              color: hashValid
+                  ? Theme.of(context).colorScheme.primary
+                  : Theme.of(context).colorScheme.error,
+            ),
+            const SizedBox(width: 7),
+            Expanded(
+              child: Text(
+                hashValid
+                    ? 'Snapshot integrity verified â€¢ ${_eText(snapshot, ['engine_version'], fallback: 'GST v5.2 engine')}'
+                    : 'Snapshot integrity check failed. Review this evidence before relying on it.',
+                style: TextStyle(
+                  fontWeight: FontWeight.w700,
+                  color: hashValid
+                      ? Theme.of(context).colorScheme.onSurface
+                      : Theme.of(context).colorScheme.error,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _lineTable(
+    BuildContext context,
+    List<Map<String, dynamic>> lines,
+  ) {
+    if (lines.isEmpty) return const SizedBox.shrink();
+
+    final scheme = Theme.of(context).colorScheme;
+    final headerStyle = Theme.of(context).textTheme.labelSmall?.copyWith(
+          fontWeight: FontWeight.w800,
+          color: scheme.onSurfaceVariant,
+        );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const SizedBox(height: 18),
+        _sectionHeader(
+          context,
+          'GST Line Breakdown',
+          Icons.format_list_bulleted_outlined,
+          subtitle: '${lines.length} immutable tax line${lines.length == 1 ? '' : 's'}.',
+        ),
+        Container(
+          decoration: BoxDecoration(
+            border: Border.all(color: scheme.outlineVariant),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: DataTable(
+              headingRowHeight: 38,
+              dataRowMinHeight: 44,
+              dataRowMaxHeight: 58,
+              columnSpacing: 20,
+              headingTextStyle: headerStyle,
+              columns: const [
+                DataColumn(label: Text('Item')),
+                DataColumn(label: Text('HSN/SAC')),
+                DataColumn(label: Text('Qty'), numeric: true),
+                DataColumn(label: Text('Taxable'), numeric: true),
+                DataColumn(label: Text('GST %'), numeric: true),
+                DataColumn(label: Text('CGST'), numeric: true),
+                DataColumn(label: Text('SGST/UTGST'), numeric: true),
+                DataColumn(label: Text('IGST'), numeric: true),
+                DataColumn(label: Text('Cess'), numeric: true),
+                DataColumn(label: Text('Total'), numeric: true),
+              ],
+              rows: [
+                for (final line in lines)
+                  DataRow(
+                    cells: [
+                      DataCell(
+                        SizedBox(
+                          width: 210,
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                _eText(
+                                  line,
+                                  ['product_name', 'variant_name', 'sku'],
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              Text(
+                                _eText(line, ['sku'], fallback: ''),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: scheme.onSurfaceVariant,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      DataCell(Text(_eText(line, ['hsn_sac']))),
+                      DataCell(Text(_qty(_eNum(line, 'quantity')))),
+                      DataCell(Text(_money(_eNum(line, 'taxable_value')))),
+                      DataCell(
+                        Text(
+                          '${_eNum(line, 'applied_gst_rate').toStringAsFixed(2)}%',
+                        ),
+                      ),
+                      DataCell(Text(_money(_eNum(line, 'cgst')))),
+                      DataCell(
+                        Text(
+                          _money(
+                            _eNum(line, 'sgst') + _eNum(line, 'utgst'),
+                          ),
+                        ),
+                      ),
+                      DataCell(Text(_money(_eNum(line, 'igst')))),
+                      DataCell(Text(_money(_eNum(line, 'cess')))),
+                      DataCell(Text(_money(_eNum(line, 'line_total')))),
+                    ],
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _journalSection(
+    BuildContext context,
+    Map<String, dynamic> journal,
+  ) {
+    final entry = _eMap(journal['entry']);
+    final lines = _eRows(journal['lines']);
+    if (entry.isEmpty && lines.isEmpty) return const SizedBox.shrink();
+
+    final scheme = Theme.of(context).colorScheme;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const SizedBox(height: 18),
+        _sectionHeader(
+          context,
+          'Accounting',
+          Icons.menu_book_outlined,
+          subtitle: 'Posted journal linked to this GST document.',
+        ),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            _field(
+              context,
+              'Journal No.',
+              _eText(entry, ['entry_number']),
+            ),
+            _field(
+              context,
+              'Journal Date',
+              _dateLabel(_eText(entry, ['entry_date'], fallback: '')),
+            ),
+            _field(
+              context,
+              'Status',
+              _nice(_eText(entry, ['status'], fallback: 'posted')),
+            ),
+            _field(
+              context,
+              'Reference',
+              _eText(entry, ['source_reference']),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        if (lines.isEmpty)
+          const Text('No accounting lines were returned.')
+        else
+          Container(
+            decoration: BoxDecoration(
+              border: Border.all(color: scheme.outlineVariant),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: DataTable(
+                headingRowHeight: 38,
+                dataRowMinHeight: 42,
+                dataRowMaxHeight: 52,
+                columnSpacing: 22,
+                columns: const [
+                  DataColumn(label: Text('Account')),
+                  DataColumn(label: Text('Description')),
+                  DataColumn(label: Text('Debit'), numeric: true),
+                  DataColumn(label: Text('Credit'), numeric: true),
+                ],
+                rows: [
+                  for (final line in lines)
+                    DataRow(
+                      cells: [
+                        DataCell(
+                          SizedBox(
+                            width: 210,
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  _eText(line, ['account_name', 'system_key']),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                                Text(
+                                  _eText(line, ['account_code'], fallback: ''),
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: scheme.onSurfaceVariant,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        DataCell(
+                          SizedBox(
+                            width: 250,
+                            child: Text(
+                              _eText(line, ['description']),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ),
+                        DataCell(Text(_money(_eNum(line, 'debit')))),
+                        DataCell(Text(_money(_eNum(line, 'credit')))),
+                      ],
+                    ),
+                ],
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _technicalDetails(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final pretty = const JsonEncoder.withIndent('  ').convert(data);
+
+    return Container(
+      margin: const EdgeInsets.only(top: 18),
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: scheme.outlineVariant),
+      ),
+      child: ExpansionTile(
+        leading: const Icon(Icons.code_outlined, size: 19),
+        title: const Text(
+          'Technical details',
+          style: TextStyle(fontWeight: FontWeight.w700),
+        ),
+        subtitle: const Text(
+          'Raw IDs, hashes and complete server evidence for troubleshooting.',
+        ),
+        children: [
+          const Divider(height: 1),
+          Container(
+            width: double.infinity,
+            constraints: const BoxConstraints(maxHeight: 330),
+            padding: const EdgeInsets.all(12),
+            child: SingleChildScrollView(
+              child: SelectableText(
+                pretty,
+                style: const TextStyle(
+                  fontFamily: 'monospace',
+                  fontSize: 11.5,
+                  height: 1.42,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final evidence = _firstText(
+    final evidence = _eText(
       data,
       ['evidence_status', 'evidence_type', 'status'],
       fallback: 'unknown',
@@ -3876,10 +4508,30 @@ class _EvidenceDialog extends StatelessWidget {
     final authoritative =
         evidence.toLowerCase().contains('authoritative');
 
+    final snapshot = _eMap(data['snapshot']);
+    final legacy = _eMap(data['legacy']);
+    final journal = _eMap(data['journal']);
+    final snapshotLines = _eRows(snapshot['lines']);
+
     return AlertDialog(
+      titlePadding: const EdgeInsets.fromLTRB(22, 18, 18, 8),
+      contentPadding: const EdgeInsets.fromLTRB(22, 8, 22, 8),
+      actionsPadding: const EdgeInsets.fromLTRB(18, 8, 18, 14),
       title: Row(
         children: [
-          const Expanded(child: Text('GST evidence')),
+          Icon(
+            authoritative
+                ? Icons.verified_outlined
+                : Icons.history_outlined,
+            size: 24,
+          ),
+          const SizedBox(width: 9),
+          const Expanded(
+            child: Text(
+              'GST Evidence',
+              style: TextStyle(fontWeight: FontWeight.w800),
+            ),
+          ),
           _StatusPill(
             label: authoritative ? 'Authoritative' : 'Legacy unverified',
             tone:
@@ -3888,32 +4540,82 @@ class _EvidenceDialog extends StatelessWidget {
         ],
       ),
       content: SizedBox(
-        width: 760,
-        height: 620,
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              if (!authoritative) ...[
-                const _NoticeCard(
-                  icon: Icons.history_outlined,
-                  title: 'Legacy evidence is read-only',
-                  message:
-                      'This transaction was created through a v5.1 path. '
-                      'THQ does not silently upgrade or rewrite it as '
-                      'authoritative GST evidence.',
-                ),
-                const SizedBox(height: 10),
+        width: 960,
+        height: MediaQuery.sizeOf(context).height * .72,
+        child: Scrollbar(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.only(right: 8, bottom: 8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (!authoritative) ...[
+                  const _NoticeCard(
+                    icon: Icons.history_outlined,
+                    title: 'Legacy evidence is read-only',
+                    message:
+                        'This transaction was created through a v5.1 path. '
+                        'THQ does not silently upgrade or rewrite it as '
+                        'authoritative GST evidence.',
+                  ),
+                  const SizedBox(height: 12),
+                ],
+                if (authoritative && snapshot.isNotEmpty) ...[
+                  _snapshotSummary(context, snapshot),
+                  _lineTable(context, snapshotLines),
+                ] else if (legacy.isNotEmpty) ...[
+                  _sectionHeader(
+                    context,
+                    'Legacy Evidence',
+                    Icons.history_outlined,
+                    subtitle:
+                        'Historical marker retained exactly as recorded by the legacy path.',
+                  ),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      _field(
+                        context,
+                        'Document No.',
+                        _eText(
+                          legacy,
+                          ['document_number', 'source_number', 'source_reference'],
+                        ),
+                      ),
+                      _field(
+                        context,
+                        'Source Type',
+                        _nice(_eText(legacy, ['source_type'])),
+                      ),
+                      _field(
+                        context,
+                        'Created',
+                        _dateLabel(
+                          _eText(legacy, ['created_at'], fallback: ''),
+                        ),
+                      ),
+                    ],
+                  ),
+                ] else
+                  const _NoticeCard(
+                    icon: Icons.warning_amber_outlined,
+                    title: 'GST evidence unavailable',
+                    message:
+                        'THQ did not receive a snapshot or legacy evidence object '
+                        'for this transaction.',
+                  ),
+                _journalSection(context, journal),
+                _technicalDetails(context),
               ],
-              _JsonSections(data: data),
-            ],
+            ),
           ),
         ),
       ),
       actions: [
-        FilledButton(
+        FilledButton.icon(
           onPressed: () => Navigator.pop(context),
-          child: const Text('Close'),
+          icon: const Icon(Icons.close, size: 17),
+          label: const Text('Close'),
         ),
       ],
     );
@@ -4150,7 +4852,7 @@ List<String> _stringList(dynamic value) {
       .toList(growable: false);
 }
 
-String _s(dynamic value, {String fallback = '—'}) {
+String _s(dynamic value, {String fallback = 'â€”'}) {
   if (value == null) return fallback;
   final text = value.toString().trim();
   return text.isEmpty ? fallback : text;
@@ -4205,14 +4907,14 @@ String _labelize(String value) {
 }
 
 String _display(dynamic value) {
-  if (value == null) return '—';
+  if (value == null) return 'â€”';
   if (value is bool) return value ? 'Yes' : 'No';
   if (value is num) return value.toString();
   if (value is Map || value is List) {
     return const JsonEncoder.withIndent('  ').convert(value);
   }
   final text = value.toString().trim();
-  return text.isEmpty ? '—' : text;
+  return text.isEmpty ? 'â€”' : text;
 }
 
 String _date(DateTime value) {

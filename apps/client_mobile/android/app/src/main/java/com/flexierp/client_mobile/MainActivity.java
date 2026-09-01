@@ -1,4 +1,4 @@
-package com.flexierp.mobile_pos;
+package com.flexierp.client_mobile;
 
 import io.flutter.embedding.android.FlutterActivity;
 

@@ -24,6 +24,7 @@ class SaleDetail {
   final List<SalePayment> payments;
   final double paidAmount;
   final double balanceDue;
+  final SaleGstDetail? gst;
 
   const SaleDetail({
     required this.saleId,
@@ -51,6 +52,7 @@ class SaleDetail {
     required this.payments,
     required this.paidAmount,
     required this.balanceDue,
+    this.gst,
   });
 
   String get paymentStatus =>
@@ -72,10 +74,20 @@ class SaleDetail {
       customerTaxNumber: sale['customer_tax_number']?.toString(),
       customerPhone: sale['customer_phone']?.toString(),
       customerEmail: sale['customer_email']?.toString(),
-      customerAddress: [sale['customer_address_line1'], sale['customer_address_line2'], sale['customer_city'], sale['customer_state'], sale['customer_postal_code'], sale['customer_country']]
-          .where((value) => value != null && value.toString().trim().isNotEmpty)
-          .map((value) => value.toString().trim())
-          .join(', '),
+      customerAddress:
+          [
+                sale['customer_address_line1'],
+                sale['customer_address_line2'],
+                sale['customer_city'],
+                sale['customer_state'],
+                sale['customer_postal_code'],
+                sale['customer_country'],
+              ]
+              .where(
+                (value) => value != null && value.toString().trim().isNotEmpty,
+              )
+              .map((value) => value.toString().trim())
+              .join(', '),
       saleDate: DateTime.parse(sale['sale_date'].toString()),
       dueDate: sale['due_date'] == null
           ? null
@@ -101,6 +113,65 @@ class SaleDetail {
           .toList(),
       paidAmount: n(map['paid_amount']),
       balanceDue: n(map['balance_due']),
+      gst: map['gst'] is Map
+          ? SaleGstDetail.fromMap(Map<String, dynamic>.from(map['gst'] as Map))
+          : null,
+    );
+  }
+}
+
+class SaleGstDetail {
+  final bool authoritative;
+  final bool interstate;
+  final String? taxMode;
+  final String? supplyType;
+  final String? placeOfSupplyCode;
+  final double taxableTotal;
+  final double cgstTotal;
+  final double sgstTotal;
+  final double utgstTotal;
+  final double igstTotal;
+  final double cessTotal;
+  final double taxCollectedTotal;
+
+  const SaleGstDetail({
+    required this.authoritative,
+    required this.interstate,
+    required this.taxMode,
+    required this.supplyType,
+    required this.placeOfSupplyCode,
+    required this.taxableTotal,
+    required this.cgstTotal,
+    required this.sgstTotal,
+    required this.utgstTotal,
+    required this.igstTotal,
+    required this.cessTotal,
+    required this.taxCollectedTotal,
+  });
+
+  bool get hasComponentTax =>
+      cgstTotal.abs() > 0.0001 ||
+      sgstTotal.abs() > 0.0001 ||
+      utgstTotal.abs() > 0.0001 ||
+      igstTotal.abs() > 0.0001 ||
+      cessTotal.abs() > 0.0001;
+
+  factory SaleGstDetail.fromMap(Map<String, dynamic> map) {
+    double n(dynamic v) =>
+        v is num ? v.toDouble() : double.tryParse(v?.toString() ?? '') ?? 0;
+    return SaleGstDetail(
+      authoritative: map['authoritative'] == true,
+      interstate: map['interstate'] == true,
+      taxMode: map['tax_mode']?.toString(),
+      supplyType: map['supply_type']?.toString(),
+      placeOfSupplyCode: map['place_of_supply_code']?.toString(),
+      taxableTotal: n(map['taxable_total']),
+      cgstTotal: n(map['cgst_total']),
+      sgstTotal: n(map['sgst_total']),
+      utgstTotal: n(map['utgst_total']),
+      igstTotal: n(map['igst_total']),
+      cessTotal: n(map['cess_total']),
+      taxCollectedTotal: n(map['tax_collected_total']),
     );
   }
 }

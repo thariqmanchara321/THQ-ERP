@@ -118,7 +118,8 @@ class InvoicePdfService {
     final paymentQrUrl =
         settings['documents.payment_qr_url']?.toString().trim() ?? '';
     final paymentQrLabel =
-        settings['documents.payment_qr_label']?.toString().trim().isNotEmpty == true
+        settings['documents.payment_qr_label']?.toString().trim().isNotEmpty ==
+            true
         ? settings['documents.payment_qr_label'].toString().trim()
         : 'Scan to Pay';
     final businessAddress =
@@ -132,19 +133,20 @@ class InvoicePdfService {
     final hasDetailedLocationAddress = locationCoreParts.any(
       (value) => value != null && value.toString().trim().isNotEmpty,
     );
-    final locationAddressParts = <dynamic>[
-      origin['address_line1'],
-      origin['address_line2'],
-      origin['city'],
-      origin['state'],
-      origin['postal_code'],
-      origin['country'],
-    ]
-        .where(
-          (value) => value != null && value.toString().trim().isNotEmpty,
-        )
-        .map((value) => value.toString().trim())
-        .toList();
+    final locationAddressParts =
+        <dynamic>[
+              origin['address_line1'],
+              origin['address_line2'],
+              origin['city'],
+              origin['state'],
+              origin['postal_code'],
+              origin['country'],
+            ]
+            .where(
+              (value) => value != null && value.toString().trim().isNotEmpty,
+            )
+            .map((value) => value.toString().trim())
+            .toList();
     final addressParts = <String>[];
     if (hasDetailedLocationAddress) {
       addressParts.addAll(locationAddressParts);
@@ -389,9 +391,11 @@ class InvoicePdfService {
         }
         return true;
       }).toList();
-      return clean.isEmpty ? defaults.where((column) {
-        return _flag(config, 'show_hsn', true) || column != 'hsn';
-      }).toList() : clean;
+      return clean.isEmpty
+          ? defaults.where((column) {
+              return _flag(config, 'show_hsn', true) || column != 'hsn';
+            }).toList()
+          : clean;
     }
 
     String normalized(String column) => switch (column) {
@@ -437,7 +441,8 @@ class InvoicePdfService {
       'hsn' =>
         item.hsnSac?.trim().isNotEmpty == true ? item.hsnSac!.trim() : '-',
       'qty' => item.quantity.toStringAsFixed(item.quantity % 1 == 0 ? 0 : 2),
-      'unit' => (item.unitCode ?? '').trim().isEmpty ? '-' : item.unitCode!.trim(),
+      'unit' =>
+        (item.unitCode ?? '').trim().isEmpty ? '-' : item.unitCode!.trim(),
       'rate' => _money(session, item.unitPrice),
       'discount' => _money(session, item.discountAmount),
       'tax' => '${item.taxRate.toStringAsFixed(2)}%',
@@ -547,8 +552,23 @@ class InvoicePdfService {
             children: [
               if (sale.discountTotal > 0) row('Discount', sale.discountTotal),
               row('Taxable', sale.taxableTotal),
-              if (_flag(config, 'show_tax_breakup', true))
-                row('GST / Tax', sale.taxTotal),
+              if (_flag(config, 'show_tax_breakup', true)) ...[
+                if (sale.gst?.authoritative == true) ...[
+                  if (sale.gst!.cgstTotal.abs() > 0.0001)
+                    row('CGST', sale.gst!.cgstTotal),
+                  if (sale.gst!.sgstTotal.abs() > 0.0001)
+                    row('SGST', sale.gst!.sgstTotal),
+                  if (sale.gst!.utgstTotal.abs() > 0.0001)
+                    row('UTGST', sale.gst!.utgstTotal),
+                  if (sale.gst!.igstTotal.abs() > 0.0001)
+                    row('IGST', sale.gst!.igstTotal),
+                  if (sale.gst!.cessTotal.abs() > 0.0001)
+                    row('Cess', sale.gst!.cessTotal),
+                  if (!sale.gst!.hasComponentTax && sale.taxTotal > 0.0001)
+                    row('GST / Tax', sale.taxTotal),
+                ] else
+                  row('GST / Tax', sale.taxTotal),
+              ],
               if (sale.additionalCharges > 0)
                 row('Additional Charges', sale.additionalCharges),
               pw.Divider(color: accent),

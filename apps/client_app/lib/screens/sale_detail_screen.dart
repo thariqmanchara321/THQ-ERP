@@ -312,8 +312,14 @@ class _SaleDetailScreenState extends State<SaleDetailScreen> {
                       icon: const Icon(Icons.more_vert),
                     ),
                   const SizedBox(width: 8),
+                  OutlinedButton.icon(
+                    onPressed: () => _preview('a4'),
+                    icon: const Icon(Icons.visibility_outlined),
+                    label: const Text('Preview'),
+                  ),
+                  const SizedBox(width: 4),
                   PopupMenuButton<String>(
-                    tooltip: 'Invoice',
+                    tooltip: 'Invoice / receipt format',
                     onSelected: _preview,
                     itemBuilder: (_) => const [
                       PopupMenuItem(
@@ -428,7 +434,21 @@ class _SaleDetailScreenState extends State<SaleDetailScreen> {
                       children: [
                         _Total('Subtotal', _m(s.subtotal)),
                         _Total('Discount', '- ${_m(s.discountTotal)}'),
-                        _Total('Tax', _m(s.taxTotal)),
+                        if (s.gst?.authoritative == true) ...[
+                          if (s.gst!.cgstTotal.abs() > 0.0001)
+                            _Total('CGST', _m(s.gst!.cgstTotal)),
+                          if (s.gst!.sgstTotal.abs() > 0.0001)
+                            _Total('SGST', _m(s.gst!.sgstTotal)),
+                          if (s.gst!.utgstTotal.abs() > 0.0001)
+                            _Total('UTGST', _m(s.gst!.utgstTotal)),
+                          if (s.gst!.igstTotal.abs() > 0.0001)
+                            _Total('IGST', _m(s.gst!.igstTotal)),
+                          if (s.gst!.cessTotal.abs() > 0.0001)
+                            _Total('Cess', _m(s.gst!.cessTotal)),
+                          if (!s.gst!.hasComponentTax && s.taxTotal > 0.0001)
+                            _Total('GST / Tax', _m(s.taxTotal)),
+                        ] else
+                          _Total('Tax', _m(s.taxTotal)),
                         _Total('Additional Charges', _m(s.additionalCharges)),
                         const Divider(),
                         _Total('Grand Total', _m(s.grandTotal), bold: true),
@@ -1019,12 +1039,22 @@ class _EditSaleDialogState extends State<_EditSaleDialog> {
             isRequired: true,
             hintText: 'Search customer name, ID, phone or GSTIN',
             prefixIcon: Icons.person_search_outlined,
-            options: widget.customers.where((c) => c.isActive).map((customer) => SearchableSelectOption<String>(
-              value: customer.id,
-              label: customer.name,
-              subtitle: [customer.publicId, customer.phone, customer.taxNumber].whereType<String>().where((v) => v.trim().isNotEmpty).join(' • '),
-              searchText: '${customer.name} ${customer.publicId} ${customer.phone ?? ''} ${customer.email ?? ''} ${customer.taxNumber ?? ''}',
-            )).toList(),
+            options: widget.customers
+                .where((c) => c.isActive)
+                .map(
+                  (customer) => SearchableSelectOption<String>(
+                    value: customer.id,
+                    label: customer.name,
+                    subtitle:
+                        [customer.publicId, customer.phone, customer.taxNumber]
+                            .whereType<String>()
+                            .where((v) => v.trim().isNotEmpty)
+                            .join(' • '),
+                    searchText:
+                        '${customer.name} ${customer.publicId} ${customer.phone ?? ''} ${customer.email ?? ''} ${customer.taxNumber ?? ''}',
+                  ),
+                )
+                .toList(),
             onChanged: (v) {
               if (v != null) setState(() => _customerId = v);
             },

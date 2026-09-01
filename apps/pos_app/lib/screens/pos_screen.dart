@@ -349,28 +349,107 @@ class _PosScreenState extends State<PosScreen> {
       _message('${product.productName} is out of stock.');
       return;
     }
+
     final controller = TextEditingController();
+    final device = widget.session.device;
+    var available = <Map<String, dynamic>>[];
+
+    if (!_offlineMode && device != null) {
+      try {
+        final rows = await _tracking.searchSerials(
+          tenantId: widget.session.business.id,
+          locationId: device.locationId,
+          limit: 500,
+        );
+        available = rows
+            .where(
+              (row) =>
+                  row['variant_id']?.toString() == product.variantId &&
+                  row['status']?.toString() == 'in_stock',
+            )
+            .toList();
+      } catch (_) {
+        // Manual scanner/entry remains available even if the list cannot load.
+      }
+    }
+
+    if (!mounted) {
+      controller.dispose();
+      return;
+    }
+
+    String? selected;
     final serial = await showDialog<String>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text('Serial • ${product.productName}'),
-        content: SizedBox(
-          width: 430,
-          child: TextField(
-            controller: controller,
-            autofocus: true,
-            onSubmitted: (value) => Navigator.of(dialogContext).pop(value.trim()),
-            decoration: const InputDecoration(
-              labelText: 'Scan / enter serial number',
-              prefixIcon: Icon(Icons.qr_code_scanner_outlined),
-              border: OutlineInputBorder(),
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: Text('Serial • ${product.productName}'),
+          content: SizedBox(
+            width: 520,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (available.isNotEmpty) ...[
+                  DropdownButtonFormField<String>(
+                    initialValue: selected,
+                    isExpanded: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Select available serial',
+                      prefixIcon: Icon(Icons.fact_check_outlined),
+                      border: OutlineInputBorder(),
+                    ),
+                    items: available
+                        .map(
+                          (row) => DropdownMenuItem<String>(
+                            value: row['serial_number']?.toString(),
+                            child: Text(
+                              row['serial_number']?.toString() ?? '',
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        )
+                        .toList(),
+                    onChanged: (value) => setDialogState(() {
+                      selected = value;
+                      if (value != null) controller.text = value;
+                    }),
+                  ),
+                  const SizedBox(height: 12),
+                ] else if (_offlineMode) ...[
+                  const Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'Offline mode: scan or enter a cached serial number.',
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                ],
+                TextField(
+                  controller: controller,
+                  autofocus: available.isEmpty,
+                  onSubmitted: (value) =>
+                      Navigator.of(dialogContext).pop(value.trim()),
+                  decoration: const InputDecoration(
+                    labelText: 'Scan / enter serial number',
+                    prefixIcon: Icon(Icons.qr_code_scanner_outlined),
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+              ],
             ),
           ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () =>
+                  Navigator.pop(dialogContext, controller.text.trim()),
+              child: const Text('Add Serial'),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.pop(dialogContext, controller.text.trim()), child: const Text('Add Serial')),
-        ],
       ),
     );
     controller.dispose();
@@ -2636,12 +2715,12 @@ class _PosScreenState extends State<PosScreen> {
           FilledButton.tonalIcon(
             onPressed: _saving ? null : () => _checkout(printAfter: false),
             icon: const Icon(Icons.check_circle_outline, size: 17),
-            label: const Text('Confirm'),
+            label: const Text('Just Confirm'),
           ),
           FilledButton.icon(
             onPressed: _saving ? null : () => _checkout(printAfter: true),
             icon: const Icon(Icons.print_outlined, size: 17),
-            label: const Text('Confirm & Print'),
+            label: const Text('Print & Confirm'),
           ),
         ];
         if (narrow) {
@@ -3067,12 +3146,12 @@ class _PosScreenState extends State<PosScreen> {
                       ? null
                       : () => _checkout(printAfter: false),
                   icon: const Icon(Icons.check_circle_outline, size: 17),
-                  label: Text(_saving ? 'Saving…' : 'Confirm'),
+                  label: Text(_saving ? 'Saving…' : 'Just Confirm'),
                 ),
                 FilledButton.icon(
                   onPressed: _saving ? null : () => _checkout(printAfter: true),
                   icon: const Icon(Icons.print_outlined, size: 17),
-                  label: Text(_saving ? 'Saving…' : 'Confirm & Print'),
+                  label: Text(_saving ? 'Saving…' : 'Print & Confirm'),
                 ),
               ];
               if (footerConstraints.maxWidth < 620) {

@@ -9,6 +9,7 @@ import '../services/inventory_service.dart';
 import '../services/location_scope_service.dart';
 import '../services/purchase_service.dart';
 import '../services/supplier_service.dart';
+import '../services/transaction_print_service.dart';
 import 'purchase_detail_screen.dart';
 import '../widgets/searchable_select.dart';
 
@@ -179,7 +180,7 @@ class _PurchasesScreenState extends State<PurchasesScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      widget.historyOnly ? 'Purchase History' : 'Purchases',
+                      widget.historyOnly ? 'Purchase Details' : 'Purchases',
                       style: TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.bold,
@@ -427,6 +428,7 @@ class NewPurchaseScreen extends StatefulWidget {
 
 class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
   final PurchaseService _purchaseService = PurchaseService();
+  final TransactionPrintService _printService = TransactionPrintService();
 
   final SupplierService _supplierService = SupplierService();
 
@@ -537,7 +539,9 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
 
   void _applyRoundOff() {
     final delta = _beforeRoundOff.roundToDouble() - _beforeRoundOff;
-    _roundOffController.text = delta.abs() < 0.000001 ? '0.00' : delta.toStringAsFixed(2);
+    _roundOffController.text = delta.abs() < 0.000001
+        ? '0.00'
+        : delta.toStringAsFixed(2);
     setState(() {});
   }
 
@@ -620,7 +624,7 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
         '${date.year}';
   }
 
-  Future<void> _post() async {
+  Future<void> _post({bool printAfter = false}) async {
     if (_supplierId == null) {
       setState(() {
         _error = 'Select a supplier.';
@@ -673,7 +677,7 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
     });
 
     try {
-      await _purchaseService.createPurchase(
+      final result = await _purchaseService.createPurchase(
         tenantId: widget.session.business.id,
         supplierId: _supplierId!,
         supplierInvoiceNumber: _invoiceController.text,
@@ -688,7 +692,8 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
                 'unit_cost': line.unitCost,
                 'discount_amount': line.discount,
                 'tax_rate': line.taxRate,
-                if (line.serialNumbers.isNotEmpty) 'serial_numbers': line.serialNumbers,
+                if (line.serialNumbers.isNotEmpty)
+                  'serial_numbers': line.serialNumbers,
                 if (line.batches.isNotEmpty) 'batches': line.batches,
               },
             )
@@ -701,8 +706,46 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
         locationId: widget.locationId,
       );
 
+      String? printWarning;
+      if (printAfter) {
+        try {
+          final rawId =
+              result['purchase_id'] ??
+              result['id'] ??
+              (result['result'] is Map
+                  ? (result['result'] as Map)['purchase_id']
+                  : null) ??
+              (result['result'] is Map
+                  ? (result['result'] as Map)['id']
+                  : null);
+          final purchaseId = rawId?.toString() ?? '';
+          if (purchaseId.isEmpty) {
+            throw StateError(
+              'Purchase is confirmed, but the response did not contain a purchase ID.',
+            );
+          }
+          final detail = await _purchaseService.getPurchaseDetail(
+            tenantId: widget.session.business.id,
+            purchaseId: purchaseId,
+          );
+          await _printService.printPurchase(
+            session: widget.session,
+            purchase: detail,
+          );
+        } catch (error) {
+          printWarning =
+              'Purchase confirmed successfully, but printing failed: $error';
+        }
+      }
+
       if (!mounted) {
         return;
+      }
+
+      if (printWarning != null) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(printWarning)));
       }
 
       if (widget.embedded) {
@@ -817,9 +860,13 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
                   (supplier) => SearchableSelectOption<String>(
                     value: supplier.id,
                     label: supplier.name,
-                    subtitle: [supplier.publicId, supplier.phone, supplier.taxNumber]
-                        .where((value) => value != null && value.trim().isNotEmpty)
-                        .join(' • '),
+                    subtitle:
+                        [supplier.publicId, supplier.phone, supplier.taxNumber]
+                            .where(
+                              (value) =>
+                                  value != null && value.trim().isNotEmpty,
+                            )
+                            .join(' • '),
                     searchText:
                         '${supplier.name} ${supplier.publicId} ${supplier.phone ?? ''} ${supplier.email ?? ''} ${supplier.taxNumber ?? ''}',
                   ),
@@ -982,7 +1029,10 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
                 child: TextField(
                   controller: _roundOffController,
                   enabled: !_saving,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true, signed: true),
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                    signed: true,
+                  ),
                   onChanged: (_) => setState(() {}),
                   decoration: const InputDecoration(
                     labelText: 'Round Off',
@@ -1077,16 +1127,22 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
                 child: const Text('Cancel'),
               ),
               const SizedBox(width: 12),
+              OutlinedButton.icon(
+                onPressed: _saving ? null : () => _post(printAfter: false),
+                icon: const Icon(Icons.check_circle_outline),
+                label: const Text('Just Confirm'),
+              ),
+              const SizedBox(width: 10),
               FilledButton.icon(
-                onPressed: _saving ? null : _post,
+                onPressed: _saving ? null : () => _post(printAfter: true),
                 icon: _saving
                     ? const SizedBox(
                         width: 18,
                         height: 18,
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
-                    : const Icon(Icons.check_circle_outline),
-                label: Text(_saving ? 'Posting...' : 'Post Purchase'),
+                    : const Icon(Icons.print_outlined),
+                label: Text(_saving ? 'Confirming...' : 'Print & Confirm'),
               ),
             ],
           ),
@@ -1150,6 +1206,7 @@ class _AddPurchaseItemDialogState extends State<_AddPurchaseItemDialog> {
   final _taxController = TextEditingController();
   final _serialsController = TextEditingController();
   final List<Map<String, dynamic>> _batches = [];
+  bool _autoSerials = true;
 
   String? _error;
 
@@ -1184,14 +1241,101 @@ class _AddPurchaseItemDialogState extends State<_AddPurchaseItemDialog> {
 
       _serialsController.clear();
       _batches.clear();
+      _autoSerials = true;
 
       if (product != null) {
         final unit = product.defaultPurchaseUnit;
         _unitId = unit?.unitId;
-        _costController.text = (unit?.purchaseCostFor(product.costPrice) ?? product.costPrice).toStringAsFixed(2);
+        _costController.text =
+            (unit?.purchaseCostFor(product.costPrice) ?? product.costPrice)
+                .toStringAsFixed(2);
         _taxController.text = product.taxRate.toStringAsFixed(2);
       }
     });
+
+    if (_product?.trackingMode == 'serial') {
+      _generateSerials();
+    }
+  }
+
+  String _serialPrefix(InventoryProduct product) {
+    final clean = product.sku
+        .replaceAll(RegExp(r'[^A-Za-z0-9]'), '')
+        .toUpperCase();
+    return clean.isEmpty ? 'SN' : clean;
+  }
+
+  void _generateSerials() {
+    final product = _product;
+    final quantity = double.tryParse(_quantityController.text.trim()) ?? 0;
+    final baseQuantity = quantity * (_selectedUnit?.conversionToBase ?? 1);
+    if (product == null || product.trackingMode != 'serial') return;
+    if (baseQuantity <= 0 || baseQuantity != baseQuantity.truncateToDouble()) {
+      setState(() {
+        _error =
+            'Enter a whole base-unit quantity before generating serial numbers.';
+      });
+      return;
+    }
+
+    final prefix = _serialPrefix(product);
+    final stamp = DateTime.now().microsecondsSinceEpoch
+        .toRadixString(36)
+        .toUpperCase();
+    final values = List<String>.generate(
+      baseQuantity.round(),
+      (index) => '$prefix-$stamp-${(index + 1).toString().padLeft(3, '0')}',
+    );
+    _serialsController.text = values.join('\n');
+    setState(() {
+      _autoSerials = true;
+      _error = null;
+    });
+  }
+
+  String _autoBatchNumber(InventoryProduct product) {
+    final now = DateTime.now();
+    final date =
+        '${now.year}${now.month.toString().padLeft(2, '0')}'
+        '${now.day.toString().padLeft(2, '0')}'
+        '${now.hour.toString().padLeft(2, '0')}'
+        '${now.minute.toString().padLeft(2, '0')}'
+        '${now.second.toString().padLeft(2, '0')}';
+    final sku = product.sku
+        .replaceAll(RegExp(r'[^A-Za-z0-9]'), '')
+        .toUpperCase();
+    return 'LOT-${sku.isEmpty ? 'ITEM' : sku}-$date-${_batches.length + 1}';
+  }
+
+  Future<void> _addAutoBatch() async {
+    final product = _product;
+    final quantity = double.tryParse(_quantityController.text.trim()) ?? 0;
+    if (product == null || product.trackingMode != 'batch') return;
+
+    final baseQuantity = quantity * (_selectedUnit?.conversionToBase ?? 1);
+    final allocated = _batches.fold<double>(
+      0,
+      (sum, row) => sum + ((row['quantity'] as num?)?.toDouble() ?? 0),
+    );
+    final remaining = baseQuantity - allocated;
+    if (remaining <= 0.000001) {
+      setState(() => _error = 'The full batch quantity is already allocated.');
+      return;
+    }
+
+    final batch = await showDialog<Map<String, dynamic>>(
+      context: context,
+      builder: (_) => _PurchaseBatchDialog(
+        initialBatchNumber: _autoBatchNumber(product),
+        initialQuantity: remaining,
+      ),
+    );
+    if (batch != null && mounted) {
+      setState(() {
+        _batches.add(batch);
+        _error = null;
+      });
+    }
   }
 
   List<String> _serialValues() => _serialsController.text
@@ -1248,18 +1392,30 @@ class _AddPurchaseItemDialogState extends State<_AddPurchaseItemDialog> {
     final serialNumbers = _serialValues();
     if (product.trackingMode == 'serial') {
       if (baseQuantity != baseQuantity.truncateToDouble()) {
-        setState(() => _error = 'Serial-tracked products require a whole base-unit quantity.');
+        setState(
+          () => _error =
+              'Serial-tracked products require a whole base-unit quantity.',
+        );
         return;
       }
       if (serialNumbers.length != baseQuantity.round()) {
-        setState(() => _error = 'Serial count must match the base quantity (${baseQuantity.toStringAsFixed(0)}).');
+        setState(
+          () => _error =
+              'Serial count must match the base quantity (${baseQuantity.toStringAsFixed(0)}).',
+        );
         return;
       }
     }
     if (product.trackingMode == 'batch') {
-      final batchQuantity = _batches.fold<double>(0, (sum, row) => sum + ((row['quantity'] as num?)?.toDouble() ?? 0));
+      final batchQuantity = _batches.fold<double>(
+        0,
+        (sum, row) => sum + ((row['quantity'] as num?)?.toDouble() ?? 0),
+      );
       if ((batchQuantity - baseQuantity).abs() > 0.000001) {
-        setState(() => _error = 'Batch quantities must total the base quantity (${baseQuantity.toStringAsFixed(4)}).');
+        setState(
+          () => _error =
+              'Batch quantities must total the base quantity (${baseQuantity.toStringAsFixed(4)}).',
+        );
         return;
       }
     }
@@ -1293,8 +1449,12 @@ class _AddPurchaseItemDialogState extends State<_AddPurchaseItemDialog> {
         unitCost: cost,
         discount: discount,
         taxRate: tax,
-        serialNumbers: product.trackingMode == 'serial' ? serialNumbers : const [],
-        batches: product.trackingMode == 'batch' ? List<Map<String, dynamic>>.from(_batches) : const [],
+        serialNumbers: product.trackingMode == 'serial'
+            ? serialNumbers
+            : const [],
+        batches: product.trackingMode == 'batch'
+            ? List<Map<String, dynamic>>.from(_batches)
+            : const [],
       ),
     );
   }
@@ -1330,7 +1490,10 @@ class _AddPurchaseItemDialogState extends State<_AddPurchaseItemDialog> {
                     product.sku.toLowerCase().startsWith(q) ||
                     (product.partNumber ?? '').toLowerCase().startsWith(q) ||
                     (product.barcode ?? '').toLowerCase().startsWith(q) ||
-                    product.searchCodes.toLowerCase().split(RegExp(r'\s+')).any((v) => v.startsWith(q));
+                    product.searchCodes
+                        .toLowerCase()
+                        .split(RegExp(r'\s+'))
+                        .any((v) => v.startsWith(q));
                 bool contains(InventoryProduct product) =>
                     product.productName.toLowerCase().contains(q) ||
                     product.sku.toLowerCase().contains(q) ||
@@ -1338,7 +1501,9 @@ class _AddPurchaseItemDialogState extends State<_AddPurchaseItemDialog> {
                     (product.barcode ?? '').toLowerCase().contains(q) ||
                     product.searchCodes.toLowerCase().contains(q);
                 final first = widget.products.where(starts);
-                final rest = widget.products.where((p) => !starts(p) && contains(p));
+                final rest = widget.products.where(
+                  (p) => !starts(p) && contains(p),
+                );
                 return [...first, ...rest].take(40);
               },
               onSelected: (product) => _selectProduct(product.variantId),
@@ -1435,14 +1600,23 @@ class _AddPurchaseItemDialogState extends State<_AddPurchaseItemDialog> {
                   border: OutlineInputBorder(),
                 ),
                 items: _product!.purchaseUnits
-                    .map((u) => DropdownMenuItem(value: u.unitId, child: Text('${u.name} (${u.code}) • 1 = ${u.conversionToBase} ${_product!.baseUnitCode}')))
+                    .map(
+                      (u) => DropdownMenuItem(
+                        value: u.unitId,
+                        child: Text(
+                          '${u.name} (${u.code}) • 1 = ${u.conversionToBase} ${_product!.baseUnitCode}',
+                        ),
+                      ),
+                    )
                     .toList(),
                 onChanged: (value) {
                   setState(() {
                     _unitId = value;
                     final unit = _selectedUnit;
                     if (unit != null) {
-                      _costController.text = unit.purchaseCostFor(_product!.costPrice).toStringAsFixed(2);
+                      _costController.text = unit
+                          .purchaseCostFor(_product!.costPrice)
+                          .toStringAsFixed(2);
                     }
                   });
                 },
@@ -1459,6 +1633,11 @@ class _AddPurchaseItemDialogState extends State<_AddPurchaseItemDialog> {
                     keyboardType: const TextInputType.numberWithOptions(
                       decimal: true,
                     ),
+                    onChanged: (_) {
+                      if (_autoSerials && _product?.trackingMode == 'serial') {
+                        _generateSerials();
+                      }
+                    },
                     decoration: const InputDecoration(
                       labelText: 'Quantity',
                       border: OutlineInputBorder(),
@@ -1518,14 +1697,37 @@ class _AddPurchaseItemDialogState extends State<_AddPurchaseItemDialog> {
 
             if (_product?.trackingMode == 'serial') ...[
               const SizedBox(height: 16),
+              Row(
+                children: [
+                  const Expanded(
+                    child: Text(
+                      'Serial tracking',
+                      style: TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                  FilledButton.tonalIcon(
+                    onPressed: _generateSerials,
+                    icon: const Icon(Icons.auto_awesome, size: 18),
+                    label: const Text('Auto Generate'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
               TextField(
                 controller: _serialsController,
                 minLines: 3,
-                maxLines: 6,
-                decoration: const InputDecoration(
-                  labelText: 'Serial numbers (one per base unit)',
-                  hintText: 'SN0001\nSN0002',
-                  border: OutlineInputBorder(),
+                maxLines: 7,
+                onChanged: (_) {
+                  if (_autoSerials) setState(() => _autoSerials = false);
+                },
+                decoration: InputDecoration(
+                  labelText: _autoSerials
+                      ? 'Auto serial numbers'
+                      : 'Manual serial numbers',
+                  hintText: 'One serial per base unit',
+                  helperText:
+                      'Generated automatically for serial-tracked products. You can edit, scan or replace them manually.',
+                  border: const OutlineInputBorder(),
                 ),
               ),
             ],
@@ -1534,19 +1736,47 @@ class _AddPurchaseItemDialogState extends State<_AddPurchaseItemDialog> {
               const SizedBox(height: 16),
               Align(
                 alignment: Alignment.centerLeft,
-                child: Text('Batch allocation', style: Theme.of(context).textTheme.titleSmall),
+                child: Text(
+                  'Batch allocation',
+                  style: Theme.of(context).textTheme.titleSmall,
+                ),
               ),
               const SizedBox(height: 6),
-              ..._batches.asMap().entries.map((entry) => ListTile(
-                    dense: true,
-                    contentPadding: EdgeInsets.zero,
-                    title: Text('${entry.value['batch_number']} • ${entry.value['quantity']} ${_product?.baseUnitCode ?? ''}'),
-                    subtitle: Text('MFG ${entry.value['manufactured_on'] ?? '-'} • EXP ${entry.value['expiry_on'] ?? '-'}'),
-                    trailing: IconButton(icon: const Icon(Icons.delete_outline), onPressed: () => setState(() => _batches.removeAt(entry.key))),
-                  )),
+              ..._batches.asMap().entries.map(
+                (entry) => ListTile(
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(
+                    '${entry.value['batch_number']} • ${entry.value['quantity']} ${_product?.baseUnitCode ?? ''}',
+                  ),
+                  subtitle: Text(
+                    'MFG ${entry.value['manufactured_on'] ?? '-'} • EXP ${entry.value['expiry_on'] ?? '-'}',
+                  ),
+                  trailing: IconButton(
+                    icon: const Icon(Icons.delete_outline),
+                    onPressed: () =>
+                        setState(() => _batches.removeAt(entry.key)),
+                  ),
+                ),
+              ),
               Align(
                 alignment: Alignment.centerLeft,
-                child: OutlinedButton.icon(onPressed: _addBatch, icon: const Icon(Icons.add), label: const Text('Add Batch')),
+                child: Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    OutlinedButton.icon(
+                      onPressed: _addBatch,
+                      icon: const Icon(Icons.add),
+                      label: const Text('Add Batch / Lot'),
+                    ),
+                    FilledButton.tonalIcon(
+                      onPressed: _addAutoBatch,
+                      icon: const Icon(Icons.auto_awesome),
+                      label: const Text('Auto Batch Number'),
+                    ),
+                  ],
+                ),
               ),
             ],
 
@@ -1569,17 +1799,36 @@ class _AddPurchaseItemDialogState extends State<_AddPurchaseItemDialog> {
 }
 
 class _PurchaseBatchDialog extends StatefulWidget {
-  const _PurchaseBatchDialog();
+  final String initialBatchNumber;
+  final double? initialQuantity;
+
+  const _PurchaseBatchDialog({
+    this.initialBatchNumber = '',
+    this.initialQuantity,
+  });
   @override
   State<_PurchaseBatchDialog> createState() => _PurchaseBatchDialogState();
 }
 
 class _PurchaseBatchDialogState extends State<_PurchaseBatchDialog> {
-  final _number = TextEditingController();
-  final _quantity = TextEditingController();
+  late final TextEditingController _number;
+  late final TextEditingController _quantity;
   final _manufactured = TextEditingController();
   final _expiry = TextEditingController();
   String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _number = TextEditingController(text: widget.initialBatchNumber);
+    _quantity = TextEditingController(
+      text: widget.initialQuantity == null
+          ? ''
+          : widget.initialQuantity!.toStringAsFixed(
+              widget.initialQuantity! % 1 == 0 ? 0 : 4,
+            ),
+    );
+  }
 
   @override
   void dispose() {
@@ -1593,38 +1842,80 @@ class _PurchaseBatchDialogState extends State<_PurchaseBatchDialog> {
   void _save() {
     final qty = double.tryParse(_quantity.text.trim());
     if (_number.text.trim().isEmpty || qty == null || qty <= 0) {
-      setState(() => _error = 'Enter a batch number and positive base quantity.');
+      setState(
+        () => _error = 'Enter a batch number and positive base quantity.',
+      );
       return;
     }
     Navigator.of(context).pop(<String, dynamic>{
       'batch_number': _number.text.trim(),
       'quantity': qty,
-      'manufactured_on': _manufactured.text.trim().isEmpty ? null : _manufactured.text.trim(),
+      'manufactured_on': _manufactured.text.trim().isEmpty
+          ? null
+          : _manufactured.text.trim(),
       'expiry_on': _expiry.text.trim().isEmpty ? null : _expiry.text.trim(),
     });
   }
 
   @override
   Widget build(BuildContext context) => AlertDialog(
-        title: const Text('Add Batch'),
-        content: SizedBox(
-          width: 460,
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            TextField(controller: _number, decoration: const InputDecoration(labelText: 'Batch / lot number', border: OutlineInputBorder())),
-            const SizedBox(height: 10),
-            TextField(controller: _quantity, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: 'Quantity in base unit', border: OutlineInputBorder())),
-            const SizedBox(height: 10),
-            TextField(controller: _manufactured, decoration: const InputDecoration(labelText: 'Manufacture date (YYYY-MM-DD)', border: OutlineInputBorder())),
-            const SizedBox(height: 10),
-            TextField(controller: _expiry, decoration: const InputDecoration(labelText: 'Expiry date (YYYY-MM-DD)', border: OutlineInputBorder())),
-            if (_error != null) Padding(padding: const EdgeInsets.only(top: 10), child: Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error))),
-          ]),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-          FilledButton(onPressed: _save, child: const Text('Add')),
+    title: const Text('Add Batch'),
+    content: SizedBox(
+      width: 460,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          TextField(
+            controller: _number,
+            decoration: const InputDecoration(
+              labelText: 'Batch / lot number',
+              border: OutlineInputBorder(),
+            ),
+          ),
+          const SizedBox(height: 10),
+          TextField(
+            controller: _quantity,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: const InputDecoration(
+              labelText: 'Quantity in base unit',
+              border: OutlineInputBorder(),
+            ),
+          ),
+          const SizedBox(height: 10),
+          TextField(
+            controller: _manufactured,
+            decoration: const InputDecoration(
+              labelText: 'Manufacture date (YYYY-MM-DD)',
+              border: OutlineInputBorder(),
+            ),
+          ),
+          const SizedBox(height: 10),
+          TextField(
+            controller: _expiry,
+            decoration: const InputDecoration(
+              labelText: 'Expiry date (YYYY-MM-DD)',
+              border: OutlineInputBorder(),
+            ),
+          ),
+          if (_error != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 10),
+              child: Text(
+                _error!,
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
+            ),
         ],
-      );
+      ),
+    ),
+    actions: [
+      TextButton(
+        onPressed: () => Navigator.pop(context),
+        child: const Text('Cancel'),
+      ),
+      FilledButton(onPressed: _save, child: const Text('Add')),
+    ],
+  );
 }
 
 class _PurchaseLineRow extends StatelessWidget {

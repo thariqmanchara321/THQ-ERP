@@ -81,7 +81,6 @@ class _PosHomeScreenState extends State<PosHomeScreen> {
     unawaited(_startSyncMonitor());
   }
 
-
   Future<void> _startSyncMonitor() async {
     try {
       _syncVersions = await _thqApi.syncVersions(_session.business.id);
@@ -95,10 +94,19 @@ class _PosHomeScreenState extends State<PosHomeScreen> {
         final latest = await _thqApi.syncVersions(_session.business.id);
         final previous = _syncVersions;
         _syncVersions = latest;
-        // POS watches configuration/catalogue/party drift. Normal sales and stock
-        // movements must not continuously interrupt an active cashier.
-        if (previous != null && latest.configurationOrMasterChangedFrom(previous) && mounted) {
-          setState(() => _updatesAvailable = true);
+        // Apply Admin module/config changes automatically when it is safe.
+        // Billing is deliberately protected because rebuilding it can discard
+        // an unheld cart; in that case the existing Refresh action remains explicit.
+        if (previous != null && mounted) {
+          final configurationChanged =
+              latest.configuration != previous.configuration;
+          if (configurationChanged && _selectedKey != 'sales') {
+            await _refreshAll();
+            return;
+          }
+          if (latest.configurationOrMasterChangedFrom(previous)) {
+            setState(() => _updatesAvailable = true);
+          }
         }
       } catch (_) {
         // Background drift detection is intentionally non-blocking.
@@ -484,13 +492,17 @@ class _PosHomeScreenState extends State<PosHomeScreen> {
       unawaited(DeviceHeartbeatService().send(refreshed));
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('POS refreshed with the latest store, modules, products and configuration.')),
+        const SnackBar(
+          content: Text(
+            'POS refreshed with the latest store, modules, products and configuration.',
+          ),
+        ),
       );
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Refresh failed: $error')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Refresh failed: $error')));
       }
     } finally {
       if (mounted) setState(() => _refreshing = false);
@@ -560,7 +572,11 @@ class _PosHomeScreenState extends State<PosHomeScreen> {
                             ),
                           _action(
                             Icons.refresh,
-                            _refreshing ? 'Refreshing…' : (_updatesAvailable ? 'Updates • Refresh' : 'Refresh'),
+                            _refreshing
+                                ? 'Refreshing…'
+                                : (_updatesAvailable
+                                      ? 'Updates • Refresh'
+                                      : 'Refresh'),
                             expanded,
                             _refreshing ? () {} : _requestRefresh,
                           ),
@@ -587,8 +603,7 @@ class _PosHomeScreenState extends State<PosHomeScreen> {
   }
 
   Widget _brand(bool expanded, UiDesignProfile profile) {
-    final logo =
-        _session.setting('business.logo_url', '')?.toString() ?? '';
+    final logo = _session.setting('business.logo_url', '')?.toString() ?? '';
     return Padding(
       padding: const EdgeInsets.all(7),
       child: Row(

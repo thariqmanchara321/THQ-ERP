@@ -1,4 +1,4 @@
-﻿import 'dart:async';
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:erp_core/erp_core.dart';
@@ -9,6 +9,7 @@ import '../models/app_menu_node.dart';
 import '../services/client_auth_service.dart';
 import '../services/client_session_service.dart';
 import '../services/device_heartbeat_service.dart';
+import '../services/device_installation_service.dart';
 import '../services/location_scope_service.dart';
 import '../services/navigation_service.dart';
 import '../services/thq_api_service.dart';
@@ -20,6 +21,7 @@ import 'backup_export_screen.dart';
 import 'bulk_import_screen.dart';
 import 'business_settings_screen.dart';
 import 'client_login_screen.dart';
+import 'client_entry_screen.dart';
 import 'customers_screen.dart';
 import 'dashboard_screen.dart';
 import 'error_logs_screen.dart';
@@ -37,7 +39,6 @@ import 'locations_screen.dart';
 import 'payment_center_screen.dart';
 import 'production_screen.dart';
 import 'purchases_screen.dart';
-import 'purchasing_v2_screen.dart';
 import 'pricing_screen.dart';
 import 'reports_screen.dart';
 import 'returns_register_screen.dart';
@@ -108,7 +109,6 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
     }
   }
 
-
   Future<void> _startSyncMonitor() async {
     try {
       _syncVersions = await _thqApi.syncVersions(_session.business.id);
@@ -122,8 +122,30 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
         final latest = await _thqApi.syncVersions(_session.business.id);
         final previous = _syncVersions;
         _syncVersions = latest;
-        if (previous != null && latest.anyChangedFrom(previous) && mounted) {
-          setState(() => _updatesAvailable = true);
+
+        if (previous != null && mounted) {
+          final configurationChanged =
+              latest.configuration != previous.configuration;
+          final transactionWorkspace = <String>{
+            'sales',
+            'purchases',
+            'stock_transfers',
+            'loans',
+            'expenses',
+            'production',
+            'transport_service',
+            'restaurant',
+            'restaurant_orders',
+          }.contains(_selectedModuleKey);
+
+          if (configurationChanged && !transactionWorkspace) {
+            await _refreshAll();
+            return;
+          }
+
+          if (latest.anyChangedFrom(previous)) {
+            setState(() => _updatesAvailable = true);
+          }
         }
       } catch (_) {
         // Quiet background detection; explicit Refresh shows actionable failures.
@@ -171,7 +193,8 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
       if (!mounted) return;
 
       _session = refreshed;
-      if (previousLocation != null && refreshed.canAccessLocation(previousLocation)) {
+      if (previousLocation != null &&
+          refreshed.canAccessLocation(previousLocation)) {
         LocationScopeService.selectedLocationId.value = previousLocation;
       } else {
         LocationScopeService.initialize(refreshed);
@@ -202,13 +225,17 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
       unawaited(DeviceHeartbeatService().send(refreshed));
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('THQ refreshed with the latest business, store, module and data changes.')),
+        const SnackBar(
+          content: Text(
+            'THQ refreshed with the latest business, store, module and data changes.',
+          ),
+        ),
       );
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Refresh failed: $error')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Refresh failed: $error')));
       }
     } finally {
       if (mounted) setState(() => _refreshing = false);
@@ -238,13 +265,52 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
     );
   }
 
+  Future<void> _changeStoreBusiness() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Change Store / Business?'),
+        content: const Text(
+          'This resets the current THQ business/device activation and returns '
+          'to Business Code + Activation. The permanent installation ID is kept.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton.icon(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            icon: const Icon(Icons.restart_alt),
+            label: const Text('Reset & Change'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    try {
+      await _authService.signOut();
+      await DeviceInstallationService().clearActivation();
+      LocationScopeService.selectedLocationId.value = null;
+      if (!mounted) return;
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const ClientEntryScreen()),
+        (_) => false,
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Reset failed: $error')));
+    }
+  }
+
   void _openSearch([String query = '']) {
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => GlobalSearchScreen(
-          session: _session,
-          initialQuery: query.trim(),
-        ),
+        builder: (_) =>
+            GlobalSearchScreen(session: _session, initialQuery: query.trim()),
       ),
     );
   }
@@ -382,7 +448,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
                         },
                         decoration: const InputDecoration(
                           isDense: true,
-                          hintText: 'Find menu or search THQâ€¦',
+                          hintText: 'Find menu or search THQ…',
                           prefixIcon: Icon(Icons.search, size: 20),
                         ),
                       ),
@@ -398,6 +464,12 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
                     label: _navCollapsed ? 'Expand' : 'Collapse',
                     collapsed: _navCollapsed,
                     onTap: () => setState(() => _navCollapsed = !_navCollapsed),
+                  ),
+                  _navAction(
+                    icon: Icons.restart_alt,
+                    label: 'Change Store / Business',
+                    collapsed: _navCollapsed,
+                    onTap: _changeStoreBusiness,
                   ),
                   _navAction(
                     icon: Icons.logout,
@@ -420,11 +492,10 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
                   child: ValueListenableBuilder<String?>(
                     valueListenable: LocationScopeService.selectedLocationId,
                     builder: (_, locationId, _) => KeyedSubtree(
-                      key: ValueKey('${selected.key}:${locationId ?? 'all'}:$_contentGeneration'),
-                      child: _ModulePage(
-                        module: selected,
-                        session: _session,
+                      key: ValueKey(
+                        '${selected.key}:${locationId ?? 'all'}:$_contentGeneration',
                       ),
+                      child: _ModulePage(module: selected, session: _session),
                     ),
                   ),
                 ),
@@ -445,7 +516,11 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
             tooltip: 'Refresh THQ',
             onPressed: _refreshing ? null : _refreshAll,
             icon: _refreshing
-                ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
                 : const Icon(Icons.refresh),
           ),
           IconButton(
@@ -474,7 +549,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
                   },
                   decoration: const InputDecoration(
                     isDense: true,
-                    hintText: 'Find menu or search THQâ€¦',
+                    hintText: 'Find menu or search THQ…',
                     prefixIcon: Icon(Icons.search),
                   ),
                 ),
@@ -488,10 +563,24 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
                 ),
               ),
               const Divider(height: 1),
-              ListTile(
-                leading: const Icon(Icons.logout),
-                title: const Text('Sign Out'),
-                onTap: _logout,
+              Material(
+                color: Colors.transparent,
+                child: ListTile(
+                  leading: const Icon(Icons.restart_alt),
+                  title: const Text('Change Store / Business'),
+                  onTap: () {
+                    Navigator.of(context).pop();
+                    _changeStoreBusiness();
+                  },
+                ),
+              ),
+              Material(
+                color: Colors.transparent,
+                child: ListTile(
+                  leading: const Icon(Icons.logout),
+                  title: const Text('Sign Out'),
+                  onTap: _logout,
+                ),
               ),
             ],
           ),
@@ -505,7 +594,9 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
             child: ValueListenableBuilder<String?>(
               valueListenable: LocationScopeService.selectedLocationId,
               builder: (_, locationId, _) => KeyedSubtree(
-                key: ValueKey('${selected.key}:${locationId ?? 'all'}:$_contentGeneration'),
+                key: ValueKey(
+                  '${selected.key}:${locationId ?? 'all'}:$_contentGeneration',
+                ),
                 child: _ModulePage(module: selected, session: _session),
               ),
             ),
@@ -561,8 +652,8 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
                   const SizedBox(height: 2),
                   Text(
                     device == null
-                        ? 'THQ Business â€¢ v${ThqReleaseContract.appVersion}'
-                        : '${device.locationCode} â€¢ ${device.deviceCode}',
+                        ? 'THQ Business • v${ThqReleaseContract.appVersion}'
+                        : '${device.locationCode} • ${device.deviceCode}',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
@@ -910,11 +1001,14 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
   }) {
     return Tooltip(
       message: collapsed ? label : '',
-      child: ListTile(
-        dense: true,
-        leading: Icon(icon),
-        title: collapsed ? null : Text(label),
-        onTap: onTap,
+      child: Material(
+        color: Colors.transparent,
+        child: ListTile(
+          dense: true,
+          leading: Icon(icon),
+          title: collapsed ? null : Text(label),
+          onTap: onTap,
+        ),
       ),
     );
   }
@@ -955,7 +1049,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
                       device.locationCode,
                     if (device != null && device.deviceName.isNotEmpty)
                       device.deviceName,
-                  ].join(' â€¢ '),
+                  ].join(' • '),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
@@ -971,9 +1065,13 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
           OutlinedButton.icon(
             onPressed: _refreshing ? null : _refreshAll,
             icon: _refreshing
-                ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
                 : const Icon(Icons.refresh, size: 18),
-            label: Text(_updatesAvailable ? 'Updates â€¢ Refresh' : 'Refresh'),
+            label: Text(_updatesAvailable ? 'Updates • Refresh' : 'Refresh'),
           ),
           const SizedBox(width: 8),
           FilledButton.tonalIcon(
@@ -983,7 +1081,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
           ),
           const SizedBox(width: 10),
           Tooltip(
-            message: '${_session.username} â€¢ ${_session.roleLabel}',
+            message: '${_session.username} • ${_session.roleLabel}',
             child: Container(
               constraints: const BoxConstraints(maxWidth: 210),
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
@@ -999,9 +1097,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
                     child: Text(
                       _session.username.isEmpty
                           ? '?'
-                          : _session.username
-                                .substring(0, 1)
-                                .toUpperCase(),
+                          : _session.username.substring(0, 1).toUpperCase(),
                       style: const TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w800,
@@ -1049,8 +1145,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
   }
 
   Widget _mobileScopeBar() {
-    if (_session.locations.length <= 1 &&
-        !_session.canViewAllLocations) {
+    if (_session.locations.length <= 1 && !_session.canViewAllLocations) {
       return const SizedBox.shrink();
     }
     return Container(
@@ -1083,13 +1178,13 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
               if (_session.canViewAllLocations)
                 const DropdownMenuItem<String?>(
                   value: null,
-                  child: Text('All stores â€¢ merged'),
+                  child: Text('All stores • merged'),
                 ),
               ...LocationScopeService.orderedLocations(_session).map(
                 (location) => DropdownMenuItem<String?>(
                   value: location.id,
                   child: Text(
-                    '${location.code} â€¢ ${location.name} â€¢ ${location.roleLabel}',
+                    '${location.code} • ${location.name} • ${location.roleLabel}',
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
@@ -1137,7 +1232,7 @@ class _SubscriptionBanner extends StatelessWidget {
           const SizedBox(width: 8),
           Expanded(
             child: Text(
-              'Subscription ${status.replaceAll('_', ' ')}${blocked ? ' â€” contact your administrator to restore module access.' : '.'}',
+              'Subscription ${status.replaceAll('_', ' ')}${blocked ? ' — contact your administrator to restore module access.' : '.'}',
             ),
           ),
         ],
@@ -1156,12 +1251,17 @@ class _ModulePage extends StatelessWidget {
   Widget build(BuildContext context) {
     return switch (module.key) {
       'dashboard' => DashboardScreen(session: session),
-      'operations_intelligence' => OperationsIntelligenceScreen(session: session),
+      'operations_intelligence' => OperationsIntelligenceScreen(
+        session: session,
+      ),
       'inventory' => InventoryProductsScreen(session: session),
       'warranty' => TrackingWorkspaceScreen(session: session),
       'suppliers' => SuppliersScreen(session: session),
       'purchases' => PurchasesScreen(session: session, startInCreate: true),
-      'purchase_details' => PurchasingV2Screen(session: session),
+      'purchase_details' => PurchasesScreen(
+        session: session,
+        historyOnly: true,
+      ),
       'loans' => LoanScreen(session: session),
       'pricing' => PricingScreen(session: session),
       'customers' => CustomersScreen(session: session),
@@ -1242,7 +1342,7 @@ class _ComingSoon extends StatelessWidget {
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    '${session.currencyCode} â€¢ ${session.locale}',
+                    '${session.currencyCode} • ${session.locale}',
                     style: TextStyle(
                       color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),

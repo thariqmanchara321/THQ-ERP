@@ -4,6 +4,10 @@ import '../models/client_session.dart';
 import '../services/pos_completion_service.dart';
 import '../services/pos_hardware_service.dart';
 import '../services/pos_local_backup_service.dart';
+import '../services/client_auth_service.dart';
+import '../services/device_installation_service.dart';
+import '../services/offline_pos_service.dart';
+import 'pos_entry_screen.dart';
 
 class PosSettingsScreen extends StatefulWidget {
   final ClientSession session;
@@ -231,6 +235,70 @@ class _PosSettingsScreenState extends State<PosSettingsScreen> {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
   }
 
+  Future<void> _changeStoreBusiness() async {
+    final deviceId = _deviceId;
+    if (deviceId == null) {
+      _message('POS device is not activated.');
+      return;
+    }
+
+    try {
+      final summary = await OfflinePosService.instance.summary(
+        tenantId: _tenantId,
+        deviceId: deviceId,
+      );
+      if (summary.needsAttention > 0) {
+        _message(
+          'Cannot reset this POS while offline invoices need attention. '
+          'Sync/resolve ${summary.needsAttention} pending, conflict or error invoice(s) first.',
+        );
+        return;
+      }
+    } catch (error) {
+      _message(
+        'Could not verify the offline queue, so THQ will not reset this POS. $error',
+      );
+      return;
+    }
+
+    if (!mounted) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Change Store / Business?'),
+        content: const Text(
+          'This signs out and clears the current business/device activation. '
+          'The permanent installation ID is kept. You will return to Business '
+          'Code + POS Activation.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton.icon(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            icon: const Icon(Icons.restart_alt),
+            label: const Text('Reset & Change'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    try {
+      await ClientAuthService().signOut();
+      await DeviceInstallationService().clearActivation();
+      if (!mounted) return;
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const PosEntryScreen()),
+        (_) => false,
+      );
+    } catch (error) {
+      _message('POS reset failed: $error');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_loading) return const Center(child: CircularProgressIndicator());
@@ -444,6 +512,25 @@ class _PosSettingsScreenState extends State<PosSettingsScreen> {
                       'After a successful Cashier Shift close, THQ writes a complete business JSON backup to this folder when enabled.',
                     ),
                     contentPadding: EdgeInsets.zero,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 10),
+            _section(
+              title: 'Store / business activation',
+              icon: Icons.restart_alt,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Use this only when this POS must be activated for a different store or business.',
+                  ),
+                  const SizedBox(height: 10),
+                  OutlinedButton.icon(
+                    onPressed: _changeStoreBusiness,
+                    icon: const Icon(Icons.restart_alt),
+                    label: const Text('Change Store / Business'),
                   ),
                 ],
               ),

@@ -11,7 +11,15 @@ class _MobileEntryScreenState extends State<MobileEntryScreen> {
   @override void initState(){super.initState();_activation=DeviceInstallationService().readActivation();}
   @override Widget build(BuildContext context)=>FutureBuilder<DeviceActivation?>(future:_activation,builder:(context,snapshot){
     if(snapshot.connectionState!=ConnectionState.done)return const Scaffold(body:Center(child:CircularProgressIndicator()));
-    if(snapshot.data==null)return _ActivationView(onDone:(){setState(()=>_activation=DeviceInstallationService().readActivation());});
+    if (snapshot.data == null) {
+    return _ActivationView(
+    onDone: () {
+      setState(() {
+        _activation = DeviceInstallationService().readActivation();
+      });
+    },
+    );
+    }
     if(Supabase.instance.client.auth.currentSession==null)return _LoginView(onDone:(){setState((){});});
     return const _SessionLoader();
   });

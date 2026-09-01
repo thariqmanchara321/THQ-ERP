@@ -12,6 +12,8 @@ import '../services/inventory_service.dart';
 import '../services/location_scope_service.dart';
 import '../services/pricing_service.dart';
 import '../services/sales_service.dart';
+import '../services/tracking_service.dart';
+import '../services/transaction_print_service.dart';
 import 'sale_detail_screen.dart';
 import '../widgets/searchable_select.dart';
 
@@ -39,6 +41,7 @@ class _SalesScreenState extends State<SalesScreen> {
   late Future<List<Sale>> _salesFuture;
 
   bool _creating = false;
+  int _saleGeneration = 0;
 
   bool get _canManage => widget.session.hasPermission('sales.manage');
 
@@ -108,12 +111,22 @@ class _SalesScreenState extends State<SalesScreen> {
   void _finishNewSale(bool created) {
     if (!mounted) return;
     setState(() {
-      _creating = false;
-      if (created) _load();
+      if (created) {
+        _load();
+        _saleGeneration++;
+        _creating =
+            widget.startInCreate &&
+            _canManage &&
+            LocationScopeService.selectedLocationId.value != null;
+      } else {
+        _creating = false;
+      }
     });
     if (created) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Sale completed successfully.')),
+        const SnackBar(
+          content: Text('Sale completed. Ready for the next sale.'),
+        ),
       );
     }
   }
@@ -159,6 +172,7 @@ class _SalesScreenState extends State<SalesScreen> {
     }
     if (_creating) {
       return NewSaleScreen(
+        key: ValueKey(_saleGeneration),
         session: widget.session,
         locationId: LocationScopeService.currentForCreate(widget.session),
         embedded: true,
@@ -501,12 +515,15 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
   final PricingService _pricingService = PricingService();
 
   final InventoryService _inventoryService = InventoryService();
+  final TransactionPrintService _printService = TransactionPrintService();
 
   final TextEditingController _additionalController = TextEditingController(
     text: '0',
   );
 
-  final TextEditingController _roundOffController = TextEditingController(text: '0');
+  final TextEditingController _roundOffController = TextEditingController(
+    text: '0',
+  );
 
   final TextEditingController _paymentController = TextEditingController(
     text: '0',
@@ -651,7 +668,9 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
 
   void _applyRoundOff() {
     final delta = _beforeRoundOff.roundToDouble() - _beforeRoundOff;
-    _roundOffController.text = delta.abs() < 0.000001 ? '0.00' : delta.toStringAsFixed(2);
+    _roundOffController.text = delta.abs() < 0.000001
+        ? '0.00'
+        : delta.toStringAsFixed(2);
     setState(() {});
   }
 
@@ -717,7 +736,10 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
       quantity: line.quantity,
       locationId: widget.locationId,
     );
-    return line.copyWith(unitPrice: price.unitPrice, pricingSource: price.sourceLabel);
+    return line.copyWith(
+      unitPrice: price.unitPrice,
+      pricingSource: price.sourceLabel,
+    );
   }
 
   Future<void> _repriceLines() async {
@@ -754,7 +776,11 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
     final line = await showDialog<_SaleLine>(
       context: context,
       barrierDismissible: false,
-      builder: (_) => _AddSaleItemDialog(products: available),
+      builder: (_) => _AddSaleItemDialog(
+        products: available,
+        tenantId: widget.session.business.id,
+        locationId: widget.locationId,
+      ),
     );
 
     if (line == null || !mounted) {
@@ -781,7 +807,7 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
     });
   }
 
-  Future<void> _post() async {
+  Future<void> _post({bool printAfter = false}) async {
     final customer = _selectedCustomer;
 
     if (customer == null) {
@@ -846,7 +872,7 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
     });
 
     try {
-      await _salesService.createSale(
+      final result = await _salesService.createSale(
         tenantId: widget.session.business.id,
 
         customerId: customer.id,
@@ -869,7 +895,8 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
                 'discount_amount': line.discount,
 
                 'tax_rate': line.taxRate,
-                if (line.serialNumbers.isNotEmpty) 'serial_numbers': line.serialNumbers,
+                if (line.serialNumbers.isNotEmpty)
+                  'serial_numbers': line.serialNumbers,
               },
             )
             .toList(),
@@ -888,8 +915,43 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
         locationId: widget.locationId,
       );
 
+      String? printWarning;
+      if (printAfter) {
+        try {
+          final rawId =
+              result['sale_id'] ??
+              result['id'] ??
+              (result['result'] is Map
+                  ? (result['result'] as Map)['sale_id']
+                  : null) ??
+              (result['result'] is Map
+                  ? (result['result'] as Map)['id']
+                  : null);
+          final saleId = rawId?.toString() ?? '';
+          if (saleId.isEmpty) {
+            throw StateError(
+              'Sale is confirmed, but the response did not contain a sale ID.',
+            );
+          }
+          final detail = await _salesService.getSaleDetail(
+            tenantId: widget.session.business.id,
+            saleId: saleId,
+          );
+          await _printService.printSale(session: widget.session, sale: detail);
+        } catch (error) {
+          printWarning =
+              'Sale confirmed successfully, but printing failed: $error';
+        }
+      }
+
       if (!mounted) {
         return;
+      }
+
+      if (printWarning != null) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(printWarning)));
       }
 
       if (widget.embedded) {
@@ -1018,9 +1080,18 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
                           label: customer.isWalkIn
                               ? '${customer.name} — Counter Sale'
                               : customer.name,
-                          subtitle: [customer.publicId, customer.phone, customer.email]
-                              .where((value) => value != null && value.trim().isNotEmpty)
-                              .join(' • '),
+                          subtitle:
+                              [
+                                    customer.publicId,
+                                    customer.phone,
+                                    customer.email,
+                                  ]
+                                  .where(
+                                    (value) =>
+                                        value != null &&
+                                        value.trim().isNotEmpty,
+                                  )
+                                  .join(' • '),
                           searchText:
                               '${customer.name} ${customer.publicId} ${customer.phone ?? ''} ${customer.email ?? ''}',
                         ),
@@ -1273,7 +1344,10 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
                 child: TextField(
                   controller: _roundOffController,
                   enabled: !_saving,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true, signed: true),
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                    signed: true,
+                  ),
                   onChanged: (_) => setState(() {}),
                   decoration: const InputDecoration(
                     labelText: 'Round Off',
@@ -1352,7 +1426,9 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
                   _SaleTotalRow(label: 'Tax', value: _money(_tax)),
 
                   _SaleTotalRow(
-                    label: _cuttingCharges > 0 ? 'Additional / Cutting Charges' : 'Additional Charges',
+                    label: _cuttingCharges > 0
+                        ? 'Additional / Cutting Charges'
+                        : 'Additional Charges',
 
                     value: _money(_additional),
                   ),
@@ -1420,19 +1496,22 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
 
               const SizedBox(width: 12),
 
+              OutlinedButton.icon(
+                onPressed: _saving ? null : () => _post(printAfter: false),
+                icon: const Icon(Icons.check_circle_outline),
+                label: const Text('Just Confirm'),
+              ),
+              const SizedBox(width: 10),
               FilledButton.icon(
-                onPressed: _saving ? null : _post,
-
+                onPressed: _saving ? null : () => _post(printAfter: true),
                 icon: _saving
                     ? const SizedBox(
                         width: 18,
                         height: 18,
-
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
-                    : const Icon(Icons.point_of_sale_outlined),
-
-                label: Text(_saving ? 'Completing...' : 'Complete Sale'),
+                    : const Icon(Icons.print_outlined),
+                label: Text(_saving ? 'Confirming...' : 'Print & Confirm'),
               ),
             ],
           ),
@@ -1486,22 +1565,28 @@ class _SaleLine {
   double get total => taxable + tax + cuttingCharge;
 
   _SaleLine copyWith({double? unitPrice, String? pricingSource}) => _SaleLine(
-        product: product,
-        unit: unit,
-        quantity: quantity,
-        unitPrice: unitPrice ?? this.unitPrice,
-        discount: discount,
-        taxRate: taxRate,
-        cuttingChargeApplied: cuttingChargeApplied,
-        pricingSource: pricingSource ?? this.pricingSource,
-        serialNumbers: serialNumbers,
-      );
+    product: product,
+    unit: unit,
+    quantity: quantity,
+    unitPrice: unitPrice ?? this.unitPrice,
+    discount: discount,
+    taxRate: taxRate,
+    cuttingChargeApplied: cuttingChargeApplied,
+    pricingSource: pricingSource ?? this.pricingSource,
+    serialNumbers: serialNumbers,
+  );
 }
 
 class _AddSaleItemDialog extends StatefulWidget {
   final List<InventoryProduct> products;
+  final String tenantId;
+  final String locationId;
 
-  const _AddSaleItemDialog({required this.products});
+  const _AddSaleItemDialog({
+    required this.products,
+    required this.tenantId,
+    required this.locationId,
+  });
 
   @override
   State<_AddSaleItemDialog> createState() => _AddSaleItemDialogState();
@@ -1525,6 +1610,10 @@ class _AddSaleItemDialogState extends State<_AddSaleItemDialog> {
 
   final TextEditingController _taxController = TextEditingController();
   final TextEditingController _serialsController = TextEditingController();
+  final TrackingService _trackingService = TrackingService();
+  List<Map<String, dynamic>> _serialOptions = const [];
+  final Set<String> _selectedSerials = <String>{};
+  bool _loadingSerials = false;
 
   String? _error;
 
@@ -1553,25 +1642,56 @@ class _AddSaleItemDialogState extends State<_AddSaleItemDialog> {
     return product.defaultSaleUnit;
   }
 
-  void _selectProduct(String? value) {
+  Future<void> _selectProduct(String? value) async {
     setState(() {
       _variantId = value;
+      _serialsController.clear();
+      _serialOptions = const [];
+      _selectedSerials.clear();
+      _loadingSerials = false;
 
       final product = _product;
-
-      _serialsController.clear();
-
       if (product != null) {
         final unit = product.defaultSaleUnit;
         _unitId = unit?.unitId;
         _cuttingChargeApplied = false;
-        _priceController.text = (unit?.salePriceFor(product.sellingPrice) ?? product.sellingPrice).toStringAsFixed(2);
-
+        _priceController.text =
+            (unit?.salePriceFor(product.sellingPrice) ?? product.sellingPrice)
+                .toStringAsFixed(2);
         _taxController.text = product.taxRate.toStringAsFixed(2);
-
         _error = null;
+        _loadingSerials = product.trackingMode == 'serial';
       }
     });
+
+    final product = _product;
+    if (product == null || product.trackingMode != 'serial') return;
+
+    try {
+      final rows = await _trackingService.searchSerials(
+        tenantId: widget.tenantId,
+        locationId: widget.locationId,
+        limit: 500,
+      );
+      if (!mounted || _product?.variantId != product.variantId) return;
+      setState(() {
+        _serialOptions = rows
+            .where(
+              (row) =>
+                  row['variant_id']?.toString() == product.variantId &&
+                  row['status']?.toString() == 'in_stock',
+            )
+            .toList();
+        _loadingSerials = false;
+      });
+    } catch (error) {
+      if (!mounted || _product?.variantId != product.variantId) return;
+      setState(() {
+        _loadingSerials = false;
+        _error =
+            'Could not load available serials. You can still scan/type them manually. $error';
+      });
+    }
   }
 
   String _stockText(InventoryProduct product) {
@@ -1584,12 +1704,16 @@ class _AddSaleItemDialogState extends State<_AddSaleItemDialog> {
         '${product.baseUnitCode}';
   }
 
-  List<String> _serialValues() => _serialsController.text
-      .split(RegExp(r'[\n,;]+'))
-      .map((e) => e.trim())
-      .where((e) => e.isNotEmpty)
-      .toSet()
-      .toList();
+  List<String> _serialValues() {
+    final values = <String>{..._selectedSerials};
+    values.addAll(
+      _serialsController.text
+          .split(RegExp(r'[\n,;]+'))
+          .map((e) => e.trim())
+          .where((e) => e.isNotEmpty),
+    );
+    return values.toList();
+  }
 
   void _add() {
     final product = _product;
@@ -1629,7 +1753,8 @@ class _AddSaleItemDialogState extends State<_AddSaleItemDialog> {
     }
 
     if (product.itemType == 'stock' &&
-        quantity * (selectedUnit?.conversionToBase ?? 1) > product.stockQuantity + 0.0001) {
+        quantity * (selectedUnit?.conversionToBase ?? 1) >
+            product.stockQuantity + 0.0001) {
       setState(() {
         _error =
             'Insufficient stock. Available: '
@@ -1643,11 +1768,17 @@ class _AddSaleItemDialogState extends State<_AddSaleItemDialog> {
     final serialNumbers = _serialValues();
     if (product.trackingMode == 'serial') {
       if (baseQuantity != baseQuantity.truncateToDouble()) {
-        setState(() => _error = 'Serial-tracked products require a whole base-unit quantity.');
+        setState(
+          () => _error =
+              'Serial-tracked products require a whole base-unit quantity.',
+        );
         return;
       }
       if (serialNumbers.length != baseQuantity.round()) {
-        setState(() => _error = 'Serial count must match the base quantity (${baseQuantity.toStringAsFixed(0)}).');
+        setState(
+          () => _error =
+              'Serial count must match the base quantity (${baseQuantity.toStringAsFixed(0)}).',
+        );
         return;
       }
     }
@@ -1690,7 +1821,9 @@ class _AddSaleItemDialogState extends State<_AddSaleItemDialog> {
 
         taxRate: tax,
         cuttingChargeApplied: _cuttingChargeApplied,
-        serialNumbers: product.trackingMode == 'serial' ? serialNumbers : const [],
+        serialNumbers: product.trackingMode == 'serial'
+            ? serialNumbers
+            : const [],
       ),
     );
   }
@@ -1733,7 +1866,10 @@ class _AddSaleItemDialogState extends State<_AddSaleItemDialog> {
                     p.sku.toLowerCase().startsWith(q) ||
                     (p.partNumber ?? '').toLowerCase().startsWith(q) ||
                     (p.barcode ?? '').toLowerCase().startsWith(q) ||
-                    p.searchCodes.toLowerCase().split(RegExp(r'\s+')).any((v) => v.startsWith(q));
+                    p.searchCodes
+                        .toLowerCase()
+                        .split(RegExp(r'\s+'))
+                        .any((v) => v.startsWith(q));
                 bool contains(InventoryProduct p) =>
                     p.productName.toLowerCase().contains(q) ||
                     p.sku.toLowerCase().contains(q) ||
@@ -1741,10 +1877,12 @@ class _AddSaleItemDialogState extends State<_AddSaleItemDialog> {
                     (p.barcode ?? '').toLowerCase().contains(q) ||
                     p.searchCodes.toLowerCase().contains(q);
                 final first = widget.products.where(starts);
-                final rest = widget.products.where((p) => !starts(p) && contains(p));
+                final rest = widget.products.where(
+                  (p) => !starts(p) && contains(p),
+                );
                 return [...first, ...rest].take(30);
               },
-              onSelected: (p) => _selectProduct(p.variantId),
+              onSelected: (p) => unawaited(_selectProduct(p.variantId)),
               fieldViewBuilder: (context, controller, focusNode, onSubmitted) =>
                   TextField(
                     controller: controller,
@@ -1787,10 +1925,14 @@ class _AddSaleItemDialogState extends State<_AddSaleItemDialog> {
                   border: OutlineInputBorder(),
                 ),
                 items: product!.saleUnits
-                    .map((u) => DropdownMenuItem(
-                          value: u.unitId,
-                          child: Text('${u.name} (${u.code}) • 1 = ${u.conversionToBase} ${product.baseUnitCode}'),
-                        ))
+                    .map(
+                      (u) => DropdownMenuItem(
+                        value: u.unitId,
+                        child: Text(
+                          '${u.name} (${u.code}) • 1 = ${u.conversionToBase} ${product.baseUnitCode}',
+                        ),
+                      ),
+                    )
                     .toList(),
                 onChanged: (value) {
                   setState(() {
@@ -1798,7 +1940,9 @@ class _AddSaleItemDialogState extends State<_AddSaleItemDialog> {
                     _cuttingChargeApplied = false;
                     final unit = _selectedUnit;
                     if (unit != null) {
-                      _priceController.text = unit.salePriceFor(product.sellingPrice).toStringAsFixed(2);
+                      _priceController.text = unit
+                          .salePriceFor(product.sellingPrice)
+                          .toStringAsFixed(2);
                     }
                   });
                 },
@@ -1811,7 +1955,8 @@ class _AddSaleItemDialogState extends State<_AddSaleItemDialog> {
               SwitchListTile.adaptive(
                 contentPadding: EdgeInsets.zero,
                 value: _cuttingChargeApplied,
-                onChanged: (value) => setState(() => _cuttingChargeApplied = value),
+                onChanged: (value) =>
+                    setState(() => _cuttingChargeApplied = value),
                 title: Text(
                   'Add cutting charge ₹${(_selectedUnit?.cuttingCharge ?? 0).toStringAsFixed(2)}',
                 ),
@@ -1857,7 +2002,8 @@ class _AddSaleItemDialogState extends State<_AddSaleItemDialog> {
                       prefixText: '₹ ',
 
                       border: OutlineInputBorder(),
-                      helperText: 'THQ pricing is resolved again for the selected customer and quantity.',
+                      helperText:
+                          'THQ pricing is resolved again for the selected customer and quantity.',
                     ),
                   ),
                 ),
@@ -1910,13 +2056,71 @@ class _AddSaleItemDialogState extends State<_AddSaleItemDialog> {
 
             if (_product?.trackingMode == 'serial') ...[
               const SizedBox(height: 16),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Row(
+                  children: [
+                    const Expanded(
+                      child: Text(
+                        'Select available serial numbers',
+                        style: TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                    ),
+                    if (_loadingSerials)
+                      const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                    if (!_loadingSerials)
+                      Text(
+                        '${_serialOptions.length} available',
+                        style: Theme.of(context).textTheme.labelSmall,
+                      ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 8),
+              if (!_loadingSerials && _serialOptions.isEmpty)
+                const Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'No selectable serials were returned. You can still scan or enter a serial manually.',
+                  ),
+                ),
+              if (_serialOptions.isNotEmpty)
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxHeight: 140),
+                  child: SingleChildScrollView(
+                    child: Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: _serialOptions.map((row) {
+                        final serial = row['serial_number']?.toString() ?? '';
+                        final selected = _selectedSerials.contains(serial);
+                        return FilterChip(
+                          label: Text(serial),
+                          selected: selected,
+                          onSelected: (value) => setState(() {
+                            if (value) {
+                              _selectedSerials.add(serial);
+                            } else {
+                              _selectedSerials.remove(serial);
+                            }
+                          }),
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                ),
+              const SizedBox(height: 10),
               TextField(
                 controller: _serialsController,
-                minLines: 3,
-                maxLines: 6,
+                minLines: 2,
+                maxLines: 5,
                 decoration: const InputDecoration(
-                  labelText: 'Serial numbers to sell',
-                  hintText: 'Scan or enter one serial per base unit',
+                  labelText: 'Manual / scanned serial numbers',
+                  hintText: 'Optional: scan or enter one serial per base unit',
                   border: OutlineInputBorder(),
                 ),
               ),
@@ -1925,7 +2129,9 @@ class _AddSaleItemDialogState extends State<_AddSaleItemDialog> {
               const SizedBox(height: 12),
               const Align(
                 alignment: Alignment.centerLeft,
-                child: Text('Batch stock will be allocated automatically using FEFO (earliest expiry first).'),
+                child: Text(
+                  'Batch stock will be allocated automatically using FEFO (earliest expiry first).',
+                ),
               ),
             ],
 
@@ -2028,7 +2234,10 @@ class _SaleLineRow extends StatelessWidget {
               children: [
                 Text(money(line.unitPrice)),
                 if (line.pricingSource?.isNotEmpty == true)
-                  Text(line.pricingSource!, style: const TextStyle(fontSize: 10)),
+                  Text(
+                    line.pricingSource!,
+                    style: const TextStyle(fontSize: 10),
+                  ),
               ],
             ),
           ),

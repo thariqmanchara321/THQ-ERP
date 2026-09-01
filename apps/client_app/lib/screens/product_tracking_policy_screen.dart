@@ -90,6 +90,39 @@ class _ProductTrackingPolicyScreenState extends State<ProductTrackingPolicyScree
 
   List<String> _serialValues() => _serials.text.split(RegExp(r'[\n,;]+')).map((e) => e.trim()).where((e) => e.isNotEmpty).toSet().toList();
 
+  void _generateExistingSerials() {
+    final reconciliation = _reconciliation;
+    if (reconciliation == null) return;
+    final stock =
+        (reconciliation['stock_quantity'] as num?)?.toDouble() ?? 0;
+    final tracked =
+        (reconciliation['tracked_quantity'] as num?)?.toDouble() ?? 0;
+    final remaining = stock - tracked;
+    if (remaining <= 0.000001 ||
+        remaining != remaining.truncateToDouble()) {
+      setState(() {
+        _error = remaining <= 0.000001
+            ? 'There is no unregistered serial stock remaining.'
+            : 'Serial registration requires a whole base-unit quantity.';
+      });
+      return;
+    }
+    final cleanName = widget.productName
+        .replaceAll(RegExp(r'[^A-Za-z0-9]'), '')
+        .toUpperCase();
+    final prefix = cleanName.isEmpty
+        ? 'SN'
+        : cleanName.substring(0, cleanName.length > 8 ? 8 : cleanName.length);
+    final stamp =
+        DateTime.now().microsecondsSinceEpoch.toRadixString(36).toUpperCase();
+    _serials.text = List.generate(
+      remaining.round(),
+      (index) =>
+          '$prefix-$stamp-${(index + 1).toString().padLeft(3, '0')}',
+    ).join('\n');
+    setState(() => _error = null);
+  }
+
   Future<void> _register() async {
     setState(() { _saving = true; _error = null; });
     try {
@@ -153,7 +186,22 @@ class _ProductTrackingPolicyScreenState extends State<ProductTrackingPolicyScree
               ]))),
               const SizedBox(height: 14),
               Card(child: Padding(padding: const EdgeInsets.all(20), child: Column(children: [
-                SwitchListTile(contentPadding: EdgeInsets.zero, value: _warranty, onChanged: (v) => setState(() => _warranty = v), title: const Text('Warranty tracking'), subtitle: const Text('Creates warranty records automatically when tracked stock is sold.')),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  value: _warranty,
+                  onChanged: (v) => setState(() {
+                    _warranty = v;
+                    // A new/untracked warranty product defaults to serial
+                    // traceability. Existing batch products remain batch-based.
+                    if (v && _mode == 'none') _mode = 'serial';
+                  }),
+                  title: const Text('Warranty tracking'),
+                  subtitle: Text(
+                    _warranty && _mode == 'serial'
+                        ? 'Warranty enabled with serial tracking. New purchase serials can be generated automatically or entered manually.'
+                        : 'Creates warranty records automatically when tracked stock is sold.',
+                  ),
+                ),
                 if (_warranty) Row(children: [
                   Expanded(child: TextField(controller: _months, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'Warranty months', border: OutlineInputBorder()))),
                   const SizedBox(width: 12),
@@ -171,7 +219,28 @@ class _ProductTrackingPolicyScreenState extends State<ProductTrackingPolicyScree
                   Text('Ledger stock: ${_reconciliation!['stock_quantity'] ?? 0} • Tracked: ${_reconciliation!['tracked_quantity'] ?? 0} • ${_reconciliation!['reconciled'] == true ? 'Reconciled' : 'Registration required'}'),
                   if (_reconciliation!['reconciled'] != true) ...[
                     const SizedBox(height: 14),
-                    if (_mode == 'serial') TextField(controller: _serials, minLines: 5, maxLines: 10, decoration: const InputDecoration(labelText: 'Serial numbers', hintText: 'One serial per line (comma also accepted)', border: OutlineInputBorder())),
+                    if (_mode == 'serial') ...[
+                      Row(children: [
+                        const Expanded(child: Text('Serial numbers', style: TextStyle(fontWeight: FontWeight.w700))),
+                        FilledButton.tonalIcon(
+                          onPressed: _generateExistingSerials,
+                          icon: const Icon(Icons.auto_awesome, size: 18),
+                          label: const Text('Auto Generate'),
+                        ),
+                      ]),
+                      const SizedBox(height: 8),
+                      TextField(
+                        controller: _serials,
+                        minLines: 5,
+                        maxLines: 10,
+                        decoration: const InputDecoration(
+                          labelText: 'Serial numbers',
+                          hintText: 'Generated automatically or enter one serial per line',
+                          helperText: 'Manual editing and scanner input remain supported.',
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
+                    ],
                     if (_mode == 'batch') ...[
                       ..._batches.asMap().entries.map((e) => ListTile(contentPadding: EdgeInsets.zero, title: Text('${e.value['batch_number']} • Qty ${e.value['quantity']}'), subtitle: Text('MFG ${e.value['manufactured_on'] ?? '-'} • EXP ${e.value['expiry_on'] ?? '-'}'), trailing: IconButton(icon: const Icon(Icons.delete_outline), onPressed: () => setState(() => _batches.removeAt(e.key))))),
                       OutlinedButton.icon(onPressed: _addBatch, icon: const Icon(Icons.add), label: const Text('Add Batch')),

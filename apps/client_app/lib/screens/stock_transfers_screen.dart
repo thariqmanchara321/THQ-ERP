@@ -89,6 +89,7 @@ class _StockTransfersScreenState extends State<StockTransfersScreen> {
       _message('You do not have operate access to a stock location.');
       return;
     }
+
     var fromId = _scopeLocationId;
     if (fromId == null || !writable.any((e) => e.id == fromId)) {
       fromId = widget.session.device?.locationId;
@@ -96,14 +97,18 @@ class _StockTransfersScreenState extends State<StockTransfersScreen> {
     if (fromId == null || !writable.any((e) => e.id == fromId)) {
       fromId = writable.first.id;
     }
-    final destinations = widget.session.locations.where((e) => e.id != fromId).toList();
+
+    final sourceId = fromId;
+    final destinations =
+        widget.session.locations.where((e) => e.id != sourceId).toList();
     if (destinations.isEmpty) {
       _message('Create another store/warehouse before making a transfer.');
       return;
     }
+
     final products = await InventoryService().getProducts(
       tenantId: _tenantId,
-      locationId: fromId,
+      locationId: sourceId,
     );
     if (!mounted) return;
     if (products.isEmpty) {
@@ -111,223 +116,489 @@ class _StockTransfersScreenState extends State<StockTransfersScreen> {
       return;
     }
 
-    String sourceId = fromId;
-    String toId = destinations.first.id;
-    InventoryProduct product = products.first;
-    Map<String, dynamic> tracking = await _service.trackingOptions(
-      tenantId: _tenantId,
-      locationId: sourceId,
-      variantId: product.variantId,
-    );
-    if (!mounted) return;
-
-    final qty = TextEditingController(text: '1');
-    final serials = TextEditingController();
-    final batches = TextEditingController();
+    final items = <Map<String, dynamic>>[];
+    final itemLabels = <String>[];
     final notes = TextEditingController();
     final transport = TextEditingController();
+    var toId = destinations.first.id;
     DateTime? expected;
+
+    Future<(Map<String, dynamic>, String)?> addItem() async {
+      InventoryProduct? product;
+      Map<String, dynamic> tracking = const {};
+      final qty = TextEditingController(text: '1');
+      final manualSerials = TextEditingController();
+      final batches = TextEditingController();
+      final selectedSerials = <String>{};
+      String? lineError;
+      bool loadingTracking = false;
+
+      final result = await showDialog<(Map<String, dynamic>, String)>(
+        context: context,
+        barrierDismissible: false,
+        builder: (itemContext) => StatefulBuilder(
+          builder: (context, setItemState) {
+            Future<void> selectProduct(String? variantId) async {
+              if (variantId == null) return;
+              final next =
+                  products.firstWhere((row) => row.variantId == variantId);
+              setItemState(() {
+                product = next;
+                tracking = const {};
+                selectedSerials.clear();
+                manualSerials.clear();
+                batches.clear();
+                lineError = null;
+                loadingTracking = next.trackingMode != 'none';
+              });
+              if (next.trackingMode == 'none') return;
+              try {
+                final options = await _service.trackingOptions(
+                  tenantId: _tenantId,
+                  locationId: sourceId,
+                  variantId: next.variantId,
+                );
+                if (!itemContext.mounted) return;
+                setItemState(() {
+                  tracking = options;
+                  loadingTracking = false;
+                });
+              } catch (error) {
+                if (!itemContext.mounted) return;
+                setItemState(() {
+                  loadingTracking = false;
+                  lineError = _cleanError(error);
+                });
+              }
+            }
+
+            final serialRows = (tracking['serials'] as List? ?? const [])
+                .whereType<Map>()
+                .where(
+                  (row) =>
+                      row['status']?.toString() == 'in_stock' ||
+                      row['status'] == null,
+                )
+                .toList();
+            final batchRows = (tracking['batches'] as List? ?? const [])
+                .whereType<Map>()
+                .toList();
+
+            return AlertDialog(
+              title: const Text('Add Transfer Product'),
+              content: SizedBox(
+                width: 720,
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      SearchableSelect<String>(
+                        value: product?.variantId,
+                        labelText: 'Product',
+                        isRequired: true,
+                        hintText: 'Search product, SKU, barcode or part number',
+                        prefixIcon: Icons.inventory_2_outlined,
+                        options: products
+                            .map(
+                              (p) => SearchableSelectOption<String>(
+                                value: p.variantId,
+                                label: p.productName,
+                                subtitle:
+                                    '${p.sku} • Available ${p.stockQuantity.toStringAsFixed(2)} ${p.baseUnitCode}',
+                                searchText:
+                                    '${p.productName} ${p.variantName} ${p.sku} ${p.barcode ?? ''} ${p.partNumber ?? ''} ${p.searchCodes}',
+                              ),
+                            )
+                            .toList(),
+                        onChanged: selectProduct,
+                      ),
+                      if (loadingTracking) ...[
+                        const SizedBox(height: 12),
+                        const LinearProgressIndicator(),
+                      ],
+                      if (product?.trackingMode == 'none') ...[
+                        const SizedBox(height: 12),
+                        TextField(
+                          controller: qty,
+                          keyboardType:
+                              const TextInputType.numberWithOptions(
+                                decimal: true,
+                              ),
+                          decoration: InputDecoration(
+                            labelText:
+                                'Quantity (${product?.baseUnitCode ?? ''})',
+                            border: const OutlineInputBorder(),
+                          ),
+                        ),
+                      ],
+                      if (product?.trackingMode == 'serial') ...[
+                        const SizedBox(height: 12),
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            'Select serials (${serialRows.length} available)',
+                            style: Theme.of(context).textTheme.labelLarge,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        if (serialRows.isNotEmpty)
+                          ConstrainedBox(
+                            constraints: const BoxConstraints(maxHeight: 150),
+                            child: SingleChildScrollView(
+                              child: Wrap(
+                                spacing: 6,
+                                runSpacing: 6,
+                                children: serialRows.map((row) {
+                                  final serial =
+                                      row['serial_number']?.toString() ?? '';
+                                  return FilterChip(
+                                    label: Text(serial),
+                                    selected: selectedSerials.contains(serial),
+                                    onSelected: (value) => setItemState(() {
+                                      if (value) {
+                                        selectedSerials.add(serial);
+                                      } else {
+                                        selectedSerials.remove(serial);
+                                      }
+                                    }),
+                                  );
+                                }).toList(),
+                              ),
+                            ),
+                          ),
+                        const SizedBox(height: 8),
+                        TextField(
+                          controller: manualSerials,
+                          minLines: 2,
+                          maxLines: 5,
+                          decoration: const InputDecoration(
+                            labelText: 'Manual / scanned serials',
+                            hintText:
+                                'Optional: one serial per line in addition to selected serials',
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                      ],
+                      if (product?.trackingMode == 'batch') ...[
+                        const SizedBox(height: 12),
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            'Available batches',
+                            style: Theme.of(context).textTheme.labelLarge,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        ...batchRows.take(12).map(
+                          (row) => Align(
+                            alignment: Alignment.centerLeft,
+                            child: Text(
+                              '${row['batch_number']} • available '
+                              '${_number(row['available_quantity']).toStringAsFixed(2)}'
+                              '${row['expiry_on'] == null ? '' : ' • exp ${row['expiry_on']}'}',
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        TextField(
+                          controller: batches,
+                          minLines: 3,
+                          maxLines: 6,
+                          decoration: const InputDecoration(
+                            labelText: 'Batch allocations',
+                            hintText:
+                                'Split across batches: BATCH-NUMBER=QTY\nExample:\nLOT-2401=5\nLOT-2402=3',
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                      ],
+                      if (lineError != null) ...[
+                        const SizedBox(height: 10),
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            lineError!,
+                            style: TextStyle(
+                              color: Theme.of(context).colorScheme.error,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(itemContext),
+                  child: const Text('Cancel'),
+                ),
+                FilledButton.icon(
+                  onPressed: product == null
+                      ? null
+                      : () {
+                          final selectedProduct = product!;
+                          final item = <String, dynamic>{
+                            'variant_id': selectedProduct.variantId,
+                          };
+                          double amount = 0;
+
+                          if (selectedProduct.trackingMode == 'serial') {
+                            final values = <String>{...selectedSerials};
+                            values.addAll(_lines(manualSerials.text));
+                            if (values.isEmpty) {
+                              setItemState(
+                                () => lineError =
+                                    'Select or enter at least one serial number.',
+                              );
+                              return;
+                            }
+                            amount = values.length.toDouble();
+                            item['quantity'] = amount;
+                            item['serial_numbers'] = values.toList();
+                          } else if (selectedProduct.trackingMode == 'batch') {
+                            final parsed =
+                                _parseBatchTransfer(batches.text);
+                            if (parsed.$1 == null) {
+                              setItemState(() => lineError = parsed.$2);
+                              return;
+                            }
+                            item['batches'] = parsed.$1;
+                            amount = parsed.$1!.fold<double>(
+                              0,
+                              (sum, row) =>
+                                  sum + _number(row['quantity']),
+                            );
+                            item['quantity'] = amount;
+                          } else {
+                            amount =
+                                double.tryParse(qty.text.trim()) ?? 0;
+                            if (amount <= 0) {
+                              setItemState(
+                                () => lineError =
+                                    'Enter a valid transfer quantity.',
+                              );
+                              return;
+                            }
+                            if (selectedProduct.itemType == 'stock' &&
+                                amount >
+                                    selectedProduct.stockQuantity +
+                                        0.000001) {
+                              setItemState(
+                                () => lineError =
+                                    'Only ${selectedProduct.stockQuantity.toStringAsFixed(2)} ${selectedProduct.baseUnitCode} available.',
+                              );
+                              return;
+                            }
+                            item['quantity'] = amount;
+                          }
+
+                          Navigator.pop(
+                            itemContext,
+                            (
+                              item,
+                              '${selectedProduct.productName} • '
+                                  '${amount.toStringAsFixed(amount % 1 == 0 ? 0 : 3)} '
+                                  '${selectedProduct.baseUnitCode}',
+                            ),
+                          );
+                        },
+                  icon: const Icon(Icons.add),
+                  label: const Text('Add Product'),
+                ),
+              ],
+            );
+          },
+        ),
+      );
+
+      qty.dispose();
+      manualSerials.dispose();
+      batches.dispose();
+      return result;
+    }
 
     final ok = await showDialog<bool>(
       context: context,
+      barrierDismissible: false,
       builder: (dialogContext) => StatefulBuilder(
-        builder: (context, setDialogState) {
-          Future<void> changeProduct(String? value) async {
-            if (value == null) return;
-            product = products.firstWhere((p) => p.variantId == value);
-            serials.clear();
-            batches.clear();
-            final next = await _service.trackingOptions(
-              tenantId: _tenantId,
-              locationId: sourceId,
-              variantId: product.variantId,
-            );
-            if (dialogContext.mounted) setDialogState(() => tracking = next);
-          }
-
-          final serialRows = (tracking['serials'] as List? ?? const []).whereType<Map>().toList();
-          final batchRows = (tracking['batches'] as List? ?? const []).whereType<Map>().toList();
-          return AlertDialog(
-            title: const Text('Stock Transfer Request'),
-            content: SizedBox(
-              width: 760,
-              child: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    _ReadOnlyField(
-                      label: 'Source',
-                      value: '${_location(sourceId)?.code ?? ''} • ${_location(sourceId)?.name ?? ''}',
-                    ),
-                    const SizedBox(height: 12),
-                    SearchableSelect<String>(
-                      value: toId,
-                      labelText: 'Destination store / warehouse',
-                      isRequired: true,
-                      hintText: 'Search location name or code',
-                      prefixIcon: Icons.warehouse_outlined,
-                      options: destinations
-                          .map((e) => SearchableSelectOption<String>(
-                                value: e.id,
-                                label: '${e.code} • ${e.name}',
-                                subtitle: e.roleLabel,
-                                searchText: '${e.code} ${e.name} ${e.type} ${e.hierarchyRole}',
-                              ))
-                          .toList(),
-                      onChanged: (value) => setDialogState(() => toId = value ?? toId),
-                    ),
-                    const SizedBox(height: 12),
-                    SearchableSelect<String>(
-                      value: product.variantId,
-                      labelText: 'Product',
-                      isRequired: true,
-                      hintText: 'Search product, SKU, barcode or part number',
-                      prefixIcon: Icons.inventory_2_outlined,
-                      options: products
-                          .map((p) => SearchableSelectOption<String>(
-                                value: p.variantId,
-                                label: p.productName,
-                                subtitle: '${p.sku} • Available ${p.stockQuantity.toStringAsFixed(2)}',
-                                searchText: '${p.productName} ${p.variantName} ${p.sku} ${p.barcode ?? ''} ${p.partNumber ?? ''} ${p.searchCodes}',
-                              ))
-                          .toList(),
-                      onChanged: changeProduct,
-                    ),
-                    const SizedBox(height: 12),
-                    if (product.trackingMode == 'none')
-                      TextField(
-                        controller: qty,
-                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                        decoration: InputDecoration(labelText: 'Quantity (${product.baseUnitCode})'),
-                      ),
-                    if (product.trackingMode == 'serial') ...[
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: Text('Available serials: ${serialRows.length}', style: Theme.of(context).textTheme.labelLarge),
-                      ),
-                      const SizedBox(height: 6),
-                      ConstrainedBox(
-                        constraints: const BoxConstraints(maxHeight: 90),
-                        child: SingleChildScrollView(
-                          child: Wrap(
-                            spacing: 6,
-                            runSpacing: 6,
-                            children: serialRows.take(30).map((row) => Chip(label: Text(row['serial_number']?.toString() ?? ''))).toList(),
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Stock Transfer Request'),
+          content: SizedBox(
+            width: 820,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _ReadOnlyField(
+                    label: 'Source',
+                    value:
+                        '${_location(sourceId)?.code ?? ''} • '
+                        '${_location(sourceId)?.name ?? ''}',
+                  ),
+                  const SizedBox(height: 12),
+                  SearchableSelect<String>(
+                    value: toId,
+                    labelText: 'Destination store / warehouse',
+                    isRequired: true,
+                    hintText: 'Search location name or code',
+                    prefixIcon: Icons.warehouse_outlined,
+                    options: destinations
+                        .map(
+                          (e) => SearchableSelectOption<String>(
+                            value: e.id,
+                            label: '${e.code} • ${e.name}',
+                            subtitle: e.roleLabel,
+                            searchText:
+                                '${e.code} ${e.name} ${e.type} ${e.hierarchyRole}',
+                          ),
+                        )
+                        .toList(),
+                    onChanged: (value) =>
+                        setDialogState(() => toId = value ?? toId),
+                  ),
+                  const SizedBox(height: 14),
+                  Row(
+                    children: [
+                      const Expanded(
+                        child: Text(
+                          'Products in this transfer',
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w800,
                           ),
                         ),
                       ),
-                      const SizedBox(height: 8),
-                      TextField(
-                        controller: serials,
-                        minLines: 3,
-                        maxLines: 6,
-                        decoration: const InputDecoration(
-                          labelText: 'Serial numbers to transfer',
-                          hintText: 'One serial per line. Quantity is the number of serials.',
-                        ),
+                      FilledButton.tonalIcon(
+                        onPressed: () async {
+                          final result = await addItem();
+                          if (result == null || !dialogContext.mounted) return;
+                          final variantId =
+                              result.$1['variant_id']?.toString() ?? '';
+                          final duplicate = items.indexWhere(
+                            (row) =>
+                                row['variant_id']?.toString() == variantId,
+                          );
+                          setDialogState(() {
+                            if (duplicate >= 0) {
+                              items[duplicate] = result.$1;
+                              itemLabels[duplicate] = result.$2;
+                            } else {
+                              items.add(result.$1);
+                              itemLabels.add(result.$2);
+                            }
+                          });
+                        },
+                        icon: const Icon(Icons.add),
+                        label: const Text('Add Product'),
                       ),
                     ],
-                    if (product.trackingMode == 'batch') ...[
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: Text('Available batches', style: Theme.of(context).textTheme.labelLarge),
+                  ),
+                  const SizedBox(height: 8),
+                  if (items.isEmpty)
+                    const Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        'No products added yet. Add one or more products to the same transfer.',
                       ),
-                      const SizedBox(height: 6),
-                      ...batchRows.take(8).map((row) => Align(
-                            alignment: Alignment.centerLeft,
-                            child: Text(
-                              '${row['batch_number']} • available ${_number(row['available_quantity']).toStringAsFixed(2)}'
-                              '${row['expiry_on'] == null ? '' : ' • exp ${row['expiry_on']}'}',
-                            ),
-                          )),
-                      const SizedBox(height: 8),
-                      TextField(
-                        controller: batches,
-                        minLines: 3,
-                        maxLines: 6,
-                        decoration: const InputDecoration(
-                          labelText: 'Batch allocations',
-                          hintText: 'One per line: BATCH-NUMBER=QTY\nExample: LOT-2401=5',
+                    ),
+                  ...List.generate(
+                    items.length,
+                    (index) => Card(
+                      margin: const EdgeInsets.only(bottom: 6),
+                      child: ListTile(
+                        title: Text(itemLabels[index]),
+                        subtitle: Text(
+                          items[index]['serial_numbers'] is List
+                              ? '${(items[index]['serial_numbers'] as List).length} serial(s) selected'
+                              : items[index]['batches'] is List
+                              ? '${(items[index]['batches'] as List).length} batch allocation(s)'
+                              : 'Standard quantity',
                         ),
+                        trailing: IconButton(
+                          tooltip: 'Remove product',
+                          onPressed: () => setDialogState(() {
+                            items.removeAt(index);
+                            itemLabels.removeAt(index);
+                          }),
+                          icon: const Icon(Icons.delete_outline),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          expected == null
+                              ? 'Expected arrival: not set'
+                              : 'Expected arrival: ${_date(expected!)}',
+                        ),
+                      ),
+                      TextButton.icon(
+                        onPressed: () async {
+                          final picked = await showDatePicker(
+                            context: dialogContext,
+                            firstDate: DateTime.now(),
+                            lastDate:
+                                DateTime.now().add(const Duration(days: 730)),
+                            initialDate: expected ?? DateTime.now(),
+                          );
+                          if (picked != null) {
+                            setDialogState(() => expected = picked);
+                          }
+                        },
+                        icon: const Icon(Icons.event_outlined),
+                        label: const Text('Set date'),
                       ),
                     ],
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(expected == null ? 'Expected arrival: not set' : 'Expected arrival: ${_date(expected!)}'),
-                        ),
-                        TextButton.icon(
-                          onPressed: () async {
-                            final picked = await showDatePicker(
-                              context: dialogContext,
-                              firstDate: DateTime.now(),
-                              lastDate: DateTime.now().add(const Duration(days: 730)),
-                              initialDate: expected ?? DateTime.now(),
-                            );
-                            if (picked != null) setDialogState(() => expected = picked);
-                          },
-                          icon: const Icon(Icons.event_outlined),
-                          label: const Text('Set date'),
-                        ),
-                      ],
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: transport,
+                    decoration: const InputDecoration(
+                      labelText:
+                          'Transport / vehicle reference (optional)',
                     ),
-                    const SizedBox(height: 8),
-                    TextField(
-                      controller: transport,
-                      decoration: const InputDecoration(labelText: 'Transport / vehicle reference (optional)'),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: notes,
+                    maxLines: 2,
+                    decoration: const InputDecoration(
+                      labelText: 'Request notes (optional)',
                     ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: notes,
-                      maxLines: 2,
-                      decoration: const InputDecoration(labelText: 'Request notes (optional)'),
-                    ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
-            actions: [
-              TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Cancel')),
-              FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('Request Transfer')),
-            ],
-          );
-        },
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton.icon(
+              onPressed: items.isEmpty
+                  ? null
+                  : () => Navigator.pop(dialogContext, true),
+              icon: const Icon(Icons.swap_horiz),
+              label: Text(
+                items.length <= 1
+                    ? 'Request Transfer'
+                    : 'Transfer ${items.length} Products',
+              ),
+            ),
+          ],
+        ),
       ),
     );
+
     if (ok != true) {
-      qty.dispose();
-      serials.dispose();
-      batches.dispose();
       notes.dispose();
       transport.dispose();
       return;
-    }
-
-    final item = <String, dynamic>{'variant_id': product.variantId};
-    if (product.trackingMode == 'serial') {
-      final values = _lines(serials.text);
-      if (values.isEmpty) {
-        _message('Enter at least one serial number.');
-        return;
-      }
-      item['quantity'] = values.length;
-      item['serial_numbers'] = values;
-    } else if (product.trackingMode == 'batch') {
-      final parsed = _parseBatchTransfer(batches.text);
-      if (parsed.$1 == null) {
-        _message(parsed.$2);
-        return;
-      }
-      item['batches'] = parsed.$1;
-      item['quantity'] = parsed.$1!.fold<double>(0, (sum, row) => sum + _number(row['quantity']));
-    } else {
-      final amount = double.tryParse(qty.text.trim()) ?? 0;
-      if (amount <= 0) {
-        _message('Enter a valid transfer quantity.');
-        return;
-      }
-      item['quantity'] = amount;
     }
 
     try {
@@ -335,19 +606,19 @@ class _StockTransfersScreenState extends State<StockTransfersScreen> {
         tenantId: _tenantId,
         fromLocationId: sourceId,
         toLocationId: toId,
-        items: [item],
+        items: items,
         notes: notes.text,
         expectedArrival: expected,
         transportReference: transport.text,
       );
-      _message('Transfer ${result['transfer_number']} requested and stock reserved.');
+      _message(
+        'Transfer ${result['transfer_number']} requested with '
+        '${items.length} product${items.length == 1 ? '' : 's'} and stock reserved.',
+      );
       await _refresh();
     } catch (error) {
       _message(_cleanError(error));
     } finally {
-      qty.dispose();
-      serials.dispose();
-      batches.dispose();
       notes.dispose();
       transport.dispose();
     }

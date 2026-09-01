@@ -114,7 +114,7 @@ class SalesService {
     required String saleId,
   }) async {
     final result = await _supabase.rpc(
-      'sales_get_detail_v495',
+      'sales_get_detail_v520',
       params: {'p_tenant_id': tenantId, 'p_sale_id': saleId},
     );
     if (result is Map) {

@@ -1,0 +1,98 @@
+name: THQ ERP CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  flutter-checks:
+    name: Flutter - ${{ matrix.project }}
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        project:
+          - apps/admin_panel
+          - apps/client_app
+          - apps/client_mobile
+          - apps/pos_app
+          - apps/pos_mobile
+          - packages/flexi_core
+          - packages/thq_models
+          - packages/thq_repositories
+          - packages/thq_ui
+
+    defaults:
+      run:
+        working-directory: ${{ matrix.project }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Resolve dependencies
+        run: flutter pub get
+
+      - name: Analyze
+        run: flutter analyze
+
+      - name: Run tests when present
+        shell: bash
+        run: |
+          if [ -d test ] && find test -type f -name '*_test.dart' -print -quit | grep -q .; then
+            flutter test
+          else
+            echo "No tests found for this project."
+          fi
+
+  repository-guards:
+    name: Repository guards
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Check whitespace
+        run: git diff --check HEAD^
+
+      - name: Reject committed THQ backup trees
+        shell: bash
+        run: |
+          if find . -maxdepth 1 -type d -name '.thq_*_backup_*' | grep -q .; then
+            echo "ERROR: THQ backup source directory committed to repository."
+            exit 1
+          fi
+
+      - name: Reject duplicate migration numbers
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from collections import Counter
+
+          migrations = list(Path("backend/migrations").glob("[0-9]*_*.sql"))
+          numbers = [p.name.split("_", 1)[0] for p in migrations]
+
+          duplicates = sorted(
+              number for number, count in Counter(numbers).items()
+              if count > 1
+          )
+
+          if duplicates:
+              raise SystemExit(
+                  "Duplicate backend migration numbers: "
+                  + ", ".join(duplicates)
+              )
+
+          print(f"Checked {len(migrations)} backend migrations.")
+          PY

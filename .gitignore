@@ -27,3 +27,7 @@ Thumbs.db
 *.jks
 *.keystore
 key.properties
+
+
+.thq_*_backup_*/
+*.dart.before_*
