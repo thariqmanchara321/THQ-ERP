@@ -15,6 +15,7 @@ import '../services/navigation_service.dart';
 import '../services/thq_api_service.dart';
 import '../services/ui_design_service.dart';
 import '../ui/v43_theme.dart';
+import '../ui/v600_client_theme.dart';
 import 'accounting_screen.dart';
 import 'approvals_screen.dart';
 import 'backup_export_screen.dart';
@@ -354,7 +355,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
         return UiDesignScope(
           profile: profile,
           child: Theme(
-            data: profile.theme(),
+            data: ClientV600Theme.apply(profile.theme(), profile),
             child: LayoutBuilder(
               builder: (context, constraints) {
                 if (constraints.maxWidth >= 900) {
@@ -370,8 +371,18 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
   }
 
   Widget _desktop(ClientModule selected, UiDesignProfile profile) {
-    final width = _navCollapsed ? 64.0 : 224.0;
+    final width = _navCollapsed ? 56.0 : 208.0;
+    final workspaceBackground = Color.alphaBlend(
+      profile.primary.withValues(alpha: .035),
+      profile.background,
+    );
+    final sidebarBackground = Color.alphaBlend(
+      profile.primary.withValues(alpha: .055),
+      profile.surface,
+    );
+
     return Scaffold(
+      backgroundColor: workspaceBackground,
       body: Row(
         children: [
           AnimatedContainer(
@@ -379,17 +390,8 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
             duration: const Duration(milliseconds: 180),
             curve: Curves.easeOut,
             decoration: BoxDecoration(
-              color: profile.sidebar,
+              color: sidebarBackground,
               border: Border(right: BorderSide(color: profile.border)),
-              boxShadow: profile.sidebarStyle == 'floating'
-                  ? [
-                      BoxShadow(
-                        color: profile.primary.withValues(alpha: 0.045),
-                        blurRadius: 28,
-                        offset: const Offset(8, 0),
-                      ),
-                    ]
-                  : const [],
             ),
             child: SafeArea(
               child: Column(
@@ -397,23 +399,29 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
                   _brandHeader(collapsed: _navCollapsed, profile: profile),
                   if (!_navCollapsed)
                     Padding(
-                      padding: const EdgeInsets.fromLTRB(14, 4, 14, 12),
-                      child: TextField(
-                        controller: _menuSearch,
-                        onChanged: (value) =>
-                            setState(() => _menuQuery = value),
-                        onSubmitted: (value) {
-                          if (value.trim().isNotEmpty) _openSearch(value);
-                        },
-                        decoration: const InputDecoration(
-                          isDense: true,
-                          hintText: 'Find menu or search THQ…',
-                          prefixIcon: Icon(Icons.search, size: 20),
+                      padding: const EdgeInsets.fromLTRB(10, 2, 10, 8),
+                      child: SizedBox(
+                        height: 34,
+                        child: TextField(
+                          controller: _menuSearch,
+                          onChanged: (value) =>
+                              setState(() => _menuQuery = value),
+                          onSubmitted: (value) {
+                            if (value.trim().isNotEmpty) _openSearch(value);
+                          },
+                          decoration: const InputDecoration(
+                            isDense: true,
+                            hintText: 'Find anythingâ€¦',
+                            prefixIcon: Icon(Icons.search, size: 17),
+                          ),
                         ),
                       ),
                     ),
                   Expanded(
-                    child: _navList(collapsed: _navCollapsed, profile: profile),
+                    child: _navList(
+                      collapsed: _navCollapsed,
+                      profile: profile,
+                    ),
                   ),
                   const Divider(height: 1),
                   _navAction(
@@ -422,36 +430,78 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
                         : Icons.keyboard_double_arrow_left,
                     label: _navCollapsed ? 'Expand' : 'Collapse',
                     collapsed: _navCollapsed,
-                    onTap: () => setState(() => _navCollapsed = !_navCollapsed),
+                    onTap: () =>
+                        setState(() => _navCollapsed = !_navCollapsed),
                   ),
                   _navAction(
-                    icon: Icons.logout,
+                    icon: Icons.logout_rounded,
                     label: 'Sign Out',
                     collapsed: _navCollapsed,
                     onTap: _logout,
                   ),
-                  const SizedBox(height: 8),
+                  if (!_navCollapsed)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(12, 2, 12, 8),
+                      child: Text(
+                        'v${ThqReleaseContract.appVersion}  â€¢  Build ${ThqReleaseContract.buildNumber}',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 9.5,
+                          fontWeight: FontWeight.w600,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    )
+                  else
+                    const SizedBox(height: 6),
                 ],
               ),
             ),
           ),
           Expanded(
-            child: Column(
-              children: [
-                _topBar(selected, profile),
-                _SubscriptionBanner(session: _session),
-                Expanded(
-                  child: ValueListenableBuilder<String?>(
-                    valueListenable: LocationScopeService.selectedLocationId,
-                    builder: (_, locationId, _) => KeyedSubtree(
-                      key: ValueKey(
-                        '${selected.key}:${locationId ?? 'all'}:$_contentGeneration',
+            child: ColoredBox(
+              color: workspaceBackground,
+              child: Column(
+                children: [
+                  _topBar(selected, profile),
+                  _SubscriptionBanner(session: _session),
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          color: profile.surface,
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: profile.border),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: .035),
+                              blurRadius: 16,
+                              offset: const Offset(0, 5),
+                            ),
+                          ],
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(13),
+                          child: ValueListenableBuilder<String?>(
+                            valueListenable:
+                                LocationScopeService.selectedLocationId,
+                            builder: (_, locationId, _) => KeyedSubtree(
+                              key: ValueKey(
+                                '${selected.key}:${locationId ?? 'all'}:$_contentGeneration',
+                              ),
+                              child: _ModulePage(
+                                module: selected,
+                                session: _session,
+                              ),
+                            ),
+                          ),
+                        ),
                       ),
-                      child: _ModulePage(module: selected, session: _session),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ],
@@ -501,7 +551,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
                   },
                   decoration: const InputDecoration(
                     isDense: true,
-                    hintText: 'Find menu or search THQ…',
+                    hintText: 'Find menu or search THQâ€¦',
                     prefixIcon: Icon(Icons.search),
                   ),
                 ),
@@ -593,8 +643,8 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
                   const SizedBox(height: 2),
                   Text(
                     device == null
-                        ? 'THQ Business • v${ThqReleaseContract.appVersion}'
-                        : '${device.locationCode} • ${device.deviceCode}',
+                        ? 'THQ Business â€¢ v${ThqReleaseContract.appVersion}'
+                        : '${device.locationCode} â€¢ ${device.deviceCode}',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
@@ -867,57 +917,77 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
     bool nested = false,
   }) {
     final active = module.key == _selectedModuleKey;
-    final primary = profile?.primary ?? Theme.of(context).colorScheme.primary;
+    final scheme = Theme.of(context).colorScheme;
+    final primary = profile?.primary ?? scheme.primary;
+    final inactive = scheme.onSurfaceVariant;
+
+    final tile = Material(
+      color: active
+          ? Color.alphaBlend(
+              primary.withValues(alpha: .12),
+              scheme.surface,
+            )
+          : Colors.transparent,
+      borderRadius: BorderRadius.circular(8),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: () {
+          setState(() => _selectedModuleKey = module.key);
+          if (closeDrawer) Navigator.of(context).pop();
+        },
+        child: SizedBox(
+          height: 34,
+          child: Row(
+            children: [
+              Container(
+                width: 3,
+                height: double.infinity,
+                color: active ? primary : Colors.transparent,
+              ),
+              if (!collapsed) const SizedBox(width: 7),
+              Expanded(
+                flex: collapsed ? 1 : 0,
+                child: Align(
+                  alignment:
+                      collapsed ? Alignment.center : Alignment.centerLeft,
+                  child: Icon(
+                    _moduleIcon(module.key),
+                    size: 17,
+                    color: active ? primary : inactive,
+                  ),
+                ),
+              ),
+              if (!collapsed) ...[
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 11.5,
+                      fontWeight:
+                          active ? FontWeight.w700 : FontWeight.w500,
+                      color: active ? scheme.onSurface : inactive,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+
     return Tooltip(
       message: collapsed ? label : '',
       child: Padding(
-        padding: EdgeInsets.only(bottom: 2, left: nested && !collapsed ? 9 : 0),
-        child: Material(
-          color: active ? primary.withValues(alpha: .10) : Colors.transparent,
-          borderRadius: BorderRadius.circular(8),
-          child: InkWell(
-            borderRadius: BorderRadius.circular(8),
-            onTap: () {
-              setState(() => _selectedModuleKey = module.key);
-              if (closeDrawer) Navigator.of(context).pop();
-            },
-            child: SizedBox(
-              height: 38,
-              child: Row(
-                mainAxisAlignment: collapsed
-                    ? MainAxisAlignment.center
-                    : MainAxisAlignment.start,
-                children: [
-                  if (!collapsed) const SizedBox(width: 10),
-                  Icon(
-                    _moduleIcon(module.key),
-                    size: 18,
-                    color: active
-                        ? primary
-                        : Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
-                  if (!collapsed) ...[
-                    const SizedBox(width: 9),
-                    Expanded(
-                      child: Text(
-                        label,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: active
-                              ? FontWeight.w700
-                              : FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                  ],
-                ],
-              ),
-            ),
-          ),
+        padding: EdgeInsets.only(
+          bottom: 2,
+          left: nested && !collapsed ? 8 : 0,
         ),
+        child: tile,
       ),
     );
   }
@@ -956,124 +1026,117 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
 
   Widget _topBar(ClientModule selected, UiDesignProfile? profile) {
     final device = _session.device;
+    final scheme = Theme.of(context).colorScheme;
+    final border = profile?.border ?? Theme.of(context).dividerColor;
+
     return Container(
-      height: 54,
-      padding: const EdgeInsets.symmetric(horizontal: 14),
+      height: 48,
+      padding: const EdgeInsets.symmetric(horizontal: 12),
       decoration: BoxDecoration(
-        color: profile?.surface ?? Theme.of(context).colorScheme.surface,
-        border: Border(
-          bottom: BorderSide(
-            color: profile?.border ?? Theme.of(context).dividerColor,
-          ),
-        ),
+        color: profile?.surface ?? scheme.surface,
+        border: Border(bottom: BorderSide(color: border)),
       ),
       child: Row(
         children: [
+          Container(
+            width: 4,
+            height: 24,
+            decoration: BoxDecoration(
+              color: profile?.primary ?? scheme.primary,
+              borderRadius: BorderRadius.circular(999),
+            ),
+          ),
+          const SizedBox(width: 9),
           Expanded(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  _session.business.name,
+                  _moduleLabel(selected.key, selected.name),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    fontSize: 15,
+                    fontSize: 14,
                     fontWeight: FontWeight.w800,
+                    letterSpacing: -.15,
                   ),
                 ),
                 Text(
                   [
-                    _moduleLabel(selected.key, selected.name),
+                    _session.business.name,
                     if (device != null && device.locationCode.isNotEmpty)
                       device.locationCode,
                     if (device != null && device.deviceName.isNotEmpty)
                       device.deviceName,
-                  ].join(' • '),
+                  ].join('  â€¢  '),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontSize: 10.5,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    fontSize: 9.5,
+                    color: scheme.onSurfaceVariant,
                   ),
                 ),
               ],
             ),
           ),
-          _scopeSelector(width: 280),
-          const SizedBox(width: 8),
-          OutlinedButton.icon(
+          _scopeSelector(width: 238),
+          const SizedBox(width: 6),
+          IconButton(
+            tooltip: _updatesAvailable ? 'Updates available â€” Refresh' : 'Refresh',
+            visualDensity: VisualDensity.compact,
             onPressed: _refreshing ? null : _refreshAll,
             icon: _refreshing
-                ? const SizedBox(
-                    width: 16,
-                    height: 16,
+                ? const SizedBox.square(
+                    dimension: 16,
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
-                : const Icon(Icons.refresh, size: 18),
-            label: Text(_updatesAvailable ? 'Updates • Refresh' : 'Refresh'),
+                : Badge(
+                    isLabelVisible: _updatesAvailable,
+                    child: const Icon(Icons.refresh_rounded, size: 19),
+                  ),
           ),
-          const SizedBox(width: 8),
-          FilledButton.tonalIcon(
+          IconButton(
+            tooltip: 'Search THQ',
+            visualDensity: VisualDensity.compact,
             onPressed: () => _openSearch(),
-            icon: const Icon(Icons.search, size: 19),
-            label: const Text('Search'),
+            icon: const Icon(Icons.search_rounded, size: 19),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 4),
           Tooltip(
-            message: '${_session.username} • ${_session.roleLabel}',
+            message: '${_session.username} â€¢ ${_session.roleLabel}',
             child: Container(
-              constraints: const BoxConstraints(maxWidth: 210),
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+              constraints: const BoxConstraints(maxWidth: 150),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
               decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                borderRadius: BorderRadius.circular(12),
+                color: scheme.surfaceContainerHighest.withValues(alpha: .65),
+                borderRadius: BorderRadius.circular(9),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   CircleAvatar(
-                    radius: 15,
+                    radius: 12,
                     child: Text(
                       _session.username.isEmpty
                           ? '?'
                           : _session.username.substring(0, 1).toUpperCase(),
                       style: const TextStyle(
-                        fontSize: 12,
+                        fontSize: 10,
                         fontWeight: FontWeight.w800,
                       ),
                     ),
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 6),
                   Flexible(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          _session.username.isEmpty
-                              ? 'User'
-                              : _session.username,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w700,
-                            fontSize: 12,
-                          ),
-                        ),
-                        Text(
-                          _session.roleLabel,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: 9,
-                            color: Theme.of(
-                              context,
-                            ).colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                      ],
+                    child: Text(
+                      _session.username.isEmpty ? 'User' : _session.username,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ),
                 ],
@@ -1119,13 +1182,13 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
               if (_session.canViewAllLocations)
                 const DropdownMenuItem<String?>(
                   value: null,
-                  child: Text('All stores • merged'),
+                  child: Text('All stores â€¢ merged'),
                 ),
               ...LocationScopeService.orderedLocations(_session).map(
                 (location) => DropdownMenuItem<String?>(
                   value: location.id,
                   child: Text(
-                    '${location.code} • ${location.name} • ${location.roleLabel}',
+                    '${location.code} â€¢ ${location.name} â€¢ ${location.roleLabel}',
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
@@ -1173,7 +1236,7 @@ class _SubscriptionBanner extends StatelessWidget {
           const SizedBox(width: 8),
           Expanded(
             child: Text(
-              'Subscription ${status.replaceAll('_', ' ')}${blocked ? ' — contact your administrator to restore module access.' : '.'}',
+              'Subscription ${status.replaceAll('_', ' ')}${blocked ? ' â€” contact your administrator to restore module access.' : '.'}',
             ),
           ),
         ],
@@ -1284,7 +1347,7 @@ class _ComingSoon extends StatelessWidget {
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    '${session.currencyCode} • ${session.locale}',
+                    '${session.currencyCode} â€¢ ${session.locale}',
                     style: TextStyle(
                       color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
