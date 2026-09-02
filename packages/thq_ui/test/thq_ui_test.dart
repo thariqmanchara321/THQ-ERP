@@ -144,4 +144,39 @@ void main() {
     expect(find.text('INV-001'), findsOneWidget);
     expect(find.text('₹1,000'), findsOneWidget);
   });
+
+  testWidgets('command surface stays compact and interactive', (tester) async {
+    var opened = false;
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ThqTheme.light(),
+        home: Scaffold(
+          body: SizedBox(
+            width: 900,
+            child: ThqResponsiveWrap(
+              children: [
+                ThqCommandCard(
+                  title: 'Businesses',
+                  subtitle: 'Tenants, users and access',
+                  icon: Icons.store_outlined,
+                  onTap: () => opened = true,
+                ),
+                ThqCommandCard(
+                  title: 'Modules',
+                  subtitle: 'Core and industry features',
+                  icon: Icons.extension_outlined,
+                  onTap: () {},
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('Businesses'), findsOneWidget);
+    await tester.tap(find.text('Businesses'));
+    expect(opened, isTrue);
+  });
+
 }

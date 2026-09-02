@@ -31,6 +31,8 @@ dependencies:
     sdk: flutter
   erp_core:
     path: ../../packages/erp_core
+  thq_ui:
+    path: ../../packages/thq_ui
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
