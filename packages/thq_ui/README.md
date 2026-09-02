@@ -1,21 +1,32 @@
 # THQ UI
 
-Shared design foundation for THQ ERP Admin, Client, POS, Client Mobile, and POS Mobile.
+Shared presentation foundation for THQ ERP applications.
 
-## UI transformation checkpoint 1
+## Update 1 foundation
 
-This package introduces design tokens, responsive breakpoints, semantic status colors,
-Material themes, and small reusable controls. It is intentionally not referenced by any
-production application yet, so adding this checkpoint does not alter transaction,
-accounting, GST, inventory, activation, printing, or offline behavior.
+- Material 3 light/dark THQ themes
+- spacing, radius, sizing, motion and breakpoint tokens
+- THQ typography and tabular monetary styles
+- semantic success/warning/critical/info/neutral colors
+- primary, secondary, danger and busy-safe buttons
+- compact text, numeric and search fields
+- cards, summary cards, status badges and compact notification toasts
+- loading, empty and error states
 
-The initial dark palette is compatible with the existing Client Aurora/v4.3 visual
-language so application migration can be incremental instead of a destructive rewrite.
+## Update 2 workspace primitives
 
-## Rules
+- `ThqDesktopShell` — fixed 224px / collapsed 64px desktop navigation with mobile drawer fallback
+- `ThqTopBar` — compact fixed top bar with scope/action slots
+- `ThqPageFrame` — fixed page header/toolbar/footer while page content owns scrolling
+- `ThqSplitPane` and `ThqWorkspacePane` — master/detail one-screen workspaces
+- `ThqFilterBar` and `ThqFilterChip` — dense search/filter/action controls
+- `ThqDenseTable` — fixed header with internal horizontal/vertical scrolling
+- `ThqFormSection` and `ThqFormGrid` — responsive dense forms
+- `ThqStickyActionBar` — fixed confirm/print/save actions
+- `ThqDraftController` and `ThqDraftProtection` — dirty/submitting state and discard confirmation
 
-- Keep business and backend logic out of this package.
-- Prefer semantic tokens over screen-specific hardcoded colors or sizes.
-- Keep notifications non-modal by default and never request focus.
-- Buttons with `busy: true` are disabled while displaying progress.
-- Application permissions and transaction integrity remain authoritative outside UI.
+## Design rules
+
+The package is presentation-only. It must not own tenant logic, GST logic, inventory rules, accounting writers, permissions, offline synchronization, or transaction persistence.
+
+Desktop transaction workspaces should keep navigation, page headers and final actions visible. Long lists and dense tables scroll inside their own pane rather than forcing the entire Sales/Purchase workspace to scroll. Mobile uses the same semantics with touch-safe sizing and responsive stacking.
