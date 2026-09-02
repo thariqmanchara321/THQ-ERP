@@ -5,8 +5,8 @@
 /// legacy modules refuse to start. GST-bearing writes are gated separately by
 /// gst_transaction_cutover_contract_v520 and fail closed when v5.2 is not ready.
 abstract final class ThqReleaseContract {
-  static const String appVersion = '5.2.1';
-  static const int buildNumber = 29;
+  static const String appVersion = '6.0.0';
+  static const int buildNumber = 1;
   static const int minimumMigration = 213;
   static const String releaseName = 'GST & Compliance / Authoritative GST';
   static const String apiVersion = 'v1';

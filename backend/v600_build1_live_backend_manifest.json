@@ -1,0 +1,122 @@
+{
+  "product": "THQ ERP",
+  "release": "6.0.0",
+  "build": 1,
+  "title": "Audit Intelligence & Explainability",
+  "supabase_project": "flexi-erp-dev",
+  "supabase_project_ref": "yguzrxcdvyimjrfvtcvp",
+  "backend_live_releases": [
+    {
+      "migration_no": 255,
+      "name": "THQ Transaction Story Foundation"
+    },
+    {
+      "migration_no": 256,
+      "name": "THQ Transaction Story Capture + History"
+    },
+    {
+      "migration_no": 257,
+      "name": "Audit Center + Risk Engine"
+    },
+    {
+      "migration_no": 258,
+      "name": "Product Profitability + Profit Explanation"
+    },
+    {
+      "migration_no": 259,
+      "name": "Explain This Number Engine"
+    },
+    {
+      "migration_no": 260,
+      "name": "Explain Balance Scope Hotfix"
+    },
+    {
+      "migration_no": 261,
+      "name": "Explain Driver Hardening"
+    },
+    {
+      "migration_no": 262,
+      "name": "GST Story + Why Explanation Contract"
+    },
+    {
+      "migration_no": 263,
+      "name": "Audit Historical Bootstrap + Export"
+    },
+    {
+      "migration_no": 264,
+      "name": "Audit Writer Overload Hotfix"
+    },
+    {
+      "migration_no": 265,
+      "name": "History Quality + Return Correlation"
+    },
+    {
+      "migration_no": 266,
+      "name": "Historical Risk False-Positive Correction"
+    },
+    {
+      "migration_no": 267,
+      "name": "Audit Active-Risk Semantics"
+    },
+    {
+      "migration_no": 268,
+      "name": "Audit Center Client Navigation"
+    },
+    {
+      "migration_no": 269,
+      "name": "v6.0 Build 1 App Release Registry"
+    }
+  ],
+  "supabase_migration_versions": [
+    "20260901213246_v600_transaction_story_foundation",
+    "20260901213410_v600_transaction_story_capture_and_history",
+    "20260901213608_v600_audit_center_risk_engine",
+    "20260901213821_v600_product_profitability",
+    "20260901214030_v600_explain_this_number",
+    "20260901214121_v600_explain_balance_scope_hotfix",
+    "20260901214232_v600_explain_driver_hardening",
+    "20260901214445_v600_gst_story_and_transaction_explanation",
+    "20260901214643_v600_audit_historical_bootstrap_and_export",
+    "20260901214731_v600_audit_writer_overload_hotfix",
+    "20260901214858_v600_history_quality_and_return_correlation",
+    "20260901215107_v600_historical_risk_false_positive_fix",
+    "20260901215152_v600_audit_active_risk_semantics",
+    "v600_audit_center_client_menu",
+    "v600_build1_app_release_registry"
+  ],
+  "rules_preserved": [
+    "v5.1/v4.8.x transactions retain generic accounting plus legacy_unverified GST evidence.",
+    "v5.2 transactions retain authoritative GST snapshot plus component accounting.",
+    "No fallback to a legacy writer after a v5.2 authoritative transaction failure.",
+    "Flutter explainability screens display backend-calculated values; they do not calculate accounting truth."
+  ],
+  "package_scope": {
+    "client": "fully wired Audit Center module, findings, transaction story, profitability and metric explanation",
+    "pos": "lightweight read-only transaction-history screen supplied; installer does not inject an unverified POS navigation anchor",
+    "admin": "tenant risk-settings screen supplied; installer does not inject an unverified Admin navigation anchor",
+    "backend": "live releases 255-269 manifest plus repo mirrors of migrations 268-269; authoritative backend 255-267 remains live in Supabase"
+  },
+  "live_schema_releases": [
+    255,
+    256,
+    257,
+    258,
+    259,
+    260,
+    261,
+    262,
+    263,
+    264,
+    265,
+    266,
+    267,
+    268,
+    269
+  ],
+  "live_backend_release_range": "255-269",
+  "app_version": "6.0.0",
+  "build_number": 1,
+  "package_notes": [
+    "Migrations 268 and 269 are included as repo mirrors of live changes. Earlier v6 migrations 255-267 are already live in Supabase and are enumerated by exact Supabase migration version/name in this manifest."
+  ]
+}

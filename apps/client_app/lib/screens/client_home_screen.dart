@@ -5,6 +5,7 @@ import 'package:erp_core/erp_core.dart';
 
 import '../models/client_session.dart';
 import '../features/gst/gst_v520_entry_screen.dart';
+import '../features/audit_intelligence/audit_intelligence_screen.dart';
 import '../models/app_menu_node.dart';
 import '../services/client_auth_service.dart';
 import '../services/client_session_service.dart';
@@ -330,6 +331,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
     'expenses' => Icons.payments_outlined,
     'accounting' => Icons.account_balance_outlined,
     'gst_compliance' => Icons.receipt_long_outlined,
+    'audit_center' => Icons.policy_outlined,
     'reports' => Icons.insights_outlined,
     'barcode' => Icons.qr_code_scanner_outlined,
     'warranty' => Icons.verified_user_outlined,
@@ -1273,6 +1275,7 @@ class _ModulePage extends StatelessWidget {
       'expenses' => ExpensesScreen(session: session),
       'accounting' => AccountingScreen(session: session),
       'gst_compliance' => GstV520EntryScreen(session: session),
+      'audit_center' => AuditIntelligenceScreen(session: session),
       'reports' => ReportsScreen(session: session),
       'returns' => ReturnsRegisterScreen(session: session),
       'invoice_templates' => InvoiceDesignerScreen(session: session),
