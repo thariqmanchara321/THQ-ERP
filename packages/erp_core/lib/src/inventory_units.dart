@@ -20,15 +20,15 @@ class InventoryUnit {
   });
 
   factory InventoryUnit.fromMap(Map<String, dynamic> map) => InventoryUnit(
-        id: map['unit_id']?.toString() ?? map['id']?.toString() ?? '',
-        code: map['code']?.toString() ?? '',
-        name: map['name']?.toString() ?? '',
-        group: map['unit_group']?.toString() ?? 'count',
-        decimalPlaces: (map['decimal_places'] as num?)?.toInt() ?? 0,
-        allowFractional: map['allow_fractional'] == true,
-        systemUnit: map['system_unit'] == true,
-        active: map['active'] != false,
-      );
+    id: map['unit_id']?.toString() ?? map['id']?.toString() ?? '',
+    code: map['code']?.toString() ?? '',
+    name: map['name']?.toString() ?? '',
+    group: map['unit_group']?.toString() ?? 'count',
+    decimalPlaces: (map['decimal_places'] as num?)?.toInt() ?? 0,
+    allowFractional: map['allow_fractional'] == true,
+    systemUnit: map['system_unit'] == true,
+    active: map['active'] != false,
+  );
 }
 
 class ProductUnitOption {
@@ -90,20 +90,25 @@ class ProductUnitOption {
       conversionToBase: number(map['conversion_to_base'], 1),
       quantityStep: number(map['quantity_step'], 1),
       salePrice: map['sale_price'] == null ? null : number(map['sale_price']),
-      purchaseCost: map['purchase_cost'] == null ? null : number(map['purchase_cost']),
+      purchaseCost: map['purchase_cost'] == null
+          ? null
+          : number(map['purchase_cost']),
       cuttingAllowed: map['cutting_allowed'] == true,
       cuttingCharge: number(map['cutting_charge']),
       active: map['active'] != false,
     );
   }
 
-  double salePriceFor(double basePrice) => salePrice ?? basePrice * conversionToBase;
-  double purchaseCostFor(double baseCost) => purchaseCost ?? baseCost * conversionToBase;
+  double salePriceFor(double basePrice) =>
+      salePrice ?? basePrice * conversionToBase;
+  double purchaseCostFor(double baseCost) =>
+      purchaseCost ?? baseCost * conversionToBase;
   double toBase(double quantity) => quantity * conversionToBase;
 
   bool acceptsQuantity(double quantity) {
     if (quantity <= 0) return false;
-    if (!allowFractional && (quantity - quantity.roundToDouble()).abs() > 0.000001) {
+    if (!allowFractional &&
+        (quantity - quantity.roundToDouble()).abs() > 0.000001) {
       return false;
     }
     final step = quantityStep > 0 ? quantityStep : 1.0;
@@ -112,6 +117,6 @@ class ProductUnitOption {
   }
 
   String formatQuantity(double value) => value.toStringAsFixed(
-        allowFractional ? decimalPlaces.clamp(0, 6).toInt() : 0,
-      );
+    allowFractional ? decimalPlaces.clamp(0, 6).toInt() : 0,
+  );
 }

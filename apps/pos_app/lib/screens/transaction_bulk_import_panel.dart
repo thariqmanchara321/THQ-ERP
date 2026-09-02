@@ -198,33 +198,42 @@ class _TransactionBulkImportPanelState
       ]);
     }
     final info = excel['Instructions'];
-    info.appendRow([TextCellValue('THQ ERP $_label Bulk Import • v5.1.0 Build 27')]);
+    info.appendRow([
+      TextCellValue('THQ ERP $_label Bulk Import • v5.1.0 Build 27'),
+    ]);
     info.appendRow([
       TextCellValue('Grouping'),
-      TextCellValue('Every row with the same document_ref becomes one transaction.'),
+      TextCellValue(
+        'Every row with the same document_ref becomes one transaction.',
+      ),
     ]);
     info.appendRow([
       TextCellValue('Products'),
-      TextCellValue('Use SKU (recommended) or barcode. Serial/batch tracked products must be entered manually so trace data cannot be skipped.'),
+      TextCellValue(
+        'Use SKU (recommended) or barcode. Serial/batch tracked products must be entered manually so trace data cannot be skipped.',
+      ),
     ]);
     info.appendRow([
       TextCellValue('Parties'),
-      TextCellValue(_isSale
-          ? 'Use customer_code, exact customer_name or customer_phone. Walk-in/customer records must already exist in THQ.'
-          : 'Use supplier_code or exact supplier_name. Supplier must already exist in THQ.'),
+      TextCellValue(
+        _isSale
+            ? 'Use customer_code, exact customer_name or customer_phone. Walk-in/customer records must already exist in THQ.'
+            : 'Use supplier_code or exact supplier_name. Supplier must already exist in THQ.',
+      ),
     ]);
     info.appendRow([
       TextCellValue('Header values'),
-      TextCellValue('additional_charges, round_off, initial_payment, payment fields and notes are document-level. Put them on the first line or repeat the same values.'),
+      TextCellValue(
+        'additional_charges, round_off, initial_payment, payment fields and notes are document-level. Put them on the first line or repeat the same values.',
+      ),
     ]);
     info.appendRow([
       TextCellValue('Safety'),
-      TextCellValue('THQ previews and validates the entire file first. Only valid documents are sent to the normal stock/tax/payment/accounting engine.'),
+      TextCellValue(
+        'THQ previews and validates the entire file first. Only valid documents are sent to the normal stock/tax/payment/accounting engine.',
+      ),
     ]);
-    info.appendRow([
-      TextCellValue('Dates'),
-      TextCellValue('Use YYYY-MM-DD.'),
-    ]);
+    info.appendRow([TextCellValue('Dates'), TextCellValue('Use YYYY-MM-DD.')]);
     final raw = excel.save();
     if (raw == null) throw Exception('Could not create template.');
     await FileSaver.instance.saveFile(
@@ -260,7 +269,9 @@ class _TransactionBulkImportPanelState
           .toList();
       if (!headers.contains('document_ref') ||
           (!headers.contains('sku') && !headers.contains('barcode'))) {
-        throw Exception('Use the THQ template. document_ref and SKU/barcode columns are required.');
+        throw Exception(
+          'Use the THQ template. document_ref and SKU/barcode columns are required.',
+        );
       }
       final rows = <_SourceRow>[];
       for (var r = 1; r < sheet.rows.length; r++) {
@@ -322,13 +333,15 @@ class _TransactionBulkImportPanelState
     for (final row in rows) {
       final ref = _value(row.data, 'document_ref');
       if (ref.isEmpty) {
-        ungrouped.add(_TransactionImportDocument(
-          reference: 'Row ${row.rowNumber}',
-          rowCount: 1,
-          payload: const {},
-          errors: ['Row ${row.rowNumber}: document_ref is required.'],
-          total: 0,
-        ));
+        ungrouped.add(
+          _TransactionImportDocument(
+            reference: 'Row ${row.rowNumber}',
+            rowCount: 1,
+            payload: const {},
+            errors: ['Row ${row.rowNumber}: document_ref is required.'],
+            total: 0,
+          ),
+        );
         continue;
       }
       groups.putIfAbsent(ref, () => []).add(row);
@@ -352,7 +365,9 @@ class _TransactionBulkImportPanelState
           phone: _value(first.data, 'customer_phone'),
         );
         if (party == null) {
-          errors.add('Customer not found. Use an existing customer code, exact name or phone.');
+          errors.add(
+            'Customer not found. Use an existing customer code, exact name or phone.',
+          );
         } else if (!(party as Customer).isActive) {
           errors.add('Customer is inactive.');
         }
@@ -363,7 +378,9 @@ class _TransactionBulkImportPanelState
           name: _value(first.data, 'supplier_name'),
         );
         if (party == null) {
-          errors.add('Supplier not found. Use an existing supplier code or exact name.');
+          errors.add(
+            'Supplier not found. Use an existing supplier code or exact name.',
+          );
         } else if (!(party as Supplier).isActive) {
           errors.add('Supplier is inactive.');
         }
@@ -387,15 +404,21 @@ class _TransactionBulkImportPanelState
         final barcode = _value(row.data, 'barcode').toLowerCase();
         final product = sku.isNotEmpty ? bySku[sku] : byBarcode[barcode];
         if (product == null) {
-          errors.add('Row ${row.rowNumber}: product not found for SKU/barcode.');
+          errors.add(
+            'Row ${row.rowNumber}: product not found for SKU/barcode.',
+          );
           continue;
         }
         if (product.trackingMode != 'none') {
-          errors.add('Row ${row.rowNumber}: ${product.productName} is ${product.trackingMode}-tracked. Use New ${_isSale ? 'Sale' : 'Purchase'} so serial/batch trace details are captured.');
+          errors.add(
+            'Row ${row.rowNumber}: ${product.productName} is ${product.trackingMode}-tracked. Use New ${_isSale ? 'Sale' : 'Purchase'} so serial/batch trace details are captured.',
+          );
           continue;
         }
         if (!usedVariants.add(product.variantId)) {
-          errors.add('Row ${row.rowNumber}: ${product.productName} is repeated in the same document. Combine it into one line.');
+          errors.add(
+            'Row ${row.rowNumber}: ${product.productName} is repeated in the same document. Combine it into one line.',
+          );
           continue;
         }
         final quantity = _number(_value(row.data, 'quantity'));
@@ -405,14 +428,17 @@ class _TransactionBulkImportPanelState
         }
         final priceKey = _isSale ? 'unit_price' : 'unit_cost';
         final entered = _number(_value(row.data, priceKey));
-        final price = entered ?? (_isSale ? product.sellingPrice : product.costPrice);
+        final price =
+            entered ?? (_isSale ? product.sellingPrice : product.costPrice);
         if (price < 0) {
           errors.add('Row ${row.rowNumber}: $priceKey cannot be negative.');
           continue;
         }
         final rate = _number(_value(row.data, 'tax_rate')) ?? product.taxRate;
         if (rate < 0 || rate > 100) {
-          errors.add('Row ${row.rowNumber}: tax_rate must be between 0 and 100.');
+          errors.add(
+            'Row ${row.rowNumber}: tax_rate must be between 0 and 100.',
+          );
           continue;
         }
         final line = quantity * price;
@@ -428,9 +454,12 @@ class _TransactionBulkImportPanelState
 
       final additional = _number(_value(first.data, 'additional_charges')) ?? 0;
       final roundOff = _number(_value(first.data, 'round_off')) ?? 0;
-      final initialPayment = _number(_value(first.data, 'initial_payment')) ?? 0;
+      final initialPayment =
+          _number(_value(first.data, 'initial_payment')) ?? 0;
       if (additional < 0) errors.add('Additional charges cannot be negative.');
-      if (roundOff.abs() > 0.999999) errors.add('Round off must be between -1.00 and 1.00.');
+      if (roundOff.abs() > 0.999999) {
+        errors.add('Round off must be between -1.00 and 1.00.');
+      }
       final total = subtotal + tax + additional + roundOff;
       if (initialPayment < 0 || initialPayment > total + 0.005) {
         errors.add('Initial payment must be between 0 and the document total.');
@@ -440,36 +469,42 @@ class _TransactionBulkImportPanelState
       final partyId = party is Customer
           ? party.id
           : party is Supplier
-              ? party.id
-              : '';
+          ? party.id
+          : '';
       final external = _isSale
           ? '$locationId:$ref'
           : '$locationId:${_value(first.data, 'supplier_invoice_number')}:$ref';
-      output.add(_TransactionImportDocument(
-        reference: ref,
-        rowCount: sourceRows.length,
-        total: total,
-        errors: errors.toSet().toList(),
-        payload: {
-          'external_key': external,
-          'document_ref': ref,
-          'source_row_count': sourceRows.length,
-          'document_date': documentDate,
-          'due_date': dueDate,
-          if (_isSale) 'customer_id': partyId else 'supplier_id': partyId,
-          if (!_isSale)
-            'supplier_invoice_number': _value(first.data, 'supplier_invoice_number'),
-          'items': items,
-          'additional_charges': additional,
-          'round_off': roundOff,
-          'initial_payment': initialPayment,
-          'payment_method': _value(first.data, 'payment_method').isEmpty
-              ? (_isSale ? 'cash' : 'bank')
-              : _value(first.data, 'payment_method').toLowerCase(),
-          if (_isSale) 'payment_reference': _value(first.data, 'payment_reference'),
-          'notes': _value(first.data, 'notes'),
-        },
-      ));
+      output.add(
+        _TransactionImportDocument(
+          reference: ref,
+          rowCount: sourceRows.length,
+          total: total,
+          errors: errors.toSet().toList(),
+          payload: {
+            'external_key': external,
+            'document_ref': ref,
+            'source_row_count': sourceRows.length,
+            'document_date': documentDate,
+            'due_date': dueDate,
+            if (_isSale) 'customer_id': partyId else 'supplier_id': partyId,
+            if (!_isSale)
+              'supplier_invoice_number': _value(
+                first.data,
+                'supplier_invoice_number',
+              ),
+            'items': items,
+            'additional_charges': additional,
+            'round_off': roundOff,
+            'initial_payment': initialPayment,
+            'payment_method': _value(first.data, 'payment_method').isEmpty
+                ? (_isSale ? 'cash' : 'bank')
+                : _value(first.data, 'payment_method').toLowerCase(),
+            if (_isSale)
+              'payment_reference': _value(first.data, 'payment_reference'),
+            'notes': _value(first.data, 'notes'),
+          },
+        ),
+      );
     }
     return output;
   }
@@ -482,17 +517,23 @@ class _TransactionBulkImportPanelState
   }) {
     final c = code.toLowerCase();
     if (c.isNotEmpty) {
-      final found = customers.where((e) => e.publicId.toLowerCase() == c).toList();
+      final found = customers
+          .where((e) => e.publicId.toLowerCase() == c)
+          .toList();
       if (found.length == 1) return found.first;
     }
     final digits = _digits(phone);
     if (digits.isNotEmpty) {
-      final found = customers.where((e) => _digits(e.phone ?? '') == digits).toList();
+      final found = customers
+          .where((e) => _digits(e.phone ?? '') == digits)
+          .toList();
       if (found.length == 1) return found.first;
     }
     final n = name.toLowerCase();
     if (n.isNotEmpty) {
-      final found = customers.where((e) => e.name.trim().toLowerCase() == n).toList();
+      final found = customers
+          .where((e) => e.name.trim().toLowerCase() == n)
+          .toList();
       if (found.length == 1) return found.first;
     }
     return null;
@@ -505,12 +546,16 @@ class _TransactionBulkImportPanelState
   }) {
     final c = code.toLowerCase();
     if (c.isNotEmpty) {
-      final found = suppliers.where((e) => e.publicId.toLowerCase() == c).toList();
+      final found = suppliers
+          .where((e) => e.publicId.toLowerCase() == c)
+          .toList();
       if (found.length == 1) return found.first;
     }
     final n = name.toLowerCase();
     if (n.isNotEmpty) {
-      final found = suppliers.where((e) => e.name.trim().toLowerCase() == n).toList();
+      final found = suppliers
+          .where((e) => e.name.trim().toLowerCase() == n)
+          .toList();
       if (found.length == 1) return found.first;
     }
     return null;
@@ -547,7 +592,8 @@ class _TransactionBulkImportPanelState
           .toList();
       if (!mounted) return;
       setState(() {
-        _result = '$_label import finished: '
+        _result =
+            '$_label import finished: '
             '${response['success_count'] ?? 0} created • '
             '${response['skipped_count'] ?? 0} already imported • '
             '${response['failed_count'] ?? 0} failed'
@@ -579,22 +625,26 @@ class _TransactionBulkImportPanelState
               child: DropdownButtonFormField<String>(
                 initialValue: _locationId,
                 isExpanded: true,
-                decoration: const InputDecoration(labelText: 'Store / location'),
+                decoration: const InputDecoration(
+                  labelText: 'Store / location',
+                ),
                 items: locations
-                    .map((l) => DropdownMenuItem(
-                          value: l.id,
-                          child: Text('${l.code} • ${l.name}'),
-                        ))
+                    .map(
+                      (l) => DropdownMenuItem(
+                        value: l.id,
+                        child: Text('${l.code} • ${l.name}'),
+                      ),
+                    )
                     .toList(),
                 onChanged: _busy
                     ? null
                     : (value) => setState(() {
-                          _locationId = value;
-                          _documents = const [];
-                          _fileName = null;
-                          _sourceKey = null;
-                          _result = null;
-                        }),
+                        _locationId = value;
+                        _documents = const [];
+                        _fileName = null;
+                        _sourceKey = null;
+                        _result = null;
+                      }),
               ),
             ),
             OutlinedButton.icon(
@@ -638,7 +688,10 @@ class _TransactionBulkImportPanelState
                   children: [
                     Row(
                       children: [
-                        Text('$validCount valid', style: const TextStyle(fontWeight: FontWeight.w800)),
+                        Text(
+                          '$validCount valid',
+                          style: const TextStyle(fontWeight: FontWeight.w800),
+                        ),
                         const SizedBox(width: 14),
                         Text('$invalidCount invalid'),
                         const Spacer(),
@@ -655,13 +708,24 @@ class _TransactionBulkImportPanelState
                           return Card(
                             child: ListTile(
                               leading: Icon(
-                                valid ? Icons.check_circle_outline : Icons.error_outline,
-                                color: valid ? Colors.green : Theme.of(context).colorScheme.error,
+                                valid
+                                    ? Icons.check_circle_outline
+                                    : Icons.error_outline,
+                                color: valid
+                                    ? Colors.green
+                                    : Theme.of(context).colorScheme.error,
                               ),
-                              title: Text(doc.reference, style: const TextStyle(fontWeight: FontWeight.w700)),
-                              subtitle: Text(valid
-                                  ? '${doc.rowCount} item row(s) • ${widget.session.currencyCode} ${doc.total.toStringAsFixed(2)}'
-                                  : doc.errors.join(' • ')),
+                              title: Text(
+                                doc.reference,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              subtitle: Text(
+                                valid
+                                    ? '${doc.rowCount} item row(s) • ${widget.session.currencyCode} ${doc.total.toStringAsFixed(2)}'
+                                    : doc.errors.join(' • '),
+                              ),
                               trailing: Text(valid ? 'READY' : 'FIX'),
                             ),
                           );
@@ -675,19 +739,34 @@ class _TransactionBulkImportPanelState
           const SizedBox(height: 6),
           ExpansionTile(
             tilePadding: EdgeInsets.zero,
-            title: const Text('Recent imports', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
-            children: _history.take(8).map((row) => ListTile(
-                  dense: true,
-                  title: Text('${row['source_name'] ?? 'Import'} • ${row['status'] ?? ''}'),
-                  subtitle: Text('${row['created_at'] ?? ''}'),
-                  trailing: Text('${row['success_count'] ?? 0} ok / ${row['failed_count'] ?? 0} failed'),
-                )).toList(),
+            title: const Text(
+              'Recent imports',
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+            ),
+            children: _history
+                .take(8)
+                .map(
+                  (row) => ListTile(
+                    dense: true,
+                    title: Text(
+                      '${row['source_name'] ?? 'Import'} • ${row['status'] ?? ''}',
+                    ),
+                    subtitle: Text('${row['created_at'] ?? ''}'),
+                    trailing: Text(
+                      '${row['success_count'] ?? 0} ok / ${row['failed_count'] ?? 0} failed',
+                    ),
+                  ),
+                )
+                .toList(),
           ),
         ],
         if (_result != null)
           Padding(
             padding: const EdgeInsets.only(top: 6),
-            child: SelectableText(_result!, style: const TextStyle(fontSize: 11)),
+            child: SelectableText(
+              _result!,
+              style: const TextStyle(fontSize: 11),
+            ),
           ),
         const SizedBox(height: 6),
         Align(
@@ -695,7 +774,11 @@ class _TransactionBulkImportPanelState
           child: FilledButton.icon(
             onPressed: _busy || validCount == 0 ? null : _import,
             icon: const Icon(Icons.cloud_upload_outlined),
-            label: Text(_busy ? 'Importing…' : 'Import $validCount $_label document${validCount == 1 ? '' : 's'}'),
+            label: Text(
+              _busy
+                  ? 'Importing…'
+                  : 'Import $validCount $_label document${validCount == 1 ? '' : 's'}',
+            ),
           ),
         ),
       ],
@@ -703,27 +786,35 @@ class _TransactionBulkImportPanelState
   }
 
   Widget _emptyState() => Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.table_view_outlined, size: 46),
-            const SizedBox(height: 8),
-            Text('Download the THQ $_label template, fill it and choose the .xlsx file.'),
-            const SizedBox(height: 4),
-            const Text('Nothing is posted until validation succeeds and you press Import.', style: TextStyle(fontSize: 11)),
-          ],
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const Icon(Icons.table_view_outlined, size: 46),
+        const SizedBox(height: 8),
+        Text(
+          'Download the THQ $_label template, fill it and choose the .xlsx file.',
         ),
-      );
+        const SizedBox(height: 4),
+        const Text(
+          'Nothing is posted until validation succeeds and you press Import.',
+          style: TextStyle(fontSize: 11),
+        ),
+      ],
+    ),
+  );
 
   String _cell(CellValue? value) => value?.toString().trim() ?? '';
 
   String _value(Map<String, String> row, String key) => row[key]?.trim() ?? '';
 
-  double? _number(String value) => value.isEmpty ? null : double.tryParse(value.replaceAll(',', ''));
+  double? _number(String value) =>
+      value.isEmpty ? null : double.tryParse(value.replaceAll(',', ''));
 
   String? _date(String value, {bool allowBlank = false}) {
     if (value.trim().isEmpty) return allowBlank ? null : null;
-    final normalized = value.trim().length >= 10 ? value.trim().substring(0, 10) : value.trim();
+    final normalized = value.trim().length >= 10
+        ? value.trim().substring(0, 10)
+        : value.trim();
     final parsed = DateTime.tryParse(normalized);
     if (parsed == null) return null;
     return '${parsed.year.toString().padLeft(4, '0')}-${parsed.month.toString().padLeft(2, '0')}-${parsed.day.toString().padLeft(2, '0')}';

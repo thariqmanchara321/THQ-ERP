@@ -97,7 +97,10 @@ class _CustomerAccountDialogState extends State<CustomerAccountDialog> {
                 children: [
                   Text(
                     widget.customerName,
-                    style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800),
+                    style: const TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
                   const SizedBox(height: 4),
                   Text('Total outstanding: ${_money(outstanding)}'),
@@ -107,7 +110,8 @@ class _CustomerAccountDialogState extends State<CustomerAccountDialog> {
                     isExpanded: true,
                     decoration: const InputDecoration(
                       labelText: 'Apply payment to',
-                      helperText: 'Account payment automatically settles oldest invoices first.',
+                      helperText:
+                          'Account payment automatically settles oldest invoices first.',
                     ),
                     items: [
                       const DropdownMenuItem<String?>(
@@ -134,7 +138,9 @@ class _CustomerAccountDialogState extends State<CustomerAccountDialog> {
                             (row) => row['sale_id']?.toString() == value,
                             orElse: () => <String, dynamic>{},
                           );
-                          amount.text = _number(selected['balance']).toStringAsFixed(2);
+                          amount.text = _number(
+                            selected['balance'],
+                          ).toStringAsFixed(2);
                         }
                       });
                     },
@@ -142,7 +148,9 @@ class _CustomerAccountDialogState extends State<CustomerAccountDialog> {
                   const SizedBox(height: 12),
                   TextField(
                     controller: amount,
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
                     decoration: const InputDecoration(
                       labelText: 'Amount received',
                       prefixIcon: Icon(Icons.payments_outlined),
@@ -151,7 +159,9 @@ class _CustomerAccountDialogState extends State<CustomerAccountDialog> {
                   const SizedBox(height: 12),
                   DropdownButtonFormField<String>(
                     initialValue: method,
-                    decoration: const InputDecoration(labelText: 'Payment method'),
+                    decoration: const InputDecoration(
+                      labelText: 'Payment method',
+                    ),
                     items: const [
                       DropdownMenuItem(value: 'cash', child: Text('Cash')),
                       DropdownMenuItem(value: 'upi', child: Text('UPI')),
@@ -167,20 +177,27 @@ class _CustomerAccountDialogState extends State<CustomerAccountDialog> {
                   const SizedBox(height: 12),
                   TextField(
                     controller: reference,
-                    decoration: const InputDecoration(labelText: 'Reference number (optional)'),
+                    decoration: const InputDecoration(
+                      labelText: 'Reference number (optional)',
+                    ),
                   ),
                   const SizedBox(height: 12),
                   TextField(
                     controller: notes,
                     maxLines: 2,
-                    decoration: const InputDecoration(labelText: 'Notes (optional)'),
+                    decoration: const InputDecoration(
+                      labelText: 'Notes (optional)',
+                    ),
                   ),
                 ],
               ),
             ),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Cancel')),
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Cancel'),
+            ),
             FilledButton.icon(
               onPressed: () {
                 final value = double.tryParse(amount.text.trim()) ?? 0;
@@ -269,16 +286,28 @@ class _CustomerAccountDialogState extends State<CustomerAccountDialog> {
                   if (_error != null)
                     Padding(
                       padding: const EdgeInsets.only(bottom: 10),
-                      child: Text(_error!, style: const TextStyle(color: Colors.red)),
+                      child: Text(
+                        _error!,
+                        style: const TextStyle(color: Colors.red),
+                      ),
                     ),
                   Card(
-                    color: outstanding > 0.005 ? Colors.orange.shade50 : Colors.green.shade50,
+                    color: outstanding > 0.005
+                        ? Colors.orange.shade50
+                        : Colors.green.shade50,
                     child: ListTile(
-                      leading: Icon(outstanding > 0.005 ? Icons.schedule : Icons.check_circle_outline),
+                      leading: Icon(
+                        outstanding > 0.005
+                            ? Icons.schedule
+                            : Icons.check_circle_outline,
+                      ),
                       title: const Text('Outstanding balance'),
                       trailing: Text(
                         _money(outstanding),
-                        style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w900),
+                        style: const TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.w900,
+                        ),
                       ),
                     ),
                   ),
@@ -286,7 +315,10 @@ class _CustomerAccountDialogState extends State<CustomerAccountDialog> {
                   Row(
                     children: [
                       const Expanded(
-                        child: Text('Open invoices', style: TextStyle(fontWeight: FontWeight.w800)),
+                        child: Text(
+                          'Open invoices',
+                          style: TextStyle(fontWeight: FontWeight.w800),
+                        ),
                       ),
                       if (widget.canReceive && outstanding > 0.005)
                         FilledButton.icon(
@@ -303,38 +335,53 @@ class _CustomerAccountDialogState extends State<CustomerAccountDialog> {
                         ? const Center(child: Text('No outstanding invoices.'))
                         : ListView.separated(
                             itemCount: invoices.length,
-                            separatorBuilder: (_, _) => const Divider(height: 1),
+                            separatorBuilder: (_, _) =>
+                                const Divider(height: 1),
                             itemBuilder: (context, index) {
                               final row = invoices[index];
                               return ListTile(
                                 dense: true,
-                                title: Text('${row['sale_number'] ?? '-'} • ${row['location_name'] ?? ''}'),
+                                title: Text(
+                                  '${row['sale_number'] ?? '-'} • ${row['location_name'] ?? ''}',
+                                ),
                                 subtitle: Text(
                                   'Sale ${row['sale_date'] ?? '-'} • Total ${_money(row['grand_total'])} • Paid ${_money(row['paid'])}${_number(row['returned']) > 0.005 ? ' • Returned ${_money(row['returned'])}' : ''}',
                                 ),
                                 trailing: Text(
                                   _money(row['balance']),
-                                  style: const TextStyle(fontWeight: FontWeight.w800),
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w800,
+                                  ),
                                 ),
                               );
                             },
                           ),
                   ),
                   const Divider(height: 20),
-                  const Text('Payment history', style: TextStyle(fontWeight: FontWeight.w800)),
+                  const Text(
+                    'Payment history',
+                    style: TextStyle(fontWeight: FontWeight.w800),
+                  ),
                   const SizedBox(height: 6),
                   Expanded(
                     child: receipts.isEmpty
-                        ? const Center(child: Text('No account receipts recorded yet.'))
+                        ? const Center(
+                            child: Text('No account receipts recorded yet.'),
+                          )
                         : ListView.separated(
                             itemCount: receipts.length,
-                            separatorBuilder: (_, _) => const Divider(height: 1),
+                            separatorBuilder: (_, _) =>
+                                const Divider(height: 1),
                             itemBuilder: (context, index) {
                               final row = receipts[index];
                               return ListTile(
                                 dense: true,
-                                leading: const Icon(Icons.receipt_long_outlined),
-                                title: Text('${row['receipt_number'] ?? '-'} • ${_money(row['amount'])}'),
+                                leading: const Icon(
+                                  Icons.receipt_long_outlined,
+                                ),
+                                title: Text(
+                                  '${row['receipt_number'] ?? '-'} • ${_money(row['amount'])}',
+                                ),
                                 subtitle: Text(
                                   '${(row['payment_method'] ?? '').toString().toUpperCase()} • ${row['receipt_date'] ?? ''} • ${row['location_name'] ?? ''}'
                                   '${(row['reference_number'] ?? '').toString().isEmpty ? '' : ' • ${row['reference_number']}'}',
@@ -347,7 +394,10 @@ class _CustomerAccountDialogState extends State<CustomerAccountDialog> {
               ),
       ),
       actions: [
-        TextButton(onPressed: _receiving ? null : () => Navigator.pop(context), child: const Text('Close')),
+        TextButton(
+          onPressed: _receiving ? null : () => Navigator.pop(context),
+          child: const Text('Close'),
+        ),
       ],
     );
   }

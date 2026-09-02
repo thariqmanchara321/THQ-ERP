@@ -89,7 +89,9 @@ class PurchasingV2Service {
               'p_note': payload['note'] ?? '',
             };
           default:
-            throw UnsupportedError('Unsupported purchase-requests action ${request.action}.');
+            throw UnsupportedError(
+              'Unsupported purchase-requests action ${request.action}.',
+            );
         }
       case 'purchase-orders':
         switch (request.action) {
@@ -104,7 +106,10 @@ class PurchasingV2Service {
             };
           case 'detail':
             rpc = 'purchase_order_detail_v484';
-            params = {...base, 'p_purchase_order_id': payload['purchase_order_id']};
+            params = {
+              ...base,
+              'p_purchase_order_id': payload['purchase_order_id'],
+            };
           case 'create':
             rpc = 'purchase_order_create_v484';
             params = {
@@ -133,7 +138,9 @@ class PurchasingV2Service {
               'p_note': payload['note'] ?? '',
             };
           default:
-            throw UnsupportedError('Unsupported purchase-orders action ${request.action}.');
+            throw UnsupportedError(
+              'Unsupported purchase-orders action ${request.action}.',
+            );
         }
       case 'goods-receipts':
         switch (request.action) {
@@ -148,7 +155,10 @@ class PurchasingV2Service {
             };
           case 'detail':
             rpc = 'goods_receipt_detail_v484';
-            params = {...base, 'p_goods_receipt_id': payload['goods_receipt_id']};
+            params = {
+              ...base,
+              'p_goods_receipt_id': payload['goods_receipt_id'],
+            };
           case 'create':
             rpc = 'goods_receipt_create_v484';
             params = {
@@ -156,7 +166,8 @@ class PurchasingV2Service {
               'p_purchase_order_id': payload['purchase_order_id'],
               'p_receipt_date': payload['receipt_date'],
               'p_items': payload['items'] ?? const [],
-              'p_supplier_delivery_note': payload['supplier_delivery_note'] ?? '',
+              'p_supplier_delivery_note':
+                  payload['supplier_delivery_note'] ?? '',
               'p_notes': payload['notes'] ?? '',
             };
           case 'post':
@@ -174,7 +185,9 @@ class PurchasingV2Service {
               'p_reason': payload['reason'] ?? '',
             };
           default:
-            throw UnsupportedError('Unsupported goods-receipts action ${request.action}.');
+            throw UnsupportedError(
+              'Unsupported goods-receipts action ${request.action}.',
+            );
         }
       case 'purchase-invoices':
         switch (request.action) {
@@ -189,7 +202,10 @@ class PurchasingV2Service {
             };
           case 'detail':
             rpc = 'purchase_invoice_detail_v484';
-            params = {...base, 'p_purchase_invoice_id': payload['purchase_invoice_id']};
+            params = {
+              ...base,
+              'p_purchase_invoice_id': payload['purchase_invoice_id'],
+            };
           case 'create':
             rpc = 'purchase_invoice_create_v489';
             params = {
@@ -205,7 +221,10 @@ class PurchasingV2Service {
             };
           case 'post':
             rpc = 'purchase_invoice_post_v484';
-            params = {...base, 'p_purchase_invoice_id': payload['purchase_invoice_id']};
+            params = {
+              ...base,
+              'p_purchase_invoice_id': payload['purchase_invoice_id'],
+            };
           case 'void':
             rpc = 'purchase_invoice_void_v490';
             params = {
@@ -214,7 +233,9 @@ class PurchasingV2Service {
               'p_reason': payload['reason'] ?? '',
             };
           default:
-            throw UnsupportedError('Unsupported purchase-invoices action ${request.action}.');
+            throw UnsupportedError(
+              'Unsupported purchase-invoices action ${request.action}.',
+            );
         }
       case 'supplier-payments-v2':
         switch (request.action) {
@@ -249,7 +270,9 @@ class PurchasingV2Service {
               'p_reason': payload['reason'] ?? '',
             };
           default:
-            throw UnsupportedError('Unsupported supplier-payments-v2 action ${request.action}.');
+            throw UnsupportedError(
+              'Unsupported supplier-payments-v2 action ${request.action}.',
+            );
         }
       case 'supplier-ledger-v2':
         rpc = 'suppliers_get_statement_v484';
@@ -298,49 +321,47 @@ class PurchasingV2Service {
       data is Map ? Map<String, dynamic>.from(data) : <String, dynamic>{};
 
   Future<Map<String, dynamic>> dashboard(ClientSession session) async => _map(
-        await _call(
-          ThqApiRequest(
-            tenantId: session.business.id,
-            resource: 'purchasing-dashboard',
-            payload: {'location_id': _readLocation(session)},
-          ),
-        ),
-      );
+    await _call(
+      ThqApiRequest(
+        tenantId: session.business.id,
+        resource: 'purchasing-dashboard',
+        payload: {'location_id': _readLocation(session)},
+      ),
+    ),
+  );
 
   Future<List<Map<String, dynamic>>> requests(
     ClientSession session, {
     String? status,
     String query = '',
-  }) async =>
-      _rows(
-        await _call(
-          ThqApiRequest(
-            tenantId: session.business.id,
-            resource: 'purchase-requests',
-            action: 'list',
-            payload: {
-              'location_id': _readLocation(session),
-              'status': status,
-              'query': query,
-            },
-          ),
-        ),
-      );
+  }) async => _rows(
+    await _call(
+      ThqApiRequest(
+        tenantId: session.business.id,
+        resource: 'purchase-requests',
+        action: 'list',
+        payload: {
+          'location_id': _readLocation(session),
+          'status': status,
+          'query': query,
+        },
+      ),
+    ),
+  );
 
   Future<Map<String, dynamic>> requestDetail(
     ClientSession session,
     String requestId,
-  ) async =>
-      _map(
-        await _call(
-          ThqApiRequest(
-            tenantId: session.business.id,
-            resource: 'purchase-requests',
-            action: 'detail',
-            payload: {'request_id': requestId},
-          ),
-        ),
-      );
+  ) async => _map(
+    await _call(
+      ThqApiRequest(
+        tenantId: session.business.id,
+        resource: 'purchase-requests',
+        action: 'detail',
+        payload: {'request_id': requestId},
+      ),
+    ),
+  );
 
   Future<Map<String, dynamic>> createRequest(
     ClientSession session, {
@@ -350,25 +371,24 @@ class PurchasingV2Service {
     String? preferredSupplierId,
     String purpose = '',
     String notes = '',
-  }) async =>
-      _map(
-        await _call(
-          ThqApiRequest(
-            tenantId: session.business.id,
-            resource: 'purchase-requests',
-            action: 'create',
-            payload: {
-              'location_id': _writeLocation(session),
-              'items': items,
-              'required_date': requiredDate?.toIso8601String().split('T').first,
-              'priority': priority,
-              'preferred_supplier_id': preferredSupplierId,
-              'purpose': purpose,
-              'notes': notes,
-            },
-          ),
-        ),
-      );
+  }) async => _map(
+    await _call(
+      ThqApiRequest(
+        tenantId: session.business.id,
+        resource: 'purchase-requests',
+        action: 'create',
+        payload: {
+          'location_id': _writeLocation(session),
+          'items': items,
+          'required_date': requiredDate?.toIso8601String().split('T').first,
+          'priority': priority,
+          'preferred_supplier_id': preferredSupplierId,
+          'purpose': purpose,
+          'notes': notes,
+        },
+      ),
+    ),
+  );
 
   Future<void> setRequestStatus(
     ClientSession session, {
@@ -390,36 +410,34 @@ class PurchasingV2Service {
     ClientSession session, {
     String? status,
     String query = '',
-  }) async =>
-      _rows(
-        await _call(
-          ThqApiRequest(
-            tenantId: session.business.id,
-            resource: 'purchase-orders',
-            action: 'list',
-            payload: {
-              'location_id': _readLocation(session),
-              'status': status,
-              'query': query,
-            },
-          ),
-        ),
-      );
+  }) async => _rows(
+    await _call(
+      ThqApiRequest(
+        tenantId: session.business.id,
+        resource: 'purchase-orders',
+        action: 'list',
+        payload: {
+          'location_id': _readLocation(session),
+          'status': status,
+          'query': query,
+        },
+      ),
+    ),
+  );
 
   Future<Map<String, dynamic>> orderDetail(
     ClientSession session,
     String orderId,
-  ) async =>
-      _map(
-        await _call(
-          ThqApiRequest(
-            tenantId: session.business.id,
-            resource: 'purchase-orders',
-            action: 'detail',
-            payload: {'purchase_order_id': orderId},
-          ),
-        ),
-      );
+  ) async => _map(
+    await _call(
+      ThqApiRequest(
+        tenantId: session.business.id,
+        resource: 'purchase-orders',
+        action: 'detail',
+        payload: {'purchase_order_id': orderId},
+      ),
+    ),
+  );
 
   Future<Map<String, dynamic>> createOrder(
     ClientSession session, {
@@ -428,24 +446,23 @@ class PurchasingV2Service {
     String? requestId,
     DateTime? expectedDate,
     String notes = '',
-  }) async =>
-      _map(
-        await _call(
-          ThqApiRequest(
-            tenantId: session.business.id,
-            resource: 'purchase-orders',
-            action: 'create',
-            payload: {
-              'location_id': _writeLocation(session),
-              'supplier_id': supplierId,
-              'items': items,
-              'request_id': requestId,
-              'expected_date': expectedDate?.toIso8601String().split('T').first,
-              'notes': notes,
-            },
-          ),
-        ),
-      );
+  }) async => _map(
+    await _call(
+      ThqApiRequest(
+        tenantId: session.business.id,
+        resource: 'purchase-orders',
+        action: 'create',
+        payload: {
+          'location_id': _writeLocation(session),
+          'supplier_id': supplierId,
+          'items': items,
+          'request_id': requestId,
+          'expected_date': expectedDate?.toIso8601String().split('T').first,
+          'notes': notes,
+        },
+      ),
+    ),
+  );
 
   Future<void> setOrderStatus(
     ClientSession session, {
@@ -491,36 +508,34 @@ class PurchasingV2Service {
     ClientSession session, {
     String? status,
     String query = '',
-  }) async =>
-      _rows(
-        await _call(
-          ThqApiRequest(
-            tenantId: session.business.id,
-            resource: 'goods-receipts',
-            action: 'list',
-            payload: {
-              'location_id': _readLocation(session),
-              'status': status,
-              'query': query,
-            },
-          ),
-        ),
-      );
+  }) async => _rows(
+    await _call(
+      ThqApiRequest(
+        tenantId: session.business.id,
+        resource: 'goods-receipts',
+        action: 'list',
+        payload: {
+          'location_id': _readLocation(session),
+          'status': status,
+          'query': query,
+        },
+      ),
+    ),
+  );
 
   Future<Map<String, dynamic>> grnDetail(
     ClientSession session,
     String grnId,
-  ) async =>
-      _map(
-        await _call(
-          ThqApiRequest(
-            tenantId: session.business.id,
-            resource: 'goods-receipts',
-            action: 'detail',
-            payload: {'goods_receipt_id': grnId},
-          ),
-        ),
-      );
+  ) async => _map(
+    await _call(
+      ThqApiRequest(
+        tenantId: session.business.id,
+        resource: 'goods-receipts',
+        action: 'detail',
+        payload: {'goods_receipt_id': grnId},
+      ),
+    ),
+  );
 
   Future<Map<String, dynamic>> createGrn(
     ClientSession session, {
@@ -529,24 +544,25 @@ class PurchasingV2Service {
     DateTime? receiptDate,
     String deliveryNote = '',
     String notes = '',
-  }) async =>
-      _map(
-        await _call(
-          ThqApiRequest(
-            tenantId: session.business.id,
-            resource: 'goods-receipts',
-            action: 'create',
-            payload: {
-              'purchase_order_id': purchaseOrderId,
-              'receipt_date':
-                  (receiptDate ?? DateTime.now()).toIso8601String().split('T').first,
-              'items': items,
-              'supplier_delivery_note': deliveryNote,
-              'notes': notes,
-            },
-          ),
-        ),
-      );
+  }) async => _map(
+    await _call(
+      ThqApiRequest(
+        tenantId: session.business.id,
+        resource: 'goods-receipts',
+        action: 'create',
+        payload: {
+          'purchase_order_id': purchaseOrderId,
+          'receipt_date': (receiptDate ?? DateTime.now())
+              .toIso8601String()
+              .split('T')
+              .first,
+          'items': items,
+          'supplier_delivery_note': deliveryNote,
+          'notes': notes,
+        },
+      ),
+    ),
+  );
 
   Future<void> postGrn(ClientSession session, String grnId) async {
     await _call(
@@ -562,7 +578,11 @@ class PurchasingV2Service {
     );
   }
 
-  Future<void> cancelGrn(ClientSession session, String grnId, String reason) async {
+  Future<void> cancelGrn(
+    ClientSession session,
+    String grnId,
+    String reason,
+  ) async {
     await _call(
       ThqApiRequest(
         tenantId: session.business.id,
@@ -577,36 +597,34 @@ class PurchasingV2Service {
     ClientSession session, {
     String? status,
     String query = '',
-  }) async =>
-      _rows(
-        await _call(
-          ThqApiRequest(
-            tenantId: session.business.id,
-            resource: 'purchase-invoices',
-            action: 'list',
-            payload: {
-              'location_id': _readLocation(session),
-              'status': status,
-              'query': query,
-            },
-          ),
-        ),
-      );
+  }) async => _rows(
+    await _call(
+      ThqApiRequest(
+        tenantId: session.business.id,
+        resource: 'purchase-invoices',
+        action: 'list',
+        payload: {
+          'location_id': _readLocation(session),
+          'status': status,
+          'query': query,
+        },
+      ),
+    ),
+  );
 
   Future<Map<String, dynamic>> invoiceDetail(
     ClientSession session,
     String invoiceId,
-  ) async =>
-      _map(
-        await _call(
-          ThqApiRequest(
-            tenantId: session.business.id,
-            resource: 'purchase-invoices',
-            action: 'detail',
-            payload: {'purchase_invoice_id': invoiceId},
-          ),
-        ),
-      );
+  ) async => _map(
+    await _call(
+      ThqApiRequest(
+        tenantId: session.business.id,
+        resource: 'purchase-invoices',
+        action: 'detail',
+        payload: {'purchase_invoice_id': invoiceId},
+      ),
+    ),
+  );
 
   Future<Map<String, dynamic>> createInvoice(
     ClientSession session, {
@@ -618,27 +636,28 @@ class PurchasingV2Service {
     double additionalCharges = 0,
     double roundOff = 0,
     String notes = '',
-  }) async =>
-      _map(
-        await _call(
-          ThqApiRequest(
-            tenantId: session.business.id,
-            resource: 'purchase-invoices',
-            action: 'create',
-            payload: {
-              'purchase_order_id': purchaseOrderId,
-              'supplier_invoice_number': supplierInvoiceNumber,
-              'invoice_date':
-                  (invoiceDate ?? DateTime.now()).toIso8601String().split('T').first,
-              'due_date': dueDate?.toIso8601String().split('T').first,
-              'items': items,
-              'additional_charges': additionalCharges,
-              'round_off': roundOff,
-              'notes': notes,
-            },
-          ),
-        ),
-      );
+  }) async => _map(
+    await _call(
+      ThqApiRequest(
+        tenantId: session.business.id,
+        resource: 'purchase-invoices',
+        action: 'create',
+        payload: {
+          'purchase_order_id': purchaseOrderId,
+          'supplier_invoice_number': supplierInvoiceNumber,
+          'invoice_date': (invoiceDate ?? DateTime.now())
+              .toIso8601String()
+              .split('T')
+              .first,
+          'due_date': dueDate?.toIso8601String().split('T').first,
+          'items': items,
+          'additional_charges': additionalCharges,
+          'round_off': roundOff,
+          'notes': notes,
+        },
+      ),
+    ),
+  );
 
   Future<void> postInvoice(ClientSession session, String invoiceId) async {
     await _call(
@@ -651,7 +670,11 @@ class PurchasingV2Service {
     );
   }
 
-  Future<void> voidInvoice(ClientSession session, String invoiceId, String reason) async {
+  Future<void> voidInvoice(
+    ClientSession session,
+    String invoiceId,
+    String reason,
+  ) async {
     await _call(
       ThqApiRequest(
         tenantId: session.business.id,
@@ -666,21 +689,20 @@ class PurchasingV2Service {
     ClientSession session, {
     String? supplierId,
     String query = '',
-  }) async =>
-      _rows(
-        await _call(
-          ThqApiRequest(
-            tenantId: session.business.id,
-            resource: 'supplier-payments-v2',
-            action: 'list',
-            payload: {
-              'location_id': _readLocation(session),
-              'supplier_id': supplierId,
-              'query': query,
-            },
-          ),
-        ),
-      );
+  }) async => _rows(
+    await _call(
+      ThqApiRequest(
+        tenantId: session.business.id,
+        resource: 'supplier-payments-v2',
+        action: 'list',
+        payload: {
+          'location_id': _readLocation(session),
+          'supplier_id': supplierId,
+          'query': query,
+        },
+      ),
+    ),
+  );
 
   Future<Map<String, dynamic>> createPayment(
     ClientSession session, {
@@ -691,30 +713,35 @@ class PurchasingV2Service {
     DateTime? paymentDate,
     String reference = '',
     String notes = '',
-  }) async =>
-      _map(
-        await _call(
-          ThqApiRequest(
-            tenantId: session.business.id,
-            resource: 'supplier-payments-v2',
-            action: 'create',
-            payload: {
-              'location_id': _writeLocation(session),
-              'supplier_id': supplierId,
-              'payment_date':
-                  (paymentDate ?? DateTime.now()).toIso8601String().split('T').first,
-              'amount': amount,
-              'payment_method': paymentMethod,
-              'allocations': allocations,
-              'reference_number': reference,
-              'notes': notes,
-              'device_id': session.device?.deviceId,
-            },
-          ),
-        ),
-      );
+  }) async => _map(
+    await _call(
+      ThqApiRequest(
+        tenantId: session.business.id,
+        resource: 'supplier-payments-v2',
+        action: 'create',
+        payload: {
+          'location_id': _writeLocation(session),
+          'supplier_id': supplierId,
+          'payment_date': (paymentDate ?? DateTime.now())
+              .toIso8601String()
+              .split('T')
+              .first,
+          'amount': amount,
+          'payment_method': paymentMethod,
+          'allocations': allocations,
+          'reference_number': reference,
+          'notes': notes,
+          'device_id': session.device?.deviceId,
+        },
+      ),
+    ),
+  );
 
-  Future<void> voidPayment(ClientSession session, String paymentId, String reason) async {
+  Future<void> voidPayment(
+    ClientSession session,
+    String paymentId,
+    String reason,
+  ) async {
     await _call(
       ThqApiRequest(
         tenantId: session.business.id,
@@ -730,55 +757,52 @@ class PurchasingV2Service {
     required String supplierId,
     DateTime? from,
     DateTime? to,
-  }) async =>
-      _map(
-        await _call(
-          ThqApiRequest(
-            tenantId: session.business.id,
-            resource: 'supplier-ledger-v2',
-            payload: {
-              'supplier_id': supplierId,
-              'location_id': _readLocation(session),
-              'from': from?.toIso8601String().split('T').first,
-              'to': to?.toIso8601String().split('T').first,
-            },
-          ),
-        ),
-      );
+  }) async => _map(
+    await _call(
+      ThqApiRequest(
+        tenantId: session.business.id,
+        resource: 'supplier-ledger-v2',
+        payload: {
+          'supplier_id': supplierId,
+          'location_id': _readLocation(session),
+          'from': from?.toIso8601String().split('T').first,
+          'to': to?.toIso8601String().split('T').first,
+        },
+      ),
+    ),
+  );
 
   Future<Map<String, dynamic>> cycleSummary(
     ClientSession session,
     String purchaseOrderId,
-  ) async =>
-      _map(
-        await _call(
-          ThqApiRequest(
-            tenantId: session.business.id,
-            resource: 'purchase-cycle',
-            payload: {'purchase_order_id': purchaseOrderId},
-          ),
-        ),
-      );
+  ) async => _map(
+    await _call(
+      ThqApiRequest(
+        tenantId: session.business.id,
+        resource: 'purchase-cycle',
+        payload: {'purchase_order_id': purchaseOrderId},
+      ),
+    ),
+  );
 
   Future<List<Map<String, dynamic>>> priceHistory(
     ClientSession session, {
     String? variantId,
     String? supplierId,
     String query = '',
-  }) async =>
-      _rows(
-        await _call(
-          ThqApiRequest(
-            tenantId: session.business.id,
-            resource: 'purchase-price-history',
-            payload: {
-              'variant_id': variantId,
-              'supplier_id': supplierId,
-              'location_id': _readLocation(session),
-              'query': query,
-              'limit': 1000,
-            },
-          ),
-        ),
-      );
+  }) async => _rows(
+    await _call(
+      ThqApiRequest(
+        tenantId: session.business.id,
+        resource: 'purchase-price-history',
+        payload: {
+          'variant_id': variantId,
+          'supplier_id': supplierId,
+          'location_id': _readLocation(session),
+          'query': query,
+          'limit': 1000,
+        },
+      ),
+    ),
+  );
 }

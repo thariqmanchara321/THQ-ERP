@@ -73,7 +73,6 @@ class _CustomersScreenState extends State<CustomersScreen> {
     }).toList();
   }
 
-
   Future<void> _openReceivables() async {
     await Navigator.of(context).push(
       MaterialPageRoute(
@@ -135,7 +134,8 @@ class _CustomersScreenState extends State<CustomersScreen> {
         currencyCode: widget.session.currencyCode,
         locationId: LocationScopeService.currentForCreate(widget.session),
         deviceId: widget.session.device?.deviceId,
-        canReceive: widget.session.hasRole('owner') ||
+        canReceive:
+            widget.session.hasRole('owner') ||
             widget.session.hasPermission('payments.receive') ||
             widget.session.hasPermission('sales.manage'),
       ),
@@ -144,9 +144,12 @@ class _CustomersScreenState extends State<CustomersScreen> {
 
   Future<void> _openCrm(Customer customer) async {
     if (customer.isWalkIn) return;
-    await Navigator.of(context).push(MaterialPageRoute(
-      builder: (_) => CustomerCrmScreen(session: widget.session, customer: customer),
-    ));
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) =>
+            CustomerCrmScreen(session: widget.session, customer: customer),
+      ),
+    );
   }
 
   Future<void> _openStatement(Customer customer) async {

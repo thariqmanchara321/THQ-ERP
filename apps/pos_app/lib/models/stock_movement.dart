@@ -65,10 +65,14 @@ class StockMovement {
       quantityDelta: number(map['quantity_delta']),
       unitCost: nullableNumber(map['unit_cost']),
       unitCode: map['unit_code']?.toString(),
-      baseQuantityDelta: number(map['base_quantity_delta'] ?? map['quantity_delta']),
+      baseQuantityDelta: number(
+        map['base_quantity_delta'] ?? map['quantity_delta'],
+      ),
       balanceBefore: nullableNumber(map['balance_before']),
       balanceAfter: nullableNumber(map['balance_after']),
-      conversionToBase: number(map['conversion_to_base']) == 0 ? 1 : number(map['conversion_to_base']),
+      conversionToBase: number(map['conversion_to_base']) == 0
+          ? 1
+          : number(map['conversion_to_base']),
       locationName: map['location_name']?.toString() ?? '',
       referenceType: map['reference_type']?.toString(),
       referenceNumber: map['reference_number']?.toString(),

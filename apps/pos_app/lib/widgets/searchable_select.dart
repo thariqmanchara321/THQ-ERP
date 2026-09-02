@@ -163,10 +163,12 @@ class _SearchableSelectDialogState<T>
     final starts = <SearchableSelectOption<T>>[];
     final contains = <SearchableSelectOption<T>>[];
     for (final option in widget.options) {
-      final haystack = '${option.label} ${option.subtitle ?? ''} ${option.searchText}'
-          .toLowerCase();
+      final haystack =
+          '${option.label} ${option.subtitle ?? ''} ${option.searchText}'
+              .toLowerCase();
       final tokens = haystack.split(RegExp(r'\s+'));
-      if (haystack.startsWith(q) || tokens.any((token) => token.startsWith(q))) {
+      if (haystack.startsWith(q) ||
+          tokens.any((token) => token.startsWith(q))) {
         starts.add(option);
       } else if (haystack.contains(q)) {
         contains.add(option);
@@ -195,7 +197,8 @@ class _SearchableSelectDialogState<T>
               onChanged: (value) => setState(() => _query = value),
               decoration: InputDecoration(
                 labelText: 'Search',
-                hintText: widget.hintText ??
+                hintText:
+                    widget.hintText ??
                     'Type name, code, phone, barcode, SKU or reference',
                 prefixIcon: const Icon(Icons.search),
                 suffixIcon: _query.isEmpty
@@ -244,10 +247,7 @@ class _SearchableSelectDialogState<T>
       actions: [
         if (widget.allowClear)
           TextButton.icon(
-            onPressed: () => Navigator.pop(
-              context,
-              _SearchResult<T>.clear(),
-            ),
+            onPressed: () => Navigator.pop(context, _SearchResult<T>.clear()),
             icon: const Icon(Icons.clear),
             label: const Text('Clear selection'),
           ),

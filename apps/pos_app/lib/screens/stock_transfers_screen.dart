@@ -48,9 +48,15 @@ class _StockTransfersScreenState extends State<StockTransfersScreen> {
   String? get _scopeLocationId => LocationScopeService.selectedLocationId.value;
 
   void _reload() {
-    _transfers = _service.list(tenantId: _tenantId, locationId: _scopeLocationId);
+    _transfers = _service.list(
+      tenantId: _tenantId,
+      locationId: _scopeLocationId,
+    );
     _warehouses = _service.warehouses(tenantId: _tenantId);
-    _counts = _service.countHistory(tenantId: _tenantId, locationId: _scopeLocationId);
+    _counts = _service.countHistory(
+      tenantId: _tenantId,
+      locationId: _scopeLocationId,
+    );
     _reconciliation = _service.reconciliation(
       tenantId: _tenantId,
       locationId: _scopeLocationId,
@@ -95,7 +101,9 @@ class _StockTransfersScreenState extends State<StockTransfersScreen> {
     if (fromId == null || !writable.any((e) => e.id == fromId)) {
       fromId = writable.first.id;
     }
-    final destinations = widget.session.locations.where((e) => e.id != fromId).toList();
+    final destinations = widget.session.locations
+        .where((e) => e.id != fromId)
+        .toList();
     if (destinations.isEmpty) {
       _message('Create another store/warehouse before making a transfer.');
       return;
@@ -144,8 +152,12 @@ class _StockTransfersScreenState extends State<StockTransfersScreen> {
             if (dialogContext.mounted) setDialogState(() => tracking = next);
           }
 
-          final serialRows = (tracking['serials'] as List? ?? const []).whereType<Map>().toList();
-          final batchRows = (tracking['batches'] as List? ?? const []).whereType<Map>().toList();
+          final serialRows = (tracking['serials'] as List? ?? const [])
+              .whereType<Map>()
+              .toList();
+          final batchRows = (tracking['batches'] as List? ?? const [])
+              .whereType<Map>()
+              .toList();
           return AlertDialog(
             title: const Text('Stock Transfer Request'),
             content: SizedBox(
@@ -156,17 +168,26 @@ class _StockTransfersScreenState extends State<StockTransfersScreen> {
                   children: [
                     _ReadOnlyField(
                       label: 'Source',
-                      value: '${_location(sourceId)?.code ?? ''} • ${_location(sourceId)?.name ?? ''}',
+                      value:
+                          '${_location(sourceId)?.code ?? ''} • ${_location(sourceId)?.name ?? ''}',
                     ),
                     const SizedBox(height: 12),
                     DropdownButtonFormField<String>(
                       initialValue: toId,
                       isExpanded: true,
-                      decoration: const InputDecoration(labelText: 'Destination store / warehouse'),
+                      decoration: const InputDecoration(
+                        labelText: 'Destination store / warehouse',
+                      ),
                       items: destinations
-                          .map((e) => DropdownMenuItem(value: e.id, child: Text('${e.code} • ${e.name}')))
+                          .map(
+                            (e) => DropdownMenuItem(
+                              value: e.id,
+                              child: Text('${e.code} • ${e.name}'),
+                            ),
+                          )
                           .toList(),
-                      onChanged: (value) => setDialogState(() => toId = value ?? toId),
+                      onChanged: (value) =>
+                          setDialogState(() => toId = value ?? toId),
                     ),
                     const SizedBox(height: 12),
                     DropdownButtonFormField<String>(
@@ -174,10 +195,14 @@ class _StockTransfersScreenState extends State<StockTransfersScreen> {
                       isExpanded: true,
                       decoration: const InputDecoration(labelText: 'Product'),
                       items: products
-                          .map((p) => DropdownMenuItem(
-                                value: p.variantId,
-                                child: Text('${p.productName} • ${p.sku} • Available ${p.stockQuantity.toStringAsFixed(2)}'),
-                              ))
+                          .map(
+                            (p) => DropdownMenuItem(
+                              value: p.variantId,
+                              child: Text(
+                                '${p.productName} • ${p.sku} • Available ${p.stockQuantity.toStringAsFixed(2)}',
+                              ),
+                            ),
+                          )
                           .toList(),
                       onChanged: changeProduct,
                     ),
@@ -185,13 +210,20 @@ class _StockTransfersScreenState extends State<StockTransfersScreen> {
                     if (product.trackingMode == 'none')
                       TextField(
                         controller: qty,
-                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                        decoration: InputDecoration(labelText: 'Quantity (${product.baseUnitCode})'),
+                        keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true,
+                        ),
+                        decoration: InputDecoration(
+                          labelText: 'Quantity (${product.baseUnitCode})',
+                        ),
                       ),
                     if (product.trackingMode == 'serial') ...[
                       Align(
                         alignment: Alignment.centerLeft,
-                        child: Text('Available serials: ${serialRows.length}', style: Theme.of(context).textTheme.labelLarge),
+                        child: Text(
+                          'Available serials: ${serialRows.length}',
+                          style: Theme.of(context).textTheme.labelLarge,
+                        ),
                       ),
                       const SizedBox(height: 6),
                       ConstrainedBox(
@@ -200,7 +232,16 @@ class _StockTransfersScreenState extends State<StockTransfersScreen> {
                           child: Wrap(
                             spacing: 6,
                             runSpacing: 6,
-                            children: serialRows.take(30).map((row) => Chip(label: Text(row['serial_number']?.toString() ?? ''))).toList(),
+                            children: serialRows
+                                .take(30)
+                                .map(
+                                  (row) => Chip(
+                                    label: Text(
+                                      row['serial_number']?.toString() ?? '',
+                                    ),
+                                  ),
+                                )
+                                .toList(),
                           ),
                         ),
                       ),
@@ -211,23 +252,31 @@ class _StockTransfersScreenState extends State<StockTransfersScreen> {
                         maxLines: 6,
                         decoration: const InputDecoration(
                           labelText: 'Serial numbers to transfer',
-                          hintText: 'One serial per line. Quantity is the number of serials.',
+                          hintText:
+                              'One serial per line. Quantity is the number of serials.',
                         ),
                       ),
                     ],
                     if (product.trackingMode == 'batch') ...[
                       Align(
                         alignment: Alignment.centerLeft,
-                        child: Text('Available batches', style: Theme.of(context).textTheme.labelLarge),
+                        child: Text(
+                          'Available batches',
+                          style: Theme.of(context).textTheme.labelLarge,
+                        ),
                       ),
                       const SizedBox(height: 6),
-                      ...batchRows.take(8).map((row) => Align(
-                            alignment: Alignment.centerLeft,
-                            child: Text(
-                              '${row['batch_number']} • available ${_number(row['available_quantity']).toStringAsFixed(2)}'
-                              '${row['expiry_on'] == null ? '' : ' • exp ${row['expiry_on']}'}',
+                      ...batchRows
+                          .take(8)
+                          .map(
+                            (row) => Align(
+                              alignment: Alignment.centerLeft,
+                              child: Text(
+                                '${row['batch_number']} • available ${_number(row['available_quantity']).toStringAsFixed(2)}'
+                                '${row['expiry_on'] == null ? '' : ' • exp ${row['expiry_on']}'}',
+                              ),
                             ),
-                          )),
+                          ),
                       const SizedBox(height: 8),
                       TextField(
                         controller: batches,
@@ -235,7 +284,8 @@ class _StockTransfersScreenState extends State<StockTransfersScreen> {
                         maxLines: 6,
                         decoration: const InputDecoration(
                           labelText: 'Batch allocations',
-                          hintText: 'One per line: BATCH-NUMBER=QTY\nExample: LOT-2401=5',
+                          hintText:
+                              'One per line: BATCH-NUMBER=QTY\nExample: LOT-2401=5',
                         ),
                       ),
                     ],
@@ -243,17 +293,25 @@ class _StockTransfersScreenState extends State<StockTransfersScreen> {
                     Row(
                       children: [
                         Expanded(
-                          child: Text(expected == null ? 'Expected arrival: not set' : 'Expected arrival: ${_date(expected!)}'),
+                          child: Text(
+                            expected == null
+                                ? 'Expected arrival: not set'
+                                : 'Expected arrival: ${_date(expected!)}',
+                          ),
                         ),
                         TextButton.icon(
                           onPressed: () async {
                             final picked = await showDatePicker(
                               context: dialogContext,
                               firstDate: DateTime.now(),
-                              lastDate: DateTime.now().add(const Duration(days: 730)),
+                              lastDate: DateTime.now().add(
+                                const Duration(days: 730),
+                              ),
                               initialDate: expected ?? DateTime.now(),
                             );
-                            if (picked != null) setDialogState(() => expected = picked);
+                            if (picked != null) {
+                              setDialogState(() => expected = picked);
+                            }
                           },
                           icon: const Icon(Icons.event_outlined),
                           label: const Text('Set date'),
@@ -263,21 +321,31 @@ class _StockTransfersScreenState extends State<StockTransfersScreen> {
                     const SizedBox(height: 8),
                     TextField(
                       controller: transport,
-                      decoration: const InputDecoration(labelText: 'Transport / vehicle reference (optional)'),
+                      decoration: const InputDecoration(
+                        labelText: 'Transport / vehicle reference (optional)',
+                      ),
                     ),
                     const SizedBox(height: 12),
                     TextField(
                       controller: notes,
                       maxLines: 2,
-                      decoration: const InputDecoration(labelText: 'Request notes (optional)'),
+                      decoration: const InputDecoration(
+                        labelText: 'Request notes (optional)',
+                      ),
                     ),
                   ],
                 ),
               ),
             ),
             actions: [
-              TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Cancel')),
-              FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('Request Transfer')),
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext, false),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(dialogContext, true),
+                child: const Text('Request Transfer'),
+              ),
             ],
           );
         },
@@ -308,7 +376,10 @@ class _StockTransfersScreenState extends State<StockTransfersScreen> {
         return;
       }
       item['batches'] = parsed.$1;
-      item['quantity'] = parsed.$1!.fold<double>(0, (sum, row) => sum + _number(row['quantity']));
+      item['quantity'] = parsed.$1!.fold<double>(
+        0,
+        (sum, row) => sum + _number(row['quantity']),
+      );
     } else {
       final amount = double.tryParse(qty.text.trim()) ?? 0;
       if (amount <= 0) {
@@ -328,7 +399,9 @@ class _StockTransfersScreenState extends State<StockTransfersScreen> {
         expectedArrival: expected,
         transportReference: transport.text,
       );
-      _message('Transfer ${result['transfer_number']} requested and stock reserved.');
+      _message(
+        'Transfer ${result['transfer_number']} requested and stock reserved.',
+      );
       await _refresh();
     } catch (error) {
       _message(_cleanError(error));
@@ -349,7 +422,9 @@ class _StockTransfersScreenState extends State<StockTransfersScreen> {
         return (null, 'Use batch format BATCH-NUMBER=QTY.');
       }
       final amount = double.tryParse(split[1].trim()) ?? 0;
-      if (amount <= 0) return (null, 'Every batch quantity must be greater than zero.');
+      if (amount <= 0) {
+        return (null, 'Every batch quantity must be greater than zero.');
+      }
       rows.add({'batch_number': split[0].trim(), 'quantity': amount});
     }
     if (rows.isEmpty) return (null, 'Enter at least one batch allocation.');
@@ -366,10 +441,15 @@ class _StockTransfersScreenState extends State<StockTransfersScreen> {
           controller: controller,
           autofocus: true,
           maxLines: 3,
-          decoration: InputDecoration(labelText: required ? 'Reason (required)' : 'Note (optional)'),
+          decoration: InputDecoration(
+            labelText: required ? 'Reason (required)' : 'Note (optional)',
+          ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancel'),
+          ),
           FilledButton(
             onPressed: () {
               if (required && controller.text.trim().isEmpty) return;
@@ -396,16 +476,33 @@ class _StockTransfersScreenState extends State<StockTransfersScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              TextField(controller: transport, decoration: const InputDecoration(labelText: 'Vehicle / transport reference')),
+              TextField(
+                controller: transport,
+                decoration: const InputDecoration(
+                  labelText: 'Vehicle / transport reference',
+                ),
+              ),
               const SizedBox(height: 12),
-              TextField(controller: note, maxLines: 3, decoration: const InputDecoration(labelText: 'Dispatch note (optional)')),
+              TextField(
+                controller: note,
+                maxLines: 3,
+                decoration: const InputDecoration(
+                  labelText: 'Dispatch note (optional)',
+                ),
+              ),
             ],
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancel'),
+          ),
           FilledButton.icon(
-            onPressed: () => Navigator.pop(dialogContext, (note.text.trim(), transport.text.trim())),
+            onPressed: () => Navigator.pop(dialogContext, (
+              note.text.trim(),
+              transport.text.trim(),
+            )),
             icon: const Icon(Icons.local_shipping_outlined),
             label: const Text('Dispatch'),
           ),
@@ -421,15 +518,28 @@ class _StockTransfersScreenState extends State<StockTransfersScreen> {
     try {
       final id = row['id'].toString();
       if (action == 'approve') {
-        await _service.decide(tenantId: _tenantId, transferId: id, approve: true);
+        await _service.decide(
+          tenantId: _tenantId,
+          transferId: id,
+          approve: true,
+        );
       } else if (action == 'reject') {
         final reason = await _noteDialog('Reject Transfer', required: true);
         if (reason == null) return;
-        await _service.decide(tenantId: _tenantId, transferId: id, approve: false, note: reason);
+        await _service.decide(
+          tenantId: _tenantId,
+          transferId: id,
+          approve: false,
+          note: reason,
+        );
       } else if (action == 'cancel') {
         final reason = await _noteDialog('Cancel Transfer');
         if (reason == null) return;
-        await _service.cancel(tenantId: _tenantId, transferId: id, reason: reason);
+        await _service.cancel(
+          tenantId: _tenantId,
+          transferId: id,
+          reason: reason,
+        );
       } else if (action == 'dispatch') {
         final values = await _dispatchDialog();
         if (values == null) return;
@@ -460,28 +570,46 @@ class _StockTransfersScreenState extends State<StockTransfersScreen> {
 
   Future<void> _showTransfer(Map<String, dynamic> row) async {
     try {
-      final detail = await _service.detail(tenantId: _tenantId, transferId: row['id'].toString());
+      final detail = await _service.detail(
+        tenantId: _tenantId,
+        transferId: row['id'].toString(),
+      );
       if (!mounted) return;
-      final transfer = Map<String, dynamic>.from(detail['transfer'] as Map? ?? const {});
-      final items = (detail['items'] as List? ?? const []).whereType<Map>().toList();
-      final history = (detail['history'] as List? ?? const []).whereType<Map>().toList();
+      final transfer = Map<String, dynamic>.from(
+        detail['transfer'] as Map? ?? const {},
+      );
+      final items = (detail['items'] as List? ?? const [])
+          .whereType<Map>()
+          .toList();
+      final history = (detail['history'] as List? ?? const [])
+          .whereType<Map>()
+          .toList();
       await showDialog<void>(
         context: context,
         builder: (dialogContext) => AlertDialog(
-          title: Text('${transfer['transfer_number'] ?? 'Transfer'} • ${(transfer['status'] ?? '').toString().toUpperCase()}'),
+          title: Text(
+            '${transfer['transfer_number'] ?? 'Transfer'} • ${(transfer['status'] ?? '').toString().toUpperCase()}',
+          ),
           content: SizedBox(
             width: 860,
             height: 560,
             child: ListView(
               children: [
-                Text('${transfer['from_location']} → ${transfer['to_location']}', style: Theme.of(context).textTheme.titleMedium),
+                Text(
+                  '${transfer['from_location']} → ${transfer['to_location']}',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
                 const SizedBox(height: 6),
-                Text('Expected: ${transfer['expected_arrival_date'] ?? '—'} • Transport: ${transfer['transport_reference'] ?? '—'}'),
+                Text(
+                  'Expected: ${transfer['expected_arrival_date'] ?? '—'} • Transport: ${transfer['transport_reference'] ?? '—'}',
+                ),
                 const Divider(height: 28),
                 Text('Items', style: Theme.of(context).textTheme.titleMedium),
                 ...items.map((raw) {
                   final item = Map<String, dynamic>.from(raw);
-                  final allocations = (item['allocations'] as List? ?? const []).whereType<Map>().toList();
+                  final allocations = (item['allocations'] as List? ?? const [])
+                      .whereType<Map>()
+                      .toList();
                   return Card(
                     child: ListTile(
                       title: Text('${item['product_name']} • ${item['sku']}'),
@@ -499,14 +627,23 @@ class _StockTransfersScreenState extends State<StockTransfersScreen> {
                   return ListTile(
                     dense: true,
                     leading: const Icon(Icons.history),
-                    title: Text('${(h['event_type'] ?? '').toString().toUpperCase()} • ${h['from_status'] ?? '—'} → ${h['to_status'] ?? '—'}'),
-                    subtitle: Text('${h['created_at'] ?? ''}${h['note'] == null ? '' : '\n${h['note']}'}'),
+                    title: Text(
+                      '${(h['event_type'] ?? '').toString().toUpperCase()} • ${h['from_status'] ?? '—'} → ${h['to_status'] ?? '—'}',
+                    ),
+                    subtitle: Text(
+                      '${h['created_at'] ?? ''}${h['note'] == null ? '' : '\n${h['note']}'}',
+                    ),
                   );
                 }),
               ],
             ),
           ),
-          actions: [TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Close'))],
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Close'),
+            ),
+          ],
         ),
       );
     } catch (error) {
@@ -520,29 +657,43 @@ class _StockTransfersScreenState extends State<StockTransfersScreen> {
       _message('You do not have manage access to a stock location.');
       return;
     }
-    String locationId = _scopeLocationId ?? widget.session.device?.locationId ?? writable.first.id;
-    if (!writable.any((e) => e.id == locationId)) locationId = writable.first.id;
+    String locationId =
+        _scopeLocationId ??
+        widget.session.device?.locationId ??
+        writable.first.id;
+    if (!writable.any((e) => e.id == locationId)) {
+      locationId = writable.first.id;
+    }
     if (writable.length > 1) {
       final selected = await showDialog<String>(
         context: context,
         builder: (dialogContext) => SimpleDialog(
           title: const Text('Count location'),
           children: writable
-              .map((l) => SimpleDialogOption(
-                    onPressed: () => Navigator.pop(dialogContext, l.id),
-                    child: ListTile(
-                      leading: Icon(l.isWarehouse ? Icons.warehouse_outlined : Icons.store_outlined),
-                      title: Text('${l.code} • ${l.name}'),
-                      subtitle: Text(l.roleLabel),
+              .map(
+                (l) => SimpleDialogOption(
+                  onPressed: () => Navigator.pop(dialogContext, l.id),
+                  child: ListTile(
+                    leading: Icon(
+                      l.isWarehouse
+                          ? Icons.warehouse_outlined
+                          : Icons.store_outlined,
                     ),
-                  ))
+                    title: Text('${l.code} • ${l.name}'),
+                    subtitle: Text(l.roleLabel),
+                  ),
+                ),
+              )
               .toList(),
         ),
       );
       if (selected == null) return;
       locationId = selected;
     }
-    final snapshot = await _service.countSnapshot(tenantId: _tenantId, locationId: locationId);
+    final snapshot = await _service.countSnapshot(
+      tenantId: _tenantId,
+      locationId: locationId,
+    );
     if (!mounted) return;
     if (snapshot.isEmpty) {
       _message('No stock products are available to count at this location.');
@@ -555,7 +706,8 @@ class _StockTransfersScreenState extends State<StockTransfersScreen> {
         service: _service,
         tenantId: _tenantId,
         locationId: locationId,
-        locationName: '${_location(locationId)?.code ?? ''} • ${_location(locationId)?.name ?? ''}',
+        locationName:
+            '${_location(locationId)?.code ?? ''} • ${_location(locationId)?.name ?? ''}',
         snapshot: snapshot,
       ),
     );
@@ -567,12 +719,17 @@ class _StockTransfersScreenState extends State<StockTransfersScreen> {
 
   Future<void> _showWarehouse(Map<String, dynamic> warehouse) async {
     try {
-      final rows = await _service.warehouseInventory(tenantId: _tenantId, locationId: warehouse['location_id']?.toString());
+      final rows = await _service.warehouseInventory(
+        tenantId: _tenantId,
+        locationId: warehouse['location_id']?.toString(),
+      );
       if (!mounted) return;
       await showDialog<void>(
         context: context,
         builder: (dialogContext) => AlertDialog(
-          title: Text('${warehouse['location_code']} • ${warehouse['location_name']}'),
+          title: Text(
+            '${warehouse['location_code']} • ${warehouse['location_name']}',
+          ),
           content: SizedBox(
             width: 900,
             height: 520,
@@ -593,7 +750,12 @@ class _StockTransfersScreenState extends State<StockTransfersScreen> {
                     },
                   ),
           ),
-          actions: [TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Close'))],
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Close'),
+            ),
+          ],
         ),
       );
     } catch (error) {
@@ -603,10 +765,17 @@ class _StockTransfersScreenState extends State<StockTransfersScreen> {
 
   Future<void> _showCount(Map<String, dynamic> row) async {
     try {
-      final detail = await _service.countDetail(tenantId: _tenantId, countId: row['id'].toString());
+      final detail = await _service.countDetail(
+        tenantId: _tenantId,
+        countId: row['id'].toString(),
+      );
       if (!mounted) return;
-      final count = Map<String, dynamic>.from(detail['count'] as Map? ?? const {});
-      final items = (detail['items'] as List? ?? const []).whereType<Map>().toList();
+      final count = Map<String, dynamic>.from(
+        detail['count'] as Map? ?? const {},
+      );
+      final items = (detail['items'] as List? ?? const [])
+          .whereType<Map>()
+          .toList();
       await showDialog<void>(
         context: context,
         builder: (dialogContext) => AlertDialog(
@@ -616,20 +785,29 @@ class _StockTransfersScreenState extends State<StockTransfersScreen> {
             height: 520,
             child: ListView(
               children: [
-                Text('Posted: ${count['posted_at'] ?? '—'} • ${count['reconciliation_status'] ?? ''}'),
+                Text(
+                  'Posted: ${count['posted_at'] ?? '—'} • ${count['reconciliation_status'] ?? ''}',
+                ),
                 const SizedBox(height: 12),
                 ...items.map((raw) {
                   final item = Map<String, dynamic>.from(raw);
                   return ListTile(
                     dense: true,
                     title: Text('${item['product_name']} • ${item['sku']}'),
-                    subtitle: Text('System ${item['system_quantity']} • Counted ${item['counted_quantity']} • Variance ${item['variance']} • ${(item['tracking_mode'] ?? 'none').toString().toUpperCase()}'),
+                    subtitle: Text(
+                      'System ${item['system_quantity']} • Counted ${item['counted_quantity']} • Variance ${item['variance']} • ${(item['tracking_mode'] ?? 'none').toString().toUpperCase()}',
+                    ),
                   );
                 }),
               ],
             ),
           ),
-          actions: [TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Close'))],
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Close'),
+            ),
+          ],
         ),
       );
     } catch (error) {
@@ -661,17 +839,37 @@ class _StockTransfersScreenState extends State<StockTransfersScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Warehouse & Transfers', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800)),
+                      Text(
+                        'Warehouse & Transfers',
+                        style: TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
                       SizedBox(height: 4),
-                      Text('Request → Approve → Dispatch → In Transit → Receive, with stock counts and reconciliation.'),
+                      Text(
+                        'Request → Approve → Dispatch → In Transit → Receive, with stock counts and reconciliation.',
+                      ),
                     ],
                   ),
                 ),
                 if (_canManage)
-                  FilledButton.icon(onPressed: _createTransfer, icon: const Icon(Icons.swap_horiz), label: const Text('New Transfer Request')),
+                  FilledButton.icon(
+                    onPressed: _createTransfer,
+                    icon: const Icon(Icons.swap_horiz),
+                    label: const Text('New Transfer Request'),
+                  ),
                 if (_canCount)
-                  OutlinedButton.icon(onPressed: _stockCount, icon: const Icon(Icons.fact_check_outlined), label: const Text('New Stock Count')),
-                IconButton(onPressed: _refresh, tooltip: 'Refresh', icon: const Icon(Icons.refresh)),
+                  OutlinedButton.icon(
+                    onPressed: _stockCount,
+                    icon: const Icon(Icons.fact_check_outlined),
+                    label: const Text('New Stock Count'),
+                  ),
+                IconButton(
+                  onPressed: _refresh,
+                  tooltip: 'Refresh',
+                  icon: const Icon(Icons.refresh),
+                ),
               ],
             ),
             const SizedBox(height: 16),
@@ -680,7 +878,10 @@ class _StockTransfersScreenState extends State<StockTransfersScreen> {
               tabs: [
                 Tab(icon: Icon(Icons.swap_horiz), text: 'Transfers'),
                 Tab(icon: Icon(Icons.warehouse_outlined), text: 'Warehouses'),
-                Tab(icon: Icon(Icons.fact_check_outlined), text: 'Stock Counts'),
+                Tab(
+                  icon: Icon(Icons.fact_check_outlined),
+                  text: 'Stock Counts',
+                ),
                 Tab(icon: Icon(Icons.balance_outlined), text: 'Reconciliation'),
               ],
             ),
@@ -702,180 +903,282 @@ class _StockTransfersScreenState extends State<StockTransfersScreen> {
   }
 
   Widget _transferList() => FutureBuilder<List<Map<String, dynamic>>>(
-        future: _transfers,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
-          if (snapshot.hasError) return Center(child: Text(snapshot.error.toString()));
-          final rows = snapshot.data ?? const [];
-          if (rows.isEmpty) return const Center(child: Text('No stock transfers yet.'));
-          return RefreshIndicator(
-            onRefresh: _refresh,
-            child: ListView.separated(
-              itemCount: rows.length,
-              separatorBuilder: (_, _) => const SizedBox(height: 8),
-              itemBuilder: (context, index) {
-                final row = rows[index];
-                final status = row['status']?.toString() ?? '';
-                return Card(
-                  child: ListTile(
-                    onTap: () => _showTransfer(row),
-                    leading: CircleAvatar(
-                      child: Icon(status == 'in_transit' ? Icons.local_shipping_outlined : status == 'received' ? Icons.inventory_2_outlined : Icons.swap_horiz),
-                    ),
-                    title: Text('${row['transfer_number']} • ${row['from_location']} → ${row['to_location']}', style: const TextStyle(fontWeight: FontWeight.w700)),
-                    subtitle: Text(
-                      '${row['item_count']} item(s) • Qty ${row['total_quantity']}'
-                      '${status == 'in_transit' ? ' • In transit ${row['in_transit_quantity']}' : ''}'
-                      '${_number(row['serial_count']) > 0 ? ' • ${row['serial_count']} serial(s)' : ''}'
-                      '${_number(row['batch_quantity']) > 0 ? ' • batch qty ${row['batch_quantity']}' : ''}'
-                      '\n${row['created_at'] ?? ''}${row['expected_arrival_date'] == null ? '' : ' • ETA ${row['expected_arrival_date']}'}',
-                    ),
-                    isThreeLine: true,
-                    trailing: Wrap(
-                      spacing: 6,
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      children: [
-                        Chip(label: Text(status.toUpperCase())),
-                        if (_canApprove && status == 'requested')
-                          OutlinedButton(onPressed: () => _action(row, 'approve'), child: const Text('Approve')),
-                        if (_canApprove && status == 'requested')
-                          TextButton(onPressed: () => _action(row, 'reject'), child: const Text('Reject')),
-                        if (_canManage && status == 'approved')
-                          FilledButton.tonal(onPressed: () => _action(row, 'dispatch'), child: const Text('Dispatch')),
-                        if (_canManage && (status == 'requested' || status == 'approved'))
-                          TextButton(onPressed: () => _action(row, 'cancel'), child: const Text('Cancel')),
-                        if (_canManage && status == 'in_transit')
-                          FilledButton(onPressed: () => _action(row, 'receive'), child: const Text('Receive')),
-                      ],
-                    ),
-                  ),
-                );
-              },
-            ),
-          );
-        },
-      );
-
-  Widget _warehouseList() => FutureBuilder<List<Map<String, dynamic>>>(
-        future: _warehouses,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
-          if (snapshot.hasError) return Center(child: Text(snapshot.error.toString()));
-          final rows = snapshot.data ?? const [];
-          if (rows.isEmpty) {
-            return const Center(child: Text('No warehouse locations yet. Create a business location with type/role Warehouse.'));
-          }
-          return GridView.builder(
-            gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(maxCrossAxisExtent: 430, mainAxisExtent: 210, crossAxisSpacing: 12, mainAxisSpacing: 12),
-            itemCount: rows.length,
-            itemBuilder: (_, index) {
-              final row = rows[index];
-              return Card(
-                child: InkWell(
-                  onTap: () => _showWarehouse(row),
-                  borderRadius: BorderRadius.circular(12),
-                  child: Padding(
-                    padding: const EdgeInsets.all(18),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(children: [const Icon(Icons.warehouse_outlined), const SizedBox(width: 10), Expanded(child: Text('${row['location_code']} • ${row['location_name']}', style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700)))]),
-                        const SizedBox(height: 16),
-                        Text('Products ${row['product_count']} • On hand ${row['on_hand']}'),
-                        Text('Available ${row['available']} • Reserved ${row['reserved']}'),
-                        Text('Damaged ${row['damaged']} • Quarantine ${row['quarantine']}'),
-                        const Spacer(),
-                        Text('In transit: ${row['in_transit_in']} incoming • ${row['in_transit_out']} outgoing', style: Theme.of(context).textTheme.labelLarge),
-                      ],
-                    ),
+    future: _transfers,
+    builder: (context, snapshot) {
+      if (snapshot.connectionState == ConnectionState.waiting) {
+        return const Center(child: CircularProgressIndicator());
+      }
+      if (snapshot.hasError) {
+        return Center(child: Text(snapshot.error.toString()));
+      }
+      final rows = snapshot.data ?? const [];
+      if (rows.isEmpty) {
+        return const Center(child: Text('No stock transfers yet.'));
+      }
+      return RefreshIndicator(
+        onRefresh: _refresh,
+        child: ListView.separated(
+          itemCount: rows.length,
+          separatorBuilder: (_, _) => const SizedBox(height: 8),
+          itemBuilder: (context, index) {
+            final row = rows[index];
+            final status = row['status']?.toString() ?? '';
+            return Card(
+              child: ListTile(
+                onTap: () => _showTransfer(row),
+                leading: CircleAvatar(
+                  child: Icon(
+                    status == 'in_transit'
+                        ? Icons.local_shipping_outlined
+                        : status == 'received'
+                        ? Icons.inventory_2_outlined
+                        : Icons.swap_horiz,
                   ),
                 ),
-              );
-            },
+                title: Text(
+                  '${row['transfer_number']} • ${row['from_location']} → ${row['to_location']}',
+                  style: const TextStyle(fontWeight: FontWeight.w700),
+                ),
+                subtitle: Text(
+                  '${row['item_count']} item(s) • Qty ${row['total_quantity']}'
+                  '${status == 'in_transit' ? ' • In transit ${row['in_transit_quantity']}' : ''}'
+                  '${_number(row['serial_count']) > 0 ? ' • ${row['serial_count']} serial(s)' : ''}'
+                  '${_number(row['batch_quantity']) > 0 ? ' • batch qty ${row['batch_quantity']}' : ''}'
+                  '\n${row['created_at'] ?? ''}${row['expected_arrival_date'] == null ? '' : ' • ETA ${row['expected_arrival_date']}'}',
+                ),
+                isThreeLine: true,
+                trailing: Wrap(
+                  spacing: 6,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    Chip(label: Text(status.toUpperCase())),
+                    if (_canApprove && status == 'requested')
+                      OutlinedButton(
+                        onPressed: () => _action(row, 'approve'),
+                        child: const Text('Approve'),
+                      ),
+                    if (_canApprove && status == 'requested')
+                      TextButton(
+                        onPressed: () => _action(row, 'reject'),
+                        child: const Text('Reject'),
+                      ),
+                    if (_canManage && status == 'approved')
+                      FilledButton.tonal(
+                        onPressed: () => _action(row, 'dispatch'),
+                        child: const Text('Dispatch'),
+                      ),
+                    if (_canManage &&
+                        (status == 'requested' || status == 'approved'))
+                      TextButton(
+                        onPressed: () => _action(row, 'cancel'),
+                        child: const Text('Cancel'),
+                      ),
+                    if (_canManage && status == 'in_transit')
+                      FilledButton(
+                        onPressed: () => _action(row, 'receive'),
+                        child: const Text('Receive'),
+                      ),
+                  ],
+                ),
+              ),
+            );
+          },
+        ),
+      );
+    },
+  );
+
+  Widget _warehouseList() => FutureBuilder<List<Map<String, dynamic>>>(
+    future: _warehouses,
+    builder: (context, snapshot) {
+      if (snapshot.connectionState == ConnectionState.waiting) {
+        return const Center(child: CircularProgressIndicator());
+      }
+      if (snapshot.hasError) {
+        return Center(child: Text(snapshot.error.toString()));
+      }
+      final rows = snapshot.data ?? const [];
+      if (rows.isEmpty) {
+        return const Center(
+          child: Text(
+            'No warehouse locations yet. Create a business location with type/role Warehouse.',
+          ),
+        );
+      }
+      return GridView.builder(
+        gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+          maxCrossAxisExtent: 430,
+          mainAxisExtent: 210,
+          crossAxisSpacing: 12,
+          mainAxisSpacing: 12,
+        ),
+        itemCount: rows.length,
+        itemBuilder: (_, index) {
+          final row = rows[index];
+          return Card(
+            child: InkWell(
+              onTap: () => _showWarehouse(row),
+              borderRadius: BorderRadius.circular(12),
+              child: Padding(
+                padding: const EdgeInsets.all(18),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(Icons.warehouse_outlined),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            '${row['location_code']} • ${row['location_name']}',
+                            style: const TextStyle(
+                              fontSize: 17,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Products ${row['product_count']} • On hand ${row['on_hand']}',
+                    ),
+                    Text(
+                      'Available ${row['available']} • Reserved ${row['reserved']}',
+                    ),
+                    Text(
+                      'Damaged ${row['damaged']} • Quarantine ${row['quarantine']}',
+                    ),
+                    const Spacer(),
+                    Text(
+                      'In transit: ${row['in_transit_in']} incoming • ${row['in_transit_out']} outgoing',
+                      style: Theme.of(context).textTheme.labelLarge,
+                    ),
+                  ],
+                ),
+              ),
+            ),
           );
         },
       );
+    },
+  );
 
   Widget _countList() => FutureBuilder<List<Map<String, dynamic>>>(
-        future: _counts,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
-          if (snapshot.hasError) return Center(child: Text(snapshot.error.toString()));
-          final rows = snapshot.data ?? const [];
-          if (rows.isEmpty) return const Center(child: Text('No physical stock counts posted yet.'));
-          return ListView.separated(
-            itemCount: rows.length,
-            separatorBuilder: (_, _) => const Divider(height: 1),
-            itemBuilder: (_, index) {
-              final row = rows[index];
-              final variance = _number(row['total_variance']);
-              return ListTile(
-                onTap: () => _showCount(row),
-                leading: CircleAvatar(child: Icon(variance.abs() > .000001 ? Icons.rule_folder_outlined : Icons.fact_check_outlined)),
-                title: Text('${row['count_number']} • ${row['location_name']}', style: const TextStyle(fontWeight: FontWeight.w700)),
-                subtitle: Text('${row['line_count']} lines • System ${row['total_system_quantity']} • Counted ${row['total_counted_quantity']} • Variance ${row['total_variance']}\n${row['posted_at'] ?? row['created_at'] ?? ''}'),
-                isThreeLine: true,
-                trailing: Chip(label: Text((row['reconciliation_status'] ?? '').toString().toUpperCase())),
-              );
-            },
+    future: _counts,
+    builder: (context, snapshot) {
+      if (snapshot.connectionState == ConnectionState.waiting) {
+        return const Center(child: CircularProgressIndicator());
+      }
+      if (snapshot.hasError) {
+        return Center(child: Text(snapshot.error.toString()));
+      }
+      final rows = snapshot.data ?? const [];
+      if (rows.isEmpty) {
+        return const Center(
+          child: Text('No physical stock counts posted yet.'),
+        );
+      }
+      return ListView.separated(
+        itemCount: rows.length,
+        separatorBuilder: (_, _) => const Divider(height: 1),
+        itemBuilder: (_, index) {
+          final row = rows[index];
+          final variance = _number(row['total_variance']);
+          return ListTile(
+            onTap: () => _showCount(row),
+            leading: CircleAvatar(
+              child: Icon(
+                variance.abs() > .000001
+                    ? Icons.rule_folder_outlined
+                    : Icons.fact_check_outlined,
+              ),
+            ),
+            title: Text(
+              '${row['count_number']} • ${row['location_name']}',
+              style: const TextStyle(fontWeight: FontWeight.w700),
+            ),
+            subtitle: Text(
+              '${row['line_count']} lines • System ${row['total_system_quantity']} • Counted ${row['total_counted_quantity']} • Variance ${row['total_variance']}\n${row['posted_at'] ?? row['created_at'] ?? ''}',
+            ),
+            isThreeLine: true,
+            trailing: Chip(
+              label: Text(
+                (row['reconciliation_status'] ?? '').toString().toUpperCase(),
+              ),
+            ),
           );
         },
       );
+    },
+  );
 
   Widget _reconciliationList() => Column(
-        children: [
-          Align(
-            alignment: Alignment.centerRight,
-            child: FilterChip(
-              selected: _onlyVariance,
-              label: const Text('Only mismatches / variance'),
-              onSelected: (value) {
-                setState(() {
-                  _onlyVariance = value;
-                  _reconciliation = _service.reconciliation(
-                    tenantId: _tenantId,
-                    locationId: _scopeLocationId,
-                    onlyVariance: value,
-                  );
-                });
-              },
-            ),
-          ),
-          const SizedBox(height: 8),
-          Expanded(
-            child: FutureBuilder<List<Map<String, dynamic>>>(
-              future: _reconciliation,
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
-                if (snapshot.hasError) return Center(child: Text(snapshot.error.toString()));
-                final rows = snapshot.data ?? const [];
-                if (rows.isEmpty) return const Center(child: Text('No reconciliation issues found.'));
-                return ListView.separated(
-                  itemCount: rows.length,
-                  separatorBuilder: (_, _) => const Divider(height: 1),
-                  itemBuilder: (_, index) {
-                    final row = rows[index];
-                    final status = row['reconciliation_status']?.toString() ?? 'OK';
-                    final good = status == 'OK';
-                    return ListTile(
-                      leading: Icon(good ? Icons.check_circle_outline : Icons.warning_amber_rounded),
-                      title: Text('${row['product_name']} • ${row['sku']}'),
-                      subtitle: Text(
-                        '${row['location_name']} • ${(row['tracking_mode'] ?? 'none').toString().toUpperCase()}'
-                        '\nLocation ${row['location_quantity']} • Tracked ${row['tracked_quantity']} • Reserved ${row['reserved_quantity']} • Available ${row['available_quantity']}'
-                        '\nCompany ${row['company_stock_quantity']} • Sum of locations ${row['all_locations_quantity']}'
-                        '${row['latest_count_number'] == null ? '' : ' • Last count ${row['latest_count_number']} variance ${row['latest_count_variance']}'}',
-                      ),
-                      isThreeLine: true,
-                      trailing: Chip(label: Text(status)),
-                    );
-                  },
+    children: [
+      Align(
+        alignment: Alignment.centerRight,
+        child: FilterChip(
+          selected: _onlyVariance,
+          label: const Text('Only mismatches / variance'),
+          onSelected: (value) {
+            setState(() {
+              _onlyVariance = value;
+              _reconciliation = _service.reconciliation(
+                tenantId: _tenantId,
+                locationId: _scopeLocationId,
+                onlyVariance: value,
+              );
+            });
+          },
+        ),
+      ),
+      const SizedBox(height: 8),
+      Expanded(
+        child: FutureBuilder<List<Map<String, dynamic>>>(
+          future: _reconciliation,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            if (snapshot.hasError) {
+              return Center(child: Text(snapshot.error.toString()));
+            }
+            final rows = snapshot.data ?? const [];
+            if (rows.isEmpty) {
+              return const Center(
+                child: Text('No reconciliation issues found.'),
+              );
+            }
+            return ListView.separated(
+              itemCount: rows.length,
+              separatorBuilder: (_, _) => const Divider(height: 1),
+              itemBuilder: (_, index) {
+                final row = rows[index];
+                final status = row['reconciliation_status']?.toString() ?? 'OK';
+                final good = status == 'OK';
+                return ListTile(
+                  leading: Icon(
+                    good
+                        ? Icons.check_circle_outline
+                        : Icons.warning_amber_rounded,
+                  ),
+                  title: Text('${row['product_name']} • ${row['sku']}'),
+                  subtitle: Text(
+                    '${row['location_name']} • ${(row['tracking_mode'] ?? 'none').toString().toUpperCase()}'
+                    '\nLocation ${row['location_quantity']} • Tracked ${row['tracked_quantity']} • Reserved ${row['reserved_quantity']} • Available ${row['available_quantity']}'
+                    '\nCompany ${row['company_stock_quantity']} • Sum of locations ${row['all_locations_quantity']}'
+                    '${row['latest_count_number'] == null ? '' : ' • Last count ${row['latest_count_number']} variance ${row['latest_count_variance']}'}',
+                  ),
+                  isThreeLine: true,
+                  trailing: Chip(label: Text(status)),
                 );
               },
-            ),
-          ),
-        ],
-      );
+            );
+          },
+        ),
+      ),
+    ],
+  );
 }
 
 class _V485StockCountDialog extends StatefulWidget {
@@ -913,18 +1216,33 @@ class _V485StockCountDialogState extends State<_V485StockCountDialog> {
       final id = row['variant_id'].toString();
       final mode = row['tracking_mode']?.toString() ?? 'none';
       if (mode == 'serial') {
-        final tracking = Map<String, dynamic>.from(row['tracking'] as Map? ?? const {});
-        final serials = (tracking['serial_numbers'] as List? ?? const []).whereType<Map>().map((s) => s['serial_number']?.toString() ?? '').where((s) => s.isNotEmpty).join('\n');
+        final tracking = Map<String, dynamic>.from(
+          row['tracking'] as Map? ?? const {},
+        );
+        final serials = (tracking['serial_numbers'] as List? ?? const [])
+            .whereType<Map>()
+            .map((s) => s['serial_number']?.toString() ?? '')
+            .where((s) => s.isNotEmpty)
+            .join('\n');
         _editors[id] = TextEditingController(text: serials);
       } else if (mode == 'batch') {
-        final tracking = Map<String, dynamic>.from(row['tracking'] as Map? ?? const {});
-        final batches = (tracking['batches'] as List? ?? const []).whereType<Map>().map((b) {
-          final exp = b['expiry_on']?.toString() ?? '';
-          return '${b['batch_number']}=${b['quantity']}|${b['damaged_quantity'] ?? 0}|$exp';
-        }).join('\n');
+        final tracking = Map<String, dynamic>.from(
+          row['tracking'] as Map? ?? const {},
+        );
+        final batches = (tracking['batches'] as List? ?? const [])
+            .whereType<Map>()
+            .map((b) {
+              final exp = b['expiry_on']?.toString() ?? '';
+              return '${b['batch_number']}=${b['quantity']}|${b['damaged_quantity'] ?? 0}|$exp';
+            })
+            .join('\n');
         _editors[id] = TextEditingController(text: batches);
       } else {
-        _editors[id] = TextEditingController(text: _number(row['system_quantity']).toStringAsFixed(_number(row['system_quantity']) % 1 == 0 ? 0 : 2));
+        _editors[id] = TextEditingController(
+          text: _number(
+            row['system_quantity'],
+          ).toStringAsFixed(_number(row['system_quantity']) % 1 == 0 ? 0 : 2),
+        );
       }
     }
   }
@@ -942,7 +1260,12 @@ class _V485StockCountDialogState extends State<_V485StockCountDialog> {
   List<Map<String, dynamic>> get _filtered {
     final q = _query.trim().toLowerCase();
     if (q.isEmpty) return widget.snapshot;
-    return widget.snapshot.where((row) => '${row['product_name']} ${row['sku']}'.toLowerCase().contains(q)).toList();
+    return widget.snapshot
+        .where(
+          (row) =>
+              '${row['product_name']} ${row['sku']}'.toLowerCase().contains(q),
+        )
+        .toList();
   }
 
   Future<void> _editTracked(Map<String, dynamic> row) async {
@@ -958,21 +1281,32 @@ class _V485StockCountDialogState extends State<_V485StockCountDialog> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(mode == 'serial'
-                  ? 'Enter every physical serial found at this location, one per line. Missing registered serials will be marked missing; unknown serials will be registered.'
-                  : 'Enter every physical batch as BATCH=SALEABLE|DAMAGED|EXPIRY. Example: LOT-01=8|2|2027-12-31. Omitted existing batches are reconciled to zero.'),
+              Text(
+                mode == 'serial'
+                    ? 'Enter every physical serial found at this location, one per line. Missing registered serials will be marked missing; unknown serials will be registered.'
+                    : 'Enter every physical batch as BATCH=SALEABLE|DAMAGED|EXPIRY. Example: LOT-01=8|2|2027-12-31. Omitted existing batches are reconciled to zero.',
+              ),
               const SizedBox(height: 12),
               TextField(
                 controller: controller,
                 autofocus: true,
                 minLines: 10,
                 maxLines: 18,
-                decoration: InputDecoration(labelText: mode == 'serial' ? 'Physical serial numbers' : 'Physical batch quantities'),
+                decoration: InputDecoration(
+                  labelText: mode == 'serial'
+                      ? 'Physical serial numbers'
+                      : 'Physical batch quantities',
+                ),
               ),
             ],
           ),
         ),
-        actions: [FilledButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Done'))],
+        actions: [
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Done'),
+          ),
+        ],
       ),
     );
     if (mounted) setState(() {});
@@ -982,13 +1316,25 @@ class _V485StockCountDialogState extends State<_V485StockCountDialog> {
     final rows = <Map<String, dynamic>>[];
     for (final line in _lines(text)) {
       final halves = line.split('=');
-      if (halves.length != 2 || halves.first.trim().isEmpty) return (null, 'Batch lines must use BATCH=SALEABLE|DAMAGED|EXPIRY.');
+      if (halves.length != 2 || halves.first.trim().isEmpty) {
+        return (null, 'Batch lines must use BATCH=SALEABLE|DAMAGED|EXPIRY.');
+      }
       final parts = halves[1].split('|');
       final qty = double.tryParse(parts[0].trim()) ?? -1;
-      final damaged = parts.length > 1 && parts[1].trim().isNotEmpty ? double.tryParse(parts[1].trim()) ?? -1 : 0;
-      if (qty < 0 || damaged < 0) return (null, 'Batch quantities cannot be negative.');
-      final row = <String, dynamic>{'batch_number': halves[0].trim(), 'quantity': qty, 'damaged_quantity': damaged};
-      if (parts.length > 2 && parts[2].trim().isNotEmpty) row['expiry_on'] = parts[2].trim();
+      final damaged = parts.length > 1 && parts[1].trim().isNotEmpty
+          ? double.tryParse(parts[1].trim()) ?? -1
+          : 0;
+      if (qty < 0 || damaged < 0) {
+        return (null, 'Batch quantities cannot be negative.');
+      }
+      final row = <String, dynamic>{
+        'batch_number': halves[0].trim(),
+        'quantity': qty,
+        'damaged_quantity': damaged,
+      };
+      if (parts.length > 2 && parts[2].trim().isNotEmpty) {
+        row['expiry_on'] = parts[2].trim();
+      }
       rows.add(row);
     }
     return (rows, '');
@@ -998,7 +1344,10 @@ class _V485StockCountDialogState extends State<_V485StockCountDialog> {
     final items = <Map<String, dynamic>>[];
     for (final row in widget.snapshot) {
       if (row['count_blocked'] == true) {
-        setState(() => _error = '${row['product_name']} has reserved transfer stock. Dispatch/cancel it before counting.');
+        setState(
+          () => _error =
+              '${row['product_name']} has reserved transfer stock. Dispatch/cancel it before counting.',
+        );
         return;
       }
       final id = row['variant_id'].toString();
@@ -1016,7 +1365,10 @@ class _V485StockCountDialogState extends State<_V485StockCountDialog> {
       } else {
         final value = double.tryParse(text.trim());
         if (value == null || value < 0) {
-          setState(() => _error = '${row['product_name']}: counted quantity must be zero or more.');
+          setState(
+            () => _error =
+                '${row['product_name']}: counted quantity must be zero or more.',
+          );
           return;
         }
         items.add({'variant_id': id, 'counted_quantity': value});
@@ -1047,12 +1399,19 @@ class _V485StockCountDialogState extends State<_V485StockCountDialog> {
     return Dialog.fullscreen(
       child: Scaffold(
         appBar: AppBar(
-          leading: IconButton(onPressed: _saving ? null : () => Navigator.pop(context, false), icon: const Icon(Icons.close)),
+          leading: IconButton(
+            onPressed: _saving ? null : () => Navigator.pop(context, false),
+            icon: const Icon(Icons.close),
+          ),
           title: Text('Physical Stock Count • ${widget.locationName}'),
           actions: [
             Padding(
               padding: const EdgeInsets.only(right: 12),
-              child: FilledButton.icon(onPressed: _saving ? null : _post, icon: const Icon(Icons.check_circle_outline), label: Text(_saving ? 'Posting…' : 'Post & Reconcile')),
+              child: FilledButton.icon(
+                onPressed: _saving ? null : _post,
+                icon: const Icon(Icons.check_circle_outline),
+                label: Text(_saving ? 'Posting…' : 'Post & Reconcile'),
+              ),
             ),
           ],
         ),
@@ -1066,17 +1425,35 @@ class _V485StockCountDialogState extends State<_V485StockCountDialog> {
                     child: TextField(
                       controller: _search,
                       onChanged: (value) => setState(() => _query = value),
-                      decoration: const InputDecoration(labelText: 'Find product / SKU', prefixIcon: Icon(Icons.search)),
+                      decoration: const InputDecoration(
+                        labelText: 'Find product / SKU',
+                        prefixIcon: Icon(Icons.search),
+                      ),
                     ),
                   ),
                   const SizedBox(width: 12),
-                  Expanded(child: TextField(controller: _notes, decoration: const InputDecoration(labelText: 'Count / reconciliation note'))),
+                  Expanded(
+                    child: TextField(
+                      controller: _notes,
+                      decoration: const InputDecoration(
+                        labelText: 'Count / reconciliation note',
+                      ),
+                    ),
+                  ),
                 ],
               ),
               if (_error != null)
                 Padding(
                   padding: const EdgeInsets.only(top: 10),
-                  child: Align(alignment: Alignment.centerLeft, child: Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error))),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      _error!,
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.error,
+                      ),
+                    ),
+                  ),
                 ),
               const SizedBox(height: 14),
               Expanded(
@@ -1099,14 +1476,28 @@ class _V485StockCountDialogState extends State<_V485StockCountDialog> {
                               child: TextField(
                                 controller: _editors[id],
                                 textAlign: TextAlign.right,
-                                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                                decoration: const InputDecoration(labelText: 'Counted', isDense: true),
+                                keyboardType:
+                                    const TextInputType.numberWithOptions(
+                                      decimal: true,
+                                    ),
+                                decoration: const InputDecoration(
+                                  labelText: 'Counted',
+                                  isDense: true,
+                                ),
                               ),
                             )
                           : OutlinedButton.icon(
                               onPressed: () => _editTracked(row),
-                              icon: Icon(mode == 'serial' ? Icons.numbers : Icons.inventory_2_outlined),
-                              label: Text(mode == 'serial' ? '${_lines(_editors[id]!.text).length} serials' : 'Edit batches'),
+                              icon: Icon(
+                                mode == 'serial'
+                                    ? Icons.numbers
+                                    : Icons.inventory_2_outlined,
+                              ),
+                              label: Text(
+                                mode == 'serial'
+                                    ? '${_lines(_editors[id]!.text).length} serials'
+                                    : 'Edit batches',
+                              ),
                             ),
                     );
                   },
@@ -1127,12 +1518,14 @@ class _ReadOnlyField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => InputDecorator(
-        decoration: InputDecoration(labelText: label),
-        child: Text(value),
-      );
+    decoration: InputDecoration(labelText: label),
+    child: Text(value),
+  );
 }
 
-double _number(dynamic value) => value is num ? value.toDouble() : double.tryParse(value?.toString() ?? '') ?? 0;
+double _number(dynamic value) => value is num
+    ? value.toDouble()
+    : double.tryParse(value?.toString() ?? '') ?? 0;
 
 List<String> _lines(String value) => value
     .split(RegExp(r'[\r\n,]+'))
@@ -1140,9 +1533,12 @@ List<String> _lines(String value) => value
     .where((e) => e.isNotEmpty)
     .toList();
 
-String _date(DateTime value) => '${value.year.toString().padLeft(4, '0')}-${value.month.toString().padLeft(2, '0')}-${value.day.toString().padLeft(2, '0')}';
+String _date(DateTime value) =>
+    '${value.year.toString().padLeft(4, '0')}-${value.month.toString().padLeft(2, '0')}-${value.day.toString().padLeft(2, '0')}';
 
 String _cleanError(Object error) {
   final text = error.toString();
-  return text.replaceFirst('PostgrestException(message: ', '').replaceFirst('Exception: ', '');
+  return text
+      .replaceFirst('PostgrestException(message: ', '')
+      .replaceFirst('Exception: ', '');
 }

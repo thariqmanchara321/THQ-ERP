@@ -98,7 +98,9 @@ class RestaurantService {
         'p_items': items,
       },
     );
-    if (result is! Map) throw Exception('Unexpected restaurant order response.');
+    if (result is! Map) {
+      throw Exception('Unexpected restaurant order response.');
+    }
     return Map<String, dynamic>.from(result);
   }
 

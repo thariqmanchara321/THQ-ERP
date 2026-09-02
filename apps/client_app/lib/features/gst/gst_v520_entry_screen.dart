@@ -42,10 +42,7 @@ class _GstV520EntryScreenState extends State<GstV520EntryScreen> {
     try {
       final raw = await _client.rpc(
         'gst_tax_mode_get_v520',
-        params: {
-          'p_tenant_id': _tenantId,
-          'p_date': _date(DateTime.now()),
-        },
+        params: {'p_tenant_id': _tenantId, 'p_date': _date(DateTime.now())},
       );
       final map = raw is Map
           ? Map<String, dynamic>.from(raw)
@@ -68,10 +65,7 @@ class _GstV520EntryScreenState extends State<GstV520EntryScreen> {
     final choice = await showDialog<_TaxModeChoice>(
       context: context,
       barrierDismissible: false,
-      builder: (_) => _TaxModeDialog(
-        currentMode: _taxMode,
-        changing: changing,
-      ),
+      builder: (_) => _TaxModeDialog(currentMode: _taxMode, changing: changing),
     );
     if (choice == null || !mounted) return;
 
@@ -86,7 +80,9 @@ class _GstV520EntryScreenState extends State<GstV520EntryScreen> {
           'p_tenant_id': _tenantId,
           'p_tax_mode': choice.mode,
           'p_effective_from': _date(choice.effectiveFrom),
-          'p_reason': choice.reason.trim().isEmpty ? null : choice.reason.trim(),
+          'p_reason': choice.reason.trim().isEmpty
+              ? null
+              : choice.reason.trim(),
         },
       );
       await _loadMode();
@@ -106,10 +102,7 @@ class _GstV520EntryScreenState extends State<GstV520EntryScreen> {
     }
 
     if (!_configured) {
-      return _TaxModeRequired(
-        error: _error,
-        onConfigure: () => _configure(),
-      );
+      return _TaxModeRequired(error: _error, onConfigure: () => _configure());
     }
 
     final service = GstComplianceV520Service(
@@ -165,11 +158,7 @@ class _GstV520EntryScreenState extends State<GstV520EntryScreen> {
             ),
           ),
         ),
-        Expanded(
-          child: GstComplianceV520Screen(
-            service: service,
-          ),
-        ),
+        Expanded(child: GstComplianceV520Screen(service: service)),
       ],
     );
   }
@@ -181,10 +170,7 @@ class _GstV520EntryScreenState extends State<GstV520EntryScreen> {
 }
 
 class _TaxModeRequired extends StatelessWidget {
-  const _TaxModeRequired({
-    required this.error,
-    required this.onConfigure,
-  });
+  const _TaxModeRequired({required this.error, required this.onConfigure});
 
   final Object? error;
   final VoidCallback onConfigure;
@@ -206,8 +192,8 @@ class _TaxModeRequired extends StatelessWidget {
                 Text(
                   'Choose the business tax mode',
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                        fontWeight: FontWeight.w800,
-                      ),
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
                 const SizedBox(height: 10),
                 const Text(
@@ -222,7 +208,9 @@ class _TaxModeRequired extends StatelessWidget {
                   Text(
                     error.toString(),
                     textAlign: TextAlign.center,
-                    style: TextStyle(color: Theme.of(context).colorScheme.error),
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.error,
+                    ),
                   ),
                 ],
                 const SizedBox(height: 18),
@@ -253,10 +241,7 @@ class _TaxModeChoice {
 }
 
 class _TaxModeDialog extends StatefulWidget {
-  const _TaxModeDialog({
-    required this.currentMode,
-    required this.changing,
-  });
+  const _TaxModeDialog({required this.currentMode, required this.changing});
 
   final String currentMode;
   final bool changing;

@@ -60,17 +60,49 @@ class TaskService {
     return result?.toString() ?? '';
   }
 
-  Future<Map<String, dynamic>> timeline({required String tenantId, required String taskId}) async {
-    final result = await _supabase.rpc('business_task_timeline_v500', params: {'p_tenant_id': tenantId, 'p_task_id': taskId});
-    return result is Map ? Map<String, dynamic>.from(result) : const <String, dynamic>{};
+  Future<Map<String, dynamic>> timeline({
+    required String tenantId,
+    required String taskId,
+  }) async {
+    final result = await _supabase.rpc(
+      'business_task_timeline_v500',
+      params: {'p_tenant_id': tenantId, 'p_task_id': taskId},
+    );
+    return result is Map
+        ? Map<String, dynamic>.from(result)
+        : const <String, dynamic>{};
   }
 
-  Future<void> addComment({required String tenantId, required String taskId, required String comment}) async {
-    await _supabase.rpc('business_task_comment_add_v500', params: {'p_tenant_id': tenantId, 'p_task_id': taskId, 'p_comment': comment});
+  Future<void> addComment({
+    required String tenantId,
+    required String taskId,
+    required String comment,
+  }) async {
+    await _supabase.rpc(
+      'business_task_comment_add_v500',
+      params: {
+        'p_tenant_id': tenantId,
+        'p_task_id': taskId,
+        'p_comment': comment,
+      },
+    );
   }
 
-  Future<void> setEscalation({required String tenantId, required String taskId, DateTime? escalationAt, String? escalationUserId}) async {
-    await _supabase.rpc('business_task_escalation_set_v500', params: {'p_tenant_id': tenantId, 'p_task_id': taskId, 'p_escalation_at': escalationAt?.toUtc().toIso8601String(), 'p_escalation_user_id': escalationUserId});
+  Future<void> setEscalation({
+    required String tenantId,
+    required String taskId,
+    DateTime? escalationAt,
+    String? escalationUserId,
+  }) async {
+    await _supabase.rpc(
+      'business_task_escalation_set_v500',
+      params: {
+        'p_tenant_id': tenantId,
+        'p_task_id': taskId,
+        'p_escalation_at': escalationAt?.toUtc().toIso8601String(),
+        'p_escalation_user_id': escalationUserId,
+      },
+    );
   }
 
   Future<String> createFromNotification({

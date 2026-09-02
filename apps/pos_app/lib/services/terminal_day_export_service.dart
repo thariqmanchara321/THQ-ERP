@@ -45,74 +45,59 @@ class TerminalDayExportService {
             style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey700),
           ),
           pw.SizedBox(height: 14),
-          _pdfSection(
-            'Sales',
-            [
-              ['Invoices', '${data['invoice_count'] ?? 0}'],
-              ['Gross sales', money(data['gross_sales'])],
-              ['Discount', money(data['sales_discount'])],
-              ['Tax', money(data['sales_tax'])],
-              ['Sales returns', money(data['sales_returns'])],
-              ['Net sales', money(data['net_sales'])],
-              ['Invoice payments', money(data['sales_paid'])],
-              ['Current outstanding', money(data['sales_outstanding'])],
-              ['Held invoices', '${data['held_count'] ?? 0}'],
-            ],
-          ),
+          _pdfSection('Sales', [
+            ['Invoices', '${data['invoice_count'] ?? 0}'],
+            ['Gross sales', money(data['gross_sales'])],
+            ['Discount', money(data['sales_discount'])],
+            ['Tax', money(data['sales_tax'])],
+            ['Sales returns', money(data['sales_returns'])],
+            ['Net sales', money(data['net_sales'])],
+            ['Invoice payments', money(data['sales_paid'])],
+            ['Current outstanding', money(data['sales_outstanding'])],
+            ['Held invoices', '${data['held_count'] ?? 0}'],
+          ]),
           pw.SizedBox(height: 12),
-          _pdfSection(
-            'Collections & Payments',
-            [
-              ['Cash sales', money(data['cash'])],
-              ['UPI sales', money(data['upi'])],
-              ['Card sales', money(data['card'])],
-              ['Bank sales', money(data['bank'])],
-              ['Other sales payments', money(data['other_payments'])],
-              ['Customer receipts', money(data['customer_receipts'])],
-              ['Total collected', money(data['total_collected'])],
-            ],
-          ),
+          _pdfSection('Collections & Payments', [
+            ['Cash sales', money(data['cash'])],
+            ['UPI sales', money(data['upi'])],
+            ['Card sales', money(data['card'])],
+            ['Bank sales', money(data['bank'])],
+            ['Other sales payments', money(data['other_payments'])],
+            ['Customer receipts', money(data['customer_receipts'])],
+            ['Total collected', money(data['total_collected'])],
+          ]),
           pw.SizedBox(height: 12),
-          _pdfSection(
-            'Other Terminal Activity',
-            [
-              ['Purchases', money(data['purchases'])],
-              ['Purchase count', '${data['purchase_count'] ?? 0}'],
-              ['Purchase discount', money(data['purchase_discount'])],
-              ['Purchase tax', money(data['purchase_tax'])],
-              ['Purchase returns', money(data['purchase_returns'])],
-              ['Net purchases', money(data['net_purchases'])],
-              ['Purchase paid', money(data['purchase_paid'])],
-              ['Purchase outstanding', money(data['purchase_outstanding'])],
-              ['Expenses', money(data['expenses'])],
-              ['Cash in', money(data['cash_in'])],
-              ['Cash out', money(data['cash_out'])],
-            ],
-          ),
+          _pdfSection('Other Terminal Activity', [
+            ['Purchases', money(data['purchases'])],
+            ['Purchase count', '${data['purchase_count'] ?? 0}'],
+            ['Purchase discount', money(data['purchase_discount'])],
+            ['Purchase tax', money(data['purchase_tax'])],
+            ['Purchase returns', money(data['purchase_returns'])],
+            ['Net purchases', money(data['net_purchases'])],
+            ['Purchase paid', money(data['purchase_paid'])],
+            ['Purchase outstanding', money(data['purchase_outstanding'])],
+            ['Expenses', money(data['expenses'])],
+            ['Cash in', money(data['cash_in'])],
+            ['Cash out', money(data['cash_out'])],
+          ]),
           pw.SizedBox(height: 12),
-          _pdfSection(
-            'Customer Receipt Breakdown',
-            [
-              ['Cash', money(data['customer_receipts_cash'])],
-              ['UPI', money(data['customer_receipts_upi'])],
-              ['Card', money(data['customer_receipts_card'])],
-              ['Bank', money(data['customer_receipts_bank'])],
-              ['Other', money(data['customer_receipts_other'])],
-            ],
-          ),
+          _pdfSection('Customer Receipt Breakdown', [
+            ['Cash', money(data['customer_receipts_cash'])],
+            ['UPI', money(data['customer_receipts_upi'])],
+            ['Card', money(data['customer_receipts_card'])],
+            ['Bank', money(data['customer_receipts_bank'])],
+            ['Other', money(data['customer_receipts_other'])],
+          ]),
           pw.SizedBox(height: 12),
-          _pdfSection(
-            'Cashier Shift Summary',
-            [
-              ['Shift count', '${shift['shift_count'] ?? 0}'],
-              ['Still open', '${shift['open_shift_count'] ?? 0}'],
-              ['First start', _timestamp(shift['first_start'])],
-              ['Last end', _timestamp(shift['last_end'])],
-              ['Opening cash', money(shift['opening_cash'])],
-              ['Closing cash', money(shift['closing_cash'])],
-              ['Difference', money(shift['difference'])],
-            ],
-          ),
+          _pdfSection('Cashier Shift Summary', [
+            ['Shift count', '${shift['shift_count'] ?? 0}'],
+            ['Still open', '${shift['open_shift_count'] ?? 0}'],
+            ['First start', _timestamp(shift['first_start'])],
+            ['Last end', _timestamp(shift['last_end'])],
+            ['Opening cash', money(shift['opening_cash'])],
+            ['Closing cash', money(shift['closing_cash'])],
+            ['Difference', money(shift['difference'])],
+          ]),
         ],
       ),
     );
@@ -123,13 +108,19 @@ class TerminalDayExportService {
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
-        pw.Text(title, style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold)),
+        pw.Text(
+          title,
+          style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold),
+        ),
         pw.SizedBox(height: 5),
         pw.TableHelper.fromTextArray(
           headers: const ['Metric', 'Value'],
           data: rows,
           headerDecoration: const pw.BoxDecoration(color: PdfColors.grey200),
-          headerStyle: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold),
+          headerStyle: pw.TextStyle(
+            fontSize: 8,
+            fontWeight: pw.FontWeight.bold,
+          ),
           cellStyle: const pw.TextStyle(fontSize: 8),
         ),
       ],
@@ -172,9 +163,18 @@ class TerminalDayExportService {
     final summary = excel['Summary'];
     summary.appendRow([TextCellValue('THQ Terminal Daily Summary')]);
     summary.appendRow([TextCellValue('Business'), TextCellValue(businessName)]);
-    summary.appendRow([TextCellValue('Terminal'), TextCellValue(terminalLabel)]);
-    summary.appendRow([TextCellValue('Date'), TextCellValue(DateFormat('yyyy-MM-dd').format(day))]);
-    summary.appendRow([TextCellValue('Mode'), TextCellValue('Read-only report')]);
+    summary.appendRow([
+      TextCellValue('Terminal'),
+      TextCellValue(terminalLabel),
+    ]);
+    summary.appendRow([
+      TextCellValue('Date'),
+      TextCellValue(DateFormat('yyyy-MM-dd').format(day)),
+    ]);
+    summary.appendRow([
+      TextCellValue('Mode'),
+      TextCellValue('Read-only report'),
+    ]);
 
     void section(String title, List<String> keys) {
       summary.appendRow([]);
@@ -286,12 +286,18 @@ class TerminalDayExportService {
   String _label(String key) => key
       .replaceAll('_', ' ')
       .split(' ')
-      .map((word) => word.isEmpty ? word : '${word[0].toUpperCase()}${word.substring(1)}')
+      .map(
+        (word) => word.isEmpty
+            ? word
+            : '${word[0].toUpperCase()}${word.substring(1)}',
+      )
       .join(' ');
 
   static String _timestamp(dynamic value) {
     if (value == null) return '-';
     final parsed = DateTime.tryParse(value.toString())?.toLocal();
-    return parsed == null ? value.toString() : DateFormat('dd MMM yyyy hh:mm a').format(parsed);
+    return parsed == null
+        ? value.toString()
+        : DateFormat('dd MMM yyyy hh:mm a').format(parsed);
   }
 }

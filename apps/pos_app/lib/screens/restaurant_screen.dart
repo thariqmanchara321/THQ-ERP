@@ -406,7 +406,8 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                                           product.variantId,
                                     );
                                     if (index >= 0) {
-                                      cart[index].quantity += cart[index].quantityStep;
+                                      cart[index].quantity +=
+                                          cart[index].quantityStep;
                                     } else {
                                       cart.add(_RestaurantLine(product));
                                     }
@@ -446,20 +447,35 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                                         if (line.product.saleUnits.length > 1)
                                           SizedBox(
                                             width: 180,
-                                            child: DropdownButton<ProductUnitOption>(
-                                              value: line.unit,
-                                              isExpanded: true,
-                                              items: line.product.saleUnits
-                                                  .map((unit) => DropdownMenuItem(value: unit, child: Text('${unit.code} • ${_money(unit.salePriceFor(line.product.sellingPrice))}')))
-                                                  .toList(),
-                                              onChanged: (unit) {
-                                                if (unit == null) return;
-                                                setLocalState(() {
-                                                  line.unit = unit;
-                                                  line.quantity = unit.quantityStep > 0 ? unit.quantityStep : 1;
-                                                });
-                                              },
-                                            ),
+                                            child:
+                                                DropdownButton<
+                                                  ProductUnitOption
+                                                >(
+                                                  value: line.unit,
+                                                  isExpanded: true,
+                                                  items: line.product.saleUnits
+                                                      .map(
+                                                        (
+                                                          unit,
+                                                        ) => DropdownMenuItem(
+                                                          value: unit,
+                                                          child: Text(
+                                                            '${unit.code} • ${_money(unit.salePriceFor(line.product.sellingPrice))}',
+                                                          ),
+                                                        ),
+                                                      )
+                                                      .toList(),
+                                                  onChanged: (unit) {
+                                                    if (unit == null) return;
+                                                    setLocalState(() {
+                                                      line.unit = unit;
+                                                      line.quantity =
+                                                          unit.quantityStep > 0
+                                                          ? unit.quantityStep
+                                                          : 1;
+                                                    });
+                                                  },
+                                                ),
                                           ),
                                       ],
                                     ),
@@ -487,9 +503,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                                   SizedBox(
                                     width: 110,
                                     child: Text(
-                                      _money(
-                                        line.quantity * line.unitPrice,
-                                      ),
+                                      _money(line.quantity * line.unitPrice),
                                       textAlign: TextAlign.end,
                                     ),
                                   ),
@@ -664,19 +678,26 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
       double storedTotal = 0;
       for (final raw in itemRows) {
         final item = Map<String, dynamic>.from(raw as Map);
-        final quantity = (item['quantity'] as num?)?.toDouble() ??
+        final quantity =
+            (item['quantity'] as num?)?.toDouble() ??
             double.tryParse('${item['quantity']}') ??
             0;
-        final unitPrice = (item['unit_price'] as num?)?.toDouble() ??
+        final unitPrice =
+            (item['unit_price'] as num?)?.toDouble() ??
             double.tryParse('${item['unit_price']}') ??
             0;
-        final discount = (item['discount_amount'] as num?)?.toDouble() ??
+        final discount =
+            (item['discount_amount'] as num?)?.toDouble() ??
             double.tryParse('${item['discount_amount']}') ??
             0;
-        final taxRate = (item['tax_rate'] as num?)?.toDouble() ??
+        final taxRate =
+            (item['tax_rate'] as num?)?.toDouble() ??
             double.tryParse('${item['tax_rate']}') ??
             0;
-        final taxable = (quantity * unitPrice - discount).clamp(0, double.infinity);
+        final taxable = (quantity * unitPrice - discount).clamp(
+          0,
+          double.infinity,
+        );
         storedTotal += taxable * (1 + taxRate / 100);
       }
       storedTotal = double.parse(storedTotal.toStringAsFixed(2));
@@ -702,7 +723,9 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
         throw Exception('Walk-in Customer cannot use credit.');
       }
 
-      final finalTotal = double.parse((storedTotal + choice.roundOff).toStringAsFixed(2));
+      final finalTotal = double.parse(
+        (storedTotal + choice.roundOff).toStringAsFixed(2),
+      );
       if (finalTotal < 0) throw Exception('Rounded total cannot be negative.');
       final sale = await _restaurant.billOrder(
         tenantId: widget.session.business.id,
@@ -763,7 +786,8 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                       suffixIcon: TextButton(
                         onPressed: () {
                           final rounded = total.roundToDouble();
-                          roundController.text = (rounded - total).toStringAsFixed(2);
+                          roundController.text = (rounded - total)
+                              .toStringAsFixed(2);
                           setDialogState(() {});
                         },
                         child: const Text('Round'),
@@ -774,12 +798,17 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                   const SizedBox(height: 10),
                   Text(
                     'Final total: ${_money(finalTotal)}',
-                    style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
                   const SizedBox(height: 16),
                   DropdownButtonFormField<String>(
                     initialValue: paymentMethod,
-                    decoration: const InputDecoration(labelText: 'Payment method'),
+                    decoration: const InputDecoration(
+                      labelText: 'Payment method',
+                    ),
                     items: const [
                       DropdownMenuItem(value: 'cash', child: Text('CASH')),
                       DropdownMenuItem(value: 'upi', child: Text('UPI')),
@@ -787,7 +816,9 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                       DropdownMenuItem(value: 'credit', child: Text('CREDIT')),
                     ],
                     onChanged: (value) {
-                      if (value != null) setDialogState(() => paymentMethod = value);
+                      if (value != null) {
+                        setDialogState(() => paymentMethod = value);
+                      }
                     },
                   ),
                 ],
@@ -800,16 +831,23 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
               ),
               FilledButton(
                 onPressed: () {
-                  final roundOff = double.tryParse(roundController.text.trim()) ?? 0;
+                  final roundOff =
+                      double.tryParse(roundController.text.trim()) ?? 0;
                   if (roundOff.abs() > 1.000001) {
                     ScaffoldMessenger.of(dialogContext).showSnackBar(
-                      const SnackBar(content: Text('Round off must be between -1.00 and +1.00.')),
+                      const SnackBar(
+                        content: Text(
+                          'Round off must be between -1.00 and +1.00.',
+                        ),
+                      ),
                     );
                     return;
                   }
                   if (total + roundOff < 0) {
                     ScaffoldMessenger.of(dialogContext).showSnackBar(
-                      const SnackBar(content: Text('Rounded total cannot be negative.')),
+                      const SnackBar(
+                        content: Text('Rounded total cannot be negative.'),
+                      ),
                     );
                     return;
                   }
@@ -832,7 +870,10 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
   Map<String, dynamic>? _tableOrder(String tableId) {
     for (final order in _orders) {
       if (order['table_id']?.toString() == tableId &&
-          !const {'billed', 'cancelled'}.contains(order['status']?.toString())) {
+          !const {
+            'billed',
+            'cancelled',
+          }.contains(order['status']?.toString())) {
         return order;
       }
     }
@@ -841,9 +882,12 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
 
   Widget _orderCard(Map<String, dynamic> order, {bool compact = false}) {
     final status = (order['status'] ?? 'open').toString();
-    final title = '${order['order_number']} • ${order['table_name'] ?? order['order_type']}';
+    final title =
+        '${order['order_number']} • ${order['table_name'] ?? order['order_type']}';
     return Card(
-      margin: compact ? const EdgeInsets.only(bottom: 8) : const EdgeInsets.symmetric(vertical: 5),
+      margin: compact
+          ? const EdgeInsets.only(bottom: 8)
+          : const EdgeInsets.symmetric(vertical: 5),
       child: Padding(
         padding: EdgeInsets.all(compact ? 10 : 14),
         child: Row(
@@ -853,8 +897,8 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                 order['order_type'] == 'dine_in'
                     ? Icons.table_restaurant
                     : order['order_type'] == 'delivery'
-                        ? Icons.delivery_dining
-                        : Icons.takeout_dining,
+                    ? Icons.delivery_dining
+                    : Icons.takeout_dining,
               ),
             ),
             const SizedBox(width: 10),
@@ -862,17 +906,31 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontWeight: FontWeight.w800)),
-                  Text('${order['customer_name'] ?? 'Walk-in'} • Prep ${order['preparation_minutes'] ?? 0} min'),
+                  Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontWeight: FontWeight.w800),
+                  ),
+                  Text(
+                    '${order['customer_name'] ?? 'Walk-in'} • Prep ${order['preparation_minutes'] ?? 0} min',
+                  ),
                   if ((order['chef_note'] ?? '').toString().trim().isNotEmpty)
-                    Text('Kitchen: ${order['chef_note']}', maxLines: 2, overflow: TextOverflow.ellipsis),
+                    Text(
+                      'Kitchen: ${order['chef_note']}',
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                 ],
               ),
             ),
             const SizedBox(width: 8),
             Chip(label: Text(status.replaceAll('_', ' ').toUpperCase())),
             const SizedBox(width: 8),
-            Text(_money(order['total']), style: const TextStyle(fontWeight: FontWeight.w800)),
+            Text(
+              _money(order['total']),
+              style: const TextStyle(fontWeight: FontWeight.w800),
+            ),
             PopupMenuButton<String>(
               tooltip: 'Order actions',
               onSelected: (value) {
@@ -884,15 +942,30 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
               },
               itemBuilder: (_) => [
                 if (status == 'open' || status == 'sent_to_kitchen')
-                  const PopupMenuItem(value: 'preparing', child: Text('Start Preparing')),
+                  const PopupMenuItem(
+                    value: 'preparing',
+                    child: Text('Start Preparing'),
+                  ),
                 if (status == 'preparing' || status == 'sent_to_kitchen')
-                  const PopupMenuItem(value: 'ready', child: Text('Mark Ready')),
+                  const PopupMenuItem(
+                    value: 'ready',
+                    child: Text('Mark Ready'),
+                  ),
                 if (status == 'ready')
-                  const PopupMenuItem(value: 'served', child: Text('Mark Served')),
+                  const PopupMenuItem(
+                    value: 'served',
+                    child: Text('Mark Served'),
+                  ),
                 if (status != 'billed' && status != 'cancelled')
-                  const PopupMenuItem(value: 'bill', child: Text('Finalize / Bill')),
+                  const PopupMenuItem(
+                    value: 'bill',
+                    child: Text('Finalize / Bill'),
+                  ),
                 if (status != 'billed' && status != 'cancelled')
-                  const PopupMenuItem(value: 'cancelled', child: Text('Cancel Order')),
+                  const PopupMenuItem(
+                    value: 'cancelled',
+                    child: Text('Cancel Order'),
+                  ),
               ],
             ),
           ],
@@ -913,7 +986,11 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
             const Text('No restaurant tables configured.'),
             const SizedBox(height: 10),
             if (widget.session.hasPermission('restaurant.manage'))
-              FilledButton.icon(onPressed: _addTable, icon: const Icon(Icons.add), label: const Text('Add first table')),
+              FilledButton.icon(
+                onPressed: _addTable,
+                icon: const Icon(Icons.add),
+                label: const Text('Add first table'),
+              ),
           ],
         ),
       );
@@ -943,18 +1020,42 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                 children: [
                   Row(
                     children: [
-                      CircleAvatar(child: Icon(occupied ? Icons.restaurant : Icons.table_restaurant_outlined)),
+                      CircleAvatar(
+                        child: Icon(
+                          occupied
+                              ? Icons.restaurant
+                              : Icons.table_restaurant_outlined,
+                        ),
+                      ),
                       const Spacer(),
                       Chip(label: Text(occupied ? 'OCCUPIED' : 'AVAILABLE')),
                     ],
                   ),
                   const Spacer(),
-                  Text('${table['table_code']} • ${table['name']}', maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900)),
-                  Text('${table['area'] ?? 'Main floor'} • ${table['capacity'] ?? 0} seats'),
+                  Text(
+                    '${table['table_code']} • ${table['name']}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  Text(
+                    '${table['area'] ?? 'Main floor'} • ${table['capacity'] ?? 0} seats',
+                  ),
                   if (occupied) ...[
                     const SizedBox(height: 5),
-                    Text('${order['order_number']} • ${_money(order['total'])}', style: const TextStyle(fontWeight: FontWeight.w700)),
-                    Text((order['status'] ?? '').toString().replaceAll('_', ' ').toUpperCase()),
+                    Text(
+                      '${order['order_number']} • ${_money(order['total'])}',
+                      style: const TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                    Text(
+                      (order['status'] ?? '')
+                          .toString()
+                          .replaceAll('_', ' ')
+                          .toUpperCase(),
+                    ),
                   ],
                 ],
               ),
@@ -966,7 +1067,9 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
   }
 
   Widget _ordersView() {
-    if (_orders.isEmpty) return const Center(child: Text('No live restaurant orders.'));
+    if (_orders.isEmpty) {
+      return const Center(child: Text('No live restaurant orders.'));
+    }
     return RefreshIndicator(
       onRefresh: _load,
       child: ListView.builder(
@@ -979,32 +1082,77 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
 
   Widget _kitchenView() {
     final groups = <String, List<Map<String, dynamic>>>{
-      'QUEUE': _orders.where((o) => const {'open', 'sent_to_kitchen'}.contains(o['status']?.toString())).toList(),
-      'PREPARING': _orders.where((o) => o['status']?.toString() == 'preparing').toList(),
-      'READY': _orders.where((o) => o['status']?.toString() == 'ready').toList(),
+      'QUEUE': _orders
+          .where(
+            (o) => const {
+              'open',
+              'sent_to_kitchen',
+            }.contains(o['status']?.toString()),
+          )
+          .toList(),
+      'PREPARING': _orders
+          .where((o) => o['status']?.toString() == 'preparing')
+          .toList(),
+      'READY': _orders
+          .where((o) => o['status']?.toString() == 'ready')
+          .toList(),
     };
     return LayoutBuilder(
       builder: (context, constraints) {
-        final columns = groups.entries.map((entry) => Card(
-          margin: const EdgeInsets.all(6),
-          child: Padding(
-            padding: const EdgeInsets.all(10),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(children: [Expanded(child: Text(entry.key, style: const TextStyle(fontWeight: FontWeight.w900))), Chip(label: Text('${entry.value.length}'))]),
-                const Divider(),
-                Expanded(
-                  child: entry.value.isEmpty
-                      ? Center(child: Text('No ${entry.key.toLowerCase()} orders'))
-                      : ListView(children: entry.value.map((o) => _orderCard(o, compact: true)).toList()),
+        final columns = groups.entries
+            .map(
+              (entry) => Card(
+                margin: const EdgeInsets.all(6),
+                child: Padding(
+                  padding: const EdgeInsets.all(10),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              entry.key,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                          ),
+                          Chip(label: Text('${entry.value.length}')),
+                        ],
+                      ),
+                      const Divider(),
+                      Expanded(
+                        child: entry.value.isEmpty
+                            ? Center(
+                                child: Text(
+                                  'No ${entry.key.toLowerCase()} orders',
+                                ),
+                              )
+                            : ListView(
+                                children: entry.value
+                                    .map((o) => _orderCard(o, compact: true))
+                                    .toList(),
+                              ),
+                      ),
+                    ],
+                  ),
                 ),
-              ],
-            ),
-          ),
-        )).toList();
+              ),
+            )
+            .toList();
         if (constraints.maxWidth < 900) {
-          return ListView(padding: const EdgeInsets.all(8), children: groups.entries.map((entry) => SizedBox(height: 330, child: columns[groups.keys.toList().indexOf(entry.key)])).toList());
+          return ListView(
+            padding: const EdgeInsets.all(8),
+            children: groups.entries
+                .map(
+                  (entry) => SizedBox(
+                    height: 330,
+                    child: columns[groups.keys.toList().indexOf(entry.key)],
+                  ),
+                )
+                .toList(),
+          );
         }
         return Row(children: columns.map((c) => Expanded(child: c)).toList());
       },
@@ -1015,8 +1163,16 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
   Widget build(BuildContext context) {
     if (_loading) return const Center(child: CircularProgressIndicator());
 
-    final occupied = _tables.where((t) => t['active'] != false && _tableOrder(t['id']?.toString() ?? '') != null).length;
-    final ready = _orders.where((o) => o['status']?.toString() == 'ready').length;
+    final occupied = _tables
+        .where(
+          (t) =>
+              t['active'] != false &&
+              _tableOrder(t['id']?.toString() ?? '') != null,
+        )
+        .length;
+    final ready = _orders
+        .where((o) => o['status']?.toString() == 'ready')
+        .length;
 
     return DefaultTabController(
       length: 3,
@@ -1030,24 +1186,47 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('Restaurant Operations', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900)),
-                      Text('${widget.session.device?.locationName ?? ''} • ${_orders.length} live orders • $occupied occupied tables • $ready ready'),
+                      const Text(
+                        'Restaurant Operations',
+                        style: TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      Text(
+                        '${widget.session.device?.locationName ?? ''} • ${_orders.length} live orders • $occupied occupied tables • $ready ready',
+                      ),
                     ],
                   ),
                 ),
                 if (widget.session.hasPermission('restaurant.manage'))
-                  OutlinedButton.icon(onPressed: _addTable, icon: const Icon(Icons.table_restaurant_outlined), label: const Text('Tables')),
+                  OutlinedButton.icon(
+                    onPressed: _addTable,
+                    icon: const Icon(Icons.table_restaurant_outlined),
+                    label: const Text('Tables'),
+                  ),
                 const SizedBox(width: 8),
-                FilledButton.icon(onPressed: _newOrder, icon: const Icon(Icons.add), label: const Text('New Order')),
+                FilledButton.icon(
+                  onPressed: _newOrder,
+                  icon: const Icon(Icons.add),
+                  label: const Text('New Order'),
+                ),
                 const SizedBox(width: 8),
-                IconButton.filledTonal(onPressed: _load, icon: const Icon(Icons.refresh), tooltip: 'Refresh'),
+                IconButton.filledTonal(
+                  onPressed: _load,
+                  icon: const Icon(Icons.refresh),
+                  tooltip: 'Refresh',
+                ),
               ],
             ),
           ),
           if (_error != null)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 18),
-              child: Align(alignment: Alignment.centerLeft, child: Text(_error!, style: const TextStyle(color: Colors.red))),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Text(_error!, style: const TextStyle(color: Colors.red)),
+              ),
             ),
           const TabBar(
             tabs: [
@@ -1056,7 +1235,11 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
               Tab(icon: Icon(Icons.soup_kitchen_outlined), text: 'Kitchen'),
             ],
           ),
-          Expanded(child: TabBarView(children: [_floorView(), _ordersView(), _kitchenView()])),
+          Expanded(
+            child: TabBarView(
+              children: [_floorView(), _ordersView(), _kitchenView()],
+            ),
+          ),
         ],
       ),
     );
@@ -1076,12 +1259,12 @@ class _RestaurantLine {
   double quantity;
 
   _RestaurantLine(this.product)
-      : unit = product.defaultSaleUnit,
-        quantity = product.defaultSaleUnit?.quantityStep ?? product.quantityStep;
+    : unit = product.defaultSaleUnit,
+      quantity = product.defaultSaleUnit?.quantityStep ?? product.quantityStep;
 
-  double get unitPrice => unit?.salePriceFor(product.sellingPrice) ?? product.sellingPrice;
+  double get unitPrice =>
+      unit?.salePriceFor(product.sellingPrice) ?? product.sellingPrice;
   double get quantityStep => (unit?.quantityStep ?? product.quantityStep) > 0
       ? (unit?.quantityStep ?? product.quantityStep)
       : 1;
 }
-

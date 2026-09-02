@@ -61,115 +61,115 @@ class _PaymentCenterScreenState extends State<PaymentCenterScreen> {
 
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+    padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
           children: [
-            Row(
-              children: [
-                const Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Pending Payments',
-                        style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
-                      ),
-                      SizedBox(height: 4),
-                      Text(
-                        'Customer receivables and supplier payables grouped by party',
-                      ),
-                    ],
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Pending Payments',
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
                   ),
-                ),
-                IconButton(
-                  tooltip: 'Refresh balances',
-                  onPressed: _refresh,
-                  icon: const Icon(Icons.refresh),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: _query,
-              decoration: InputDecoration(
-                hintText: 'Search customer, supplier, phone, email or tracking ID',
-                prefixIcon: const Icon(Icons.search),
-                suffixIcon: _query.text.isEmpty
-                    ? null
-                    : IconButton(
-                        tooltip: 'Clear',
-                        onPressed: () {
-                          _query.clear();
-                          setState(_load);
-                        },
-                        icon: const Icon(Icons.close),
-                      ),
+                  SizedBox(height: 4),
+                  Text(
+                    'Customer receivables and supplier payables grouped by party',
+                  ),
+                ],
               ),
-              onChanged: (_) => setState(() {}),
-              onSubmitted: (_) => setState(_load),
             ),
-            const SizedBox(height: 8),
-            Expanded(
-              child: FutureBuilder<PendingPaymentsData>(
-                future: _future,
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
-                  if (snapshot.hasError) {
-                    return Center(
-                      child: SelectableText(
-                        snapshot.error.toString(),
-                        textAlign: TextAlign.center,
-                      ),
-                    );
-                  }
-                  final data = snapshot.data!;
-                  return LayoutBuilder(
-                    builder: (context, constraints) {
-                      final receive = _PartyPane(
-                        title: 'Customers • To Receive',
-                        subtitle: '${data.receivables.length} customer account(s)',
-                        icon: Icons.south_west_rounded,
-                        amount: data.totalReceivable,
-                        money: _m,
-                        rows: data.receivables,
-                        onOpen: _openParty,
-                      );
-                      final pay = _PartyPane(
-                        title: 'Suppliers • To Pay',
-                        subtitle: '${data.payables.length} supplier account(s)',
-                        icon: Icons.north_east_rounded,
-                        amount: data.totalPayable,
-                        money: _m,
-                        rows: data.payables,
-                        onOpen: _openParty,
-                      );
-                      if (constraints.maxWidth < 980) {
-                        return Column(
-                          children: [
-                            Expanded(child: receive),
-                            const SizedBox(height: 14),
-                            Expanded(child: pay),
-                          ],
-                        );
-                      }
-                      return Row(
-                        children: [
-                          Expanded(child: receive),
-                          const SizedBox(width: 14),
-                          Expanded(child: pay),
-                        ],
-                      );
-                    },
-                  );
-                },
-              ),
+            IconButton(
+              tooltip: 'Refresh balances',
+              onPressed: _refresh,
+              icon: const Icon(Icons.refresh),
             ),
           ],
         ),
-      );
+        const SizedBox(height: 8),
+        TextField(
+          controller: _query,
+          decoration: InputDecoration(
+            hintText: 'Search customer, supplier, phone, email or tracking ID',
+            prefixIcon: const Icon(Icons.search),
+            suffixIcon: _query.text.isEmpty
+                ? null
+                : IconButton(
+                    tooltip: 'Clear',
+                    onPressed: () {
+                      _query.clear();
+                      setState(_load);
+                    },
+                    icon: const Icon(Icons.close),
+                  ),
+          ),
+          onChanged: (_) => setState(() {}),
+          onSubmitted: (_) => setState(_load),
+        ),
+        const SizedBox(height: 8),
+        Expanded(
+          child: FutureBuilder<PendingPaymentsData>(
+            future: _future,
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              if (snapshot.hasError) {
+                return Center(
+                  child: SelectableText(
+                    snapshot.error.toString(),
+                    textAlign: TextAlign.center,
+                  ),
+                );
+              }
+              final data = snapshot.data!;
+              return LayoutBuilder(
+                builder: (context, constraints) {
+                  final receive = _PartyPane(
+                    title: 'Customers • To Receive',
+                    subtitle: '${data.receivables.length} customer account(s)',
+                    icon: Icons.south_west_rounded,
+                    amount: data.totalReceivable,
+                    money: _m,
+                    rows: data.receivables,
+                    onOpen: _openParty,
+                  );
+                  final pay = _PartyPane(
+                    title: 'Suppliers • To Pay',
+                    subtitle: '${data.payables.length} supplier account(s)',
+                    icon: Icons.north_east_rounded,
+                    amount: data.totalPayable,
+                    money: _m,
+                    rows: data.payables,
+                    onOpen: _openParty,
+                  );
+                  if (constraints.maxWidth < 980) {
+                    return Column(
+                      children: [
+                        Expanded(child: receive),
+                        const SizedBox(height: 14),
+                        Expanded(child: pay),
+                      ],
+                    );
+                  }
+                  return Row(
+                    children: [
+                      Expanded(child: receive),
+                      const SizedBox(width: 14),
+                      Expanded(child: pay),
+                    ],
+                  );
+                },
+              );
+            },
+          ),
+        ),
+      ],
+    ),
+  );
 }
 
 class _PartyPane extends StatelessWidget {
@@ -198,106 +198,116 @@ class _PartyPane extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Card(
-        child: Padding(
-          padding: const EdgeInsets.all(18),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+    child: Padding(
+      padding: const EdgeInsets.all(18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
             children: [
-              Row(
-                children: [
-                  Icon(icon),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          title,
-                          style: const TextStyle(
-                            fontSize: 19,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        Text(
-                          subtitle,
-                          style: TextStyle(
-                            color: Theme.of(context).colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Text(
-                    money(amount),
-                    style: const TextStyle(
-                      fontSize: 21,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ),
-              const Divider(height: 28),
+              Icon(icon),
+              const SizedBox(width: 8),
               Expanded(
-                child: rows.isEmpty
-                    ? const Center(child: Text('Nothing pending.'))
-                    : ListView.separated(
-                        itemCount: rows.length,
-                        separatorBuilder: (_, _) => const Divider(height: 1),
-                        itemBuilder: (context, index) {
-                          final row = rows[index];
-                          final isCustomer = row.partyType == 'customer';
-                          final breakdown = isCustomer
-                              ? 'Sales ${money(row.salesOutstanding)} • Loans ${money(row.loanOutstanding)}'
-                              : 'Purchases ${money(row.purchaseOutstanding)} • Purchase invoices ${money(row.invoiceOutstanding)}'
-                                  '${row.creditBalance > .005 ? ' • Credit ${money(row.creditBalance)}' : ''}';
-                          return ListTile(
-                            contentPadding: const EdgeInsets.symmetric(vertical: 6),
-                            leading: CircleAvatar(
-                              child: Icon(isCustomer ? Icons.person_outline : Icons.local_shipping_outlined),
-                            ),
-                            title: Row(
-                              children: [
-                                Expanded(
-                                  child: Text(
-                                    row.partyName,
-                                    style: const TextStyle(fontWeight: FontWeight.w700),
-                                  ),
-                                ),
-                                Text(
-                                  money(row.balance),
-                                  style: const TextStyle(fontWeight: FontWeight.w800),
-                                ),
-                              ],
-                            ),
-                            subtitle: Padding(
-                              padding: const EdgeInsets.only(top: 4),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(breakdown),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    '${row.documentCount} open item(s) • Next due ${_d(row.nextDueDate)}'
-                                    '${row.overdue > .005 ? ' • Overdue ${money(row.overdue)}' : ''}',
-                                    style: TextStyle(
-                                      color: row.overdue > .005
-                                          ? Theme.of(context).colorScheme.error
-                                          : Theme.of(context).colorScheme.onSurfaceVariant,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            trailing: const Icon(Icons.chevron_right),
-                            onTap: () => onOpen(row),
-                          );
-                        },
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 19,
+                        fontWeight: FontWeight.bold,
                       ),
+                    ),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Text(
+                money(amount),
+                style: const TextStyle(
+                  fontSize: 21,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ],
           ),
-        ),
-      );
+          const Divider(height: 28),
+          Expanded(
+            child: rows.isEmpty
+                ? const Center(child: Text('Nothing pending.'))
+                : ListView.separated(
+                    itemCount: rows.length,
+                    separatorBuilder: (_, _) => const Divider(height: 1),
+                    itemBuilder: (context, index) {
+                      final row = rows[index];
+                      final isCustomer = row.partyType == 'customer';
+                      final breakdown = isCustomer
+                          ? 'Sales ${money(row.salesOutstanding)} • Loans ${money(row.loanOutstanding)}'
+                          : 'Purchases ${money(row.purchaseOutstanding)} • Purchase invoices ${money(row.invoiceOutstanding)}'
+                                '${row.creditBalance > .005 ? ' • Credit ${money(row.creditBalance)}' : ''}';
+                      return ListTile(
+                        contentPadding: const EdgeInsets.symmetric(vertical: 6),
+                        leading: CircleAvatar(
+                          child: Icon(
+                            isCustomer
+                                ? Icons.person_outline
+                                : Icons.local_shipping_outlined,
+                          ),
+                        ),
+                        title: Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                row.partyName,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                            Text(
+                              money(row.balance),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ],
+                        ),
+                        subtitle: Padding(
+                          padding: const EdgeInsets.only(top: 4),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(breakdown),
+                              const SizedBox(height: 2),
+                              Text(
+                                '${row.documentCount} open item(s) • Next due ${_d(row.nextDueDate)}'
+                                '${row.overdue > .005 ? ' • Overdue ${money(row.overdue)}' : ''}',
+                                style: TextStyle(
+                                  color: row.overdue > .005
+                                      ? Theme.of(context).colorScheme.error
+                                      : Theme.of(
+                                          context,
+                                        ).colorScheme.onSurfaceVariant,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        trailing: const Icon(Icons.chevron_right),
+                        onTap: () => onOpen(row),
+                      );
+                    },
+                  ),
+          ),
+        ],
+      ),
+    ),
+  );
 }
 
 class _PartyPaymentDetailScreen extends StatefulWidget {
@@ -312,7 +322,8 @@ class _PartyPaymentDetailScreen extends StatefulWidget {
   });
 
   @override
-  State<_PartyPaymentDetailScreen> createState() => _PartyPaymentDetailScreenState();
+  State<_PartyPaymentDetailScreen> createState() =>
+      _PartyPaymentDetailScreenState();
 }
 
 class _PartyPaymentDetailScreenState extends State<_PartyPaymentDetailScreen> {
@@ -393,117 +404,131 @@ class _PartyPaymentDetailScreenState extends State<_PartyPaymentDetailScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(
-          title: Text(widget.summary.partyName),
-          actions: [
-            TextButton.icon(
-              onPressed: _openStatement,
-              icon: const Icon(Icons.receipt_long_outlined),
-              label: const Text('Statement'),
-            ),
-            IconButton(
-              tooltip: 'Refresh',
-              onPressed: _refresh,
-              icon: const Icon(Icons.refresh),
-            ),
-            const SizedBox(width: 8),
-          ],
+    appBar: AppBar(
+      title: Text(widget.summary.partyName),
+      actions: [
+        TextButton.icon(
+          onPressed: _openStatement,
+          icon: const Icon(Icons.receipt_long_outlined),
+          label: const Text('Statement'),
         ),
-        body: FutureBuilder<PartyPaymentDetail>(
-          future: _future,
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator());
-            }
-            if (snapshot.hasError) {
-              return Center(child: SelectableText(snapshot.error.toString()));
-            }
-            final data = snapshot.data!;
-            final party = data.party;
-            final isCustomer = widget.summary.partyType == 'customer';
-            return Padding(
-              padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+        IconButton(
+          tooltip: 'Refresh',
+          onPressed: _refresh,
+          icon: const Icon(Icons.refresh),
+        ),
+        const SizedBox(width: 8),
+      ],
+    ),
+    body: FutureBuilder<PartyPaymentDetail>(
+      future: _future,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (snapshot.hasError) {
+          return Center(child: SelectableText(snapshot.error.toString()));
+        }
+        final data = snapshot.data!;
+        final party = data.party;
+        final isCustomer = widget.summary.partyType == 'customer';
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Wrap(
+                spacing: 10,
+                runSpacing: 10,
                 children: [
-                  Wrap(
-                    spacing: 10,
-                    runSpacing: 10,
-                    children: [
-                      _MetricCard(
-                        label: isCustomer ? 'Total To Receive' : 'Net To Pay',
-                        value: _m(data.netOutstanding),
-                        icon: isCustomer ? Icons.call_received : Icons.call_made,
-                      ),
-                      _MetricCard(
-                        label: 'Gross Outstanding',
-                        value: _m(data.grossOutstanding),
-                        icon: Icons.account_balance_wallet_outlined,
-                      ),
-                      _MetricCard(
-                        label: 'Overdue',
-                        value: _m(data.overdue),
-                        icon: Icons.warning_amber_rounded,
-                        danger: data.overdue > .005,
-                      ),
-                      if (!isCustomer && data.creditBalance > .005)
-                        _MetricCard(
-                          label: 'Supplier Credit',
-                          value: _m(data.creditBalance),
-                          icon: Icons.savings_outlined,
-                        ),
-                    ],
+                  _MetricCard(
+                    label: isCustomer ? 'Total To Receive' : 'Net To Pay',
+                    value: _m(data.netOutstanding),
+                    icon: isCustomer ? Icons.call_received : Icons.call_made,
                   ),
-                  const SizedBox(height: 14),
-                  Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(14),
-                      child: Wrap(
-                        spacing: 24,
-                        runSpacing: 8,
-                        children: [
-                          _Info(label: 'ID', value: party['tracking_code']?.toString() ?? ''),
-                          _Info(label: 'Phone', value: party['phone']?.toString() ?? ''),
-                          _Info(label: 'Email', value: party['email']?.toString() ?? ''),
-                          _Info(label: 'Tax / GST', value: party['tax_number']?.toString() ?? ''),
-                        ],
-                      ),
+                  _MetricCard(
+                    label: 'Gross Outstanding',
+                    value: _m(data.grossOutstanding),
+                    icon: Icons.account_balance_wallet_outlined,
+                  ),
+                  _MetricCard(
+                    label: 'Overdue',
+                    value: _m(data.overdue),
+                    icon: Icons.warning_amber_rounded,
+                    danger: data.overdue > .005,
+                  ),
+                  if (!isCustomer && data.creditBalance > .005)
+                    _MetricCard(
+                      label: 'Supplier Credit',
+                      value: _m(data.creditBalance),
+                      icon: Icons.savings_outlined,
                     ),
-                  ),
-                  const SizedBox(height: 14),
-                  Expanded(
-                    child: DefaultTabController(
-                      length: 2,
-                      child: Column(
-                        children: [
-                          const TabBar(
-                            tabs: [
-                              Tab(text: 'Open Documents'),
-                              Tab(text: 'Recent Payments'),
-                            ],
-                          ),
-                          const SizedBox(height: 8),
-                          Expanded(
-                            child: TabBarView(
-                              children: [
-                                _documents(data.documents),
-                                _payments(data.recentPayments),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
                 ],
               ),
-            );
-          },
-        ),
-      );
+              const SizedBox(height: 14),
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(14),
+                  child: Wrap(
+                    spacing: 24,
+                    runSpacing: 8,
+                    children: [
+                      _Info(
+                        label: 'ID',
+                        value: party['tracking_code']?.toString() ?? '',
+                      ),
+                      _Info(
+                        label: 'Phone',
+                        value: party['phone']?.toString() ?? '',
+                      ),
+                      _Info(
+                        label: 'Email',
+                        value: party['email']?.toString() ?? '',
+                      ),
+                      _Info(
+                        label: 'Tax / GST',
+                        value: party['tax_number']?.toString() ?? '',
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 14),
+              Expanded(
+                child: DefaultTabController(
+                  length: 2,
+                  child: Column(
+                    children: [
+                      const TabBar(
+                        tabs: [
+                          Tab(text: 'Open Documents'),
+                          Tab(text: 'Recent Payments'),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Expanded(
+                        child: TabBarView(
+                          children: [
+                            _documents(data.documents),
+                            _payments(data.recentPayments),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    ),
+  );
 
   Widget _documents(List<PartyOpenDocument> documents) {
-    if (documents.isEmpty) return const Center(child: Text('No open documents.'));
+    if (documents.isEmpty) {
+      return const Center(child: Text('No open documents.'));
+    }
     return ListView.separated(
       itemCount: documents.length,
       separatorBuilder: (_, _) => const SizedBox(height: 8),
@@ -512,12 +537,14 @@ class _PartyPaymentDetailScreenState extends State<_PartyPaymentDetailScreen> {
         final extra = document.extra;
         String detail;
         if (document.sourceType == 'loan') {
-          detail = 'Principal ${_m(_num(extra['principal_outstanding']))} • '
+          detail =
+              'Principal ${_m(_num(extra['principal_outstanding']))} • '
               'Interest ${_m(_num(extra['interest_outstanding']))} • '
               'Penalty ${_m(_num(extra['penalty_outstanding']))} • '
               '${_num(extra['interest_rate']).toStringAsFixed(2)}% ${_label(extra['rate_type']?.toString() ?? '')}';
         } else if (document.sourceType == 'purchase_invoice') {
-          final supplierInvoice = extra['supplier_invoice_number']?.toString() ?? '';
+          final supplierInvoice =
+              extra['supplier_invoice_number']?.toString() ?? '';
           detail = supplierInvoice.isEmpty
               ? 'Purchasing V2 invoice'
               : 'Supplier invoice: $supplierInvoice';
@@ -566,7 +593,9 @@ class _PartyPaymentDetailScreenState extends State<_PartyPaymentDetailScreen> {
                 ],
               ),
             ),
-            trailing: document.sourceType == 'sale' || document.sourceType == 'purchase'
+            trailing:
+                document.sourceType == 'sale' ||
+                    document.sourceType == 'purchase'
                 ? OutlinedButton.icon(
                     onPressed: () => _openDocument(document),
                     icon: const Icon(Icons.open_in_new, size: 17),
@@ -580,7 +609,9 @@ class _PartyPaymentDetailScreenState extends State<_PartyPaymentDetailScreen> {
   }
 
   Widget _payments(List<PartyPaymentActivity> payments) {
-    if (payments.isEmpty) return const Center(child: Text('No payment history in this scope.'));
+    if (payments.isEmpty) {
+      return const Center(child: Text('No payment history in this scope.'));
+    }
     return ListView.separated(
       itemCount: payments.length,
       separatorBuilder: (_, _) => const Divider(height: 1),
@@ -608,8 +639,9 @@ class _PartyPaymentDetailScreenState extends State<_PartyPaymentDetailScreen> {
     );
   }
 
-  double _num(dynamic value) =>
-      value is num ? value.toDouble() : double.tryParse(value?.toString() ?? '') ?? 0;
+  double _num(dynamic value) => value is num
+      ? value.toDouble()
+      : double.tryParse(value?.toString() ?? '') ?? 0;
 }
 
 class _MetricCard extends StatelessWidget {
@@ -627,44 +659,46 @@ class _MetricCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => SizedBox(
-        width: 220,
-        child: Card(
-          child: Padding(
-            padding: const EdgeInsets.all(14),
-            child: Row(
-              children: [
-                Icon(
-                  icon,
-                  color: danger ? Theme.of(context).colorScheme.error : null,
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        label,
-                        style: TextStyle(
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        value,
-                        style: TextStyle(
-                          fontWeight: FontWeight.w800,
-                          fontSize: 16,
-                          color: danger ? Theme.of(context).colorScheme.error : null,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
+    width: 220,
+    child: Card(
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Row(
+          children: [
+            Icon(
+              icon,
+              color: danger ? Theme.of(context).colorScheme.error : null,
             ),
-          ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    value,
+                    style: TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 16,
+                      color: danger
+                          ? Theme.of(context).colorScheme.error
+                          : null,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
-      );
+      ),
+    ),
+  );
 }
 
 class _Info extends StatelessWidget {
@@ -674,17 +708,19 @@ class _Info extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => SizedBox(
-        width: 230,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              label,
-              style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
-            ),
-            const SizedBox(height: 2),
-            SelectableText(value.trim().isEmpty ? '—' : value),
-          ],
+    width: 230,
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
         ),
-      );
+        const SizedBox(height: 2),
+        SelectableText(value.trim().isEmpty ? '—' : value),
+      ],
+    ),
+  );
 }

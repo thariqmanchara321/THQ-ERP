@@ -10,8 +10,8 @@ class ProductUnitEditorController {
     required List<InventoryUnit> units,
     required String baseCode,
     List<ProductUnitOption> configured = const <ProductUnitOption>[],
-  })  : units = List<InventoryUnit>.unmodifiable(units),
-        baseCode = _validBase(units, baseCode) {
+  }) : units = List<InventoryUnit>.unmodifiable(units),
+       baseCode = _validBase(units, baseCode) {
     final base = configured.where((value) => value.isBase).firstOrNull;
     if (base != null && units.any((unit) => unit.code == base.code)) {
       this.baseCode = base.code;
@@ -90,33 +90,55 @@ class ProductUnitEditorController {
     var defaultSaleCount = 0;
     var defaultPurchaseCount = 0;
     for (final row in rows) {
-      if (!ids.add(row.unitId)) return 'The same unit cannot be configured twice.';
-      if (unitById(row.unitId) == null) return 'One selected unit is no longer available.';
+      if (!ids.add(row.unitId)) {
+        return 'The same unit cannot be configured twice.';
+      }
+      if (unitById(row.unitId) == null) {
+        return 'One selected unit is no longer available.';
+      }
       final factor = double.tryParse(row.factor.trim());
       final step = double.tryParse(row.step.trim());
-      if (factor == null || factor <= 0) return 'Unit conversion must be greater than zero.';
-      if (step == null || step <= 0) return 'Unit quantity step must be greater than zero.';
+      if (factor == null || factor <= 0) {
+        return 'Unit conversion must be greater than zero.';
+      }
+      if (step == null || step <= 0) {
+        return 'Unit quantity step must be greater than zero.';
+      }
       if (row.salePrice.trim().isNotEmpty) {
         final value = double.tryParse(row.salePrice.trim());
-        if (value == null || value < 0) return 'Sale price must be zero or greater.';
+        if (value == null || value < 0) {
+          return 'Sale price must be zero or greater.';
+        }
       }
       if (row.purchaseCost.trim().isNotEmpty) {
         final value = double.tryParse(row.purchaseCost.trim());
-        if (value == null || value < 0) return 'Purchase cost must be zero or greater.';
+        if (value == null || value < 0) {
+          return 'Purchase cost must be zero or greater.';
+        }
       }
       final cuttingCharge = double.tryParse(row.cuttingCharge.trim());
-      if (cuttingCharge == null || cuttingCharge < 0) return 'Cutting charge cannot be negative.';
+      if (cuttingCharge == null || cuttingCharge < 0) {
+        return 'Cutting charge cannot be negative.';
+      }
       if (row.defaultSale) {
         defaultSaleCount++;
-        if (!row.allowSale) return 'Default sale unit must be enabled for sale.';
+        if (!row.allowSale) {
+          return 'Default sale unit must be enabled for sale.';
+        }
       }
       if (row.defaultPurchase) {
         defaultPurchaseCount++;
-        if (!row.allowPurchase) return 'Default purchase unit must be enabled for purchase.';
+        if (!row.allowPurchase) {
+          return 'Default purchase unit must be enabled for purchase.';
+        }
       }
     }
-    if (defaultSaleCount > 1) return 'Only one default sale unit can be selected.';
-    if (defaultPurchaseCount > 1) return 'Only one default purchase unit can be selected.';
+    if (defaultSaleCount > 1) {
+      return 'Only one default sale unit can be selected.';
+    }
+    if (defaultPurchaseCount > 1) {
+      return 'Only one default purchase unit can be selected.';
+    }
     return null;
   }
 
@@ -156,7 +178,8 @@ class ProductUnitDraft {
     this.active = true,
   });
 
-  factory ProductUnitDraft.fromOption(ProductUnitOption value) => ProductUnitDraft(
+  factory ProductUnitDraft.fromOption(ProductUnitOption value) =>
+      ProductUnitDraft(
         unitId: value.unitId,
         factor: ProductUnitEditorController._format(value.conversionToBase),
         step: ProductUnitEditorController._format(value.quantityStep),
@@ -189,19 +212,19 @@ class ProductUnitDraft {
   bool active;
 
   Map<String, dynamic> toMap() => <String, dynamic>{
-        'unit_id': unitId,
-        'conversion_to_base': double.tryParse(factor.trim()) ?? 1,
-        'quantity_step': double.tryParse(step.trim()) ?? 1,
-        'sale_price': double.tryParse(salePrice.trim()),
-        'purchase_cost': double.tryParse(purchaseCost.trim()),
-        'cutting_allowed': cuttingAllowed,
-        'cutting_charge': double.tryParse(cuttingCharge.trim()) ?? 0,
-        'allow_sale': allowSale,
-        'allow_purchase': allowPurchase,
-        'is_default_sale': defaultSale,
-        'is_default_purchase': defaultPurchase,
-        'active': active,
-      };
+    'unit_id': unitId,
+    'conversion_to_base': double.tryParse(factor.trim()) ?? 1,
+    'quantity_step': double.tryParse(step.trim()) ?? 1,
+    'sale_price': double.tryParse(salePrice.trim()),
+    'purchase_cost': double.tryParse(purchaseCost.trim()),
+    'cutting_allowed': cuttingAllowed,
+    'cutting_charge': double.tryParse(cuttingCharge.trim()) ?? 0,
+    'allow_sale': allowSale,
+    'allow_purchase': allowPurchase,
+    'is_default_sale': defaultSale,
+    'is_default_purchase': defaultPurchase,
+    'active': active,
+  };
 }
 
 class ProductUnitEditor extends StatefulWidget {
@@ -228,23 +251,42 @@ class _ProductUnitEditorState extends State<ProductUnitEditor> {
       return const Card(
         child: Padding(
           padding: EdgeInsets.all(16),
-          child: Text('Unit master could not be loaded. The base unit will be preserved.'),
+          child: Text(
+            'Unit master could not be loaded. The base unit will be preserved.',
+          ),
         ),
       );
     }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-        Text('Units & conversions', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+        Text(
+          'Units & conversions',
+          style: Theme.of(
+            context,
+          ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+        ),
         const SizedBox(height: 6),
-        const Text('Choose the stock base unit and every unit that can be used during sale or purchase.'),
+        const Text(
+          'Choose the stock base unit and every unit that can be used during sale or purchase.',
+        ),
         const SizedBox(height: 12),
         DropdownButtonFormField<String>(
           key: ValueKey<String>('product-base-${c.baseCode}'),
-          initialValue: c.units.any((unit) => unit.code == c.baseCode) ? c.baseCode : null,
-          decoration: const InputDecoration(labelText: 'Base inventory unit', border: OutlineInputBorder()),
+          initialValue: c.units.any((unit) => unit.code == c.baseCode)
+              ? c.baseCode
+              : null,
+          decoration: const InputDecoration(
+            labelText: 'Base inventory unit',
+            border: OutlineInputBorder(),
+          ),
           items: c.units
-              .map((unit) => DropdownMenuItem<String>(value: unit.code, child: Text('${unit.name} (${unit.code})')))
+              .map(
+                (unit) => DropdownMenuItem<String>(
+                  value: unit.code,
+                  child: Text('${unit.name} (${unit.code})'),
+                ),
+              )
               .toList(),
           onChanged: !widget.enabled
               ? null
@@ -264,25 +306,40 @@ class _ProductUnitEditorState extends State<ProductUnitEditor> {
                 key: ValueKey<String>('base-step-${c.baseCode}-${c.baseStep}'),
                 initialValue: c.baseStep,
                 enabled: widget.enabled,
-                decoration: const InputDecoration(labelText: 'Base qty step', border: OutlineInputBorder()),
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                decoration: const InputDecoration(
+                  labelText: 'Base qty step',
+                  border: OutlineInputBorder(),
+                ),
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
                 onChanged: (value) => c.baseStep = value,
               ),
             ),
             FilterChip(
               label: const Text('Cut / partial base qty'),
               selected: c.baseCuttingAllowed,
-              onSelected: !widget.enabled ? null : (value) => setState(() => c.baseCuttingAllowed = value),
+              onSelected: !widget.enabled
+                  ? null
+                  : (value) => setState(() => c.baseCuttingAllowed = value),
             ),
             if (c.baseCuttingAllowed)
               SizedBox(
                 width: 190,
                 child: TextFormField(
-                  key: ValueKey<String>('base-cut-${c.baseCode}-${c.baseCuttingCharge}'),
+                  key: ValueKey<String>(
+                    'base-cut-${c.baseCode}-${c.baseCuttingCharge}',
+                  ),
                   initialValue: c.baseCuttingCharge,
                   enabled: widget.enabled,
-                  decoration: InputDecoration(labelText: 'Cutting charge', prefixText: '${widget.currencySymbol} ', border: const OutlineInputBorder()),
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  decoration: InputDecoration(
+                    labelText: 'Cutting charge',
+                    prefixText: '${widget.currencySymbol} ',
+                    border: const OutlineInputBorder(),
+                  ),
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
                   onChanged: (value) => c.baseCuttingCharge = value,
                 ),
               ),
@@ -291,13 +348,26 @@ class _ProductUnitEditorState extends State<ProductUnitEditor> {
         const SizedBox(height: 14),
         Row(
           children: <Widget>[
-            Expanded(child: Text('Sale / purchase units', style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700))),
+            Expanded(
+              child: Text(
+                'Sale / purchase units',
+                style: Theme.of(
+                  context,
+                ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+              ),
+            ),
             OutlinedButton.icon(
               onPressed: !widget.enabled
                   ? null
                   : () {
                       if (!c.addAvailableUnit()) {
-                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No more unused units are available.')));
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                              'No more unused units are available.',
+                            ),
+                          ),
+                        );
                         return;
                       }
                       setState(() {});
@@ -311,7 +381,9 @@ class _ProductUnitEditorState extends State<ProductUnitEditor> {
         if (c.rows.isEmpty)
           const Padding(
             padding: EdgeInsets.symmetric(vertical: 8),
-            child: Text('No alternate units. Billing and purchasing will use the base unit.'),
+            child: Text(
+              'No alternate units. Billing and purchasing will use the base unit.',
+            ),
           ),
         ...c.rows.asMap().entries.map((entry) => _row(entry.key, entry.value)),
       ],
@@ -320,7 +392,9 @@ class _ProductUnitEditorState extends State<ProductUnitEditor> {
 
   Widget _row(int index, ProductUnitDraft row) {
     final c = widget.controller;
-    final candidates = c.units.where((unit) => unit.code != c.baseCode).toList();
+    final candidates = c.units
+        .where((unit) => unit.code != c.baseCode)
+        .toList();
     final unit = c.unitById(row.unitId);
     return Card(
       margin: const EdgeInsets.only(top: 8),
@@ -334,10 +408,25 @@ class _ProductUnitEditorState extends State<ProductUnitEditor> {
                 Expanded(
                   child: DropdownButtonFormField<String>(
                     key: ValueKey<String>('alt-unit-${row.unitId}-$index'),
-                    initialValue: candidates.any((candidate) => candidate.id == row.unitId) ? row.unitId : null,
-                    decoration: const InputDecoration(labelText: 'Unit', border: OutlineInputBorder()),
+                    initialValue:
+                        candidates.any(
+                          (candidate) => candidate.id == row.unitId,
+                        )
+                        ? row.unitId
+                        : null,
+                    decoration: const InputDecoration(
+                      labelText: 'Unit',
+                      border: OutlineInputBorder(),
+                    ),
                     items: candidates
-                        .map((candidate) => DropdownMenuItem<String>(value: candidate.id, child: Text('${candidate.name} (${candidate.code})')))
+                        .map(
+                          (candidate) => DropdownMenuItem<String>(
+                            value: candidate.id,
+                            child: Text(
+                              '${candidate.name} (${candidate.code})',
+                            ),
+                          ),
+                        )
                         .toList(),
                     onChanged: !widget.enabled
                         ? null
@@ -349,7 +438,9 @@ class _ProductUnitEditorState extends State<ProductUnitEditor> {
                 ),
                 IconButton(
                   tooltip: 'Remove unit',
-                  onPressed: !widget.enabled ? null : () => setState(() => c.rows.removeAt(index)),
+                  onPressed: !widget.enabled
+                      ? null
+                      : () => setState(() => c.rows.removeAt(index)),
                   icon: const Icon(Icons.delete_outline),
                 ),
               ],
@@ -365,9 +456,26 @@ class _ProductUnitEditorState extends State<ProductUnitEditor> {
                   label: '1 ${unit?.code ?? 'unit'} = base qty',
                   onChanged: (value) => row.factor = value,
                 ),
-                _numberField(width: 130, initial: row.step, label: 'Qty step', onChanged: (value) => row.step = value),
-                _numberField(width: 170, initial: row.salePrice, label: 'Sale price / unit', onChanged: (value) => row.salePrice = value, optional: true),
-                _numberField(width: 170, initial: row.purchaseCost, label: 'Purchase cost / unit', onChanged: (value) => row.purchaseCost = value, optional: true),
+                _numberField(
+                  width: 130,
+                  initial: row.step,
+                  label: 'Qty step',
+                  onChanged: (value) => row.step = value,
+                ),
+                _numberField(
+                  width: 170,
+                  initial: row.salePrice,
+                  label: 'Sale price / unit',
+                  onChanged: (value) => row.salePrice = value,
+                  optional: true,
+                ),
+                _numberField(
+                  width: 170,
+                  initial: row.purchaseCost,
+                  label: 'Purchase cost / unit',
+                  onChanged: (value) => row.purchaseCost = value,
+                  optional: true,
+                ),
               ],
             ),
             const SizedBox(height: 8),
@@ -375,18 +483,38 @@ class _ProductUnitEditorState extends State<ProductUnitEditor> {
               spacing: 8,
               runSpacing: 6,
               children: <Widget>[
-                FilterChip(label: const Text('Sale'), selected: row.allowSale, onSelected: !widget.enabled ? null : (value) => setState(() {row.allowSale = value;if (!value) row.defaultSale = false;})),
-                FilterChip(label: const Text('Purchase'), selected: row.allowPurchase, onSelected: !widget.enabled ? null : (value) => setState(() {row.allowPurchase = value;if (!value) row.defaultPurchase = false;})),
+                FilterChip(
+                  label: const Text('Sale'),
+                  selected: row.allowSale,
+                  onSelected: !widget.enabled
+                      ? null
+                      : (value) => setState(() {
+                          row.allowSale = value;
+                          if (!value) row.defaultSale = false;
+                        }),
+                ),
+                FilterChip(
+                  label: const Text('Purchase'),
+                  selected: row.allowPurchase,
+                  onSelected: !widget.enabled
+                      ? null
+                      : (value) => setState(() {
+                          row.allowPurchase = value;
+                          if (!value) row.defaultPurchase = false;
+                        }),
+                ),
                 FilterChip(
                   label: const Text('Default sale'),
                   selected: row.defaultSale,
                   onSelected: !widget.enabled
                       ? null
                       : (value) => setState(() {
-                            for (final candidate in c.rows) {candidate.defaultSale = false;}
-                            row.defaultSale = value;
-                            if (value) row.allowSale = true;
-                          }),
+                          for (final candidate in c.rows) {
+                            candidate.defaultSale = false;
+                          }
+                          row.defaultSale = value;
+                          if (value) row.allowSale = true;
+                        }),
                 ),
                 FilterChip(
                   label: const Text('Default purchase'),
@@ -394,17 +522,31 @@ class _ProductUnitEditorState extends State<ProductUnitEditor> {
                   onSelected: !widget.enabled
                       ? null
                       : (value) => setState(() {
-                            for (final candidate in c.rows) {candidate.defaultPurchase = false;}
-                            row.defaultPurchase = value;
-                            if (value) row.allowPurchase = true;
-                          }),
+                          for (final candidate in c.rows) {
+                            candidate.defaultPurchase = false;
+                          }
+                          row.defaultPurchase = value;
+                          if (value) row.allowPurchase = true;
+                        }),
                 ),
-                FilterChip(label: const Text('Cut / partial'), selected: row.cuttingAllowed, onSelected: !widget.enabled ? null : (value) => setState(() => row.cuttingAllowed = value)),
+                FilterChip(
+                  label: const Text('Cut / partial'),
+                  selected: row.cuttingAllowed,
+                  onSelected: !widget.enabled
+                      ? null
+                      : (value) => setState(() => row.cuttingAllowed = value),
+                ),
               ],
             ),
             if (row.cuttingAllowed) ...<Widget>[
               const SizedBox(height: 10),
-              _numberField(width: 190, initial: row.cuttingCharge, label: 'Cutting charge', onChanged: (value) => row.cuttingCharge = value, optional: true),
+              _numberField(
+                width: 190,
+                initial: row.cuttingCharge,
+                label: 'Cutting charge',
+                onChanged: (value) => row.cuttingCharge = value,
+                optional: true,
+              ),
             ],
           ],
         ),
@@ -425,13 +567,18 @@ class _ProductUnitEditorState extends State<ProductUnitEditor> {
         initialValue: initial,
         enabled: widget.enabled,
         keyboardType: const TextInputType.numberWithOptions(decimal: true),
-        decoration: InputDecoration(labelText: label, border: const OutlineInputBorder()),
+        decoration: InputDecoration(
+          labelText: label,
+          border: const OutlineInputBorder(),
+        ),
         onChanged: onChanged,
         validator: (value) {
           final text = value?.trim() ?? '';
           if (optional && text.isEmpty) return null;
           final parsed = double.tryParse(text);
-          if (parsed == null || parsed < 0 || (!optional && parsed == 0)) return 'Invalid';
+          if (parsed == null || parsed < 0 || (!optional && parsed == 0)) {
+            return 'Invalid';
+          }
           return null;
         },
       ),

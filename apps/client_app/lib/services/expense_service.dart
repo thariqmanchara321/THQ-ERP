@@ -89,9 +89,10 @@ class ExpenseService {
     required String paymentMethod,
     required String referenceNumber,
     required String notes,
+    required String reason,
   }) async {
     await _supabase.rpc(
-      'expenses_update_v489',
+      'expenses_update_v600',
       params: {
         'p_tenant_id': tenantId,
         'p_expense_id': expenseId,
@@ -105,8 +106,39 @@ class ExpenseService {
         'p_payment_method': paymentMethod,
         'p_reference_number': referenceNumber.trim(),
         'p_notes': notes.trim(),
+        'p_reason': reason.trim(),
       },
     );
+  }
+
+  Future<Map<String, dynamic>> getExpenseDetail({
+    required String tenantId,
+    required String expenseId,
+  }) async {
+    final raw = await _supabase.rpc(
+      'expense_detail_v600',
+      params: {'p_tenant_id': tenantId, 'p_expense_id': expenseId},
+    );
+    if (raw is Map) return Map<String, dynamic>.from(raw);
+    throw StateError('Unexpected expense detail response.');
+  }
+
+  Future<Map<String, dynamic>> getExpenseSummary({
+    required String tenantId,
+    required DateTime from,
+    required DateTime to,
+  }) async {
+    final raw = await _supabase.rpc(
+      'expense_summary_v600',
+      params: {
+        'p_tenant_id': tenantId,
+        'p_from': _date(from),
+        'p_to': _date(to),
+        'p_location_id': LocationScopeService.selectedLocationId.value,
+      },
+    );
+    if (raw is Map) return Map<String, dynamic>.from(raw);
+    return <String, dynamic>{};
   }
 
   Future<Map<String, dynamic>> _originParams(String tenantId) async {

@@ -17,16 +17,18 @@ class StockTransferService {
     String? locationId,
     String? status,
     String query = '',
-  }) async => _rows(await _supabase.rpc(
-        'inventory_transfers_list_v485',
-        params: {
-          'p_tenant_id': tenantId,
-          'p_location_id': locationId,
-          'p_status': status,
-          'p_query': query.trim(),
-          'p_limit': 500,
-        },
-      ));
+  }) async => _rows(
+    await _supabase.rpc(
+      'inventory_transfers_list_v485',
+      params: {
+        'p_tenant_id': tenantId,
+        'p_location_id': locationId,
+        'p_status': status,
+        'p_query': query.trim(),
+        'p_limit': 500,
+      },
+    ),
+  );
 
   Future<Map<String, dynamic>> detail({
     required String tenantId,
@@ -43,30 +45,37 @@ class StockTransferService {
   Future<List<Map<String, dynamic>>> history({
     required String tenantId,
     required String transferId,
-  }) async => _rows(await _supabase.rpc(
-        'inventory_transfer_history_v485',
-        params: {'p_tenant_id': tenantId, 'p_transfer_id': transferId},
-      ));
+  }) async => _rows(
+    await _supabase.rpc(
+      'inventory_transfer_history_v485',
+      params: {'p_tenant_id': tenantId, 'p_transfer_id': transferId},
+    ),
+  );
 
-  Future<List<Map<String, dynamic>>> warehouses({required String tenantId}) async =>
-      _rows(await _supabase.rpc(
-        'warehouse_locations_v485',
-        params: {'p_tenant_id': tenantId},
-      ));
+  Future<List<Map<String, dynamic>>> warehouses({
+    required String tenantId,
+  }) async => _rows(
+    await _supabase.rpc(
+      'warehouse_locations_v485',
+      params: {'p_tenant_id': tenantId},
+    ),
+  );
 
   Future<List<Map<String, dynamic>>> warehouseInventory({
     required String tenantId,
     String? locationId,
     String query = '',
-  }) async => _rows(await _supabase.rpc(
-        'warehouse_inventory_v485',
-        params: {
-          'p_tenant_id': tenantId,
-          'p_location_id': locationId,
-          'p_query': query.trim(),
-          'p_limit': 2000,
-        },
-      ));
+  }) async => _rows(
+    await _supabase.rpc(
+      'warehouse_inventory_v485',
+      params: {
+        'p_tenant_id': tenantId,
+        'p_location_id': locationId,
+        'p_query': query.trim(),
+        'p_limit': 2000,
+      },
+    ),
+  );
 
   Future<Map<String, dynamic>> trackingOptions({
     required String tenantId,
@@ -102,7 +111,10 @@ class StockTransferService {
         'p_to_location_id': toLocationId,
         'p_items': items,
         'p_notes': notes.trim(),
-        'p_expected_arrival_date': expectedArrival?.toIso8601String().split('T').first,
+        'p_expected_arrival_date': expectedArrival
+            ?.toIso8601String()
+            .split('T')
+            .first,
         'p_transport_reference': transportReference.trim(),
         'p_request_id': const Uuid().v4(),
       },
@@ -187,14 +199,16 @@ class StockTransferService {
     required String tenantId,
     required String locationId,
     String query = '',
-  }) async => _rows(await _supabase.rpc(
-        'inventory_stock_count_snapshot_v485',
-        params: {
-          'p_tenant_id': tenantId,
-          'p_location_id': locationId,
-          'p_query': query.trim(),
-        },
-      ));
+  }) async => _rows(
+    await _supabase.rpc(
+      'inventory_stock_count_snapshot_v485',
+      params: {
+        'p_tenant_id': tenantId,
+        'p_location_id': locationId,
+        'p_query': query.trim(),
+      },
+    ),
+  );
 
   Future<Map<String, dynamic>> postCount({
     required String tenantId,
@@ -221,16 +235,18 @@ class StockTransferService {
   Future<List<Map<String, dynamic>>> countHistory({
     required String tenantId,
     String? locationId,
-  }) async => _rows(await _supabase.rpc(
-        'stock_counts_list_v485',
-        params: {
-          'p_tenant_id': tenantId,
-          'p_location_id': locationId,
-          'p_from': null,
-          'p_to': null,
-          'p_limit': 500,
-        },
-      ));
+  }) async => _rows(
+    await _supabase.rpc(
+      'stock_counts_list_v485',
+      params: {
+        'p_tenant_id': tenantId,
+        'p_location_id': locationId,
+        'p_from': null,
+        'p_to': null,
+        'p_limit': 500,
+      },
+    ),
+  );
 
   Future<Map<String, dynamic>> countDetail({
     required String tenantId,
@@ -249,14 +265,16 @@ class StockTransferService {
     String? locationId,
     String query = '',
     bool onlyVariance = false,
-  }) async => _rows(await _supabase.rpc(
-        'inventory_stock_reconciliation_v485',
-        params: {
-          'p_tenant_id': tenantId,
-          'p_location_id': locationId,
-          'p_query': query.trim(),
-          'p_only_variance': onlyVariance,
-          'p_limit': 5000,
-        },
-      ));
+  }) async => _rows(
+    await _supabase.rpc(
+      'inventory_stock_reconciliation_v485',
+      params: {
+        'p_tenant_id': tenantId,
+        'p_location_id': locationId,
+        'p_query': query.trim(),
+        'p_only_variance': onlyVariance,
+        'p_limit': 5000,
+      },
+    ),
+  );
 }

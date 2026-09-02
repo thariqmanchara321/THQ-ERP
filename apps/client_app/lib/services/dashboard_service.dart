@@ -30,7 +30,8 @@ class DashboardService {
       params: {
         'p_tenant_id': session.business.id,
         'p_location_id': LocationScopeService.currentForRead(session),
-        'p_day': '${target.year.toString().padLeft(4, '0')}-${target.month.toString().padLeft(2, '0')}-${target.day.toString().padLeft(2, '0')}',
+        'p_day':
+            '${target.year.toString().padLeft(4, '0')}-${target.month.toString().padLeft(2, '0')}-${target.day.toString().padLeft(2, '0')}',
       },
     );
     if (result is! Map) throw Exception('Unexpected v5 BI response.');

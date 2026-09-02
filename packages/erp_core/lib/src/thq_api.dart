@@ -17,11 +17,11 @@ class ThqApiRequest {
   });
 
   Map<String, dynamic> toJson() => <String, dynamic>{
-        'tenant_id': tenantId,
-        'resource': resource,
-        'action': action,
-        'payload': payload,
-      };
+    'tenant_id': tenantId,
+    'resource': resource,
+    'action': action,
+    'payload': payload,
+  };
 }
 
 class ThqSyncVersions {
@@ -44,14 +44,14 @@ class ThqSyncVersions {
   });
 
   factory ThqSyncVersions.fromMap(Map<String, dynamic> map) => ThqSyncVersions(
-        configuration: (map['configuration'] as num?)?.toInt() ?? 1,
-        catalogue: (map['catalogue'] as num?)?.toInt() ?? 1,
-        parties: (map['parties'] as num?)?.toInt() ?? 1,
-        transactions: (map['transactions'] as num?)?.toInt() ?? 1,
-        inventory: (map['inventory'] as num?)?.toInt() ?? 1,
-        finance: (map['finance'] as num?)?.toInt() ?? 1,
-        updatedAt: DateTime.tryParse(map['updated_at']?.toString() ?? ''),
-      );
+    configuration: (map['configuration'] as num?)?.toInt() ?? 1,
+    catalogue: (map['catalogue'] as num?)?.toInt() ?? 1,
+    parties: (map['parties'] as num?)?.toInt() ?? 1,
+    transactions: (map['transactions'] as num?)?.toInt() ?? 1,
+    inventory: (map['inventory'] as num?)?.toInt() ?? 1,
+    finance: (map['finance'] as num?)?.toInt() ?? 1,
+    updatedAt: DateTime.tryParse(map['updated_at']?.toString() ?? ''),
+  );
 
   bool configurationOrMasterChangedFrom(ThqSyncVersions other) =>
       configuration != other.configuration ||

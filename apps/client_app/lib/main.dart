@@ -45,7 +45,8 @@ class ThqBusinessApp extends StatelessWidget {
     return MaterialApp(
       title: 'THQ Business',
       debugShowCheckedModeBanner: false,
-      builder: (context, child) => NumericZeroAutoSelect(child: child ?? const SizedBox.shrink()),
+      builder: (context, child) =>
+          NumericZeroAutoSelect(child: child ?? const SizedBox.shrink()),
       theme: UiDesignProfile.fallback('client').theme(),
       home: const ClientEntryScreen(),
     );

@@ -1,4 +1,4 @@
-﻿import 'dart:convert';
+import 'dart:convert';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -15,12 +15,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 ///
 /// Frozen legacy baseline remains:
 /// - v5.1.0 Build 27 / backend contract migration 213
-enum GstV520Channel {
-  client,
-  pos,
-  posOffline,
-  mobilePos,
-}
+enum GstV520Channel { client, pos, posOffline, mobilePos }
 
 extension GstV520ChannelWire on GstV520Channel {
   String get wireName {
@@ -37,8 +32,7 @@ extension GstV520ChannelWire on GstV520Channel {
   }
 
   bool get requiresDevice =>
-      this == GstV520Channel.posOffline ||
-      this == GstV520Channel.mobilePos;
+      this == GstV520Channel.posOffline || this == GstV520Channel.mobilePos;
 }
 
 class GstV520Exception implements Exception {
@@ -56,12 +50,7 @@ class GstV520Gateway {
     required String tenantId,
     required GstV520Channel channel,
     String? deviceId,
-  }) : this._(
-          client,
-          tenantId: tenantId,
-          channel: channel,
-          deviceId: deviceId,
-        );
+  }) : this._(client, tenantId: tenantId, channel: channel, deviceId: deviceId);
 
   GstV520Gateway._(
     this._client, {
@@ -117,9 +106,7 @@ class GstV520Gateway {
 
     if (channel.requiresDevice &&
         (deviceId == null || deviceId!.trim().isEmpty)) {
-      throw GstV520Exception(
-        'Device ID is required for ${channel.wireName}.',
-      );
+      throw GstV520Exception('Device ID is required for ${channel.wireName}.');
     }
 
     final params = <String, dynamic>{
@@ -129,7 +116,7 @@ class GstV520Gateway {
     };
 
     final raw = await _rpcDirect(
-      'gst_transaction_cutover_contract_v520',
+      'gst_transaction_cutover_contract_v522',
       params,
     );
     final loaded = _asMap(raw, fieldName: 'cutover_contract');
@@ -140,8 +127,8 @@ class GstV520Gateway {
       final detail = blockingReason == 'tax_mode_unconfigured'
           ? 'Choose GST Registered or Non-GST in GST & Compliance first.'
           : (blockingReason == null || blockingReason.isEmpty
-              ? 'Backend has not approved GST v5.2 application cutover.'
-              : blockingReason);
+                ? 'Backend has not approved GST v5.2 application cutover.'
+                : blockingReason);
       throw GstV520Exception(
         'GST v5.2 cutover blocked: $detail (tax mode: $taxMode).',
       );
@@ -232,11 +219,7 @@ class GstV520Gateway {
     _putIfNotNull(params, 'p_location_id', locationId);
     _putIfNotNull(params, 'p_device_id', deviceId ?? this.deviceId);
     _putIfNotNull(params, 'p_supply_type', supplyType);
-    _putIfNotNull(
-      params,
-      'p_place_of_supply_code',
-      placeOfSupplyCode,
-    );
+    _putIfNotNull(params, 'p_place_of_supply_code', placeOfSupplyCode);
 
     return _callRoute('sale', params);
   }
@@ -284,11 +267,7 @@ class GstV520Gateway {
     _putIfNotNull(params, 'p_location_id', locationId);
     _putIfNotNull(params, 'p_device_id', deviceId ?? this.deviceId);
     _putIfNotNull(params, 'p_supply_type', supplyType);
-    _putIfNotNull(
-      params,
-      'p_place_of_supply_code',
-      placeOfSupplyCode,
-    );
+    _putIfNotNull(params, 'p_place_of_supply_code', placeOfSupplyCode);
 
     return _callRoute('purchase', params);
   }
@@ -326,11 +305,7 @@ class GstV520Gateway {
 
     _putIfNotNull(params, 'p_notes', notes);
     _putIfNotNull(params, 'p_supply_type', supplyType);
-    _putIfNotNull(
-      params,
-      'p_place_of_supply_code',
-      placeOfSupplyCode,
-    );
+    _putIfNotNull(params, 'p_place_of_supply_code', placeOfSupplyCode);
 
     return _callRoute('purchase_invoice_v2', params);
   }
@@ -426,11 +401,7 @@ class GstV520Gateway {
 
     _putIfNotNull(params, 'p_payment_reference', paymentReference);
     _putIfNotNull(params, 'p_supply_type', supplyType);
-    _putIfNotNull(
-      params,
-      'p_place_of_supply_code',
-      placeOfSupplyCode,
-    );
+    _putIfNotNull(params, 'p_place_of_supply_code', placeOfSupplyCode);
 
     return _callRoute('service_bill', params);
   }
@@ -480,16 +451,13 @@ class GstV520Gateway {
     _requireRequestId(requestId);
     final resolvedDeviceId = _requiredGatewayDevice();
 
-    return _callRoute(
-      'sale_sync',
-      <String, dynamic>{
-        'p_tenant_id': tenantId,
-        'p_device_id': resolvedDeviceId,
-        'p_location_id': locationId,
-        'p_request_id': requestId,
-        'p_payload': payload,
-      },
-    );
+    return _callRoute('sale_sync', <String, dynamic>{
+      'p_tenant_id': tenantId,
+      'p_device_id': resolvedDeviceId,
+      'p_location_id': locationId,
+      'p_request_id': requestId,
+      'p_payload': payload,
+    });
   }
 
   // ---------------------------------------------------------------------------
@@ -503,15 +471,12 @@ class GstV520Gateway {
     _requireRequestId(requestId);
     final resolvedDeviceId = _requiredGatewayDevice();
 
-    return _callRoute(
-      'sale_sync',
-      <String, dynamic>{
-        'p_tenant_id': tenantId,
-        'p_device_id': resolvedDeviceId,
-        'p_request_id': requestId,
-        'p_payload': payload,
-      },
-    );
+    return _callRoute('sale_sync', <String, dynamic>{
+      'p_tenant_id': tenantId,
+      'p_device_id': resolvedDeviceId,
+      'p_request_id': requestId,
+      'p_payload': payload,
+    });
   }
 
   // ---------------------------------------------------------------------------
@@ -519,12 +484,9 @@ class GstV520Gateway {
   // ---------------------------------------------------------------------------
 
   Future<Map<String, dynamic>> loadGstWorkspace() async {
-    return _callRoute(
-      'gst_workspace',
-      <String, dynamic>{
-        'p_tenant_id': tenantId,
-      },
-    );
+    return _callRoute('gst_workspace', <String, dynamic>{
+      'p_tenant_id': tenantId,
+    });
   }
 
   // ---------------------------------------------------------------------------
@@ -572,22 +534,21 @@ class GstV520Gateway {
     }
   }
 
-  Future<dynamic> _rpcDirect(
-    String rpc,
-    Map<String, dynamic> params,
-  ) async {
+  Future<dynamic> _rpcDirect(String rpc, Map<String, dynamic> params) async {
     try {
       return await _client.rpc(rpc, params: params);
     } catch (error) {
-      throw GstV520Exception(
-        'GST v5.2 contract RPC "$rpc" failed: $error',
-      );
+      throw GstV520Exception('GST v5.2 contract RPC "$rpc" failed: $error');
     }
   }
 
   static bool _isApprovedV520Rpc(String rpc) {
     const approved = <String>{
       'gst_sale_create_v520',
+      'gst_sale_create_v522',
+      'gst_pos_sale_create_v522',
+      'gst_pos_offline_sale_sync_v522',
+      'gst_mobile_pos_sale_sync_v522',
       'gst_purchase_create_v520',
       'gst_purchase_invoice_create_v520',
       'gst_sales_return_create_v520',
@@ -605,26 +566,19 @@ class GstV520Gateway {
     return approved.contains(rpc);
   }
 
-  static Map<String, dynamic> _asMap(
-    dynamic raw, {
-    required String fieldName,
-  }) {
+  static Map<String, dynamic> _asMap(dynamic raw, {required String fieldName}) {
     if (raw is Map<String, dynamic>) {
       return Map<String, dynamic>.from(raw);
     }
 
     if (raw is Map) {
-      return raw.map(
-        (key, value) => MapEntry(key.toString(), value),
-      );
+      return raw.map((key, value) => MapEntry(key.toString(), value));
     }
 
     if (raw is String) {
       final decoded = jsonDecode(raw);
       if (decoded is Map) {
-        return decoded.map(
-          (key, value) => MapEntry(key.toString(), value),
-        );
+        return decoded.map((key, value) => MapEntry(key.toString(), value));
       }
     }
 
@@ -655,9 +609,7 @@ class GstV520Gateway {
   String _requiredGatewayDevice() {
     final value = deviceId?.trim();
     if (value == null || value.isEmpty) {
-      throw GstV520Exception(
-        'Device ID is required for ${channel.wireName}.',
-      );
+      throw GstV520Exception('Device ID is required for ${channel.wireName}.');
     }
     return value;
   }

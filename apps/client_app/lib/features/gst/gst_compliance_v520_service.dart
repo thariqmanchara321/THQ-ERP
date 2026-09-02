@@ -26,10 +26,7 @@ class GstComplianceV520Exception implements Exception {
 }
 
 class GstComplianceV520Service {
-  GstComplianceV520Service({
-    required this.client,
-    required this.tenantId,
-  });
+  GstComplianceV520Service({required this.client, required this.tenantId});
 
   final SupabaseClient client;
   final String tenantId;
@@ -79,16 +76,13 @@ class GstComplianceV520Service {
       );
     }
 
-    final raw = await _rpc(
-      'gst_compliance_bootstrap_v520',
-      <String, dynamic>{
-        'p_tenant_id': tenantId,
-        'p_from': from == null ? null : _dateOnly(from),
-        'p_to': to == null ? null : _dateOnly(to),
-        'p_location_id': _nullableText(locationId),
-        'p_document_limit': documentLimit,
-      },
-    );
+    final raw = await _rpc('gst_compliance_bootstrap_v520', <String, dynamic>{
+      'p_tenant_id': tenantId,
+      'p_from': from == null ? null : _dateOnly(from),
+      'p_to': to == null ? null : _dateOnly(to),
+      'p_location_id': _nullableText(locationId),
+      'p_document_limit': documentLimit,
+    });
 
     final parsed = GstComplianceBootstrapV520.fromJson(
       _asMap(raw, fieldName: 'gst_compliance_bootstrap_v520'),
@@ -125,38 +119,29 @@ class GstComplianceV520Service {
     _requireInitialized();
     final rpc = uiContract.rpcForTab('overview', 'rpc');
 
-    return _rpcMap(
-      rpc,
-      <String, dynamic>{
-        'p_tenant_id': tenantId,
-        'p_from': _dateOnly(from),
-        'p_to': _dateOnly(to),
-        'p_location_id': _nullableText(locationId),
-      },
-    );
+    return _rpcMap(rpc, <String, dynamic>{
+      'p_tenant_id': tenantId,
+      'p_from': _dateOnly(from),
+      'p_to': _dateOnly(to),
+      'p_location_id': _nullableText(locationId),
+    });
   }
 
   Future<Map<String, dynamic>> loadMasters({DateTime? date}) async {
     _requireInitialized();
 
-    return _rpcMap(
-      uiContract.mastersRpc,
-      <String, dynamic>{
-        'p_tenant_id': tenantId,
-        'p_date': _dateOnly(date ?? DateTime.now()),
-      },
-    );
+    return _rpcMap(uiContract.mastersRpc, <String, dynamic>{
+      'p_tenant_id': tenantId,
+      'p_date': _dateOnly(date ?? DateTime.now()),
+    });
   }
 
   Future<Map<String, dynamic>> loadReadiness() async {
     _requireInitialized();
 
-    return _rpcMap(
-      uiContract.readinessRpc,
-      <String, dynamic>{
-        'p_tenant_id': tenantId,
-      },
-    );
+    return _rpcMap(uiContract.readinessRpc, <String, dynamic>{
+      'p_tenant_id': tenantId,
+    });
   }
 
   /// Active THQ entities used by GST setup dialogs.
@@ -197,15 +182,12 @@ class GstComplianceV520Service {
       _requireView();
     }
 
-    return _rpcMap(
-      uiContract.setupLookupRpc,
-      <String, dynamic>{
-        'p_tenant_id': tenantId,
-        'p_kind': normalizedKind,
-        'p_query': query.trim(),
-        'p_limit': limit,
-      },
-    );
+    return _rpcMap(uiContract.setupLookupRpc, <String, dynamic>{
+      'p_tenant_id': tenantId,
+      'p_kind': normalizedKind,
+      'p_query': query.trim(),
+      'p_limit': limit,
+    });
   }
 
   // ---------------------------------------------------------------------------
@@ -216,12 +198,7 @@ class GstComplianceV520Service {
     _requireView();
     final rpc = uiContract.rpcForTab('registrations', 'list_rpc');
 
-    return _rpcList(
-      rpc,
-      <String, dynamic>{
-        'p_tenant_id': tenantId,
-      },
-    );
+    return _rpcList(rpc, <String, dynamic>{'p_tenant_id': tenantId});
   }
 
   Future<String> saveRegistration({
@@ -258,28 +235,25 @@ class GstComplianceV520Service {
     // but this service never submits to GSP/IRP.
     final rpc = uiContract.rpcForTab('registrations', 'save_rpc');
 
-    final raw = await _rpc(
-      rpc,
-      <String, dynamic>{
-        'p_tenant_id': tenantId,
-        'p_id': _nullableText(id),
-        'p_gstin': gstin.trim().toUpperCase(),
-        'p_legal_name': legalName.trim(),
-        'p_trade_name': _nullableText(tradeName),
-        'p_registration_type': registrationType.trim(),
-        'p_state_code': stateCode.trim(),
-        'p_address_line1': _nullableText(addressLine1),
-        'p_address_line2': _nullableText(addressLine2),
-        'p_city': _nullableText(city),
-        'p_postal_code': _nullableText(postalCode),
-        'p_einvoice_enabled': einvoiceEnabled,
-        'p_ewaybill_enabled': ewaybillEnabled,
-        'p_returns_enabled': returnsEnabled,
-        'p_provider_key': _nullableText(providerKey),
-        'p_active': active,
-        'p_effective_from': _dateOnly(effectiveFrom),
-      },
-    );
+    final raw = await _rpc(rpc, <String, dynamic>{
+      'p_tenant_id': tenantId,
+      'p_id': _nullableText(id),
+      'p_gstin': gstin.trim().toUpperCase(),
+      'p_legal_name': legalName.trim(),
+      'p_trade_name': _nullableText(tradeName),
+      'p_registration_type': registrationType.trim(),
+      'p_state_code': stateCode.trim(),
+      'p_address_line1': _nullableText(addressLine1),
+      'p_address_line2': _nullableText(addressLine2),
+      'p_city': _nullableText(city),
+      'p_postal_code': _nullableText(postalCode),
+      'p_einvoice_enabled': einvoiceEnabled,
+      'p_ewaybill_enabled': ewaybillEnabled,
+      'p_returns_enabled': returnsEnabled,
+      'p_provider_key': _nullableText(providerKey),
+      'p_active': active,
+      'p_effective_from': _dateOnly(effectiveFrom),
+    });
 
     final savedId = raw?.toString().trim() ?? '';
     if (savedId.isEmpty) {
@@ -299,14 +273,11 @@ class GstComplianceV520Service {
 
     final rpc = uiContract.rpcForTab('registrations', 'config_rpc');
 
-    return _rpcMap(
-      rpc,
-      <String, dynamic>{
-        'p_tenant_id': tenantId,
-        'p_registration_id': registrationId,
-        'p_date': _dateOnly(date ?? DateTime.now()),
-      },
-    );
+    return _rpcMap(rpc, <String, dynamic>{
+      'p_tenant_id': tenantId,
+      'p_registration_id': registrationId,
+      'p_date': _dateOnly(date ?? DateTime.now()),
+    });
   }
 
   /// Maps a THQ business location to a GST registration.
@@ -320,20 +291,14 @@ class GstComplianceV520Service {
   }) async {
     _requireCapability('configure');
 
-    final rpc = uiContract.rpcForTab(
-      'registrations',
-      'location_map_rpc',
-    );
+    final rpc = uiContract.rpcForTab('registrations', 'location_map_rpc');
 
-    await _rpc(
-      rpc,
-      <String, dynamic>{
-        'p_tenant_id': tenantId,
-        'p_location_id': locationId,
-        'p_registration_id': registrationId,
-        'p_effective_from': _dateOnly(effectiveFrom),
-      },
-    );
+    await _rpc(rpc, <String, dynamic>{
+      'p_tenant_id': tenantId,
+      'p_location_id': locationId,
+      'p_registration_id': registrationId,
+      'p_effective_from': _dateOnly(effectiveFrom),
+    });
   }
 
   // ---------------------------------------------------------------------------
@@ -348,15 +313,12 @@ class GstComplianceV520Service {
     _requireView();
     final rpc = uiContract.rpcForTab('products', 'list_rpc');
 
-    return _rpcList(
-      rpc,
-      <String, dynamic>{
-        'p_tenant_id': tenantId,
-        'p_query': query.trim(),
-        'p_status': _nullableText(status),
-        'p_limit': limit,
-      },
-    );
+    return _rpcList(rpc, <String, dynamic>{
+      'p_tenant_id': tenantId,
+      'p_query': query.trim(),
+      'p_status': _nullableText(status),
+      'p_limit': limit,
+    });
   }
 
   Future<String> saveProductProfile({
@@ -378,30 +340,25 @@ class GstComplianceV520Service {
       throw const GstComplianceV520Exception('HSN/SAC is required.');
     }
     if (gstRate < 0) {
-      throw const GstComplianceV520Exception(
-        'GST rate cannot be negative.',
-      );
+      throw const GstComplianceV520Exception('GST rate cannot be negative.');
     }
 
     final rpc = uiContract.rpcForTab('products', 'save_rpc');
 
-    final raw = await _rpc(
-      rpc,
-      <String, dynamic>{
-        'p_tenant_id': tenantId,
-        'p_variant_id': variantId,
-        'p_supply_kind': supplyKind.trim(),
-        'p_hsn_sac': hsnSac.trim(),
-        'p_taxability': taxability.trim(),
-        'p_gst_rate': gstRate,
-        'p_cess_rate': cessRate,
-        'p_cess_per_unit': cessPerUnit,
-        'p_tax_inclusive': taxInclusive,
-        'p_reverse_charge': reverseCharge,
-        'p_notes': _nullableText(notes),
-        'p_effective_from': _dateOnly(effectiveFrom),
-      },
-    );
+    final raw = await _rpc(rpc, <String, dynamic>{
+      'p_tenant_id': tenantId,
+      'p_variant_id': variantId,
+      'p_supply_kind': supplyKind.trim(),
+      'p_hsn_sac': hsnSac.trim(),
+      'p_taxability': taxability.trim(),
+      'p_gst_rate': gstRate,
+      'p_cess_rate': cessRate,
+      'p_cess_per_unit': cessPerUnit,
+      'p_tax_inclusive': taxInclusive,
+      'p_reverse_charge': reverseCharge,
+      'p_notes': _nullableText(notes),
+      'p_effective_from': _dateOnly(effectiveFrom),
+    });
 
     final id = raw?.toString().trim() ?? '';
     if (id.isEmpty) {
@@ -424,15 +381,12 @@ class GstComplianceV520Service {
     _requireView();
     final rpc = uiContract.rpcForTab('parties', 'list_rpc');
 
-    return _rpcList(
-      rpc,
-      <String, dynamic>{
-        'p_tenant_id': tenantId,
-        'p_party_type': _nullableText(partyType),
-        'p_query': query.trim(),
-        'p_limit': limit,
-      },
-    );
+    return _rpcList(rpc, <String, dynamic>{
+      'p_tenant_id': tenantId,
+      'p_party_type': _nullableText(partyType),
+      'p_query': query.trim(),
+      'p_limit': limit,
+    });
   }
 
   Future<String> savePartyProfile({
@@ -456,27 +410,24 @@ class GstComplianceV520Service {
 
     final rpc = uiContract.rpcForTab('parties', 'save_rpc');
 
-    final raw = await _rpc(
-      rpc,
-      <String, dynamic>{
-        'p_tenant_id': tenantId,
-        'p_id': _nullableText(id),
-        'p_party_type': partyType.trim(),
-        'p_party_id': partyId,
-        'p_registration_type': registrationType.trim(),
-        'p_gstin': _nullableUpper(gstin),
-        'p_legal_name': _nullableText(legalName),
-        'p_trade_name': _nullableText(tradeName),
-        'p_state_code': _nullableText(stateCode),
-        'p_place_of_supply_code': _nullableText(placeOfSupplyCode),
-        'p_address_line1': _nullableText(addressLine1),
-        'p_address_line2': _nullableText(addressLine2),
-        'p_city': _nullableText(city),
-        'p_postal_code': _nullableText(postalCode),
-        'p_country': country.trim().isEmpty ? 'IN' : country.trim(),
-        'p_active': active,
-      },
-    );
+    final raw = await _rpc(rpc, <String, dynamic>{
+      'p_tenant_id': tenantId,
+      'p_id': _nullableText(id),
+      'p_party_type': partyType.trim(),
+      'p_party_id': partyId,
+      'p_registration_type': registrationType.trim(),
+      'p_gstin': _nullableUpper(gstin),
+      'p_legal_name': _nullableText(legalName),
+      'p_trade_name': _nullableText(tradeName),
+      'p_state_code': _nullableText(stateCode),
+      'p_place_of_supply_code': _nullableText(placeOfSupplyCode),
+      'p_address_line1': _nullableText(addressLine1),
+      'p_address_line2': _nullableText(addressLine2),
+      'p_city': _nullableText(city),
+      'p_postal_code': _nullableText(postalCode),
+      'p_country': country.trim().isEmpty ? 'IN' : country.trim(),
+      'p_active': active,
+    });
 
     final savedId = raw?.toString().trim() ?? '';
     if (savedId.isEmpty) {
@@ -516,22 +467,19 @@ class GstComplianceV520Service {
 
     final rpc = uiContract.rpcForTab('transactions', 'list_rpc');
 
-    return _rpcMap(
-      rpc,
-      <String, dynamic>{
-        'p_tenant_id': tenantId,
-        'p_from': from == null ? null : _dateOnly(from),
-        'p_to': to == null ? null : _dateOnly(to),
-        'p_location_id': _nullableText(locationId),
-        'p_source_type': _nullableText(sourceType),
-        'p_evidence_status': evidenceStatus.trim().isEmpty
-            ? 'all'
-            : evidenceStatus.trim(),
-        'p_query': query.trim(),
-        'p_limit': limit,
-        'p_offset': offset,
-      },
-    );
+    return _rpcMap(rpc, <String, dynamic>{
+      'p_tenant_id': tenantId,
+      'p_from': from == null ? null : _dateOnly(from),
+      'p_to': to == null ? null : _dateOnly(to),
+      'p_location_id': _nullableText(locationId),
+      'p_source_type': _nullableText(sourceType),
+      'p_evidence_status': evidenceStatus.trim().isEmpty
+          ? 'all'
+          : evidenceStatus.trim(),
+      'p_query': query.trim(),
+      'p_limit': limit,
+      'p_offset': offset,
+    });
   }
 
   Future<Map<String, dynamic>> loadDocumentEvidence({
@@ -541,14 +489,11 @@ class GstComplianceV520Service {
     _requireView();
     final rpc = uiContract.rpcForTab('transactions', 'detail_rpc');
 
-    return _rpcMap(
-      rpc,
-      <String, dynamic>{
-        'p_tenant_id': tenantId,
-        'p_source_type': sourceType.trim(),
-        'p_source_id': sourceId,
-      },
-    );
+    return _rpcMap(rpc, <String, dynamic>{
+      'p_tenant_id': tenantId,
+      'p_source_type': sourceType.trim(),
+      'p_source_id': sourceId,
+    });
   }
 
   // ---------------------------------------------------------------------------
@@ -563,15 +508,12 @@ class GstComplianceV520Service {
     _requireView();
     final rpc = uiContract.rpcForTab('tax_summary', 'rpc');
 
-    return _rpcMap(
-      rpc,
-      <String, dynamic>{
-        'p_tenant_id': tenantId,
-        'p_from': _dateOnly(from),
-        'p_to': _dateOnly(to),
-        'p_location_id': _nullableText(locationId),
-      },
-    );
+    return _rpcMap(rpc, <String, dynamic>{
+      'p_tenant_id': tenantId,
+      'p_from': _dateOnly(from),
+      'p_to': _dateOnly(to),
+      'p_location_id': _nullableText(locationId),
+    });
   }
 
   /// Return filing preview only.
@@ -593,15 +535,12 @@ class GstComplianceV520Service {
 
     final rpc = tab.requireString('preview_rpc');
 
-    return _rpcMap(
-      rpc,
-      <String, dynamic>{
-        'p_tenant_id': tenantId,
-        'p_from': _dateOnly(from),
-        'p_to': _dateOnly(to),
-        'p_location_id': _nullableText(locationId),
-      },
-    );
+    return _rpcMap(rpc, <String, dynamic>{
+      'p_tenant_id': tenantId,
+      'p_from': _dateOnly(from),
+      'p_to': _dateOnly(to),
+      'p_location_id': _nullableText(locationId),
+    });
   }
 
   // ---------------------------------------------------------------------------
@@ -611,17 +550,9 @@ class GstComplianceV520Service {
   Future<Map<String, dynamic>> loadAccountingHealth() async {
     _requireCapability('reconcile');
 
-    final rpc = uiContract.rpcForTab(
-      'accounting',
-      'health_rpc',
-    );
+    final rpc = uiContract.rpcForTab('accounting', 'health_rpc');
 
-    return _rpcMap(
-      rpc,
-      <String, dynamic>{
-        'p_tenant_id': tenantId,
-      },
-    );
+    return _rpcMap(rpc, <String, dynamic>{'p_tenant_id': tenantId});
   }
 
   Future<Map<String, dynamic>> loadAccountingControl({
@@ -631,20 +562,14 @@ class GstComplianceV520Service {
   }) async {
     _requireCapability('reconcile');
 
-    final rpc = uiContract.rpcForTab(
-      'accounting',
-      'control_rpc',
-    );
+    final rpc = uiContract.rpcForTab('accounting', 'control_rpc');
 
-    return _rpcMap(
-      rpc,
-      <String, dynamic>{
-        'p_tenant_id': tenantId,
-        'p_from': _dateOnly(from),
-        'p_to': _dateOnly(to),
-        'p_location_id': _nullableText(locationId),
-      },
-    );
+    return _rpcMap(rpc, <String, dynamic>{
+      'p_tenant_id': tenantId,
+      'p_from': _dateOnly(from),
+      'p_to': _dateOnly(to),
+      'p_location_id': _nullableText(locationId),
+    });
   }
 
   // ---------------------------------------------------------------------------
@@ -748,18 +673,13 @@ class GstComplianceV520Service {
   // RPC HELPERS
   // ---------------------------------------------------------------------------
 
-  Future<dynamic> _rpc(
-    String rpc,
-    Map<String, dynamic> params,
-  ) async {
+  Future<dynamic> _rpc(String rpc, Map<String, dynamic> params) async {
     _assertApprovedRpc(rpc);
 
     try {
       return await client.rpc(rpc, params: params);
     } catch (error) {
-      throw GstComplianceV520Exception(
-        'GST v5.2 RPC "$rpc" failed: $error',
-      );
+      throw GstComplianceV520Exception('GST v5.2 RPC "$rpc" failed: $error');
     }
   }
 
@@ -808,26 +728,19 @@ class GstComplianceV520Service {
     }
   }
 
-  static Map<String, dynamic> _asMap(
-    dynamic raw, {
-    required String fieldName,
-  }) {
+  static Map<String, dynamic> _asMap(dynamic raw, {required String fieldName}) {
     if (raw is Map<String, dynamic>) {
       return Map<String, dynamic>.from(raw);
     }
 
     if (raw is Map) {
-      return raw.map(
-        (key, value) => MapEntry(key.toString(), value),
-      );
+      return raw.map((key, value) => MapEntry(key.toString(), value));
     }
 
     if (raw is String) {
       final decoded = jsonDecode(raw);
       if (decoded is Map) {
-        return decoded.map(
-          (key, value) => MapEntry(key.toString(), value),
-        );
+        return decoded.map((key, value) => MapEntry(key.toString(), value));
       }
     }
 
@@ -854,19 +767,19 @@ class GstComplianceV520Service {
       );
     }
 
-    return value.map<Map<String, dynamic>>((entry) {
-      if (entry is Map<String, dynamic>) {
-        return Map<String, dynamic>.from(entry);
-      }
-      if (entry is Map) {
-        return entry.map(
-          (key, value) => MapEntry(key.toString(), value),
-        );
-      }
-      throw GstComplianceV520Exception(
-        'Invalid list item returned by "$fieldName".',
-      );
-    }).toList(growable: false);
+    return value
+        .map<Map<String, dynamic>>((entry) {
+          if (entry is Map<String, dynamic>) {
+            return Map<String, dynamic>.from(entry);
+          }
+          if (entry is Map) {
+            return entry.map((key, value) => MapEntry(key.toString(), value));
+          }
+          throw GstComplianceV520Exception(
+            'Invalid list item returned by "$fieldName".',
+          );
+        })
+        .toList(growable: false);
   }
 
   static String _dateOnly(DateTime value) {
@@ -920,9 +833,7 @@ class GstComplianceBootstrapV520 {
   final Map<String, dynamic> documents;
   final Map<String, dynamic> defaults;
 
-  factory GstComplianceBootstrapV520.fromJson(
-    Map<String, dynamic> json,
-  ) {
+  factory GstComplianceBootstrapV520.fromJson(Map<String, dynamic> json) {
     return GstComplianceBootstrapV520(
       release: json['release']?.toString() ?? '',
       contractVersion: _asInt(json['contract_version']),
@@ -945,9 +856,7 @@ class GstComplianceBootstrapV520 {
       return Map<String, dynamic>.from(raw);
     }
     if (raw is Map) {
-      return raw.map(
-        (key, value) => MapEntry(key.toString(), value),
-      );
+      return raw.map((key, value) => MapEntry(key.toString(), value));
     }
     throw GstComplianceV520Exception(
       'Bootstrap field "$name" is not a JSON object.',
@@ -999,18 +908,12 @@ class GstUiContractV520 {
           int.tryParse(json['contract_version']?.toString() ?? '') ?? 0,
       workspace: json['workspace']?.toString() ?? 'GST & Compliance',
       bootstrapRpc:
-          json['bootstrap_rpc']?.toString() ??
-          'gst_compliance_bootstrap_v520',
+          json['bootstrap_rpc']?.toString() ?? 'gst_compliance_bootstrap_v520',
       setupLookupRpc:
-          json['setup_lookup_rpc']?.toString() ??
-          'gst_setup_lookups_v520',
+          json['setup_lookup_rpc']?.toString() ?? 'gst_setup_lookups_v520',
       capabilities: _map(json['capabilities'], 'capabilities'),
       tabs: rawTabs
-          .map(
-            (entry) => GstUiTabV520.fromJson(
-              _map(entry, 'tab'),
-            ),
-          )
+          .map((entry) => GstUiTabV520.fromJson(_map(entry, 'tab')))
           .toList(growable: false),
       mastersRpc: json['masters_rpc']?.toString() ?? '',
       readinessRpc: json['readiness_rpc']?.toString() ?? '',
@@ -1039,9 +942,7 @@ class GstUiContractV520 {
       return Map<String, dynamic>.from(raw);
     }
     if (raw is Map) {
-      return raw.map(
-        (key, value) => MapEntry(key.toString(), value),
-      );
+      return raw.map((key, value) => MapEntry(key.toString(), value));
     }
     throw GstComplianceV520Exception(
       'GST UI contract "$name" is not a JSON object.',

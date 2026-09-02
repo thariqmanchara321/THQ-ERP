@@ -17,7 +17,8 @@ class ReportsCenterV500Screen extends StatefulWidget {
   const ReportsCenterV500Screen({super.key, required this.session});
 
   @override
-  State<ReportsCenterV500Screen> createState() => _ReportsCenterV500ScreenState();
+  State<ReportsCenterV500Screen> createState() =>
+      _ReportsCenterV500ScreenState();
 }
 
 class _ReportsCenterV500ScreenState extends State<ReportsCenterV500Screen> {
@@ -47,23 +48,90 @@ class _ReportsCenterV500ScreenState extends State<ReportsCenterV500Screen> {
       ? raw.whereType<Map>().map((x) => Map<String, dynamic>.from(x)).toList()
       : const <Map<String, dynamic>>[];
 
+  static const Map<String, String> _reportNames = {
+    'sales_summary': 'Sales Summary',
+    'sales_register': 'Sales Register',
+    'sales_by_product': 'Sales by Product',
+    'sales_by_customer': 'Sales by Customer',
+    'sales_by_salesperson': 'Sales by Salesperson',
+    'sales_by_store': 'Sales by Store',
+    'sales_by_pos': 'Sales by POS',
+    'sales_by_payment_method': 'Sales by Payment Method',
+    'returns': 'Returns',
+    'current_stock': 'Current Stock',
+    'stock_valuation': 'Stock Valuation',
+    'stock_movement': 'Stock Movement',
+    'stock_aging': 'Stock Aging',
+    'expiry': 'Expiry',
+    'dead_stock': 'Dead Stock',
+    'low_stock': 'Low Stock',
+    'serials': 'Serial Numbers',
+    'batches': 'Batch / Lot',
+    'purchase_register': 'Purchase Register',
+    'supplier_purchase': 'Supplier Purchases',
+    'purchase_returns': 'Purchase Returns',
+    'supplier_outstanding': 'Supplier Outstanding',
+    'supplier_performance': 'Supplier Performance',
+    'price_history': 'Purchase Price History',
+    'profit_loss': 'Profit & Loss',
+    'balance_sheet': 'Balance Sheet',
+    'trial_balance': 'Trial Balance',
+    'general_ledger': 'General Ledger',
+    'cash_flow': 'Cash Flow',
+    'receivables': 'Accounts Receivable',
+    'payables': 'Accounts Payable',
+    'journal_register': 'Journal Register',
+    'expenses': 'Expense Register',
+    'tax': 'GST / Tax Report',
+    'reconciliation': 'Financial Reconciliation',
+  };
+
+  List<Map<String, dynamic>> _flattenCatalog(dynamic raw) {
+    final out = <Map<String, dynamic>>[];
+    for (final group in _maps(raw)) {
+      final category = group['category']?.toString() ?? 'Reports';
+      final reports = group['reports'];
+      if (reports is! List) continue;
+      for (final item in reports) {
+        final key = item?.toString().trim() ?? '';
+        if (key.isEmpty) continue;
+        out.add({
+          'category': category,
+          'key': key,
+          'name': _reportNames[key] ?? _label(key),
+        });
+      }
+    }
+    return out;
+  }
+
   String _date(DateTime d) => DateFormat('yyyy-MM-dd').format(d);
 
   Future<void> _initialize() async {
     try {
       final raw = await Supabase.instance.client.rpc('reports_catalog_v500');
-      _catalog = _maps(raw);
-      _reportKey = _catalog.isEmpty ? 'sales_summary' : _catalog.first['key']?.toString();
+      _catalog = _flattenCatalog(raw);
+      _reportKey = _catalog.isEmpty
+          ? 'sales_summary'
+          : _catalog.first['key']?.toString();
       await _run();
     } catch (e) {
-      if (mounted) setState(() { _error = e.toString(); _loading = false; });
+      if (mounted) {
+        setState(() {
+          _error = e.toString();
+          _loading = false;
+        });
+      }
     }
   }
 
   Future<void> _run() async {
     final key = _reportKey;
     if (key == null) return;
-    setState(() { _loading = true; _error = null; });
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
     try {
       final raw = await Supabase.instance.client.rpc(
         'reports_center_data_v500',
@@ -121,32 +189,64 @@ class _ReportsCenterV500ScreenState extends State<ReportsCenterV500Screen> {
 
   String get _reportTitle {
     Map<String, dynamic>? row;
-    for (final item in _catalog) { if (item['key']?.toString() == _reportKey) { row = item; break; } }
+    for (final item in _catalog) {
+      if (item['key']?.toString() == _reportKey) {
+        row = item;
+        break;
+      }
+    }
     return row?['name']?.toString() ?? _reportKey ?? 'Report';
   }
 
   Future<Uint8List> _pdf() async {
     final document = pw.Document();
     final columns = _columns.take(8).toList();
-    document.addPage(pw.MultiPage(
-      pageFormat: PdfPageFormat.a4.landscape,
-      margin: const pw.EdgeInsets.all(22),
-      header: (_) => pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
-        pw.Text(widget.session.business.name, style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold)),
-        pw.Text('$_reportTitle • ${_date(_from)} to ${_date(_to)}', style: const pw.TextStyle(fontSize: 9)),
-        pw.SizedBox(height: 8),
-      ]),
-      build: (_) => [
-        if (_rows.isEmpty) pw.Text('No records') else pw.TableHelper.fromTextArray(
-          headers: columns.map(_label).toList(),
-          data: _rows.map((r) => columns.map((c) => _cell(r[c])).toList()).toList(),
-          headerDecoration: const pw.BoxDecoration(color: PdfColors.grey200),
-          headerStyle: pw.TextStyle(fontSize: 7, fontWeight: pw.FontWeight.bold),
-          cellStyle: const pw.TextStyle(fontSize: 6.5),
+    document.addPage(
+      pw.MultiPage(
+        pageFormat: PdfPageFormat.a4.landscape,
+        margin: const pw.EdgeInsets.all(22),
+        header: (_) => pw.Column(
+          crossAxisAlignment: pw.CrossAxisAlignment.start,
+          children: [
+            pw.Text(
+              widget.session.business.name,
+              style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold),
+            ),
+            pw.Text(
+              '$_reportTitle • ${_date(_from)} to ${_date(_to)}',
+              style: const pw.TextStyle(fontSize: 9),
+            ),
+            pw.SizedBox(height: 8),
+          ],
         ),
-      ],
-      footer: (c) => pw.Align(alignment: pw.Alignment.centerRight, child: pw.Text('Page ${c.pageNumber} of ${c.pagesCount}', style: const pw.TextStyle(fontSize: 7))),
-    ));
+        build: (_) => [
+          if (_rows.isEmpty)
+            pw.Text('No records')
+          else
+            pw.TableHelper.fromTextArray(
+              headers: columns.map(_label).toList(),
+              data: _rows
+                  .map((r) => columns.map((c) => _cell(r[c])).toList())
+                  .toList(),
+              headerDecoration: const pw.BoxDecoration(
+                color: PdfColors.grey200,
+              ),
+              headerStyle: pw.TextStyle(
+                fontSize: 7,
+                fontWeight: pw.FontWeight.bold,
+              ),
+              cellStyle: const pw.TextStyle(fontSize: 6.5),
+            ),
+        ],
+        footer: (c) => pw.Align(
+          alignment: pw.Alignment.centerRight,
+          child: pw.Text(
+            'Page ${c.pageNumber} of ${c.pagesCount}',
+            style: const pw.TextStyle(fontSize: 7),
+          ),
+        ),
+      ),
+    );
     return document.save();
   }
 
@@ -162,28 +262,61 @@ class _ReportsCenterV500ScreenState extends State<ReportsCenterV500Screen> {
         final columns = _columns;
         sheet.appendRow(columns.map((x) => TextCellValue(_label(x))).toList());
         for (final row in _rows) {
-          sheet.appendRow(columns.map((x) => TextCellValue(_cell(row[x]))).toList());
+          sheet.appendRow(
+            columns.map((x) => TextCellValue(_cell(row[x]))).toList(),
+          );
         }
         final raw = excel.save();
         if (raw == null) throw Exception('Could not create Excel report.');
-        await FileSaver.instance.saveFile(name: name, bytes: Uint8List.fromList(raw), fileExtension: 'xlsx', mimeType: MimeType.microsoftExcel);
+        await FileSaver.instance.saveFile(
+          name: name,
+          bytes: Uint8List.fromList(raw),
+          fileExtension: 'xlsx',
+          mimeType: MimeType.microsoftExcel,
+        );
       } else {
         final bytes = await _pdf();
         if (type == 'print') {
-          await Printing.layoutPdf(name: '$name.pdf', onLayout: (_) async => bytes);
+          await Printing.layoutPdf(
+            name: '$name.pdf',
+            onLayout: (_) async => bytes,
+          );
         } else {
-          await FileSaver.instance.saveFile(name: name, bytes: bytes, fileExtension: 'pdf', mimeType: MimeType.pdf);
+          await FileSaver.instance.saveFile(
+            name: name,
+            bytes: bytes,
+            fileExtension: 'pdf',
+            mimeType: MimeType.pdf,
+          );
         }
       }
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(type == 'print' ? 'Print dialog opened.' : '${type.toUpperCase()} report created.')));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              type == 'print'
+                  ? 'Print dialog opened.'
+                  : '${type.toUpperCase()} report created.',
+            ),
+          ),
+        );
+      }
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.toString())));
+      }
     } finally {
       if (mounted) setState(() => _exporting = false);
     }
   }
 
-  String _label(String key) => key.replaceAll('_', ' ').split(' ').map((x) => x.isEmpty ? x : '${x[0].toUpperCase()}${x.substring(1)}').join(' ');
+  String _label(String key) => key
+      .replaceAll('_', ' ')
+      .split(' ')
+      .map((x) => x.isEmpty ? x : '${x[0].toUpperCase()}${x.substring(1)}')
+      .join(' ');
   String _cell(dynamic value) {
     if (value == null) return '';
     if (value is Map || value is List) return value.toString();
@@ -226,9 +359,9 @@ class _ReportsCenterV500ScreenState extends State<ReportsCenterV500Screen> {
                           (report) => DropdownMenuItem<String>(
                             value: report['key']?.toString(),
                             child: Text(
-                              report['name']?.toString() ??
-                                  report['key']?.toString() ??
-                                  'Report',
+                              '${report['category'] ?? 'Reports'} • '
+                              '${report['name']?.toString() ?? report['key']?.toString() ?? 'Report'}',
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
                         )
@@ -301,52 +434,51 @@ class _ReportsCenterV500ScreenState extends State<ReportsCenterV500Screen> {
               child: _loading
                   ? const Center(child: CircularProgressIndicator())
                   : _rows.isEmpty
-                      ? const Center(
-                          child: Text('No records for the selected filters.'),
-                        )
-                      : Scrollbar(
-                          child: SingleChildScrollView(
-                            scrollDirection: Axis.horizontal,
-                            child: SingleChildScrollView(
-                              child: DataTable(
-                                columns: columns
-                                    .map(
-                                      (column) => DataColumn(
-                                        label: Text(
-                                          _label(column),
-                                          style: const TextStyle(
-                                            fontWeight: FontWeight.w700,
-                                          ),
-                                        ),
+                  ? const Center(
+                      child: Text('No records for the selected filters.'),
+                    )
+                  : Scrollbar(
+                      child: SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: SingleChildScrollView(
+                          child: DataTable(
+                            columns: columns
+                                .map(
+                                  (column) => DataColumn(
+                                    label: Text(
+                                      _label(column),
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.w700,
                                       ),
-                                    )
-                                    .toList(),
-                                rows: _rows
-                                    .take(1000)
-                                    .map(
-                                      (row) => DataRow(
-                                        cells: columns
-                                            .map(
-                                              (column) => DataCell(
-                                                SizedBox(
-                                                  width: 150,
-                                                  child: Text(
-                                                    _cell(row[column]),
-                                                    maxLines: 2,
-                                                    overflow:
-                                                        TextOverflow.ellipsis,
-                                                  ),
-                                                ),
+                                    ),
+                                  ),
+                                )
+                                .toList(),
+                            rows: _rows
+                                .take(1000)
+                                .map(
+                                  (row) => DataRow(
+                                    cells: columns
+                                        .map(
+                                          (column) => DataCell(
+                                            SizedBox(
+                                              width: 150,
+                                              child: Text(
+                                                _cell(row[column]),
+                                                maxLines: 2,
+                                                overflow: TextOverflow.ellipsis,
                                               ),
-                                            )
-                                            .toList(),
-                                      ),
-                                    )
-                                    .toList(),
-                              ),
-                            ),
+                                            ),
+                                          ),
+                                        )
+                                        .toList(),
+                                  ),
+                                )
+                                .toList(),
                           ),
                         ),
+                      ),
+                    ),
             ),
           ],
         ),

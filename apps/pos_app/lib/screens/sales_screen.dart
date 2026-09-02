@@ -415,7 +415,9 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
     text: '0',
   );
 
-  final TextEditingController _roundOffController = TextEditingController(text: '0');
+  final TextEditingController _roundOffController = TextEditingController(
+    text: '0',
+  );
 
   final TextEditingController _paymentController = TextEditingController(
     text: '0',
@@ -546,20 +548,23 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
 
   double get _tax => _lines.fold(0, (total, line) => total + line.tax);
 
-  double get _additional => _number(_additionalController);
+  double get _additional => 0.0;
 
-  double get _roundOff => _number(_roundOffController);
+  double get _roundOff {
+    final delta = _beforeRoundOff.roundToDouble() - _beforeRoundOff;
+    return delta.abs() < 0.000001 ? 0.0 : delta;
+  }
 
-  double get _beforeRoundOff =>
-      _subtotal - _discount + _tax + _additional;
+  double get _beforeRoundOff => _subtotal - _discount + _tax + _additional;
 
   double get _grandTotal => _beforeRoundOff + _roundOff;
 
   void _applyRoundOff() {
     final delta = _beforeRoundOff.roundToDouble() - _beforeRoundOff;
 
-    _roundOffController.text =
-        delta.abs() < 0.000001 ? '0.00' : delta.toStringAsFixed(2);
+    _roundOffController.text = delta.abs() < 0.000001
+        ? '0.00'
+        : delta.toStringAsFixed(2);
 
     setState(() {});
   }
@@ -670,9 +675,11 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
       return;
     }
 
-    if (_additional < 0) {
+    if (_number(_additionalController).abs() > 0.0001) {
       setState(() {
-        _error = 'Additional charges cannot be negative.';
+        _error =
+            'Additional Charges were removed in Build 30. '
+            'Add the charge as a GST-classified Service product.';
       });
 
       return;
@@ -716,6 +723,32 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
     });
 
     try {
+      final paymentAllocations = <Map<String, dynamic>>[];
+
+      if (_paymentMethod == 'credit') {
+        paymentAllocations.add(<String, dynamic>{
+          'method_code': 'credit',
+          'tendered_amount': _grandTotal,
+          'reference_number': '',
+        });
+      } else {
+        if (_payment > 0.005) {
+          paymentAllocations.add(<String, dynamic>{
+            'method_code': _paymentMethod,
+            'tendered_amount': _payment,
+            'reference_number': _paymentReferenceController.text.trim(),
+          });
+        }
+
+        if (_balanceDue > 0.005) {
+          paymentAllocations.add(<String, dynamic>{
+            'method_code': 'credit',
+            'tendered_amount': _balanceDue,
+            'reference_number': '',
+          });
+        }
+      }
+
       await _salesService.createSale(
         tenantId: widget.session.business.id,
 
@@ -739,20 +772,13 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
                 'discount_amount': line.discount,
 
                 'tax_rate': line.taxRate,
-                if (line.serialNumbers.isNotEmpty) 'serial_numbers': line.serialNumbers,
+                if (line.serialNumbers.isNotEmpty)
+                  'serial_numbers': line.serialNumbers,
               },
             )
             .toList(),
 
-        additionalCharges: _additional,
-
-        roundOff: _roundOff,
-
-        initialPayment: _payment,
-
-        paymentMethod: _paymentMethod,
-
-        paymentReference: _paymentReferenceController.text,
+        paymentAllocations: paymentAllocations,
 
         notes: _notesController.text,
       );
@@ -1123,7 +1149,10 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
                 child: TextField(
                   controller: _roundOffController,
                   enabled: !_saving,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true, signed: true),
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                    signed: true,
+                  ),
                   onChanged: (_) => setState(() {}),
                   decoration: const InputDecoration(
                     labelText: 'Round Off',
@@ -1392,7 +1421,9 @@ class _AddSaleItemDialogState extends State<_AddSaleItemDialog> {
       if (product != null) {
         final unit = product.defaultSaleUnit;
         _unitId = unit?.unitId;
-        _priceController.text = (unit?.salePriceFor(product.sellingPrice) ?? product.sellingPrice).toStringAsFixed(2);
+        _priceController.text =
+            (unit?.salePriceFor(product.sellingPrice) ?? product.sellingPrice)
+                .toStringAsFixed(2);
 
         _taxController.text = product.taxRate.toStringAsFixed(2);
 
@@ -1456,7 +1487,8 @@ class _AddSaleItemDialogState extends State<_AddSaleItemDialog> {
     }
 
     if (product.itemType == 'stock' &&
-        quantity * (selectedUnit?.conversionToBase ?? 1) > product.stockQuantity + 0.0001) {
+        quantity * (selectedUnit?.conversionToBase ?? 1) >
+            product.stockQuantity + 0.0001) {
       setState(() {
         _error =
             'Insufficient stock. Available: '
@@ -1470,11 +1502,17 @@ class _AddSaleItemDialogState extends State<_AddSaleItemDialog> {
     final serialNumbers = _serialValues();
     if (product.trackingMode == 'serial') {
       if (baseQuantity != baseQuantity.truncateToDouble()) {
-        setState(() => _error = 'Serial-tracked products require a whole base-unit quantity.');
+        setState(
+          () => _error =
+              'Serial-tracked products require a whole base-unit quantity.',
+        );
         return;
       }
       if (serialNumbers.length != baseQuantity.round()) {
-        setState(() => _error = 'Serial count must match the base quantity (${baseQuantity.toStringAsFixed(0)}).');
+        setState(
+          () => _error =
+              'Serial count must match the base quantity (${baseQuantity.toStringAsFixed(0)}).',
+        );
         return;
       }
     }
@@ -1516,7 +1554,9 @@ class _AddSaleItemDialogState extends State<_AddSaleItemDialog> {
         discount: discount,
 
         taxRate: tax,
-        serialNumbers: product.trackingMode == 'serial' ? serialNumbers : const [],
+        serialNumbers: product.trackingMode == 'serial'
+            ? serialNumbers
+            : const [],
       ),
     );
   }
@@ -1605,17 +1645,23 @@ class _AddSaleItemDialogState extends State<_AddSaleItemDialog> {
                   border: OutlineInputBorder(),
                 ),
                 items: product!.saleUnits
-                    .map((u) => DropdownMenuItem(
-                          value: u.unitId,
-                          child: Text('${u.name} (${u.code}) • 1 = ${u.conversionToBase} ${product.baseUnitCode}'),
-                        ))
+                    .map(
+                      (u) => DropdownMenuItem(
+                        value: u.unitId,
+                        child: Text(
+                          '${u.name} (${u.code}) • 1 = ${u.conversionToBase} ${product.baseUnitCode}',
+                        ),
+                      ),
+                    )
                     .toList(),
                 onChanged: (value) {
                   setState(() {
                     _unitId = value;
                     final unit = _selectedUnit;
                     if (unit != null) {
-                      _priceController.text = unit.salePriceFor(product.sellingPrice).toStringAsFixed(2);
+                      _priceController.text = unit
+                          .salePriceFor(product.sellingPrice)
+                          .toStringAsFixed(2);
                     }
                   });
                 },
@@ -1725,7 +1771,9 @@ class _AddSaleItemDialogState extends State<_AddSaleItemDialog> {
               const SizedBox(height: 12),
               const Align(
                 alignment: Alignment.centerLeft,
-                child: Text('Batch stock will be allocated automatically using FEFO (earliest expiry first).'),
+                child: Text(
+                  'Batch stock will be allocated automatically using FEFO (earliest expiry first).',
+                ),
               ),
             ],
 

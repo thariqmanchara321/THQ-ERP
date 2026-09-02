@@ -370,9 +370,13 @@ class _AuditIntelligenceScreenState extends State<AuditIntelligenceScreen> {
                   itemCount: rows.length,
                   itemBuilder: (context, index) {
                     final row = rows[index];
-                    final profit = _number(row['profit']);
+                    final profit = _number(
+                      row['gross_profit'] ?? row['profit'],
+                    );
                     final margin = _number(
-                      row['margin_percent'] ?? row['margin'],
+                      row['margin_pct'] ??
+                          row['margin_percent'] ??
+                          row['margin'],
                     );
                     return Card(
                       child: ListTile(
@@ -394,11 +398,15 @@ class _AuditIntelligenceScreenState extends State<AuditIntelligenceScreen> {
                             children: [
                               _MoneyStat(
                                 label: 'Sales',
-                                value: _money(_number(row['sales'])),
+                                value: _money(
+                                  _number(row['net_revenue'] ?? row['sales']),
+                                ),
                               ),
                               _MoneyStat(
                                 label: 'COGS',
-                                value: _money(_number(row['cost'])),
+                                value: _money(
+                                  _number(row['net_cogs'] ?? row['cost']),
+                                ),
                               ),
                               _MoneyStat(
                                 label: 'Profit',
@@ -501,7 +509,7 @@ class _AuditIntelligenceScreenState extends State<AuditIntelligenceScreen> {
               }
               if (snapshot.hasError) return _ErrorPanel(error: snapshot.error);
               final data = snapshot.data ?? const <String, dynamic>{};
-              final metric = _map(data['metric']);
+              final metric = data;
               final previous = _map(data['previous']);
               return ListView(
                 padding: const EdgeInsets.all(16),
@@ -523,7 +531,7 @@ class _AuditIntelligenceScreenState extends State<AuditIntelligenceScreen> {
                           ),
                           _LargeMetric(
                             label: 'Change',
-                            value: _money(_number(previous['change'])),
+                            value: _money(_number(data['change'])),
                           ),
                         ],
                       ),
@@ -532,7 +540,7 @@ class _AuditIntelligenceScreenState extends State<AuditIntelligenceScreen> {
                   const SizedBox(height: 10),
                   _StructuredSection(
                     title: 'Formula',
-                    value: metric['formula'],
+                    value: metric['equation'],
                   ),
                   _StructuredSection(
                     title: 'Components',
@@ -757,8 +765,14 @@ class _AuditIntelligenceScreenState extends State<AuditIntelligenceScreen> {
   }
 
   Future<void> _openStory(Map<String, dynamic> row) async {
-    final entityType = _text(row['entity_type'], fallback: '');
-    final entityId = _text(row['entity_id'], fallback: '');
+    final entityType = _text(
+      row['root_entity_type'] ?? row['entity_type'],
+      fallback: '',
+    );
+    final entityId = _text(
+      row['root_entity_id'] ?? row['entity_id'],
+      fallback: '',
+    );
     if (entityType.isEmpty || entityId.isEmpty) return;
     await showTransactionStoryDialog(
       context: context,
@@ -806,23 +820,24 @@ class _AuditIntelligenceScreenState extends State<AuditIntelligenceScreen> {
                 child: ListView(
                   padding: const EdgeInsets.all(16),
                   children: [
-                    Text(_text(finding['summary'])),
+                    Text(_text(finding['description'])),
                     const SizedBox(height: 12),
                     _StructuredSection(
-                      title: 'Evidence event',
-                      value: detail['event'],
+                      title: 'Transaction Story',
+                      value: detail['transaction_story'],
                     ),
                     _StructuredSection(
-                      title: 'Timeline',
-                      value: detail['timeline'],
+                      title: 'Finding Evidence',
+                      value: finding['evidence'],
                     ),
                     _StructuredSection(
-                      title: 'Reviews',
-                      value: detail['reviews'],
-                    ),
-                    _StructuredSection(
-                      title: 'Evidence',
-                      value: detail['evidence'],
+                      title: 'Review History',
+                      value: {
+                        'reviewer_id': finding['reviewer_id'],
+                        'reviewed_at': finding['reviewed_at'],
+                        'review_note': finding['review_note'],
+                        'resolution_note': finding['resolution_note'],
+                      },
                     ),
                     if (_canActOnFindings) ...[
                       const SizedBox(height: 12),
@@ -964,13 +979,13 @@ class _AuditIntelligenceScreenState extends State<AuditIntelligenceScreen> {
       locationId: _locationId,
     );
     if (!mounted) return;
-    final summary = _map(data['summary']);
+    final equation = _map(data['equation']);
     final product = _map(data['product']);
     await showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         title: Text(
-          'Why is profit low? • ${_text(product['name'], fallback: _text(row['product_name']))}',
+          'Why is profit low? • ${_text(product['product_name'], fallback: _text(row['product_name']))}',
         ),
         content: SizedBox(
           width: 680,
@@ -983,20 +998,20 @@ class _AuditIntelligenceScreenState extends State<AuditIntelligenceScreen> {
                 children: [
                   _LargeMetric(
                     label: 'Sales',
-                    value: _money(_number(summary['sales'])),
+                    value: _money(_number(equation['net_sales'])),
                   ),
                   _LargeMetric(
                     label: 'COGS',
-                    value: _money(_number(summary['cost'])),
+                    value: _money(_number(equation['recognized_cogs'])),
                   ),
                   _LargeMetric(
                     label: 'Profit',
-                    value: _money(_number(summary['profit'])),
+                    value: _money(_number(equation['gross_profit'])),
                   ),
                   _LargeMetric(
                     label: 'Margin',
                     value:
-                        '${_number(summary['margin_percent']).toStringAsFixed(2)}%',
+                        '${_number(equation['margin_pct']).toStringAsFixed(2)}%',
                   ),
                 ],
               ),
@@ -1005,13 +1020,14 @@ class _AuditIntelligenceScreenState extends State<AuditIntelligenceScreen> {
                 title: 'Profit drivers',
                 value: data['drivers'],
               ),
+              _StructuredSection(title: 'Returns', value: data['returns']),
               _StructuredSection(
                 title: 'Previous period',
-                value: {
-                  'previous_profit': summary['previous_profit'],
-                  'previous_margin_percent': summary['previous_margin_percent'],
-                  'profit_change': summary['profit_change'],
-                },
+                value: data['previous_period'],
+              ),
+              _StructuredSection(
+                title: 'Profit change',
+                value: data['profit_change'],
               ),
             ],
           ),

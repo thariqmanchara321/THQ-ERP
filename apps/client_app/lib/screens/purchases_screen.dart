@@ -450,9 +450,7 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
 
   final _invoiceController = TextEditingController();
 
-  final _additionalController = TextEditingController(text: '0');
-
-  final _roundOffController = TextEditingController(text: '0');
+  final _invoiceDiscountController = TextEditingController(text: '0');
 
   final _paymentController = TextEditingController(text: '0');
 
@@ -543,7 +541,6 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
         _products = products
             .where(
               (product) =>
-                  product.itemType == 'stock' &&
                   product.productStatus == 'active' &&
                   product.variantStatus == 'active',
             )
@@ -575,16 +572,43 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
   double get _subtotal =>
       _lines.fold(0, (total, line) => total + line.subtotal);
 
-  double get _discount =>
+  double get _lineDiscount =>
       _lines.fold(0, (total, line) => total + line.discount);
 
-  double get _tax => _lines.fold(0, (total, line) => total + line.tax);
+  double get _invoiceDiscount => _number(_invoiceDiscountController);
 
-  double get _additional => _number(_additionalController);
+  double get _discountBase => _lines.fold<double>(
+    0,
+    (total, line) =>
+        total +
+        (line.subtotal - line.discount).clamp(0.0, double.infinity).toDouble(),
+  );
 
-  double get _roundOff => _number(_roundOffController);
+  double _effectiveDiscount(_PurchaseLine line) {
+    final base = (line.subtotal - line.discount)
+        .clamp(0.0, double.infinity)
+        .toDouble();
+    if (_invoiceDiscount <= 0 || _discountBase <= 0) return line.discount;
+    final allocated = _invoiceDiscount * base / _discountBase;
+    return (line.discount + allocated).clamp(0.0, line.subtotal).toDouble();
+  }
 
-  double get _beforeRoundOff => _subtotal - _discount + _tax + _additional;
+  double get _discount =>
+      _lines.fold(0, (total, line) => total + _effectiveDiscount(line));
+
+  double get _tax => _lines.fold<double>(0, (total, line) {
+    final taxable = (line.subtotal - _effectiveDiscount(line))
+        .clamp(0.0, double.infinity)
+        .toDouble();
+    return total + taxable * line.taxRate / 100;
+  });
+
+  double get _beforeRoundOff => _subtotal - _discount + _tax;
+
+  double get _roundOff {
+    final delta = _beforeRoundOff.roundToDouble() - _beforeRoundOff;
+    return delta.abs() < 0.000001 ? 0.0 : delta;
+  }
 
   double get _grandTotal => _beforeRoundOff + _roundOff;
 
@@ -611,14 +635,6 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
   double get _sgstPreview => _interstatePreview == false ? _tax / 2 : 0;
   double get _igstPreview => _interstatePreview == true ? _tax : 0;
 
-  void _applyRoundOff() {
-    final delta = _beforeRoundOff.roundToDouble() - _beforeRoundOff;
-    _roundOffController.text = delta.abs() < 0.000001
-        ? '0.00'
-        : delta.toStringAsFixed(2);
-    setState(() {});
-  }
-
   String _money(double value) {
     if (widget.session.currencyCode == 'INR') {
       return '₹${value.toStringAsFixed(2)}';
@@ -631,9 +647,11 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
   Future<void> _addLine() async {
     final available = _products
         .where(
-          (product) => !_lines.any(
-            (line) => line.product.variantId == product.variantId,
-          ),
+          (product) =>
+              product.itemType == 'stock' &&
+              !_lines.any(
+                (line) => line.product.variantId == product.variantId,
+              ),
         )
         .toList();
 
@@ -656,6 +674,36 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
         _lines.add(line);
       });
     }
+  }
+
+  Future<void> _addCharge() async {
+    final available = _products
+        .where(
+          (product) =>
+              product.itemType != 'stock' &&
+              !_lines.any(
+                (line) => line.product.variantId == product.variantId,
+              ),
+        )
+        .toList();
+
+    if (available.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Create an active Service product with a validated GST profile, then use Add Charge.',
+          ),
+        ),
+      );
+      return;
+    }
+
+    final line = await showDialog<_PurchaseLine>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => _AddPurchaseItemDialog(products: available),
+    );
+    if (line != null && mounted) setState(() => _lines.add(line));
   }
 
   Future<void> _choosePurchaseDate() async {
@@ -732,20 +780,11 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
       return;
     }
 
-    final additional = _number(_additionalController);
-
     final payment = _number(_paymentController);
 
-    if (additional < 0) {
+    if (_invoiceDiscount < 0 || _invoiceDiscount > _discountBase + 0.0001) {
       setState(() {
-        _error = 'Additional charges cannot be negative.';
-      });
-      return;
-    }
-
-    if (_roundOff.abs() > 1.000001) {
-      setState(() {
-        _error = 'Round off must be between -1.00 and 1.00.';
+        _error = 'Invoice discount cannot exceed the remaining item value.';
       });
       return;
     }
@@ -757,43 +796,84 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
       return;
     }
 
-    if (payment > _grandTotal + 0.0001) {
-      setState(() {
-        _error = 'Payment cannot exceed grand total.';
-      });
-      return;
-    }
-
     setState(() {
       _saving = true;
       _error = null;
     });
 
     try {
+      final preparedItems = _lines
+          .map(
+            (line) => <String, dynamic>{
+              'variant_id': line.product.variantId,
+              'quantity': line.quantity,
+              'unit_id': line.unit?.unitId,
+              'unit_cost': line.unitCost,
+              'discount_amount': _effectiveDiscount(line),
+              'tax_rate': line.taxRate,
+              if (line.serialNumbers.isNotEmpty)
+                'serial_numbers': line.serialNumbers,
+              if (line.batches.isNotEmpty) 'batches': line.batches,
+            },
+          )
+          .toList();
+
+      final baseQuote = await _purchaseService.quotePurchase(
+        tenantId: widget.session.business.id,
+        supplierId: _supplierId!,
+        purchaseDate: _purchaseDate,
+        items: preparedItems,
+        roundOff: 0,
+        locationId: widget.locationId,
+      );
+      final baseTotals = baseQuote['totals'] is Map
+          ? Map<String, dynamic>.from(baseQuote['totals'] as Map)
+          : <String, dynamic>{};
+      double n(dynamic value) =>
+          value is num ? value.toDouble() : double.tryParse('$value') ?? 0;
+      final authoritativeBeforeRound = n(baseTotals['grand_total']);
+      final authoritativeRound =
+          authoritativeBeforeRound.roundToDouble() - authoritativeBeforeRound;
+
+      final finalQuote = authoritativeRound.abs() < 0.000001
+          ? baseQuote
+          : await _purchaseService.quotePurchase(
+              tenantId: widget.session.business.id,
+              supplierId: _supplierId!,
+              purchaseDate: _purchaseDate,
+              items: preparedItems,
+              roundOff: authoritativeRound,
+              locationId: widget.locationId,
+            );
+      final finalTotals = finalQuote['totals'] is Map
+          ? Map<String, dynamic>.from(finalQuote['totals'] as Map)
+          : <String, dynamic>{};
+      final authoritativeTotal = n(finalTotals['grand_total']);
+
+      var paymentToSubmit = payment;
+      if (paymentToSubmit > authoritativeTotal + 0.005) {
+        final looksLikePayFull = payment >= _grandTotal - 0.01;
+        if (looksLikePayFull) {
+          paymentToSubmit = authoritativeTotal;
+          _paymentController.text = authoritativeTotal.toStringAsFixed(2);
+        } else {
+          throw StateError(
+            'Payment cannot exceed the authoritative GST Purchase total '
+            '(${_money(authoritativeTotal)}).',
+          );
+        }
+      }
+
       final result = await _purchaseService.createPurchase(
         tenantId: widget.session.business.id,
         supplierId: _supplierId!,
         supplierInvoiceNumber: _invoiceController.text,
         purchaseDate: _purchaseDate,
         dueDate: _dueDate,
-        items: _lines
-            .map(
-              (line) => {
-                'variant_id': line.product.variantId,
-                'quantity': line.quantity,
-                'unit_id': line.unit?.unitId,
-                'unit_cost': line.unitCost,
-                'discount_amount': line.discount,
-                'tax_rate': line.taxRate,
-                if (line.serialNumbers.isNotEmpty)
-                  'serial_numbers': line.serialNumbers,
-                if (line.batches.isNotEmpty) 'batches': line.batches,
-              },
-            )
-            .toList(),
-        additionalCharges: additional,
-        roundOff: _roundOff,
-        initialPayment: payment,
+        items: preparedItems,
+        additionalCharges: 0,
+        roundOff: authoritativeRound,
+        initialPayment: paymentToSubmit,
         paymentMethod: _paymentMethod,
         notes: _notesController.text,
         locationId: widget.locationId,
@@ -866,8 +946,7 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
   @override
   void dispose() {
     _invoiceController.dispose();
-    _additionalController.dispose();
-    _roundOffController.dispose();
+    _invoiceDiscountController.dispose();
     _paymentController.dispose();
     _notesController.dispose();
 
@@ -1108,11 +1187,21 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
 
   Widget _itemsCard() {
     return _PurchaseCard(
-      title: 'ADD PRODUCTS',
-      trailing: FilledButton.icon(
-        onPressed: _saving ? null : _addLine,
-        icon: const Icon(Icons.add),
-        label: const Text('Add Product'),
+      title: 'ADD PRODUCTS / CHARGES',
+      trailing: Wrap(
+        spacing: 8,
+        children: [
+          OutlinedButton.icon(
+            onPressed: _saving ? null : _addCharge,
+            icon: const Icon(Icons.add_card_outlined),
+            label: const Text('Add Charge'),
+          ),
+          FilledButton.icon(
+            onPressed: _saving ? null : _addLine,
+            icon: const Icon(Icons.add),
+            label: const Text('Add Product'),
+          ),
+        ],
       ),
       child: _lines.isEmpty
           ? const Padding(
@@ -1222,53 +1311,42 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
                 border: OutlineInputBorder(),
               ),
             );
-            final additional = TextField(
-              controller: _additionalController,
+            final discount = TextField(
+              controller: _invoiceDiscountController,
               enabled: !_saving,
               keyboardType: const TextInputType.numberWithOptions(
                 decimal: true,
               ),
               onChanged: (_) => setState(() {}),
               decoration: const InputDecoration(
-                labelText: 'Freight / Other Charges',
+                labelText: 'Invoice Discount',
+                helperText: 'Allocated proportionally across GST item lines',
                 prefixText: '₹ ',
                 border: OutlineInputBorder(),
               ),
             );
             if (compact) {
               return Column(
-                children: [payment, const SizedBox(height: 10), additional],
+                children: [payment, const SizedBox(height: 10), discount],
               );
             }
             return Row(
               children: [
                 Expanded(child: payment),
                 const SizedBox(width: 12),
-                Expanded(child: additional),
+                Expanded(child: discount),
               ],
             );
           },
         ),
         const SizedBox(height: 12),
-        TextField(
-          controller: _roundOffController,
-          enabled: !_saving,
-          keyboardType: const TextInputType.numberWithOptions(
-            decimal: true,
-            signed: true,
+        InputDecorator(
+          decoration: const InputDecoration(
+            labelText: 'Round Off (Automatic)',
+            prefixIcon: Icon(Icons.exposure_zero),
+            border: OutlineInputBorder(),
           ),
-          onChanged: (_) => setState(() {}),
-          decoration: InputDecoration(
-            labelText: 'Round Off',
-            helperText: 'Allowed: -1.00 to 1.00',
-            prefixText: '₹ ',
-            suffixIcon: IconButton(
-              tooltip: 'Round total',
-              onPressed: _saving ? null : _applyRoundOff,
-              icon: const Icon(Icons.exposure_zero),
-            ),
-            border: const OutlineInputBorder(),
-          ),
+          child: Text(_money(_roundOff)),
         ),
         const SizedBox(height: 12),
         TextField(
@@ -1291,8 +1369,7 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
     final taxSummary = Column(
       children: [
         _TotalRow(label: 'Subtotal', value: _money(_subtotal)),
-        if (_discount > .0001)
-          _TotalRow(label: 'Discount', value: '- ${_money(_discount)}'),
+        _TotalRow(label: 'Discount', value: '- ${_money(_discount)}'),
         _TotalRow(label: 'Taxable Amount', value: _money(_taxableAmount)),
         if (_interstatePreview == false) ...[
           _TotalRow(label: 'CGST', value: _money(_cgstPreview)),
@@ -1301,10 +1378,7 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
           _TotalRow(label: 'IGST', value: _money(_igstPreview))
         else
           _TotalRow(label: 'GST / Tax', value: _money(_tax)),
-        if (_additional > .0001)
-          _TotalRow(label: 'Additional Charges', value: _money(_additional)),
-        if (_roundOff.abs() > .000001)
-          _TotalRow(label: 'Round Off', value: _money(_roundOff)),
+        _TotalRow(label: 'Round Off', value: _money(_roundOff)),
         const Divider(height: 24),
         _TotalRow(label: 'GRAND TOTAL', value: _money(_grandTotal), bold: true),
         _TotalRow(label: 'Payment', value: _money(_number(_paymentController))),
@@ -1728,6 +1802,7 @@ class _AddPurchaseItemDialogState extends State<_AddPurchaseItemDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
+      scrollable: true,
       title: const Text('Add Product'),
       content: SizedBox(
         width: 620,
@@ -1952,26 +2027,26 @@ class _AddPurchaseItemDialogState extends State<_AddPurchaseItemDialog> {
 
             if (_product?.trackingMode == 'serial') ...[
               const SizedBox(height: 16),
-              Row(
-                children: [
-                  const Expanded(
-                    child: Text(
-                      'Serial tracking',
-                      style: TextStyle(fontWeight: FontWeight.w700),
-                    ),
-                  ),
-                  FilledButton.tonalIcon(
-                    onPressed: _generateSerials,
-                    icon: const Icon(Icons.auto_awesome, size: 18),
-                    label: const Text('Auto Generate'),
-                  ),
-                ],
+              ListTile(
+                dense: true,
+                contentPadding: EdgeInsets.zero,
+                title: const Text(
+                  'Serial numbers',
+                  style: TextStyle(fontWeight: FontWeight.w700),
+                ),
+                subtitle: const Text(
+                  'Generated from quantity automatically. Edit only when needed.',
+                ),
+                trailing: TextButton.icon(
+                  onPressed: _generateSerials,
+                  icon: const Icon(Icons.refresh, size: 17),
+                  label: const Text('Regenerate'),
+                ),
               ),
-              const SizedBox(height: 8),
               TextField(
                 controller: _serialsController,
-                minLines: 3,
-                maxLines: 7,
+                minLines: 2,
+                maxLines: 4,
                 onChanged: (_) {
                   if (_autoSerials) setState(() => _autoSerials = false);
                 },
@@ -1981,7 +2056,7 @@ class _AddPurchaseItemDialogState extends State<_AddPurchaseItemDialog> {
                       : 'Manual serial numbers',
                   hintText: 'One serial per base unit',
                   helperText:
-                      'Generated automatically for serial-tracked products. You can edit, scan or replace them manually.',
+                      'One serial per base unit • manual edit is optional.',
                   border: const OutlineInputBorder(),
                 ),
               ),

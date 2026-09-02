@@ -45,7 +45,8 @@ class ThqPosApp extends StatelessWidget {
     return MaterialApp(
       title: 'THQ POS',
       debugShowCheckedModeBanner: false,
-      builder: (context, child) => NumericZeroAutoSelect(child: child ?? const SizedBox.shrink()),
+      builder: (context, child) =>
+          NumericZeroAutoSelect(child: child ?? const SizedBox.shrink()),
       theme: UiDesignProfile.fallback('pos').theme(),
       home: const PosEntryScreen(),
     );

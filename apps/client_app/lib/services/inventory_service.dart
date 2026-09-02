@@ -136,7 +136,9 @@ class InventoryService {
         'p_units': units,
       },
     );
-    return result is Map ? Map<String, dynamic>.from(result) : <String, dynamic>{};
+    return result is Map
+        ? Map<String, dynamic>.from(result)
+        : <String, dynamic>{};
   }
 
   Future<Map<String, dynamic>> createProduct({

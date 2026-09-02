@@ -16,6 +16,7 @@ import '../services/tracking_service.dart';
 import '../services/transaction_print_service.dart';
 import 'sale_detail_screen.dart';
 import '../widgets/searchable_select.dart';
+import '../widgets/multi_payment_editor.dart';
 
 class SalesScreen extends StatefulWidget {
   final ClientSession session;
@@ -517,21 +518,6 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
   final InventoryService _inventoryService = InventoryService();
   final TransactionPrintService _printService = TransactionPrintService();
 
-  final TextEditingController _additionalController = TextEditingController(
-    text: '0',
-  );
-
-  final TextEditingController _roundOffController = TextEditingController(
-    text: '0',
-  );
-
-  final TextEditingController _paymentController = TextEditingController(
-    text: '0',
-  );
-
-  final TextEditingController _paymentReferenceController =
-      TextEditingController();
-
   final TextEditingController _notesController = TextEditingController();
 
   bool _loading = true;
@@ -549,7 +535,7 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
 
   DateTime? _dueDate;
 
-  String _paymentMethod = 'cash';
+  List<Map<String, dynamic>> _paymentAllocations = const [];
 
   final List<_SaleLine> _lines = [];
 
@@ -655,28 +641,62 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
 
   double get _tax => _lines.fold(0, (total, line) => total + line.tax);
 
-  double get _cuttingCharges =>
-      _lines.fold(0, (total, line) => total + line.cuttingCharge);
+  double get _beforeRoundOff => _subtotal - _discount + _tax;
 
-  double get _additional => _number(_additionalController) + _cuttingCharges;
-
-  double get _roundOff => _number(_roundOffController);
-
-  double get _beforeRoundOff => _subtotal - _discount + _tax + _additional;
+  double get _roundOff {
+    final delta = _beforeRoundOff.roundToDouble() - _beforeRoundOff;
+    return delta.abs() < 0.000001 ? 0 : delta;
+  }
 
   double get _grandTotal => _beforeRoundOff + _roundOff;
 
-  void _applyRoundOff() {
-    final delta = _beforeRoundOff.roundToDouble() - _beforeRoundOff;
-    _roundOffController.text = delta.abs() < 0.000001
-        ? '0.00'
-        : delta.toStringAsFixed(2);
-    setState(() {});
+  double get _allocatedTotal {
+    var remaining = _grandTotal;
+    var allocated = 0.0;
+    for (final allocation in _paymentAllocations) {
+      if (remaining <= 0) break;
+      final amount =
+          (allocation['tendered_amount'] as num?)?.toDouble() ??
+          double.tryParse('${allocation['tendered_amount']}') ??
+          0;
+      if (amount <= 0) continue;
+      final used = amount > remaining ? remaining : amount;
+      allocated += used;
+      remaining -= used;
+    }
+    return allocated;
   }
 
-  double get _payment => _number(_paymentController);
+  double get _settledPayment {
+    var remaining = _grandTotal;
+    var settled = 0.0;
+    for (final allocation in _paymentAllocations) {
+      if (remaining <= 0) break;
+      final amount =
+          (allocation['tendered_amount'] as num?)?.toDouble() ??
+          double.tryParse('${allocation['tendered_amount']}') ??
+          0;
+      if (amount <= 0) continue;
+      final used = amount > remaining ? remaining : amount;
+      if (allocation['method_code']?.toString() != 'credit') {
+        settled += used;
+      }
+      remaining -= used;
+    }
+    return settled;
+  }
 
-  double get _balanceDue => _grandTotal - _payment;
+  bool get _hasCredit => _paymentAllocations.any(
+    (entry) =>
+        entry['method_code']?.toString() == 'credit' &&
+        (((entry['tendered_amount'] as num?)?.toDouble() ??
+                double.tryParse('${entry['tendered_amount']}') ??
+                0) >
+            0),
+  );
+
+  double get _balanceDue =>
+      (_grandTotal - _settledPayment).clamp(0.0, _grandTotal);
 
   double get _taxableAmount => _subtotal - _discount;
 
@@ -824,10 +844,59 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
     }
   }
 
-  void _payFull() {
-    setState(() {
-      _paymentController.text = _grandTotal.toStringAsFixed(2);
-    });
+  Future<void> _addCharge() async {
+    final available = _products.where((product) {
+      final isService = product.itemType != 'stock';
+      final alreadyAdded = _lines.any(
+        (line) => line.product.variantId == product.variantId,
+      );
+      return isService && !alreadyAdded;
+    }).toList();
+
+    if (available.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'No GST-classified Service products are available. '
+            'Create a Service product with a valid GST profile first.',
+          ),
+        ),
+      );
+      return;
+    }
+
+    final line = await showDialog<_SaleLine>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => _AddSaleItemDialog(
+        products: available,
+        tenantId: widget.session.business.id,
+        locationId: widget.locationId,
+      ),
+    );
+
+    if (line == null || !mounted) {
+      return;
+    }
+
+    try {
+      final pricedLine = await _resolvedLine(line);
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _lines.add(pricedLine);
+      });
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not add service charge: $error')),
+      );
+    }
   }
 
   String _friendlyPostError(Object error) {
@@ -867,43 +936,28 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
       return;
     }
 
-    if (_additional < 0) {
+    if (_paymentAllocations.isEmpty) {
       setState(() {
-        _error = 'Additional charges cannot be negative.';
-      });
-
-      return;
-    }
-
-    if (_roundOff.abs() > 1.000001) {
-      setState(() {
-        _error = 'Round off must be between -1.00 and 1.00.';
+        _error = 'Allocate the invoice total to at least one payment method.';
       });
       return;
     }
-
-    if (_payment < 0) {
+    if ((_grandTotal - _allocatedTotal).abs() > 0.005) {
       setState(() {
-        _error = 'Payment cannot be negative.';
+        _error = 'Payment allocations must cover the invoice total.';
       });
-
       return;
     }
-
-    if (_payment > _grandTotal + 0.0001) {
+    if (customer.isWalkIn && _hasCredit) {
       setState(() {
-        _error = 'Payment cannot exceed the sale total.';
+        _error = 'Credit requires a named customer.';
       });
-
       return;
     }
-
-    if (customer.isWalkIn && _balanceDue > 0.0001) {
+    if (customer.isWalkIn && _balanceDue > 0.005) {
       setState(() {
-        _error =
-            'Walk-in Customer sales must be fully paid. Use Pay Full before completing the sale.';
+        _error = 'Walk-in Customer sales must be fully settled.';
       });
-
       return;
     }
 
@@ -942,15 +996,7 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
             )
             .toList(),
 
-        additionalCharges: _additional,
-
-        roundOff: _roundOff,
-
-        initialPayment: _payment,
-
-        paymentMethod: _paymentMethod,
-
-        paymentReference: _paymentReferenceController.text,
+        paymentAllocations: _paymentAllocations,
 
         notes: _notesController.text,
         locationId: widget.locationId,
@@ -1019,14 +1065,6 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
 
   @override
   void dispose() {
-    _additionalController.dispose();
-
-    _roundOffController.dispose();
-
-    _paymentController.dispose();
-
-    _paymentReferenceController.dispose();
-
     _notesController.dispose();
 
     super.dispose();
@@ -1260,11 +1298,21 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
 
   Widget _itemsCard() {
     return _SaleCard(
-      title: 'ADD PRODUCTS',
-      trailing: FilledButton.icon(
-        onPressed: _saving ? null : _addLine,
-        icon: const Icon(Icons.add),
-        label: const Text('Add Product'),
+      title: 'ADD PRODUCTS / CHARGES',
+      trailing: Wrap(
+        spacing: 8,
+        children: [
+          OutlinedButton.icon(
+            onPressed: _saving ? null : _addCharge,
+            icon: const Icon(Icons.add_card_outlined),
+            label: const Text('Add Charge'),
+          ),
+          FilledButton.icon(
+            onPressed: _saving ? null : _addLine,
+            icon: const Icon(Icons.add),
+            label: const Text('Add Product'),
+          ),
+        ],
       ),
       child: _lines.isEmpty
           ? const Padding(
@@ -1326,154 +1374,10 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
   }
 
   Widget _paymentCard() {
-    final paymentInputs = Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Payment',
-          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
-        ),
-        const SizedBox(height: 10),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            for (final entry in const [
-              ('cash', 'Cash', Icons.payments_outlined),
-              ('upi', 'UPI', Icons.qr_code_2_outlined),
-              ('card', 'Card', Icons.credit_card_outlined),
-              ('bank', 'Bank', Icons.account_balance_outlined),
-              ('cheque', 'Cheque', Icons.receipt_long_outlined),
-              ('other', 'Other', Icons.more_horiz),
-            ])
-              ChoiceChip(
-                avatar: Icon(entry.$3, size: 17),
-                label: Text(entry.$2),
-                selected: _paymentMethod == entry.$1,
-                onSelected: _saving
-                    ? null
-                    : (_) => setState(() => _paymentMethod = entry.$1),
-              ),
-          ],
-        ),
-        const SizedBox(height: 14),
-        LayoutBuilder(
-          builder: (context, constraints) {
-            final compact = constraints.maxWidth < 580;
-            final received = TextField(
-              controller: _paymentController,
-              enabled: !_saving,
-              keyboardType: const TextInputType.numberWithOptions(
-                decimal: true,
-              ),
-              onChanged: (_) => setState(() {}),
-              decoration: InputDecoration(
-                labelText: 'Payment Received',
-                prefixText: '₹ ',
-                suffixIcon: TextButton(
-                  onPressed: _saving ? null : _payFull,
-                  child: const Text('Pay Full'),
-                ),
-                border: const OutlineInputBorder(),
-              ),
-            );
-            final additional = TextField(
-              controller: _additionalController,
-              enabled: !_saving,
-              keyboardType: const TextInputType.numberWithOptions(
-                decimal: true,
-              ),
-              onChanged: (_) => setState(() {}),
-              decoration: const InputDecoration(
-                labelText: 'Additional Charges',
-                prefixText: '₹ ',
-                border: OutlineInputBorder(),
-              ),
-            );
-            if (compact) {
-              return Column(
-                children: [received, const SizedBox(height: 10), additional],
-              );
-            }
-            return Row(
-              children: [
-                Expanded(child: received),
-                const SizedBox(width: 12),
-                Expanded(child: additional),
-              ],
-            );
-          },
-        ),
-        const SizedBox(height: 12),
-        LayoutBuilder(
-          builder: (context, constraints) {
-            final compact = constraints.maxWidth < 580;
-            final roundOff = TextField(
-              controller: _roundOffController,
-              enabled: !_saving,
-              keyboardType: const TextInputType.numberWithOptions(
-                decimal: true,
-                signed: true,
-              ),
-              onChanged: (_) => setState(() {}),
-              decoration: InputDecoration(
-                labelText: 'Round Off',
-                helperText: 'Allowed: -1.00 to 1.00',
-                prefixText: '₹ ',
-                suffixIcon: IconButton(
-                  tooltip: 'Round total',
-                  onPressed: _saving ? null : _applyRoundOff,
-                  icon: const Icon(Icons.exposure_zero),
-                ),
-                border: const OutlineInputBorder(),
-              ),
-            );
-            final reference = TextField(
-              controller: _paymentReferenceController,
-              enabled: !_saving,
-              decoration: const InputDecoration(
-                labelText: 'Payment Reference',
-                hintText: 'UPI / bank / card reference',
-                border: OutlineInputBorder(),
-              ),
-            );
-            if (compact) {
-              return Column(
-                children: [roundOff, const SizedBox(height: 10), reference],
-              );
-            }
-            return Row(
-              children: [
-                Expanded(child: roundOff),
-                const SizedBox(width: 12),
-                Expanded(child: reference),
-              ],
-            );
-          },
-        ),
-        const SizedBox(height: 12),
-        TextField(
-          controller: _notesController,
-          enabled: !_saving,
-          maxLines: 2,
-          decoration: const InputDecoration(
-            labelText: 'Notes',
-            border: OutlineInputBorder(),
-          ),
-        ),
-        const SizedBox(height: 6),
-        const Text(
-          'For a credit sale, leave Payment Received at ₹0.00.',
-          style: TextStyle(fontSize: 11, color: Colors.black54),
-        ),
-      ],
-    );
-
     final taxSummary = Column(
       children: [
         _SaleTotalRow(label: 'Subtotal', value: _money(_subtotal)),
-        if (_discount > .0001)
-          _SaleTotalRow(label: 'Discount', value: '- ${_money(_discount)}'),
+        _SaleTotalRow(label: 'Discount', value: '- ${_money(_discount)}'),
         _SaleTotalRow(label: 'Taxable Amount', value: _money(_taxableAmount)),
         if (_interstatePreview == false) ...[
           _SaleTotalRow(label: 'CGST', value: _money(_cgstPreview)),
@@ -1482,32 +1386,18 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
           _SaleTotalRow(label: 'IGST', value: _money(_igstPreview))
         else
           _SaleTotalRow(label: 'GST / Tax', value: _money(_tax)),
-        if (_additional > .0001)
-          _SaleTotalRow(
-            label: _cuttingCharges > 0
-                ? 'Additional / Cutting Charges'
-                : 'Additional Charges',
-            value: _money(_additional),
-          ),
-        if (_roundOff.abs() > .000001)
-          _SaleTotalRow(label: 'Round Off', value: _money(_roundOff)),
+        _SaleTotalRow(label: 'Round Off', value: _money(_roundOff)),
         const Divider(height: 24),
         _SaleTotalRow(
           label: 'GRAND TOTAL',
           value: _money(_grandTotal),
           bold: true,
         ),
-        _SaleTotalRow(label: 'Received', value: _money(_payment)),
+        _SaleTotalRow(label: 'Settled', value: _money(_settledPayment)),
         _SaleTotalRow(
-          label: 'Balance Due',
+          label: 'Accounts Receivable',
           value: _money(_balanceDue),
           bold: true,
-        ),
-        const SizedBox(height: 8),
-        const Text(
-          'GST split shown here is an estimate. The confirmed invoice uses the '
-          'authoritative GST v5.2 snapshot.',
-          style: TextStyle(fontSize: 10, color: Colors.black54),
         ),
       ],
     );
@@ -1518,19 +1408,57 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
         children: [
           LayoutBuilder(
             builder: (context, constraints) {
+              final payment = Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  MultiPaymentEditor(
+                    tenantId: widget.session.business.id,
+                    total: _grandTotal,
+                    customerIsWalkIn: _selectedCustomer?.isWalkIn ?? true,
+                    customerName: _selectedCustomer?.name ?? '',
+                    enabled: !_saving,
+                    onChanged: (value) {
+                      setState(() {
+                        _paymentAllocations = value;
+                        _error = null;
+                      });
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: Colors.blueGrey.withValues(alpha: .06),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Text(
+                      'Round-off is automatic. Freight, cutting, installation '
+                      'and other charges must be GST-classified Service products.',
+                      style: TextStyle(fontSize: 11),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _notesController,
+                    enabled: !_saving,
+                    maxLines: 2,
+                    decoration: const InputDecoration(
+                      labelText: 'Notes',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                ],
+              );
               if (constraints.maxWidth < 860) {
                 return Column(
-                  children: [
-                    paymentInputs,
-                    const SizedBox(height: 22),
-                    taxSummary,
-                  ],
+                  children: [payment, const SizedBox(height: 22), taxSummary],
                 );
               }
               return Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(flex: 3, child: paymentInputs),
+                  Expanded(flex: 3, child: payment),
                   const SizedBox(width: 36),
                   Expanded(flex: 2, child: taxSummary),
                 ],
@@ -1635,10 +1563,9 @@ class _SaleLine {
 
   double get tax => taxable * taxRate / 100;
 
-  double get cuttingCharge =>
-      cuttingChargeApplied ? (unit?.cuttingCharge ?? 0) : 0;
+  double get cuttingCharge => 0;
 
-  double get total => taxable + tax + cuttingCharge;
+  double get total => taxable + tax;
 
   _SaleLine copyWith({double? unitPrice, String? pricingSource}) => _SaleLine(
     product: product,

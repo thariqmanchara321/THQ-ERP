@@ -86,7 +86,7 @@ class OfflinePosSyncService {
             'device_id': device.deviceId,
             'location_id': device.locationId,
           };
-    manifest['gst_sync_contract'] = 'v5.2';
+    manifest['gst_sync_contract'] = 'v5.2.2';
     manifest['authoritative_gst'] = true;
 
     final serials = <Map<String, dynamic>>[];
@@ -214,7 +214,8 @@ class OfflinePosSyncService {
           await _local.markConflict(
             record.requestId,
             code: map['code']?.toString() ?? 'SERVER_VALIDATION',
-            message: map['message']?.toString() ??
+            message:
+                map['message']?.toString() ??
                 'Server rejected the offline invoice.',
           );
           conflicts++;
@@ -225,7 +226,7 @@ class OfflinePosSyncService {
               map['gst_snapshot_id'] == null ||
               map['gst_journal_id'] == null) {
             throw StateError(
-              'v5.2 sync response is missing authoritative GST recovery evidence.',
+              'v5.2.2 sync response is missing authoritative GST recovery evidence.',
             );
           }
           await _local.markSynced(record.requestId, map);
@@ -234,10 +235,7 @@ class OfflinePosSyncService {
       } catch (error) {
         // Transport/API outage is not a failed sale. Keep the exact immutable
         // request queued so the next attempt reuses the same request ID.
-        await _local.markPending(
-          record.requestId,
-          message: error.toString(),
-        );
+        await _local.markPending(record.requestId, message: error.toString());
         pending++;
         break;
       }

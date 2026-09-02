@@ -6,7 +6,9 @@ import 'location_scope_service.dart';
 class TrackingService {
   SupabaseClient get _supabase => Supabase.instance.client;
 
-  Future<Map<String, dynamic>> syncWarranties({required String tenantId}) async {
+  Future<Map<String, dynamic>> syncWarranties({
+    required String tenantId,
+  }) async {
     final result = await _supabase.rpc(
       'warranty_sync_v51',
       params: {'p_tenant_id': tenantId},
@@ -24,7 +26,9 @@ class TrackingService {
       'inventory_tracking_policy_v483',
       params: {'p_tenant_id': tenantId, 'p_variant_id': variantId},
     );
-    return result is Map ? Map<String, dynamic>.from(result) : <String, dynamic>{};
+    return result is Map
+        ? Map<String, dynamic>.from(result)
+        : <String, dynamic>{};
   }
 
   Future<Map<String, dynamic>> savePolicy({
@@ -50,7 +54,9 @@ class TrackingService {
         'p_allow_expired_sale': allowExpiredSale,
       },
     );
-    return result is Map ? Map<String, dynamic>.from(result) : <String, dynamic>{};
+    return result is Map
+        ? Map<String, dynamic>.from(result)
+        : <String, dynamic>{};
   }
 
   Future<Map<String, dynamic>> reconciliation({
@@ -67,7 +73,9 @@ class TrackingService {
         'p_location_id': resolved,
       },
     );
-    return result is Map ? Map<String, dynamic>.from(result) : <String, dynamic>{};
+    return result is Map
+        ? Map<String, dynamic>.from(result)
+        : <String, dynamic>{};
   }
 
   Future<Map<String, dynamic>> registerOpening({
@@ -90,7 +98,9 @@ class TrackingService {
         'p_note': note.trim(),
       },
     );
-    return result is Map ? Map<String, dynamic>.from(result) : <String, dynamic>{};
+    return result is Map
+        ? Map<String, dynamic>.from(result)
+        : <String, dynamic>{};
   }
 
   Future<List<Map<String, dynamic>>> searchSerials({
@@ -104,11 +114,15 @@ class TrackingService {
       params: {
         'p_tenant_id': tenantId,
         'p_query': query.trim(),
-        'p_location_id': locationId ?? LocationScopeService.selectedLocationId.value,
+        'p_location_id':
+            locationId ?? LocationScopeService.selectedLocationId.value,
         'p_limit': limit,
       },
     );
-    return (result as List? ?? const []).whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
+    return (result as List? ?? const [])
+        .whereType<Map>()
+        .map((e) => Map<String, dynamic>.from(e))
+        .toList();
   }
 
   Future<List<Map<String, dynamic>>> searchBatches({
@@ -122,21 +136,41 @@ class TrackingService {
       params: {
         'p_tenant_id': tenantId,
         'p_query': query.trim(),
-        'p_location_id': locationId ?? LocationScopeService.selectedLocationId.value,
+        'p_location_id':
+            locationId ?? LocationScopeService.selectedLocationId.value,
         'p_limit': limit,
       },
     );
-    return (result as List? ?? const []).whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
+    return (result as List? ?? const [])
+        .whereType<Map>()
+        .map((e) => Map<String, dynamic>.from(e))
+        .toList();
   }
 
-  Future<Map<String, dynamic>> serialHistory({required String tenantId, required String serialId}) async {
-    final result = await _supabase.rpc('inventory_serial_history_v483', params: {'p_tenant_id': tenantId, 'p_serial_id': serialId});
-    return result is Map ? Map<String, dynamic>.from(result) : <String, dynamic>{};
+  Future<Map<String, dynamic>> serialHistory({
+    required String tenantId,
+    required String serialId,
+  }) async {
+    final result = await _supabase.rpc(
+      'inventory_serial_history_v483',
+      params: {'p_tenant_id': tenantId, 'p_serial_id': serialId},
+    );
+    return result is Map
+        ? Map<String, dynamic>.from(result)
+        : <String, dynamic>{};
   }
 
-  Future<Map<String, dynamic>> batchHistory({required String tenantId, required String batchId}) async {
-    final result = await _supabase.rpc('inventory_batch_history_v483', params: {'p_tenant_id': tenantId, 'p_batch_id': batchId});
-    return result is Map ? Map<String, dynamic>.from(result) : <String, dynamic>{};
+  Future<Map<String, dynamic>> batchHistory({
+    required String tenantId,
+    required String batchId,
+  }) async {
+    final result = await _supabase.rpc(
+      'inventory_batch_history_v483',
+      params: {'p_tenant_id': tenantId, 'p_batch_id': batchId},
+    );
+    return result is Map
+        ? Map<String, dynamic>.from(result)
+        : <String, dynamic>{};
   }
 
   Future<List<Map<String, dynamic>>> warranties({
@@ -157,7 +191,10 @@ class TrackingService {
         'p_location_id': LocationScopeService.selectedLocationId.value,
       },
     );
-    return (result as List? ?? const []).whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
+    return (result as List? ?? const [])
+        .whereType<Map>()
+        .map((e) => Map<String, dynamic>.from(e))
+        .toList();
   }
 
   Future<Map<String, dynamic>?> resolveSerial({
@@ -165,7 +202,10 @@ class TrackingService {
     required String serialNumber,
     String? locationId,
   }) async {
-    final resolvedLocation = await resolveLocation(tenantId, locationId: locationId);
+    final resolvedLocation = await resolveLocation(
+      tenantId,
+      locationId: locationId,
+    );
     final result = await _supabase.rpc(
       'inventory_serial_resolve_v483',
       params: {
@@ -178,7 +218,8 @@ class TrackingService {
   }
 
   Future<String> resolveLocation(String tenantId, {String? locationId}) async {
-    final selected = locationId ?? LocationScopeService.selectedLocationId.value;
+    final selected =
+        locationId ?? LocationScopeService.selectedLocationId.value;
     if (selected != null && selected.isNotEmpty) return selected;
     final activation = await DeviceInstallationService().readActivation();
     if (activation == null || activation.tenantId != tenantId) {

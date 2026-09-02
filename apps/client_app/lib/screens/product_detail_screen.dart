@@ -231,7 +231,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       }
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Stock adjustment submitted for approval.')),
+        const SnackBar(
+          content: Text('Stock adjustment submitted for approval.'),
+        ),
       );
     }
   }
@@ -1345,7 +1347,8 @@ class _EditProductDialogState extends State<_EditProductDialog> {
                       : _numberValidator(value, 'Reorder level'),
                   decoration: InputDecoration(
                     labelText: 'Reorder Level',
-                    suffixText: _unitEditor?.baseCode ?? widget.product.unitCode ?? '',
+                    suffixText:
+                        _unitEditor?.baseCode ?? widget.product.unitCode ?? '',
                     border: const OutlineInputBorder(),
                   ),
                 ),
@@ -1759,14 +1762,13 @@ class _MovementRow extends StatelessWidget {
 
                 Text(
                   [
-                        movement.locationName,
-                        if (movement.balanceBefore != null && movement.balanceAfter != null)
-                          'Balance ${movement.balanceBefore!.toStringAsFixed(movement.balanceBefore! % 1 == 0 ? 0 : 3)} → ${movement.balanceAfter!.toStringAsFixed(movement.balanceAfter! % 1 == 0 ? 0 : 3)}',
-                        movement.note,
-                        movement.referenceNumber,
-                      ]
-                      .where((value) => value != null && value.isNotEmpty)
-                      .join(' • '),
+                    movement.locationName,
+                    if (movement.balanceBefore != null &&
+                        movement.balanceAfter != null)
+                      'Balance ${movement.balanceBefore!.toStringAsFixed(movement.balanceBefore! % 1 == 0 ? 0 : 3)} → ${movement.balanceAfter!.toStringAsFixed(movement.balanceAfter! % 1 == 0 ? 0 : 3)}',
+                    movement.note,
+                    movement.referenceNumber,
+                  ].where((value) => value != null && value.isNotEmpty).join(' • '),
                   style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
                 ),
               ],

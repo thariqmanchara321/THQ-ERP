@@ -32,11 +32,13 @@ class _NumericZeroAutoSelectState extends State<NumericZeroAutoSelect> {
         : context.findAncestorWidgetOfExactType<EditableText>();
     if (editable == null) return;
     final type = editable.keyboardType;
-    final numeric = type == TextInputType.number ||
+    final numeric =
+        type == TextInputType.number ||
         type == const TextInputType.numberWithOptions(decimal: true) ||
         type == const TextInputType.numberWithOptions(decimal: false) ||
         type == const TextInputType.numberWithOptions(signed: true) ||
-        type == const TextInputType.numberWithOptions(decimal: true, signed: true);
+        type ==
+            const TextInputType.numberWithOptions(decimal: true, signed: true);
     if (!numeric) return;
     final text = editable.controller.text.trim();
     if (!RegExp(r'^[-+]?0+(?:\.0+)?$').hasMatch(text)) return;

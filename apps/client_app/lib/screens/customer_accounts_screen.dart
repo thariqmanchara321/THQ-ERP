@@ -90,8 +90,9 @@ class _CustomerAccountsScreenState extends State<CustomerAccountsScreen> {
       0,
       (sum, row) => sum + _number(row['outstanding']),
     );
-    final dueCustomers =
-        _rows.where((row) => _number(row['outstanding']) > 0.005).length;
+    final dueCustomers = _rows
+        .where((row) => _number(row['outstanding']) > 0.005)
+        .length;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Customer Receivables')),
@@ -134,7 +135,10 @@ class _CustomerAccountsScreenState extends State<CustomerAccountsScreen> {
                         alignment: Alignment.centerRight,
                         child: Text(
                           _money(totalOutstanding),
-                          style: const TextStyle(fontSize: 21, fontWeight: FontWeight.w900),
+                          style: const TextStyle(
+                            fontSize: 21,
+                            fontWeight: FontWeight.w900,
+                          ),
                         ),
                       ),
                     ),
@@ -146,11 +150,16 @@ class _CustomerAccountsScreenState extends State<CustomerAccountsScreen> {
                     title: const Text('Customers with balance'),
                     trailing: Text(
                       '$dueCustomers',
-                      style: const TextStyle(fontSize: 21, fontWeight: FontWeight.w900),
+                      style: const TextStyle(
+                        fontSize: 21,
+                        fontWeight: FontWeight.w900,
+                      ),
                     ),
                   ),
                 );
-                if (narrow) return Column(children: [outstandingCard, countCard]);
+                if (narrow) {
+                  return Column(children: [outstandingCard, countCard]);
+                }
                 return Row(
                   children: [
                     Expanded(child: outstandingCard),
@@ -167,7 +176,9 @@ class _CustomerAccountsScreenState extends State<CustomerAccountsScreen> {
                   alignment: Alignment.centerLeft,
                   child: Text(
                     _error!,
-                    style: TextStyle(color: Theme.of(context).colorScheme.error),
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.error,
+                    ),
                   ),
                 ),
               ),
@@ -176,104 +187,127 @@ class _CustomerAccountsScreenState extends State<CustomerAccountsScreen> {
               child: _loading
                   ? const Center(child: CircularProgressIndicator())
                   : _rows.isEmpty
-                      ? const Center(child: Text('No customer accounts found.'))
-                      : RefreshIndicator(
-                          onRefresh: _load,
-                          child: ListView.separated(
-                            itemCount: _rows.length,
-                            separatorBuilder: (_, _) =>
-                                const SizedBox(height: 8),
-                            itemBuilder: (context, index) {
-                              final row = _rows[index];
-                              final outstanding = _number(row['outstanding']);
-                              final customerName =
-                                  row['customer_name']?.toString() ?? 'Customer';
-                              final first = customerName.trim().isEmpty
-                                  ? '?'
-                                  : customerName.trim().characters.first;
-                              return Card(
-                                child: LayoutBuilder(
-                                  builder: (context, constraints) {
-                                    final narrow = constraints.maxWidth < 720;
-                                    final identity = Row(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        CircleAvatar(child: Text(first.toUpperCase())),
-                                        const SizedBox(width: 12),
-                                        Expanded(
-                                          child: Column(
-                                            crossAxisAlignment: CrossAxisAlignment.start,
-                                            children: [
-                                              Text(customerName, style: const TextStyle(fontWeight: FontWeight.w800)),
-                                              const SizedBox(height: 3),
-                                              Text('${row['public_id'] ?? ''} • ${row['phone'] ?? ''}'),
-                                              Text('${row['open_invoice_count'] ?? 0} open invoice(s) • Last sale ${row['last_sale_date'] ?? '-'}'),
-                                            ],
-                                          ),
-                                        ),
-                                      ],
-                                    );
-                                    final amountBlock = ConstrainedBox(
-                                      constraints: const BoxConstraints(maxWidth: 190),
+                  ? const Center(child: Text('No customer accounts found.'))
+                  : RefreshIndicator(
+                      onRefresh: _load,
+                      child: ListView.separated(
+                        itemCount: _rows.length,
+                        separatorBuilder: (_, _) => const SizedBox(height: 8),
+                        itemBuilder: (context, index) {
+                          final row = _rows[index];
+                          final outstanding = _number(row['outstanding']);
+                          final customerName =
+                              row['customer_name']?.toString() ?? 'Customer';
+                          final first = customerName.trim().isEmpty
+                              ? '?'
+                              : customerName.trim().characters.first;
+                          return Card(
+                            child: LayoutBuilder(
+                              builder: (context, constraints) {
+                                final narrow = constraints.maxWidth < 720;
+                                final identity = Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    CircleAvatar(
+                                      child: Text(first.toUpperCase()),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
                                       child: Column(
-                                        crossAxisAlignment: narrow ? CrossAxisAlignment.start : CrossAxisAlignment.end,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
                                         children: [
-                                          const Text('Outstanding', style: TextStyle(fontSize: 11)),
-                                          FittedBox(
-                                            fit: BoxFit.scaleDown,
-                                            alignment: narrow ? Alignment.centerLeft : Alignment.centerRight,
-                                            child: Text(
-                                              _money(outstanding),
-                                              maxLines: 1,
-                                              style: TextStyle(
-                                                fontSize: 17,
-                                                fontWeight: FontWeight.w900,
-                                                color: outstanding > 0.005 ? Colors.orange.shade800 : Colors.green.shade700,
-                                              ),
+                                          Text(
+                                            customerName,
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.w800,
                                             ),
+                                          ),
+                                          const SizedBox(height: 3),
+                                          Text(
+                                            '${row['public_id'] ?? ''} • ${row['phone'] ?? ''}',
+                                          ),
+                                          Text(
+                                            '${row['open_invoice_count'] ?? 0} open invoice(s) • Last sale ${row['last_sale_date'] ?? '-'}',
                                           ),
                                         ],
                                       ),
-                                    );
-                                    final accountButton = FilledButton.tonalIcon(
-                                      onPressed: () => _open(row),
-                                      icon: const Icon(Icons.receipt_long_outlined),
-                                      label: const Text('Account'),
-                                    );
-                                    return Padding(
-                                      padding: const EdgeInsets.all(14),
-                                      child: narrow
-                                          ? Column(
-                                              crossAxisAlignment: CrossAxisAlignment.start,
+                                    ),
+                                  ],
+                                );
+                                final amountBlock = ConstrainedBox(
+                                  constraints: const BoxConstraints(
+                                    maxWidth: 190,
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment: narrow
+                                        ? CrossAxisAlignment.start
+                                        : CrossAxisAlignment.end,
+                                    children: [
+                                      const Text(
+                                        'Outstanding',
+                                        style: TextStyle(fontSize: 11),
+                                      ),
+                                      FittedBox(
+                                        fit: BoxFit.scaleDown,
+                                        alignment: narrow
+                                            ? Alignment.centerLeft
+                                            : Alignment.centerRight,
+                                        child: Text(
+                                          _money(outstanding),
+                                          maxLines: 1,
+                                          style: TextStyle(
+                                            fontSize: 17,
+                                            fontWeight: FontWeight.w900,
+                                            color: outstanding > 0.005
+                                                ? Colors.orange.shade800
+                                                : Colors.green.shade700,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                                final accountButton = FilledButton.tonalIcon(
+                                  onPressed: () => _open(row),
+                                  icon: const Icon(Icons.receipt_long_outlined),
+                                  label: const Text('Account'),
+                                );
+                                return Padding(
+                                  padding: const EdgeInsets.all(14),
+                                  child: narrow
+                                      ? Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            identity,
+                                            const SizedBox(height: 12),
+                                            Row(
                                               children: [
-                                                identity,
-                                                const SizedBox(height: 12),
-                                                Row(
-                                                  children: [
-                                                    const SizedBox(width: 52),
-                                                    Expanded(child: amountBlock),
-                                                    const SizedBox(width: 10),
-                                                    accountButton,
-                                                  ],
-                                                ),
-                                              ],
-                                            )
-                                          : Row(
-                                              children: [
-                                                Expanded(child: identity),
-                                                const SizedBox(width: 18),
-                                                amountBlock,
-                                                const SizedBox(width: 12),
+                                                const SizedBox(width: 52),
+                                                Expanded(child: amountBlock),
+                                                const SizedBox(width: 10),
                                                 accountButton,
                                               ],
                                             ),
-                                    );
-                                  },
-                                ),
-                              );
-                            },
-                          ),
-                        ),
+                                          ],
+                                        )
+                                      : Row(
+                                          children: [
+                                            Expanded(child: identity),
+                                            const SizedBox(width: 18),
+                                            amountBlock,
+                                            const SizedBox(width: 12),
+                                            accountButton,
+                                          ],
+                                        ),
+                                );
+                              },
+                            ),
+                          );
+                        },
+                      ),
+                    ),
             ),
           ],
         ),

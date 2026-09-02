@@ -17,7 +17,8 @@ class ClientBootstrapScreen extends StatefulWidget {
 
 class _ClientBootstrapScreenState extends State<ClientBootstrapScreen> {
   final ClientSessionService _sessionService = ClientSessionService();
-  final BackendCompatibilityService _backendCompatibility = BackendCompatibilityService();
+  final BackendCompatibilityService _backendCompatibility =
+      BackendCompatibilityService();
 
   final ClientAuthService _authService = ClientAuthService();
 

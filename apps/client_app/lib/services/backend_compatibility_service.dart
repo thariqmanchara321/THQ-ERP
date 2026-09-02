@@ -29,10 +29,7 @@ class BackendCompatibilityService {
     // Only block the app when the backend explicitly raises its minimum
     // supported application version (a deliberate breaking change).
     if (minimumAppVersion.isNotEmpty &&
-        _compareVersions(
-              ThqReleaseContract.appVersion,
-              minimumAppVersion,
-            ) <
+        _compareVersions(ThqReleaseContract.appVersion, minimumAppVersion) <
             0) {
       throw StateError(
         'THQ application update required. This backend requires app version '

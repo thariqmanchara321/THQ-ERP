@@ -107,12 +107,21 @@ class _ProductionScreenState extends State<ProductionScreen> {
                     hintText: 'Search product, SKU, barcode or part number',
                     prefixIcon: Icons.inventory_2_outlined,
                     options: _products
-                        .map((p) => SearchableSelectOption<String>(
-                              value: p.variantId,
-                              label: p.productName,
-                              subtitle: [p.sku, p.barcode, p.partNumber].where((v) => v != null && v.toString().trim().isNotEmpty).join(' • '),
-                              searchText: '${p.productName} ${p.sku} ${p.barcode ?? ''} ${p.partNumber ?? ''} ${p.searchCodes}',
-                            ))
+                        .map(
+                          (p) => SearchableSelectOption<String>(
+                            value: p.variantId,
+                            label: p.productName,
+                            subtitle: [p.sku, p.barcode, p.partNumber]
+                                .where(
+                                  (v) =>
+                                      v != null &&
+                                      v.toString().trim().isNotEmpty,
+                                )
+                                .join(' • '),
+                            searchText:
+                                '${p.productName} ${p.sku} ${p.barcode ?? ''} ${p.partNumber ?? ''} ${p.searchCodes}',
+                          ),
+                        )
                         .toList(),
                     onChanged: (v) {
                       if (v != null) setLocal(() => output = v);
@@ -162,18 +171,30 @@ class _ProductionScreenState extends State<ProductionScreen> {
                               value: row['input_variant_id'].toString(),
                               labelText: 'Raw material',
                               isRequired: true,
-                              hintText: 'Search product, SKU, barcode or part number',
+                              hintText:
+                                  'Search product, SKU, barcode or part number',
                               prefixIcon: Icons.inventory_2_outlined,
                               options: _products
-                                  .map((p) => SearchableSelectOption<String>(
-                                        value: p.variantId,
-                                        label: p.productName,
-                                        subtitle: [p.sku, p.barcode, p.partNumber].where((v) => v != null && v.toString().trim().isNotEmpty).join(' • '),
-                                        searchText: '${p.productName} ${p.sku} ${p.barcode ?? ''} ${p.partNumber ?? ''} ${p.searchCodes}',
-                                      ))
+                                  .map(
+                                    (p) => SearchableSelectOption<String>(
+                                      value: p.variantId,
+                                      label: p.productName,
+                                      subtitle: [p.sku, p.barcode, p.partNumber]
+                                          .where(
+                                            (v) =>
+                                                v != null &&
+                                                v.toString().trim().isNotEmpty,
+                                          )
+                                          .join(' • '),
+                                      searchText:
+                                          '${p.productName} ${p.sku} ${p.barcode ?? ''} ${p.partNumber ?? ''} ${p.searchCodes}',
+                                    ),
+                                  )
                                   .toList(),
                               onChanged: (v) {
-                                if (v != null) setLocal(() => row['input_variant_id'] = v);
+                                if (v != null) {
+                                  setLocal(() => row['input_variant_id'] = v);
+                                }
                               },
                             ),
                           ),

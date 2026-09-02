@@ -2,12 +2,16 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 class GstV520RouteGuard {
   GstV520RouteGuard({SupabaseClient? client})
-      : _client = client ?? Supabase.instance.client;
+    : _client = client ?? Supabase.instance.client;
 
   final SupabaseClient _client;
 
   static const _approved = <String>{
     'gst_sale_create_v520',
+    'gst_sale_create_v522',
+    'gst_pos_sale_create_v522',
+    'gst_pos_offline_sale_sync_v522',
+    'gst_mobile_pos_sale_sync_v522',
     'gst_sales_return_create_v520',
     'gst_restaurant_order_bill_v520',
     'gst_pos_offline_sale_sync_v520',
@@ -24,7 +28,7 @@ class GstV520RouteGuard {
     String? deviceId,
   }) async {
     final raw = await _client.rpc(
-      'gst_transaction_cutover_contract_v520',
+      'gst_transaction_cutover_contract_v522',
       params: {
         'p_tenant_id': tenantId,
         'p_channel': channel,
@@ -33,7 +37,9 @@ class GstV520RouteGuard {
     );
 
     if (raw is! Map) {
-      throw StateError('GST v5.2 cutover contract returned an invalid response.');
+      throw StateError(
+        'GST v5.2 cutover contract returned an invalid response.',
+      );
     }
     final contract = Map<String, dynamic>.from(raw);
 

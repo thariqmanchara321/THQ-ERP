@@ -222,7 +222,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       }
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Stock adjustment submitted for approval.')),
+        const SnackBar(
+          content: Text('Stock adjustment submitted for approval.'),
+        ),
       );
     }
   }
@@ -470,7 +472,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
               label: const Text('Tracking Policy'),
             )
           : null,
-      child: const Text('Configure serial, batch/expiry and warranty tracking for this product.'),
+      child: const Text(
+        'Configure serial, batch/expiry and warranty tracking for this product.',
+      ),
     );
   }
 
@@ -660,7 +664,10 @@ class _EditProductDialogState extends State<_EditProductDialog> {
     try {
       final results = await Future.wait(<Future<dynamic>>[
         _service.getUnits(tenantId: widget.session.business.id),
-        _service.getProductUnits(tenantId: widget.session.business.id, variantId: widget.product.variantId),
+        _service.getProductUnits(
+          tenantId: widget.session.business.id,
+          variantId: widget.product.variantId,
+        ),
       ]);
       if (!mounted) return;
       setState(() {
@@ -991,7 +998,11 @@ class _EditProductDialogState extends State<_EditProductDialog> {
                 if (_unitsLoading)
                   const LinearProgressIndicator()
                 else if (_unitEditor != null)
-                  ProductUnitEditor(controller: _unitEditor!, enabled: !_saving, currencySymbol: widget.session.currencyCode),
+                  ProductUnitEditor(
+                    controller: _unitEditor!,
+                    enabled: !_saving,
+                    currencySymbol: widget.session.currencyCode,
+                  ),
 
                 const SizedBox(height: 20),
 
@@ -1006,7 +1017,8 @@ class _EditProductDialogState extends State<_EditProductDialog> {
                       : _numberValidator(value, 'Reorder level'),
                   decoration: InputDecoration(
                     labelText: 'Reorder Level',
-                    suffixText: _unitEditor?.baseCode ?? widget.product.unitCode ?? '',
+                    suffixText:
+                        _unitEditor?.baseCode ?? widget.product.unitCode ?? '',
                     border: const OutlineInputBorder(),
                   ),
                 ),
@@ -1420,14 +1432,13 @@ class _MovementRow extends StatelessWidget {
 
                 Text(
                   [
-                        movement.locationName,
-                        if (movement.balanceBefore != null && movement.balanceAfter != null)
-                          'Balance ${movement.balanceBefore!.toStringAsFixed(movement.balanceBefore! % 1 == 0 ? 0 : 3)} → ${movement.balanceAfter!.toStringAsFixed(movement.balanceAfter! % 1 == 0 ? 0 : 3)}',
-                        movement.note,
-                        movement.referenceNumber,
-                      ]
-                      .where((value) => value != null && value.isNotEmpty)
-                      .join(' • '),
+                    movement.locationName,
+                    if (movement.balanceBefore != null &&
+                        movement.balanceAfter != null)
+                      'Balance ${movement.balanceBefore!.toStringAsFixed(movement.balanceBefore! % 1 == 0 ? 0 : 3)} → ${movement.balanceAfter!.toStringAsFixed(movement.balanceAfter! % 1 == 0 ? 0 : 3)}',
+                    movement.note,
+                    movement.referenceNumber,
+                  ].where((value) => value != null && value.isNotEmpty).join(' • '),
                   style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
                 ),
               ],

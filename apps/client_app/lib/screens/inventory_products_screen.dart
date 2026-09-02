@@ -227,7 +227,9 @@ class _InventoryProductsScreenState extends State<InventoryProductsScreen> {
                 OutlinedButton.icon(
                   onPressed: () => Navigator.of(context).push(
                     MaterialPageRoute(
-                      builder: (_) => InventoryMovementHistoryScreen(session: widget.session),
+                      builder: (_) => InventoryMovementHistoryScreen(
+                        session: widget.session,
+                      ),
                     ),
                   ),
                   icon: const Icon(Icons.swap_vert),

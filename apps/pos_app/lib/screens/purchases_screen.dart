@@ -112,16 +112,20 @@ class _PurchasesScreenState extends State<PurchasesScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      widget.historyOnly ? 'Purchase History' : 'Today’s Purchases',
+                      widget.historyOnly
+                          ? 'Purchase History'
+                          : 'Today’s Purchases',
                       style: TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                     const SizedBox(height: 5),
-                    Text(widget.historyOnly
-                        ? 'Legacy direct-purchase history'
-                        : 'Today’s purchase bills and stock received • use Terminal Daily for history'),
+                    Text(
+                      widget.historyOnly
+                          ? 'Legacy direct-purchase history'
+                          : 'Today’s purchase bills and stock received • use Terminal Daily for history',
+                    ),
                   ],
                 ),
               ),
@@ -463,7 +467,9 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
 
   void _applyRoundOff() {
     final delta = _beforeRoundOff.roundToDouble() - _beforeRoundOff;
-    _roundOffController.text = delta.abs() < 0.000001 ? '0.00' : delta.toStringAsFixed(2);
+    _roundOffController.text = delta.abs() < 0.000001
+        ? '0.00'
+        : delta.toStringAsFixed(2);
     setState(() {});
   }
 
@@ -614,7 +620,8 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
                 'unit_cost': line.unitCost,
                 'discount_amount': line.discount,
                 'tax_rate': line.taxRate,
-                if (line.serialNumbers.isNotEmpty) 'serial_numbers': line.serialNumbers,
+                if (line.serialNumbers.isNotEmpty)
+                  'serial_numbers': line.serialNumbers,
                 if (line.batches.isNotEmpty) 'batches': line.batches,
               },
             )
@@ -873,7 +880,10 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
                 child: TextField(
                   controller: _roundOffController,
                   enabled: !_saving,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true, signed: true),
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                    signed: true,
+                  ),
                   onChanged: (_) => setState(() {}),
                   decoration: const InputDecoration(
                     labelText: 'Round Off',
@@ -1079,7 +1089,9 @@ class _AddPurchaseItemDialogState extends State<_AddPurchaseItemDialog> {
       if (product != null) {
         final unit = product.defaultPurchaseUnit;
         _unitId = unit?.unitId;
-        _costController.text = (unit?.purchaseCostFor(product.costPrice) ?? product.costPrice).toStringAsFixed(2);
+        _costController.text =
+            (unit?.purchaseCostFor(product.costPrice) ?? product.costPrice)
+                .toStringAsFixed(2);
         _taxController.text = product.taxRate.toStringAsFixed(2);
       }
     });
@@ -1139,18 +1151,30 @@ class _AddPurchaseItemDialogState extends State<_AddPurchaseItemDialog> {
     final serialNumbers = _serialValues();
     if (product.trackingMode == 'serial') {
       if (baseQuantity != baseQuantity.truncateToDouble()) {
-        setState(() => _error = 'Serial-tracked products require a whole base-unit quantity.');
+        setState(
+          () => _error =
+              'Serial-tracked products require a whole base-unit quantity.',
+        );
         return;
       }
       if (serialNumbers.length != baseQuantity.round()) {
-        setState(() => _error = 'Serial count must match the base quantity (${baseQuantity.toStringAsFixed(0)}).');
+        setState(
+          () => _error =
+              'Serial count must match the base quantity (${baseQuantity.toStringAsFixed(0)}).',
+        );
         return;
       }
     }
     if (product.trackingMode == 'batch') {
-      final batchQuantity = _batches.fold<double>(0, (sum, row) => sum + ((row['quantity'] as num?)?.toDouble() ?? 0));
+      final batchQuantity = _batches.fold<double>(
+        0,
+        (sum, row) => sum + ((row['quantity'] as num?)?.toDouble() ?? 0),
+      );
       if ((batchQuantity - baseQuantity).abs() > 0.000001) {
-        setState(() => _error = 'Batch quantities must total the base quantity (${baseQuantity.toStringAsFixed(4)}).');
+        setState(
+          () => _error =
+              'Batch quantities must total the base quantity (${baseQuantity.toStringAsFixed(4)}).',
+        );
         return;
       }
     }
@@ -1184,8 +1208,12 @@ class _AddPurchaseItemDialogState extends State<_AddPurchaseItemDialog> {
         unitCost: cost,
         discount: discount,
         taxRate: tax,
-        serialNumbers: product.trackingMode == 'serial' ? serialNumbers : const [],
-        batches: product.trackingMode == 'batch' ? List<Map<String, dynamic>>.from(_batches) : const [],
+        serialNumbers: product.trackingMode == 'serial'
+            ? serialNumbers
+            : const [],
+        batches: product.trackingMode == 'batch'
+            ? List<Map<String, dynamic>>.from(_batches)
+            : const [],
       ),
     );
   }
@@ -1236,14 +1264,23 @@ class _AddPurchaseItemDialogState extends State<_AddPurchaseItemDialog> {
                   border: OutlineInputBorder(),
                 ),
                 items: _product!.purchaseUnits
-                    .map((u) => DropdownMenuItem(value: u.unitId, child: Text('${u.name} (${u.code}) • 1 = ${u.conversionToBase} ${_product!.baseUnitCode}')))
+                    .map(
+                      (u) => DropdownMenuItem(
+                        value: u.unitId,
+                        child: Text(
+                          '${u.name} (${u.code}) • 1 = ${u.conversionToBase} ${_product!.baseUnitCode}',
+                        ),
+                      ),
+                    )
                     .toList(),
                 onChanged: (value) {
                   setState(() {
                     _unitId = value;
                     final unit = _selectedUnit;
                     if (unit != null) {
-                      _costController.text = unit.purchaseCostFor(_product!.costPrice).toStringAsFixed(2);
+                      _costController.text = unit
+                          .purchaseCostFor(_product!.costPrice)
+                          .toStringAsFixed(2);
                     }
                   });
                 },
@@ -1335,19 +1372,36 @@ class _AddPurchaseItemDialogState extends State<_AddPurchaseItemDialog> {
               const SizedBox(height: 16),
               Align(
                 alignment: Alignment.centerLeft,
-                child: Text('Batch allocation', style: Theme.of(context).textTheme.titleSmall),
+                child: Text(
+                  'Batch allocation',
+                  style: Theme.of(context).textTheme.titleSmall,
+                ),
               ),
               const SizedBox(height: 6),
-              ..._batches.asMap().entries.map((entry) => ListTile(
-                    dense: true,
-                    contentPadding: EdgeInsets.zero,
-                    title: Text('${entry.value['batch_number']} • ${entry.value['quantity']} ${_product?.baseUnitCode ?? ''}'),
-                    subtitle: Text('MFG ${entry.value['manufactured_on'] ?? '-'} • EXP ${entry.value['expiry_on'] ?? '-'}'),
-                    trailing: IconButton(icon: const Icon(Icons.delete_outline), onPressed: () => setState(() => _batches.removeAt(entry.key))),
-                  )),
+              ..._batches.asMap().entries.map(
+                (entry) => ListTile(
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(
+                    '${entry.value['batch_number']} • ${entry.value['quantity']} ${_product?.baseUnitCode ?? ''}',
+                  ),
+                  subtitle: Text(
+                    'MFG ${entry.value['manufactured_on'] ?? '-'} • EXP ${entry.value['expiry_on'] ?? '-'}',
+                  ),
+                  trailing: IconButton(
+                    icon: const Icon(Icons.delete_outline),
+                    onPressed: () =>
+                        setState(() => _batches.removeAt(entry.key)),
+                  ),
+                ),
+              ),
               Align(
                 alignment: Alignment.centerLeft,
-                child: OutlinedButton.icon(onPressed: _addBatch, icon: const Icon(Icons.add), label: const Text('Add Batch')),
+                child: OutlinedButton.icon(
+                  onPressed: _addBatch,
+                  icon: const Icon(Icons.add),
+                  label: const Text('Add Batch'),
+                ),
               ),
             ],
 
@@ -1394,38 +1448,80 @@ class _PurchaseBatchDialogState extends State<_PurchaseBatchDialog> {
   void _save() {
     final qty = double.tryParse(_quantity.text.trim());
     if (_number.text.trim().isEmpty || qty == null || qty <= 0) {
-      setState(() => _error = 'Enter a batch number and positive base quantity.');
+      setState(
+        () => _error = 'Enter a batch number and positive base quantity.',
+      );
       return;
     }
     Navigator.of(context).pop(<String, dynamic>{
       'batch_number': _number.text.trim(),
       'quantity': qty,
-      'manufactured_on': _manufactured.text.trim().isEmpty ? null : _manufactured.text.trim(),
+      'manufactured_on': _manufactured.text.trim().isEmpty
+          ? null
+          : _manufactured.text.trim(),
       'expiry_on': _expiry.text.trim().isEmpty ? null : _expiry.text.trim(),
     });
   }
 
   @override
   Widget build(BuildContext context) => AlertDialog(
-        title: const Text('Add Batch'),
-        content: SizedBox(
-          width: 460,
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-            TextField(controller: _number, decoration: const InputDecoration(labelText: 'Batch / lot number', border: OutlineInputBorder())),
-            const SizedBox(height: 10),
-            TextField(controller: _quantity, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: 'Quantity in base unit', border: OutlineInputBorder())),
-            const SizedBox(height: 10),
-            TextField(controller: _manufactured, decoration: const InputDecoration(labelText: 'Manufacture date (YYYY-MM-DD)', border: OutlineInputBorder())),
-            const SizedBox(height: 10),
-            TextField(controller: _expiry, decoration: const InputDecoration(labelText: 'Expiry date (YYYY-MM-DD)', border: OutlineInputBorder())),
-            if (_error != null) Padding(padding: const EdgeInsets.only(top: 10), child: Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error))),
-          ]),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-          FilledButton(onPressed: _save, child: const Text('Add')),
+    title: const Text('Add Batch'),
+    content: SizedBox(
+      width: 460,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          TextField(
+            controller: _number,
+            decoration: const InputDecoration(
+              labelText: 'Batch / lot number',
+              border: OutlineInputBorder(),
+            ),
+          ),
+          const SizedBox(height: 10),
+          TextField(
+            controller: _quantity,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: const InputDecoration(
+              labelText: 'Quantity in base unit',
+              border: OutlineInputBorder(),
+            ),
+          ),
+          const SizedBox(height: 10),
+          TextField(
+            controller: _manufactured,
+            decoration: const InputDecoration(
+              labelText: 'Manufacture date (YYYY-MM-DD)',
+              border: OutlineInputBorder(),
+            ),
+          ),
+          const SizedBox(height: 10),
+          TextField(
+            controller: _expiry,
+            decoration: const InputDecoration(
+              labelText: 'Expiry date (YYYY-MM-DD)',
+              border: OutlineInputBorder(),
+            ),
+          ),
+          if (_error != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 10),
+              child: Text(
+                _error!,
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
+            ),
         ],
-      );
+      ),
+    ),
+    actions: [
+      TextButton(
+        onPressed: () => Navigator.pop(context),
+        child: const Text('Cancel'),
+      ),
+      FilledButton(onPressed: _save, child: const Text('Add')),
+    ],
+  );
 }
 
 class _PurchaseLineRow extends StatelessWidget {

@@ -93,7 +93,10 @@ class ClientSessionService {
     return businesses;
   }
 
-  Future<ClientSession> loadSession({required ClientBusiness business, bool requireRuntime = false}) async {
+  Future<ClientSession> loadSession({
+    required ClientBusiness business,
+    bool requireRuntime = false,
+  }) async {
     final activation = await DeviceInstallationService().readActivation();
     if (activation == null || activation.tenantId != business.id) {
       throw Exception('This system is not activated for this business.');
@@ -242,11 +245,16 @@ class ClientSessionService {
             .map((value) => value.toString())
             .where((value) => value.isNotEmpty)
             .toSet();
-    final runtimeDeviceCode = runtime['device_code']?.toString() ?? activation.deviceCode;
-    final runtimeDeviceName = runtime['device_name']?.toString() ?? activation.deviceName;
-    final runtimeLocationId = runtime['location_id']?.toString() ?? activation.locationId;
-    final runtimeLocationCode = runtime['location_code']?.toString() ?? activation.locationCode;
-    final runtimeLocationName = runtime['location_name']?.toString() ?? activation.locationName;
+    final runtimeDeviceCode =
+        runtime['device_code']?.toString() ?? activation.deviceCode;
+    final runtimeDeviceName =
+        runtime['device_name']?.toString() ?? activation.deviceName;
+    final runtimeLocationId =
+        runtime['location_id']?.toString() ?? activation.locationId;
+    final runtimeLocationCode =
+        runtime['location_code']?.toString() ?? activation.locationCode;
+    final runtimeLocationName =
+        runtime['location_name']?.toString() ?? activation.locationName;
     final canViewAllLocations = runtime['can_view_all_locations'] == true;
     final runtimeUsername = runtime['username']?.toString() ?? '';
     final runtimeUserId =

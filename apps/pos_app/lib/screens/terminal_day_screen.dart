@@ -223,9 +223,9 @@ class _TerminalDayScreenState extends State<TerminalDayScreen> {
       }
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(error.toString())),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(error.toString())));
       }
     } finally {
       if (mounted) setState(() => _exporting = false);
@@ -357,79 +357,136 @@ class _TerminalDayScreenState extends State<TerminalDayScreen> {
   }
 
   Widget _errorCard() => Card(
-        child: Padding(
-          padding: const EdgeInsets.all(22),
-          child: Column(
-            children: [
-              const Icon(Icons.error_outline, size: 42),
-              const SizedBox(height: 10),
-              Text(_error!, textAlign: TextAlign.center),
-              const SizedBox(height: 12),
-              OutlinedButton.icon(
-                onPressed: _load,
-                icon: const Icon(Icons.refresh),
-                label: const Text('Retry'),
-              ),
-            ],
+    child: Padding(
+      padding: const EdgeInsets.all(22),
+      child: Column(
+        children: [
+          const Icon(Icons.error_outline, size: 42),
+          const SizedBox(height: 10),
+          Text(_error!, textAlign: TextAlign.center),
+          const SizedBox(height: 12),
+          OutlinedButton.icon(
+            onPressed: _load,
+            icon: const Icon(Icons.refresh),
+            label: const Text('Retry'),
           ),
-        ),
-      );
+        ],
+      ),
+    ),
+  );
 
   Widget _headlineSummary() => _section(
-        title: 'Daily Summary',
-        icon: Icons.summarize_outlined,
-        children: [
-          _metric('Invoices', '${_data['invoice_count'] ?? 0}', Icons.receipt_long_outlined),
-          _metric('Gross Sales', _money(_data['gross_sales']), Icons.trending_up),
-          _metric('Sales Returns', _money(_data['sales_returns']), Icons.keyboard_return_outlined),
-          _metric('Net Sales', _money(_data['net_sales']), Icons.account_balance_wallet_outlined),
-          _metric('Collected', _money(_data['total_collected']), Icons.savings_outlined),
-          _metric('Outstanding', _money(_data['sales_outstanding']), Icons.pending_actions_outlined),
-        ],
-      );
+    title: 'Daily Summary',
+    icon: Icons.summarize_outlined,
+    children: [
+      _metric(
+        'Invoices',
+        '${_data['invoice_count'] ?? 0}',
+        Icons.receipt_long_outlined,
+      ),
+      _metric('Gross Sales', _money(_data['gross_sales']), Icons.trending_up),
+      _metric(
+        'Sales Returns',
+        _money(_data['sales_returns']),
+        Icons.keyboard_return_outlined,
+      ),
+      _metric(
+        'Net Sales',
+        _money(_data['net_sales']),
+        Icons.account_balance_wallet_outlined,
+      ),
+      _metric(
+        'Collected',
+        _money(_data['total_collected']),
+        Icons.savings_outlined,
+      ),
+      _metric(
+        'Outstanding',
+        _money(_data['sales_outstanding']),
+        Icons.pending_actions_outlined,
+      ),
+    ],
+  );
 
   Widget _paymentSummary() => _section(
-        title: 'Payments',
-        icon: Icons.payments_outlined,
-        children: [
-          _metric('Cash', _money(_data['cash']), Icons.payments_outlined),
-          _metric('UPI', _money(_data['upi']), Icons.qr_code_2_outlined),
-          _metric('Card', _money(_data['card']), Icons.credit_card_outlined),
-          _metric('Bank', _money(_data['bank']), Icons.account_balance_outlined),
-          _metric('Other', _money(_data['other_payments']), Icons.more_horiz),
-          _metric('Customer Receipts', _money(_data['customer_receipts']), Icons.person_outline),
-        ],
-      );
+    title: 'Payments',
+    icon: Icons.payments_outlined,
+    children: [
+      _metric('Cash', _money(_data['cash']), Icons.payments_outlined),
+      _metric('UPI', _money(_data['upi']), Icons.qr_code_2_outlined),
+      _metric('Card', _money(_data['card']), Icons.credit_card_outlined),
+      _metric('Bank', _money(_data['bank']), Icons.account_balance_outlined),
+      _metric('Other', _money(_data['other_payments']), Icons.more_horiz),
+      _metric(
+        'Customer Receipts',
+        _money(_data['customer_receipts']),
+        Icons.person_outline,
+      ),
+    ],
+  );
 
   Widget _activitySummary() => _section(
-        title: 'Other Activity',
-        icon: Icons.fact_check_outlined,
-        children: [
-          _metric('Discount', _money(_data['sales_discount']), Icons.percent_outlined),
-          _metric('Tax', _money(_data['sales_tax']), Icons.receipt_outlined),
-          _metric('Expenses', _money(_data['expenses']), Icons.money_off_outlined),
-          _metric('Purchases', _money(_data['purchases']), Icons.shopping_cart_outlined),
-          _metric('Purchase Returns', _money(_data['purchase_returns']), Icons.assignment_return_outlined),
-          _metric('Cash In', _money(_data['cash_in']), Icons.add_circle_outline),
-          _metric('Cash Out', _money(_data['cash_out']), Icons.remove_circle_outline),
-          if (_isToday)
-            _metric('Held Now', '${_data['held_count'] ?? 0}', Icons.pause_circle_outline),
-        ],
-      );
+    title: 'Other Activity',
+    icon: Icons.fact_check_outlined,
+    children: [
+      _metric(
+        'Discount',
+        _money(_data['sales_discount']),
+        Icons.percent_outlined,
+      ),
+      _metric('Tax', _money(_data['sales_tax']), Icons.receipt_outlined),
+      _metric('Expenses', _money(_data['expenses']), Icons.money_off_outlined),
+      _metric(
+        'Purchases',
+        _money(_data['purchases']),
+        Icons.shopping_cart_outlined,
+      ),
+      _metric(
+        'Purchase Returns',
+        _money(_data['purchase_returns']),
+        Icons.assignment_return_outlined,
+      ),
+      _metric('Cash In', _money(_data['cash_in']), Icons.add_circle_outline),
+      _metric(
+        'Cash Out',
+        _money(_data['cash_out']),
+        Icons.remove_circle_outline,
+      ),
+      if (_isToday)
+        _metric(
+          'Held Now',
+          '${_data['held_count'] ?? 0}',
+          Icons.pause_circle_outline,
+        ),
+    ],
+  );
 
   Widget _shiftSummary(Map<String, dynamic> shifts) => _section(
-        title: 'Cashier Shift Summary',
-        icon: Icons.badge_outlined,
-        subtitle: 'Reporting only. Shift start/end and cash are managed from Cashier Shift.',
-        children: [
-          _metric('Shifts', '${shifts['shift_count'] ?? 0}', Icons.badge_outlined),
-          _metric('First Start', _dateTime(shifts['first_start']), Icons.login),
-          _metric('Last End', _dateTime(shifts['last_end']), Icons.logout),
-          _metric('Opening Cash', _money(shifts['opening_cash']), Icons.account_balance_wallet_outlined),
-          _metric('Closing Cash', _money(shifts['closing_cash']), Icons.wallet_outlined),
-          _metric('Difference', _money(shifts['difference']), Icons.balance_outlined),
-        ],
-      );
+    title: 'Cashier Shift Summary',
+    icon: Icons.badge_outlined,
+    subtitle:
+        'Reporting only. Shift start/end and cash are managed from Cashier Shift.',
+    children: [
+      _metric('Shifts', '${shifts['shift_count'] ?? 0}', Icons.badge_outlined),
+      _metric('First Start', _dateTime(shifts['first_start']), Icons.login),
+      _metric('Last End', _dateTime(shifts['last_end']), Icons.logout),
+      _metric(
+        'Opening Cash',
+        _money(shifts['opening_cash']),
+        Icons.account_balance_wallet_outlined,
+      ),
+      _metric(
+        'Closing Cash',
+        _money(shifts['closing_cash']),
+        Icons.wallet_outlined,
+      ),
+      _metric(
+        'Difference',
+        _money(shifts['difference']),
+        Icons.balance_outlined,
+      ),
+    ],
+  );
 
   Widget _invoiceSection() {
     return Card(
@@ -448,7 +505,10 @@ class _TerminalDayScreenState extends State<TerminalDayScreen> {
                     children: [
                       const Text(
                         'Invoices',
-                        style: TextStyle(fontSize: 17, fontWeight: FontWeight.w900),
+                        style: TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w900,
+                        ),
                       ),
                       Text(
                         'Search invoices from ${_date(_day)} on this POS only.',
@@ -463,7 +523,9 @@ class _TerminalDayScreenState extends State<TerminalDayScreen> {
                 FilledButton.tonalIcon(
                   onPressed: _toggleInvoices,
                   icon: Icon(_showInvoices ? Icons.expand_less : Icons.search),
-                  label: Text(_showInvoices ? 'Hide Invoices' : 'View Invoices'),
+                  label: Text(
+                    _showInvoices ? 'Hide Invoices' : 'View Invoices',
+                  ),
                 ),
               ],
             ),
@@ -500,7 +562,9 @@ class _TerminalDayScreenState extends State<TerminalDayScreen> {
               else if (_invoices.isEmpty)
                 const Padding(
                   padding: EdgeInsets.symmetric(vertical: 24),
-                  child: Center(child: Text('No matching invoices for this day.')),
+                  child: Center(
+                    child: Text('No matching invoices for this day.'),
+                  ),
                 )
               else
                 ..._invoices.map(_invoiceTile),
@@ -512,7 +576,8 @@ class _TerminalDayScreenState extends State<TerminalDayScreen> {
   }
 
   Widget _invoiceTile(Map<String, dynamic> row) {
-    final invoice = row['invoice_number']?.toString() ??
+    final invoice =
+        row['invoice_number']?.toString() ??
         row['sale_number']?.toString() ??
         '';
     final customer = row['customer_name']?.toString() ?? '';
@@ -526,7 +591,9 @@ class _TerminalDayScreenState extends State<TerminalDayScreen> {
         borderRadius: BorderRadius.circular(10),
         child: ListTile(
           dense: true,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
           onTap: () => _openInvoice(row),
           leading: const Icon(Icons.receipt_long_outlined),
           title: Text(
@@ -577,14 +644,19 @@ class _TerminalDayScreenState extends State<TerminalDayScreen> {
                     children: [
                       Text(
                         title,
-                        style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w900),
+                        style: const TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w900,
+                        ),
                       ),
                       if (subtitle != null)
                         Text(
                           subtitle,
                           style: TextStyle(
                             fontSize: 11,
-                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurfaceVariant,
                           ),
                         ),
                     ],
@@ -605,7 +677,9 @@ class _TerminalDayScreenState extends State<TerminalDayScreen> {
       width: 190,
       child: DecoratedBox(
         decoration: BoxDecoration(
-          border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+          border: Border.all(
+            color: Theme.of(context).colorScheme.outlineVariant,
+          ),
           borderRadius: BorderRadius.circular(12),
         ),
         child: Padding(
@@ -619,7 +693,10 @@ class _TerminalDayScreenState extends State<TerminalDayScreen> {
                 value,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w900),
+                style: const TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w900,
+                ),
               ),
               const SizedBox(height: 2),
               Text(

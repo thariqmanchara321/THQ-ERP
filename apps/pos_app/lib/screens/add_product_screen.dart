@@ -119,10 +119,11 @@ class _AddProductScreenState extends State<AddProductScreen> {
     }
   }
 
-
   Future<void> _loadUnits() async {
     try {
-      final units = await _service.getUnits(tenantId: widget.session.business.id);
+      final units = await _service.getUnits(
+        tenantId: widget.session.business.id,
+      );
       if (!mounted) return;
       setState(() {
         _units = units;
@@ -132,7 +133,10 @@ class _AddProductScreenState extends State<AddProductScreen> {
         } else if (units.isNotEmpty) {
           _baseUnitCode = units.first.code;
         }
-        _unitEditor = ProductUnitEditorController(units: units, baseCode: _baseUnitCode);
+        _unitEditor = ProductUnitEditorController(
+          units: units,
+          baseCode: _baseUnitCode,
+        );
       });
     } catch (_) {
       // Product creation remains usable; PCS/HR are seeded by the backend.
@@ -193,8 +197,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
             : 0,
         locationId: widget.locationId,
         baseUnitCode: _unitEditor?.baseCode ?? _baseUnitCode,
-        units: _unitEditor?.toPayload() ??
-        const <Map<String, dynamic>>[],
+        units: _unitEditor?.toPayload() ?? const <Map<String, dynamic>>[],
       );
 
       if (!mounted) {
@@ -364,7 +367,9 @@ class _AddProductScreenState extends State<AddProductScreen> {
                               if (_itemType != 'stock') {
                                 _openingStockController.text = '0';
                               }
-                              final preferred = _itemType == 'service' ? 'HR' : 'PCS';
+                              final preferred = _itemType == 'service'
+                                  ? 'HR'
+                                  : 'PCS';
                               if (_units.any((u) => u.code == preferred)) {
                                 _baseUnitCode = preferred;
                                 _unitEditor?.setBaseCode(preferred);
@@ -454,7 +459,9 @@ class _AddProductScreenState extends State<AddProductScreen> {
 
                   const SizedBox(height: 8),
 
-                  const Text('Configure the base unit and every sale/purchase conversion before saving the product.'),
+                  const Text(
+                    'Configure the base unit and every sale/purchase conversion before saving the product.',
+                  ),
 
                   const SizedBox(height: 16),
 

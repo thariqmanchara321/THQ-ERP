@@ -120,11 +120,7 @@ class TransportService {
   }) async {
     final result = await _supabase.rpc(
       'service_job_status_v51',
-      params: {
-        'p_tenant_id': tenantId,
-        'p_job_id': jobId,
-        'p_status': status,
-      },
+      params: {'p_tenant_id': tenantId, 'p_job_id': jobId, 'p_status': status},
     );
     return result is Map
         ? Map<String, dynamic>.from(result)

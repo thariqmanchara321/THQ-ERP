@@ -33,13 +33,11 @@ class SalesService {
     required DateTime saleDate,
     required DateTime? dueDate,
     required List<Map<String, dynamic>> items,
-    required double additionalCharges,
-    double roundOff = 0,
-    required double initialPayment,
-    required String paymentMethod,
-    required String paymentReference,
+    required List<Map<String, dynamic>> paymentAllocations,
     required String notes,
     String? requestId,
+    String? supplyType,
+    String? placeOfSupplyCode,
   }) async {
     final activation = await _activation(tenantId);
     final payload = <String, dynamic>{
@@ -47,14 +45,12 @@ class SalesService {
       'sale_date': _dateOnly(saleDate),
       'due_date': dueDate == null ? null : _dateOnly(dueDate),
       'items': items,
-      'additional_charges': additionalCharges,
-      'round_off': roundOff,
-      'initial_payment': initialPayment,
-      'payment_method': paymentMethod,
-      'payment_reference': paymentReference.trim(),
+      'payment_allocations': paymentAllocations,
       'notes': notes.trim(),
       'location_id': activation.locationId,
       'device_id': activation.deviceId,
+      'supply_type': supplyType,
+      'place_of_supply_code': placeOfSupplyCode,
     };
     final lease = await _requestIds.acquire(
       tenantId: tenantId,
@@ -78,15 +74,13 @@ class SalesService {
           'p_sale_date': _dateOnly(saleDate),
           'p_due_date': dueDate == null ? null : _dateOnly(dueDate),
           'p_items': items,
-          'p_additional_charges': additionalCharges,
-          'p_round_off': roundOff,
-          'p_initial_payment': initialPayment,
-          'p_payment_method': paymentMethod,
-          'p_payment_reference': paymentReference.trim(),
+          'p_payment_allocations': paymentAllocations,
           'p_notes': notes.trim(),
           'p_request_id': lease.requestId,
           'p_location_id': activation.locationId,
           'p_device_id': activation.deviceId,
+          'p_supply_type': supplyType,
+          'p_place_of_supply_code': placeOfSupplyCode,
         },
       );
       if (result is! Map) throw StateError('Unexpected response from $rpc.');
@@ -94,7 +88,7 @@ class SalesService {
       return Map<String, dynamic>.from(result);
     } catch (error) {
       throw StateError(
-        'Authoritative POS GST v5.2 sale failed. Legacy fallback is disabled. '
+        'Authoritative POS GST v5.2.2 sale failed. Legacy fallback is disabled. '
         'Retry the unchanged transaction. $error',
       );
     }

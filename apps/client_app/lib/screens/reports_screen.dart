@@ -173,7 +173,23 @@ class _ReportsScreenState extends State<ReportsScreen> {
             style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
           ),
           const SizedBox(height: 5),
-          Row(children: [const Expanded(child: Text('Sales, purchase, tax, profit and stock summary')), FilledButton.icon(onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => ReportsCenterV500Screen(session: widget.session))), icon: const Icon(Icons.analytics_outlined), label: const Text('Reports Center v5'))]),
+          Row(
+            children: [
+              const Expanded(
+                child: Text('Sales, purchase, tax, profit and stock summary'),
+              ),
+              FilledButton.icon(
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) =>
+                        ReportsCenterV500Screen(session: widget.session),
+                  ),
+                ),
+                icon: const Icon(Icons.analytics_outlined),
+                label: const Text('Reports Center v5'),
+              ),
+            ],
+          ),
           const SizedBox(height: 10),
           Wrap(
             spacing: 10,

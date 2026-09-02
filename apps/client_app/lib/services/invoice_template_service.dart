@@ -22,11 +22,13 @@ class InvoiceTemplateService {
     final mime = ext == 'png' ? 'image/png' : 'image/jpeg';
     final path =
         '$tenantId/invoice/${filePrefix}_${DateTime.now().millisecondsSinceEpoch}.$ext';
-    await _supabase.storage.from('thq-assets').uploadBinary(
-      path,
-      bytes,
-      fileOptions: FileOptions(contentType: mime, upsert: true),
-    );
+    await _supabase.storage
+        .from('thq-assets')
+        .uploadBinary(
+          path,
+          bytes,
+          fileOptions: FileOptions(contentType: mime, upsert: true),
+        );
     return _supabase.storage.from('thq-assets').getPublicUrl(path);
   }
 

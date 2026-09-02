@@ -608,7 +608,9 @@ class _LocationsScreenState extends State<LocationsScreen> {
                               if (value != null) {
                                 setLocalState(() {
                                   appType = value;
-                                  systemRole = appType == 'pos' ? 'pos' : 'office';
+                                  systemRole = appType == 'pos'
+                                      ? 'pos'
+                                      : 'office';
                                   if (appType == 'client') modules.clear();
                                   if (appType == 'pos' && modules.isEmpty) {
                                     modules.add('sales');
@@ -652,14 +654,27 @@ class _LocationsScreenState extends State<LocationsScreen> {
                       const SizedBox(height: 12),
                       DropdownButtonFormField<String>(
                         initialValue: systemRole,
-                        decoration: const InputDecoration(labelText: 'System role'),
+                        decoration: const InputDecoration(
+                          labelText: 'System role',
+                        ),
                         items: const [
-                          DropdownMenuItem(value: 'back_office', child: Text('Back Office PC')),
-                          DropdownMenuItem(value: 'office', child: Text('Office PC')),
-                          DropdownMenuItem(value: 'inventory', child: Text('Inventory PC')),
+                          DropdownMenuItem(
+                            value: 'back_office',
+                            child: Text('Back Office PC'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'office',
+                            child: Text('Office PC'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'inventory',
+                            child: Text('Inventory PC'),
+                          ),
                         ],
                         onChanged: (value) {
-                          if (value != null) setLocalState(() => systemRole = value);
+                          if (value != null) {
+                            setLocalState(() => systemRole = value);
+                          }
                         },
                       ),
                     ],
@@ -809,9 +824,17 @@ class _LocationsScreenState extends State<LocationsScreen> {
         .map((value) => value.toString())
         .toSet();
     final isPos = device['app_type']?.toString() == 'pos';
-    var locationId = device['location_id']?.toString() ?? (_locations.isNotEmpty ? _locations.first['id'].toString() : '');
-    var systemRole = device['system_role']?.toString() ?? (isPos ? 'pos' : 'office');
-    final activeLocations = _locations.where((row) => row['active'] != false || row['id']?.toString() == locationId).toList();
+    var locationId =
+        device['location_id']?.toString() ??
+        (_locations.isNotEmpty ? _locations.first['id'].toString() : '');
+    var systemRole =
+        device['system_role']?.toString() ?? (isPos ? 'pos' : 'office');
+    final activeLocations = _locations
+        .where(
+          (row) =>
+              row['active'] != false || row['id']?.toString() == locationId,
+        )
+        .toList();
 
     await showDialog<void>(
       context: context,
@@ -827,11 +850,19 @@ class _LocationsScreenState extends State<LocationsScreen> {
                 DropdownButtonFormField<String>(
                   initialValue: locationId,
                   isExpanded: true,
-                  decoration: const InputDecoration(labelText: 'Store / location'),
-                  items: activeLocations.map((location) => DropdownMenuItem<String>(
-                    value: location['id'].toString(),
-                    child: Text('${location['location_code']} • ${location['name']}'),
-                  )).toList(),
+                  decoration: const InputDecoration(
+                    labelText: 'Store / location',
+                  ),
+                  items: activeLocations
+                      .map(
+                        (location) => DropdownMenuItem<String>(
+                          value: location['id'].toString(),
+                          child: Text(
+                            '${location['location_code']} • ${location['name']}',
+                          ),
+                        ),
+                      )
+                      .toList(),
                   onChanged: (value) {
                     if (value != null) setLocalState(() => locationId = value);
                   },
@@ -842,12 +873,23 @@ class _LocationsScreenState extends State<LocationsScreen> {
                     initialValue: systemRole,
                     decoration: const InputDecoration(labelText: 'System role'),
                     items: const [
-                      DropdownMenuItem(value: 'back_office', child: Text('Back Office PC')),
-                      DropdownMenuItem(value: 'office', child: Text('Office PC')),
-                      DropdownMenuItem(value: 'inventory', child: Text('Inventory PC')),
+                      DropdownMenuItem(
+                        value: 'back_office',
+                        child: Text('Back Office PC'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'office',
+                        child: Text('Office PC'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'inventory',
+                        child: Text('Inventory PC'),
+                      ),
                     ],
                     onChanged: (value) {
-                      if (value != null) setLocalState(() => systemRole = value);
+                      if (value != null) {
+                        setLocalState(() => systemRole = value);
+                      }
                     },
                   ),
                 ],

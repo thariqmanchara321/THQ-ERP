@@ -128,11 +128,22 @@ class LabelPrintingService {
             ),
           ),
           if (showCodeText)
-            pw.Text(label.code, maxLines: 1, style: const pw.TextStyle(fontSize: 6)),
+            pw.Text(
+              label.code,
+              maxLines: 1,
+              style: const pw.TextStyle(fontSize: 6),
+            ),
           if (showSku && label.sku.isNotEmpty)
-            pw.Text('SKU ${label.sku}', maxLines: 1, style: const pw.TextStyle(fontSize: 6)),
+            pw.Text(
+              'SKU ${label.sku}',
+              maxLines: 1,
+              style: const pw.TextStyle(fontSize: 6),
+            ),
           if (showPrice && label.priceText.isNotEmpty)
-            pw.Text(label.priceText, style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold)),
+            pw.Text(
+              label.priceText,
+              style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold),
+            ),
         ],
       ),
     );

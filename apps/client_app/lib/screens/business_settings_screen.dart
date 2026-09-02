@@ -4,6 +4,7 @@ import 'package:erp_core/erp_core.dart';
 import '../models/client_session.dart';
 import '../services/tenant_settings_service.dart';
 import 'custom_fields_screen.dart';
+import '../widgets/payment_method_ledger_settings.dart';
 
 class BusinessSettingsScreen extends StatefulWidget {
   final ClientSession session;
@@ -218,6 +219,10 @@ class _BusinessSettingsScreenState extends State<BusinessSettingsScreen> {
                     DropdownMenuItem(value: 'upi', child: Text('UPI')),
                     DropdownMenuItem(value: 'card', child: Text('Card')),
                     DropdownMenuItem(value: 'bank', child: Text('Bank')),
+                    DropdownMenuItem(value: 'cheque', child: Text('Cheque')),
+                    DropdownMenuItem(value: 'wallet', child: Text('Wallet')),
+                    DropdownMenuItem(value: 'credit', child: Text('Credit')),
+                    DropdownMenuItem(value: 'other', child: Text('Other')),
                   ],
                   onChanged: !_canManage
                       ? null
@@ -228,6 +233,13 @@ class _BusinessSettingsScreenState extends State<BusinessSettingsScreen> {
                             );
                           }
                         },
+                ),
+              ]),
+              const SizedBox(height: 16),
+              _section('Payment Methods & Ledger Mapping', [
+                PaymentMethodLedgerSettings(
+                  tenantId: widget.session.business.id,
+                  canManage: _canManage,
                 ),
               ]),
               const SizedBox(height: 16),

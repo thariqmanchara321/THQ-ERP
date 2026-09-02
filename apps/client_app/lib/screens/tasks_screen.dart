@@ -20,7 +20,8 @@ class _TasksScreenState extends State<TasksScreen> {
   List<Map<String, dynamic>> _rows = const [];
 
   bool get _canManage =>
-      widget.session.hasPermission('tasks.manage') || widget.session.hasRole('owner');
+      widget.session.hasPermission('tasks.manage') ||
+      widget.session.hasRole('owner');
 
   @override
   void initState() {
@@ -47,7 +48,8 @@ class _TasksScreenState extends State<TasksScreen> {
     }
   }
 
-  DateTime? _parse(dynamic value) => DateTime.tryParse(value?.toString() ?? '')?.toLocal();
+  DateTime? _parse(dynamic value) =>
+      DateTime.tryParse(value?.toString() ?? '')?.toLocal();
 
   String _dateTime(DateTime? value) {
     if (value == null) return 'Not set';
@@ -55,7 +57,10 @@ class _TasksScreenState extends State<TasksScreen> {
     return '${two(value.day)}/${two(value.month)}/${value.year} ${two(value.hour)}:${two(value.minute)}';
   }
 
-  Future<DateTime?> _pickDateTime(DateTime? current, {required String title}) async {
+  Future<DateTime?> _pickDateTime(
+    DateTime? current, {
+    required String title,
+  }) async {
     final now = DateTime.now();
     final base = current ?? now.add(const Duration(days: 1));
     final date = await showDatePicker(
@@ -71,17 +76,23 @@ class _TasksScreenState extends State<TasksScreen> {
       helpText: title,
       initialTime: TimeOfDay.fromDateTime(base),
     );
-    if (time == null) return DateTime(date.year, date.month, date.day, base.hour, base.minute);
+    if (time == null) {
+      return DateTime(date.year, date.month, date.day, base.hour, base.minute);
+    }
     return DateTime(date.year, date.month, date.day, time.hour, time.minute);
   }
 
   Future<void> _edit([Map<String, dynamic>? row]) async {
     if (!_canManage) return;
     final title = TextEditingController(text: row?['title']?.toString() ?? '');
-    final description = TextEditingController(text: row?['description']?.toString() ?? '');
+    final description = TextEditingController(
+      text: row?['description']?.toString() ?? '',
+    );
     String priority = row?['priority']?.toString() ?? 'normal';
     String status = row?['status']?.toString() ?? 'open';
-    final assignedTo = row == null ? '' : (row['assigned_to']?.toString() ?? '');
+    final assignedTo = row == null
+        ? ''
+        : (row['assigned_to']?.toString() ?? '');
     bool assignToMe = assignedTo.isEmpty || assignedTo == widget.session.userId;
     DateTime? dueAt = _parse(row?['due_at']);
     DateTime? reminderAt = _parse(row?['reminder_at']);
@@ -100,7 +111,10 @@ class _TasksScreenState extends State<TasksScreen> {
                   TextField(
                     controller: title,
                     autofocus: row == null,
-                    decoration: const InputDecoration(labelText: 'Task *', prefixIcon: Icon(Icons.task_alt)),
+                    decoration: const InputDecoration(
+                      labelText: 'Task *',
+                      prefixIcon: Icon(Icons.task_alt),
+                    ),
                   ),
                   const SizedBox(height: 10),
                   TextField(
@@ -114,28 +128,56 @@ class _TasksScreenState extends State<TasksScreen> {
                       Expanded(
                         child: DropdownButtonFormField<String>(
                           initialValue: priority,
-                          decoration: const InputDecoration(labelText: 'Priority'),
+                          decoration: const InputDecoration(
+                            labelText: 'Priority',
+                          ),
                           items: const [
                             DropdownMenuItem(value: 'low', child: Text('Low')),
-                            DropdownMenuItem(value: 'normal', child: Text('Normal')),
-                            DropdownMenuItem(value: 'high', child: Text('High')),
-                            DropdownMenuItem(value: 'urgent', child: Text('Urgent')),
+                            DropdownMenuItem(
+                              value: 'normal',
+                              child: Text('Normal'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'high',
+                              child: Text('High'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'urgent',
+                              child: Text('Urgent'),
+                            ),
                           ],
-                          onChanged: (value) => setDialogState(() => priority = value ?? 'normal'),
+                          onChanged: (value) => setDialogState(
+                            () => priority = value ?? 'normal',
+                          ),
                         ),
                       ),
                       const SizedBox(width: 10),
                       Expanded(
                         child: DropdownButtonFormField<String>(
                           initialValue: status,
-                          decoration: const InputDecoration(labelText: 'Status'),
+                          decoration: const InputDecoration(
+                            labelText: 'Status',
+                          ),
                           items: const [
-                            DropdownMenuItem(value: 'open', child: Text('Open')),
-                            DropdownMenuItem(value: 'in_progress', child: Text('In progress')),
-                            DropdownMenuItem(value: 'done', child: Text('Done')),
-                            DropdownMenuItem(value: 'cancelled', child: Text('Cancelled')),
+                            DropdownMenuItem(
+                              value: 'open',
+                              child: Text('Open'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'in_progress',
+                              child: Text('In progress'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'done',
+                              child: Text('Done'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'cancelled',
+                              child: Text('Cancelled'),
+                            ),
                           ],
-                          onChanged: (value) => setDialogState(() => status = value ?? 'open'),
+                          onChanged: (value) =>
+                              setDialogState(() => status = value ?? 'open'),
                         ),
                       ),
                     ],
@@ -144,9 +186,12 @@ class _TasksScreenState extends State<TasksScreen> {
                   SwitchListTile.adaptive(
                     contentPadding: EdgeInsets.zero,
                     title: const Text('Assign to me'),
-                    subtitle: const Text('Turn off to keep this task unassigned.'),
+                    subtitle: const Text(
+                      'Turn off to keep this task unassigned.',
+                    ),
                     value: assignToMe,
-                    onChanged: (value) => setDialogState(() => assignToMe = value),
+                    onChanged: (value) =>
+                        setDialogState(() => assignToMe = value),
                   ),
                   const Divider(),
                   ListTile(
@@ -158,11 +203,19 @@ class _TasksScreenState extends State<TasksScreen> {
                       spacing: 2,
                       children: [
                         if (dueAt != null)
-                          IconButton(onPressed: () => setDialogState(() => dueAt = null), icon: const Icon(Icons.clear)),
+                          IconButton(
+                            onPressed: () => setDialogState(() => dueAt = null),
+                            icon: const Icon(Icons.clear),
+                          ),
                         IconButton(
                           onPressed: () async {
-                            final value = await _pickDateTime(dueAt, title: 'Task due');
-                            if (value != null) setDialogState(() => dueAt = value);
+                            final value = await _pickDateTime(
+                              dueAt,
+                              title: 'Task due',
+                            );
+                            if (value != null) {
+                              setDialogState(() => dueAt = value);
+                            }
                           },
                           icon: const Icon(Icons.edit_calendar_outlined),
                         ),
@@ -178,11 +231,20 @@ class _TasksScreenState extends State<TasksScreen> {
                       spacing: 2,
                       children: [
                         if (reminderAt != null)
-                          IconButton(onPressed: () => setDialogState(() => reminderAt = null), icon: const Icon(Icons.clear)),
+                          IconButton(
+                            onPressed: () =>
+                                setDialogState(() => reminderAt = null),
+                            icon: const Icon(Icons.clear),
+                          ),
                         IconButton(
                           onPressed: () async {
-                            final value = await _pickDateTime(reminderAt ?? dueAt, title: 'Task reminder');
-                            if (value != null) setDialogState(() => reminderAt = value);
+                            final value = await _pickDateTime(
+                              reminderAt ?? dueAt,
+                              title: 'Task reminder',
+                            );
+                            if (value != null) {
+                              setDialogState(() => reminderAt = value);
+                            }
                           },
                           icon: const Icon(Icons.add_alarm_outlined),
                         ),
@@ -200,8 +262,14 @@ class _TasksScreenState extends State<TasksScreen> {
             ),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Cancel')),
-            FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: Text(row == null ? 'Create' : 'Save')),
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: Text(row == null ? 'Create' : 'Save'),
+            ),
           ],
         ),
       ),
@@ -213,14 +281,22 @@ class _TasksScreenState extends State<TasksScreen> {
     description.dispose();
     if (ok != true || taskTitle.isEmpty) return;
     if (reminderAt != null && dueAt != null && reminderAt!.isAfter(dueAt!)) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Reminder cannot be after the due time.')));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Reminder cannot be after the due time.'),
+          ),
+        );
+      }
       return;
     }
     try {
       await _service.save(
         tenantId: widget.session.business.id,
         taskId: row?['id']?.toString(),
-        locationId: row?['location_id']?.toString() ?? LocationScopeService.selectedLocationId.value,
+        locationId:
+            row?['location_id']?.toString() ??
+            LocationScopeService.selectedLocationId.value,
         title: taskTitle,
         description: taskDescription,
         priority: priority,
@@ -231,11 +307,17 @@ class _TasksScreenState extends State<TasksScreen> {
         entityType: row?['entity_type']?.toString(),
         entityId: row?['entity_id']?.toString(),
         sourceNotificationId: row?['source_notification_id']?.toString(),
-        metadata: row?['metadata'] is Map ? Map<String, dynamic>.from(row!['metadata'] as Map) : const {},
+        metadata: row?['metadata'] is Map
+            ? Map<String, dynamic>.from(row!['metadata'] as Map)
+            : const {},
       );
       await _load();
     } catch (error) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.toString())));
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(error.toString())));
+      }
     }
   }
 
@@ -255,11 +337,17 @@ class _TasksScreenState extends State<TasksScreen> {
         entityType: row['entity_type']?.toString(),
         entityId: row['entity_id']?.toString(),
         sourceNotificationId: row['source_notification_id']?.toString(),
-        metadata: row['metadata'] is Map ? Map<String, dynamic>.from(row['metadata'] as Map) : const {},
+        metadata: row['metadata'] is Map
+            ? Map<String, dynamic>.from(row['metadata'] as Map)
+            : const {},
       );
       await _load();
     } catch (error) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.toString())));
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(error.toString())));
+      }
     }
   }
 
@@ -420,11 +508,11 @@ class _TasksScreenState extends State<TasksScreen> {
   }
 
   Color _priorityColor(String priority) => switch (priority) {
-        'urgent' => Colors.red,
-        'high' => Colors.orange,
-        'low' => Colors.blueGrey,
-        _ => Colors.blue,
-      };
+    'urgent' => Colors.red,
+    'high' => Colors.orange,
+    'low' => Colors.blueGrey,
+    _ => Colors.blue,
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -437,10 +525,23 @@ class _TasksScreenState extends State<TasksScreen> {
           children: [
             Row(
               children: [
-                const Expanded(child: Text('Tasks & Follow-ups', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900))),
-                IconButton(onPressed: _loading ? null : _load, tooltip: 'Refresh', icon: const Icon(Icons.refresh)),
+                const Expanded(
+                  child: Text(
+                    'Tasks & Follow-ups',
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
+                  ),
+                ),
+                IconButton(
+                  onPressed: _loading ? null : _load,
+                  tooltip: 'Refresh',
+                  icon: const Icon(Icons.refresh),
+                ),
                 if (_canManage)
-                  FilledButton.icon(onPressed: () => _edit(), icon: const Icon(Icons.add_task), label: const Text('New Task')),
+                  FilledButton.icon(
+                    onPressed: () => _edit(),
+                    icon: const Icon(Icons.add_task),
+                    label: const Text('New Task'),
+                  ),
               ],
             ),
             const SizedBox(height: 8),
@@ -448,80 +549,142 @@ class _TasksScreenState extends State<TasksScreen> {
               spacing: 6,
               runSpacing: 6,
               children: ['open', 'in_progress', 'done', 'cancelled', 'all']
-                  .map((status) => ChoiceChip(
-                        label: Text(status.replaceAll('_', ' ').toUpperCase()),
-                        selected: _status == status,
-                        onSelected: (_) {
-                          setState(() => _status = status);
-                          _load();
-                        },
-                      ))
+                  .map(
+                    (status) => ChoiceChip(
+                      label: Text(status.replaceAll('_', ' ').toUpperCase()),
+                      selected: _status == status,
+                      onSelected: (_) {
+                        setState(() => _status = status);
+                        _load();
+                      },
+                    ),
+                  )
                   .toList(),
             ),
             if (_error != null)
               Padding(
                 padding: const EdgeInsets.only(top: 8),
-                child: Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+                child: Text(
+                  _error!,
+                  style: TextStyle(color: Theme.of(context).colorScheme.error),
+                ),
               ),
             const SizedBox(height: 8),
             Expanded(
               child: _loading
                   ? const Center(child: CircularProgressIndicator())
                   : _rows.isEmpty
-                      ? const Center(child: Text('No tasks in this view.'))
-                      : RefreshIndicator(
-                          onRefresh: _load,
-                          child: ListView.separated(
-                            itemCount: _rows.length,
-                            separatorBuilder: (context, index) => const SizedBox(height: 6),
-                            itemBuilder: (context, index) {
-                              final row = _rows[index];
-                              final status = row['status']?.toString() ?? 'open';
-                              final priority = row['priority']?.toString() ?? 'normal';
-                              final due = _parse(row['due_at']);
-                              final overdue = due != null && due.isBefore(DateTime.now()) && !const ['done', 'cancelled'].contains(status);
-                              return Card(
-                                margin: EdgeInsets.zero,
-                                child: ListTile(
-                                  onTap: _canManage ? () => _edit(row) : null,
-                                  dense: true,
-                                  leading: CircleAvatar(
-                                    backgroundColor: _priorityColor(priority).withValues(alpha: .12),
-                                    child: Icon(status == 'done' ? Icons.check : overdue ? Icons.priority_high : Icons.task_alt_outlined, color: _priorityColor(priority)),
-                                  ),
-                                  title: Text(row['title']?.toString() ?? '', style: const TextStyle(fontWeight: FontWeight.w800)),
-                                  subtitle: Text([
-                                    priority.toUpperCase(),
-                                    status.replaceAll('_', ' ').toUpperCase(),
-                                    if (due != null) '${overdue ? 'OVERDUE' : 'Due'} ${_dateTime(due)}',
-                                    if ((row['assigned_username']?.toString() ?? '').isNotEmpty) row['assigned_username'].toString(),
-                                    if ((row['location_code']?.toString() ?? '').isNotEmpty) row['location_code'].toString(),
-                                    if (row['escalation_at'] != null) 'Escalates ${_dateTime(_parse(row['escalation_at']))}',
-                                    if ((row['description']?.toString() ?? '').isNotEmpty) row['description'].toString(),
-                                  ].join(' • '), maxLines: 2, overflow: TextOverflow.ellipsis),
-                                  trailing: !_canManage
-                                      ? null
-                                      : PopupMenuButton<String>(
-                                          tooltip: 'Task actions',
-                                          onSelected: (value) {
-                                            if (value == 'edit') _edit(row);
-                                            if (value == 'timeline') _timeline(row);
-                                            if (value == 'open' || value == 'in_progress' || value == 'done' || value == 'cancelled') _setStatus(row, value);
-                                          },
-                                          itemBuilder: (context) => const [
-                                            PopupMenuItem(value: 'edit', child: Text('Edit')),
-                                            PopupMenuItem(value: 'timeline', child: Text('History / comments / escalation')),
-                                            PopupMenuItem(value: 'open', child: Text('Mark open')),
-                                            PopupMenuItem(value: 'in_progress', child: Text('Start / in progress')),
-                                            PopupMenuItem(value: 'done', child: Text('Mark done')),
-                                            PopupMenuItem(value: 'cancelled', child: Text('Cancel')),
-                                          ],
-                                        ),
+                  ? const Center(child: Text('No tasks in this view.'))
+                  : RefreshIndicator(
+                      onRefresh: _load,
+                      child: ListView.separated(
+                        itemCount: _rows.length,
+                        separatorBuilder: (context, index) =>
+                            const SizedBox(height: 6),
+                        itemBuilder: (context, index) {
+                          final row = _rows[index];
+                          final status = row['status']?.toString() ?? 'open';
+                          final priority =
+                              row['priority']?.toString() ?? 'normal';
+                          final due = _parse(row['due_at']);
+                          final overdue =
+                              due != null &&
+                              due.isBefore(DateTime.now()) &&
+                              !const ['done', 'cancelled'].contains(status);
+                          return Card(
+                            margin: EdgeInsets.zero,
+                            child: ListTile(
+                              onTap: _canManage ? () => _edit(row) : null,
+                              dense: true,
+                              leading: CircleAvatar(
+                                backgroundColor: _priorityColor(
+                                  priority,
+                                ).withValues(alpha: .12),
+                                child: Icon(
+                                  status == 'done'
+                                      ? Icons.check
+                                      : overdue
+                                      ? Icons.priority_high
+                                      : Icons.task_alt_outlined,
+                                  color: _priorityColor(priority),
                                 ),
-                              );
-                            },
-                          ),
-                        ),
+                              ),
+                              title: Text(
+                                row['title']?.toString() ?? '',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                              subtitle: Text(
+                                [
+                                  priority.toUpperCase(),
+                                  status.replaceAll('_', ' ').toUpperCase(),
+                                  if (due != null)
+                                    '${overdue ? 'OVERDUE' : 'Due'} ${_dateTime(due)}',
+                                  if ((row['assigned_username']?.toString() ??
+                                          '')
+                                      .isNotEmpty)
+                                    row['assigned_username'].toString(),
+                                  if ((row['location_code']?.toString() ?? '')
+                                      .isNotEmpty)
+                                    row['location_code'].toString(),
+                                  if (row['escalation_at'] != null)
+                                    'Escalates ${_dateTime(_parse(row['escalation_at']))}',
+                                  if ((row['description']?.toString() ?? '')
+                                      .isNotEmpty)
+                                    row['description'].toString(),
+                                ].join(' • '),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              trailing: !_canManage
+                                  ? null
+                                  : PopupMenuButton<String>(
+                                      tooltip: 'Task actions',
+                                      onSelected: (value) {
+                                        if (value == 'edit') _edit(row);
+                                        if (value == 'timeline') _timeline(row);
+                                        if (value == 'open' ||
+                                            value == 'in_progress' ||
+                                            value == 'done' ||
+                                            value == 'cancelled') {
+                                          _setStatus(row, value);
+                                        }
+                                      },
+                                      itemBuilder: (context) => const [
+                                        PopupMenuItem(
+                                          value: 'edit',
+                                          child: Text('Edit'),
+                                        ),
+                                        PopupMenuItem(
+                                          value: 'timeline',
+                                          child: Text(
+                                            'History / comments / escalation',
+                                          ),
+                                        ),
+                                        PopupMenuItem(
+                                          value: 'open',
+                                          child: Text('Mark open'),
+                                        ),
+                                        PopupMenuItem(
+                                          value: 'in_progress',
+                                          child: Text('Start / in progress'),
+                                        ),
+                                        PopupMenuItem(
+                                          value: 'done',
+                                          child: Text('Mark done'),
+                                        ),
+                                        PopupMenuItem(
+                                          value: 'cancelled',
+                                          child: Text('Cancel'),
+                                        ),
+                                      ],
+                                    ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
             ),
           ],
         ),

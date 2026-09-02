@@ -314,13 +314,17 @@ class _TransportServiceScreenState extends State<TransportServiceScreen> {
       vehicleId = activeVehicles.first['id']?.toString();
     }
     String? customerId = job?['customer_id']?.toString();
-    DateTime serviceDate = job == null ? DateTime.now() : _date(job['service_date']);
+    DateTime serviceDate = job == null
+        ? DateTime.now()
+        : _date(job['service_date']);
     String status = job?['status']?.toString() ?? 'planned';
 
     final from = TextEditingController(
       text: job?['from_location']?.toString() ?? '',
     );
-    final to = TextEditingController(text: job?['to_location']?.toString() ?? '');
+    final to = TextEditingController(
+      text: job?['to_location']?.toString() ?? '',
+    );
     final distance = TextEditingController(
       text: job == null ? '' : '${job['distance_km'] ?? ''}',
     );
@@ -339,7 +343,11 @@ class _TransportServiceScreenState extends State<TransportServiceScreen> {
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setLocalState) => AlertDialog(
-          title: Text(job == null ? 'New Transport / Service Job' : 'Edit ${job['job_number']}'),
+          title: Text(
+            job == null
+                ? 'New Transport / Service Job'
+                : 'Edit ${job['job_number']}',
+          ),
           content: SizedBox(
             width: 720,
             child: SingleChildScrollView(
@@ -371,7 +379,8 @@ class _TransportServiceScreenState extends State<TransportServiceScreen> {
                           ],
                           onChanged: job?['sale_id'] != null
                               ? null
-                              : (value) => setLocalState(() => vehicleId = value),
+                              : (value) =>
+                                    setLocalState(() => vehicleId = value),
                         ),
                       ),
                       const SizedBox(width: 10),
@@ -382,7 +391,9 @@ class _TransportServiceScreenState extends State<TransportServiceScreen> {
                               context: context,
                               initialDate: serviceDate,
                               firstDate: DateTime(2020),
-                              lastDate: DateTime.now().add(const Duration(days: 3650)),
+                              lastDate: DateTime.now().add(
+                                const Duration(days: 3650),
+                              ),
                             );
                             if (picked != null) {
                               setLocalState(() => serviceDate = picked);
@@ -413,11 +424,15 @@ class _TransportServiceScreenState extends State<TransportServiceScreen> {
                           (customer) => SearchableSelectOption<String>(
                             value: customer.id,
                             label: customer.name,
-                            subtitle: [
-                              customer.publicId,
-                              customer.phone,
-                              customer.taxNumber,
-                            ].whereType<String>().where((v) => v.trim().isNotEmpty).join(' • '),
+                            subtitle:
+                                [
+                                      customer.publicId,
+                                      customer.phone,
+                                      customer.taxNumber,
+                                    ]
+                                    .whereType<String>()
+                                    .where((v) => v.trim().isNotEmpty)
+                                    .join(' • '),
                             searchText:
                                 '${customer.name} ${customer.publicId} ${customer.phone ?? ''} ${customer.email ?? ''} ${customer.taxNumber ?? ''}',
                           ),
@@ -457,7 +472,9 @@ class _TransportServiceScreenState extends State<TransportServiceScreen> {
                       Expanded(
                         child: TextField(
                           controller: distance,
-                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                          keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true,
+                          ),
                           decoration: const InputDecoration(
                             labelText: 'Distance (km)',
                             border: OutlineInputBorder(),
@@ -469,7 +486,9 @@ class _TransportServiceScreenState extends State<TransportServiceScreen> {
                         child: TextField(
                           controller: quantity,
                           enabled: job?['sale_id'] == null,
-                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                          keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true,
+                          ),
                           decoration: const InputDecoration(
                             labelText: 'Quantity *',
                             border: OutlineInputBorder(),
@@ -491,7 +510,9 @@ class _TransportServiceScreenState extends State<TransportServiceScreen> {
                         child: TextField(
                           controller: rate,
                           enabled: job?['sale_id'] == null,
-                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                          keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true,
+                          ),
                           decoration: const InputDecoration(
                             labelText: 'Rate *',
                             border: OutlineInputBorder(),
@@ -509,14 +530,27 @@ class _TransportServiceScreenState extends State<TransportServiceScreen> {
                         border: OutlineInputBorder(),
                       ),
                       items: const [
-                        DropdownMenuItem(value: 'planned', child: Text('Planned')),
-                        DropdownMenuItem(value: 'in_progress', child: Text('In Progress')),
-                        DropdownMenuItem(value: 'completed', child: Text('Completed')),
-                        DropdownMenuItem(value: 'cancelled', child: Text('Cancelled')),
+                        DropdownMenuItem(
+                          value: 'planned',
+                          child: Text('Planned'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'in_progress',
+                          child: Text('In Progress'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'completed',
+                          child: Text('Completed'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'cancelled',
+                          child: Text('Cancelled'),
+                        ),
                       ],
                       onChanged: job['sale_id'] != null
                           ? null
-                          : (value) => setLocalState(() => status = value ?? status),
+                          : (value) =>
+                                setLocalState(() => status = value ?? status),
                     ),
                   if (job != null) const SizedBox(height: 10),
                   TextField(
@@ -571,7 +605,15 @@ class _TransportServiceScreenState extends State<TransportServiceScreen> {
       }
     }
 
-    for (final controller in [from, to, distance, quantity, quantityUnit, rate, notes]) {
+    for (final controller in [
+      from,
+      to,
+      distance,
+      quantity,
+      quantityUnit,
+      rate,
+      notes,
+    ]) {
       controller.dispose();
     }
   }
@@ -591,7 +633,9 @@ class _TransportServiceScreenState extends State<TransportServiceScreen> {
 
   Future<void> _billJob(Map<String, dynamic> job) async {
     if (job['sale_id'] != null) {
-      _message('This service job is already linked to ${job['sale_number'] ?? 'a sale'}.');
+      _message(
+        'This service job is already linked to ${job['sale_number'] ?? 'a sale'}.',
+      );
       return;
     }
     if (job['customer_id'] == null) {
@@ -633,9 +677,18 @@ class _TransportServiceScreenState extends State<TransportServiceScreen> {
                           (product) => SearchableSelectOption<String>(
                             value: product.variantId,
                             label: product.productName,
-                            subtitle: [product.sku, product.barcode, product.partNumber]
-                                .where((v) => v != null && v.toString().trim().isNotEmpty)
-                                .join(' • '),
+                            subtitle:
+                                [
+                                      product.sku,
+                                      product.barcode,
+                                      product.partNumber,
+                                    ]
+                                    .where(
+                                      (v) =>
+                                          v != null &&
+                                          v.toString().trim().isNotEmpty,
+                                    )
+                                    .join(' • '),
                             searchText:
                                 '${product.productName} ${product.variantName} ${product.sku} ${product.barcode ?? ''} ${product.partNumber ?? ''} ${product.searchCodes}',
                           ),
@@ -656,12 +709,20 @@ class _TransportServiceScreenState extends State<TransportServiceScreen> {
                       padding: const EdgeInsets.all(12),
                       child: Row(
                         children: [
-                          Expanded(child: Text('Job amount\n${_money(taxable)}')),
-                          Expanded(child: Text('GST ${selected.taxRate.toStringAsFixed(2)}%')),
+                          Expanded(
+                            child: Text('Job amount\n${_money(taxable)}'),
+                          ),
+                          Expanded(
+                            child: Text(
+                              'GST ${selected.taxRate.toStringAsFixed(2)}%',
+                            ),
+                          ),
                           Expanded(
                             child: Text(
                               'Invoice total\n${_money(invoiceTotal)}',
-                              style: const TextStyle(fontWeight: FontWeight.bold),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ),
                         ],
@@ -686,7 +747,10 @@ class _TransportServiceScreenState extends State<TransportServiceScreen> {
                         DropdownMenuItem(value: 'upi', child: Text('UPI')),
                         DropdownMenuItem(value: 'card', child: Text('Card')),
                         DropdownMenuItem(value: 'bank', child: Text('Bank')),
-                        DropdownMenuItem(value: 'cheque', child: Text('Cheque')),
+                        DropdownMenuItem(
+                          value: 'cheque',
+                          child: Text('Cheque'),
+                        ),
                         DropdownMenuItem(value: 'other', child: Text('Other')),
                       ],
                       onChanged: (value) => setLocalState(
@@ -730,12 +794,16 @@ class _TransportServiceScreenState extends State<TransportServiceScreen> {
           tenantId: _tenantId,
           jobId: job['id'].toString(),
           billingVariantId: selected.variantId,
-          dueDate: paidNow ? null : DateTime.now().add(const Duration(days: 30)),
+          dueDate: paidNow
+              ? null
+              : DateTime.now().add(const Duration(days: 30)),
           initialPayment: paidNow ? invoiceTotal : 0,
           paymentMethod: paidNow ? paymentMethod : 'credit',
           paymentReference: paymentReference,
         );
-        _message('${result['sale_number']} created and linked to ${job['job_number']}.');
+        _message(
+          '${result['sale_number']} created and linked to ${job['job_number']}.',
+        );
         await _load();
       } catch (error) {
         _message(_clean(error));
@@ -821,10 +889,18 @@ class _TransportServiceScreenState extends State<TransportServiceScreen> {
                     ),
                 ],
               ),
-              Text('${vehicle['vehicle_type'] ?? '-'} • ${vehicle['make_model'] ?? '-'}'),
-              Text('Driver: ${vehicle['driver_name'] ?? '-'} • ${vehicle['driver_phone'] ?? '-'}'),
-              Text('Capacity: ${vehicle['capacity'] ?? 0} ${vehicle['capacity_unit'] ?? ''}'),
-              Text('${vehicle['open_jobs'] ?? 0} open jobs • ${active ? 'ACTIVE' : 'INACTIVE'}'),
+              Text(
+                '${vehicle['vehicle_type'] ?? '-'} • ${vehicle['make_model'] ?? '-'}',
+              ),
+              Text(
+                'Driver: ${vehicle['driver_name'] ?? '-'} • ${vehicle['driver_phone'] ?? '-'}',
+              ),
+              Text(
+                'Capacity: ${vehicle['capacity'] ?? 0} ${vehicle['capacity_unit'] ?? ''}',
+              ),
+              Text(
+                '${vehicle['open_jobs'] ?? 0} open jobs • ${active ? 'ACTIVE' : 'INACTIVE'}',
+              ),
             ],
           ),
         ),
@@ -889,7 +965,10 @@ class _TransportServiceScreenState extends State<TransportServiceScreen> {
               children: [
                 Text(
                   _money(job['total_amount']),
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
                 ),
                 const SizedBox(height: 6),
                 Wrap(
@@ -917,9 +996,15 @@ class _TransportServiceScreenState extends State<TransportServiceScreen> {
                       },
                       itemBuilder: (_) => [
                         if (_canManage)
-                          const PopupMenuItem(value: 'edit', child: Text('Edit')),
+                          const PopupMenuItem(
+                            value: 'edit',
+                            child: Text('Edit'),
+                          ),
                         if (_canCreate && !billed && status == 'planned')
-                          const PopupMenuItem(value: 'start', child: Text('Start')),
+                          const PopupMenuItem(
+                            value: 'start',
+                            child: Text('Start'),
+                          ),
                         if (_canCreate &&
                             !billed &&
                             status != 'completed' &&
@@ -929,9 +1014,15 @@ class _TransportServiceScreenState extends State<TransportServiceScreen> {
                             child: Text('Mark completed'),
                           ),
                         if (_canCreate && !billed && status != 'cancelled')
-                          const PopupMenuItem(value: 'cancel', child: Text('Cancel job')),
+                          const PopupMenuItem(
+                            value: 'cancel',
+                            child: Text('Cancel job'),
+                          ),
                         if (_canCreate && !billed)
-                          const PopupMenuItem(value: 'link', child: Text('Link existing sale')),
+                          const PopupMenuItem(
+                            value: 'link',
+                            child: Text('Link existing sale'),
+                          ),
                       ],
                     ),
                   ],
@@ -961,9 +1052,14 @@ class _TransportServiceScreenState extends State<TransportServiceScreen> {
                   children: [
                     Text(
                       'Transport / Service',
-                      style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
-                    Text('Vehicles, jobs, route/distance, customer billing and linked Sales.'),
+                    Text(
+                      'Vehicles, jobs, route/distance, customer billing and linked Sales.',
+                    ),
                   ],
                 ),
               ),
@@ -992,44 +1088,74 @@ class _TransportServiceScreenState extends State<TransportServiceScreen> {
           ),
           if (_error != null) ...[
             const SizedBox(height: 12),
-            Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+            Text(
+              _error!,
+              style: TextStyle(color: Theme.of(context).colorScheme.error),
+            ),
           ],
           const SizedBox(height: 16),
           Wrap(
             spacing: 8,
             runSpacing: 8,
             children: [
-              Chip(label: Text('${_vehicles.where((v) => v['active'] != false).length} active vehicles')),
+              Chip(
+                label: Text(
+                  '${_vehicles.where((v) => v['active'] != false).length} active vehicles',
+                ),
+              ),
               Chip(label: Text('${_jobs.length} visible jobs')),
-              Chip(label: Text('${_jobs.where((j) => j['sale_id'] == null).length} unbilled')),
-              Chip(label: Text(widget.session.device?.locationName ?? 'Selected location')),
+              Chip(
+                label: Text(
+                  '${_jobs.where((j) => j['sale_id'] == null).length} unbilled',
+                ),
+              ),
+              Chip(
+                label: Text(
+                  widget.session.device?.locationName ?? 'Selected location',
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 18),
           Row(
             children: [
               const Expanded(
-                child: Text('Vehicles', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                child: Text(
+                  'Vehicles',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
               ),
               if (_vehicles.isEmpty)
-                const Text('No vehicles yet. Vehicles are optional for service jobs.'),
+                const Text(
+                  'No vehicles yet. Vehicles are optional for service jobs.',
+                ),
             ],
           ),
           if (_vehicles.isNotEmpty) ...[
             const SizedBox(height: 8),
-            Wrap(spacing: 8, runSpacing: 8, children: _vehicles.map(_vehicleCard).toList()),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: _vehicles.map(_vehicleCard).toList(),
+            ),
           ],
           const SizedBox(height: 22),
           Row(
             children: [
               const Expanded(
-                child: Text('Service Jobs', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                child: Text(
+                  'Service Jobs',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
               ),
               SegmentedButton<String>(
                 segments: const [
                   ButtonSegment(value: 'all', label: Text('All')),
                   ButtonSegment(value: 'planned', label: Text('Planned')),
-                  ButtonSegment(value: 'in_progress', label: Text('In progress')),
+                  ButtonSegment(
+                    value: 'in_progress',
+                    label: Text('In progress'),
+                  ),
                   ButtonSegment(value: 'completed', label: Text('Completed')),
                   ButtonSegment(value: 'cancelled', label: Text('Cancelled')),
                 ],
@@ -1046,7 +1172,9 @@ class _TransportServiceScreenState extends State<TransportServiceScreen> {
             const Card(
               child: Padding(
                 padding: EdgeInsets.all(24),
-                child: Center(child: Text('No service jobs found for this filter.')),
+                child: Center(
+                  child: Text('No service jobs found for this filter.'),
+                ),
               ),
             )
           else

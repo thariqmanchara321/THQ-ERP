@@ -158,7 +158,8 @@ class AuditIntelligenceService {
         'p_limit': limit,
       },
     );
-    return _list(raw);
+    final envelope = _map(raw);
+    return _list(envelope['products']);
   }
 
   Future<Map<String, dynamic>> productProfitExplanation({

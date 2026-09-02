@@ -7,8 +7,7 @@ class Money implements Comparable<Money> {
 
   const Money.zero() : minorUnits = 0;
 
-  factory Money.fromDouble(double value) =>
-      Money._((value * 100).round());
+  factory Money.fromDouble(double value) => Money._((value * 100).round());
 
   factory Money.fromMinorUnits(int value) => Money._(value);
 

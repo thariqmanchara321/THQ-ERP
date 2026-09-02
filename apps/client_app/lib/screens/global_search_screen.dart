@@ -118,10 +118,8 @@ class _GlobalSearchScreenState extends State<GlobalSearchScreen> {
     } else if (item.entityType == 'loan') {
       await Navigator.of(context).push(
         MaterialPageRoute(
-          builder: (_) => LoanScreen(
-            session: widget.session,
-            initialLoanId: item.entityId,
-          ),
+          builder: (_) =>
+              LoanScreen(session: widget.session, initialLoanId: item.entityId),
         ),
       );
     } else {

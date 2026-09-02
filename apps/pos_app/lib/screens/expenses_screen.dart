@@ -32,6 +32,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
       to: today,
     );
   }
+
   Future<void> _refresh() async {
     setState(_load);
     await _future;
@@ -434,7 +435,10 @@ class _ExpenseDialogState extends State<_ExpenseDialog> {
                   Expanded(
                     child: TextFormField(
                       controller: _round,
-                      keyboardType: const TextInputType.numberWithOptions(decimal: true, signed: true),
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                        signed: true,
+                      ),
                       decoration: const InputDecoration(
                         labelText: 'Round Off',
                         helperText: 'Post-tax adjustment (-1.00 to 1.00)',
@@ -447,7 +451,11 @@ class _ExpenseDialogState extends State<_ExpenseDialog> {
                     onPressed: () {
                       final before = _n(_amount) + _n(_tax);
                       final delta = before.roundToDouble() - before;
-                      setState(() => _round.text = delta.abs() < 0.000001 ? '0.00' : delta.toStringAsFixed(2));
+                      setState(
+                        () => _round.text = delta.abs() < 0.000001
+                            ? '0.00'
+                            : delta.toStringAsFixed(2),
+                      );
                     },
                     icon: const Icon(Icons.exposure_zero),
                     label: const Text('Round Total'),

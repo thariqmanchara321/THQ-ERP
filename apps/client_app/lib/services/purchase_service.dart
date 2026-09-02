@@ -104,6 +104,33 @@ class PurchaseService {
     }
   }
 
+  Future<Map<String, dynamic>> quotePurchase({
+    required String tenantId,
+    required String supplierId,
+    required DateTime purchaseDate,
+    required List<Map<String, dynamic>> items,
+    required double roundOff,
+    String? locationId,
+  }) async {
+    final origin = await _originParams(tenantId, locationId: locationId);
+    final raw = await _supabase.rpc(
+      'gst_purchase_quote_v520',
+      params: {
+        'p_tenant_id': tenantId,
+        'p_location_id': origin['p_location_id'],
+        'p_supplier_id': supplierId,
+        'p_document_date': _dateOnly(purchaseDate),
+        'p_supply_type': null,
+        'p_place_of_supply_code': null,
+        'p_items': items,
+        'p_additional_charges': 0,
+        'p_round_off': roundOff,
+      },
+    );
+    if (raw is Map) return Map<String, dynamic>.from(raw);
+    throw StateError('Unexpected authoritative GST purchase quote response.');
+  }
+
   Future<PurchaseDetail> getPurchaseDetail({
     required String tenantId,
     required String purchaseId,

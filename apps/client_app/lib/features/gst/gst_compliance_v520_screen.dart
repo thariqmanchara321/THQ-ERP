@@ -1,4 +1,4 @@
-﻿import 'dart:convert';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -29,10 +29,7 @@ class GstComplianceV520Screen extends StatefulWidget {
     return GstComplianceV520Screen(
       key: key,
       title: title,
-      service: GstComplianceV520Service(
-        client: client,
-        tenantId: tenantId,
-      ),
+      service: GstComplianceV520Service(client: client, tenantId: tenantId),
     );
   }
 
@@ -44,8 +41,7 @@ class GstComplianceV520Screen extends StatefulWidget {
       _GstComplianceV520ScreenState();
 }
 
-class _GstComplianceV520ScreenState
-    extends State<GstComplianceV520Screen> {
+class _GstComplianceV520ScreenState extends State<GstComplianceV520Screen> {
   late final GstComplianceV520Controller _controller;
 
   bool _loading = true;
@@ -165,9 +161,7 @@ class _GstComplianceV520ScreenState
         }
         return;
       case 'accounting':
-        if (force ||
-            _accountingHealth == null ||
-            _accountingControl == null) {
+        if (force || _accountingHealth == null || _accountingControl == null) {
           await _loadAccounting();
         }
         return;
@@ -300,10 +294,7 @@ class _GstComplianceV520ScreenState
     }
 
     if (_error != null && !_controller.service.isInitialized) {
-      return _FatalError(
-        error: _error!,
-        onRetry: _loadInitial,
-      );
+      return _FatalError(error: _error!, onRetry: _loadInitial);
     }
 
     final contract = widget.service.uiContract;
@@ -324,13 +315,8 @@ class _GstComplianceV520ScreenState
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     if (wide)
-                      SizedBox(
-                        width: 206,
-                        child: _buildNavigationRail(tabs),
-                      ),
-                    Expanded(
-                      child: _buildContent(),
-                    ),
+                      SizedBox(width: 206, child: _buildNavigationRail(tabs)),
+                    Expanded(child: _buildContent()),
                   ],
                 ),
               ),
@@ -349,12 +335,7 @@ class _GstComplianceV520ScreenState
     return Material(
       elevation: 0.6,
       child: Padding(
-        padding: EdgeInsets.fromLTRB(
-          wide ? 18 : 12,
-          10,
-          wide ? 18 : 12,
-          10,
-        ),
+        padding: EdgeInsets.fromLTRB(wide ? 18 : 12, 10, wide ? 18 : 12, 10),
         child: Wrap(
           spacing: 10,
           runSpacing: 8,
@@ -369,10 +350,9 @@ class _GstComplianceV520ScreenState
                   const SizedBox(width: 8),
                   Text(
                     widget.title,
-                    style: Theme.of(context)
-                        .textTheme
-                        .titleLarge
-                        ?.copyWith(fontWeight: FontWeight.w700),
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                   const SizedBox(width: 8),
                   const _StatusPill(
@@ -397,8 +377,10 @@ class _GstComplianceV520ScreenState
                   labelText: 'Location',
                   isDense: true,
                   border: OutlineInputBorder(),
-                  contentPadding:
-                      EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 10,
+                  ),
                 ),
                 items: [
                   const DropdownMenuItem(
@@ -494,10 +476,7 @@ class _GstComplianceV520ScreenState
                 enabled: tab.enabled && _tabAccessible(tab),
                 child: Row(
                   children: [
-                    Icon(
-                      _tabIcon(tab.key),
-                      size: 18,
-                    ),
+                    Icon(_tabIcon(tab.key), size: 18),
                     const SizedBox(width: 8),
                     Expanded(child: Text(tab.label)),
                     if (!tab.enabled || !_tabAccessible(tab))
@@ -578,13 +557,13 @@ class _GstComplianceV520ScreenState
             children: [
               _MetricCard(
                 label: 'Compliance status',
-                value: blockers.isEmpty ? 'Ready' : '${blockers.length} blocker(s)',
+                value: blockers.isEmpty
+                    ? 'Ready'
+                    : '${blockers.length} blocker(s)',
                 icon: blockers.isEmpty
                     ? Icons.verified_outlined
                     : Icons.warning_amber_outlined,
-                tone: blockers.isEmpty
-                    ? _PillTone.success
-                    : _PillTone.warning,
+                tone: blockers.isEmpty ? _PillTone.success : _PillTone.warning,
               ),
               _MetricCard(
                 label: 'Authoritative documents',
@@ -609,9 +588,7 @@ class _GstComplianceV520ScreenState
               ),
               _MetricCard(
                 label: 'Provider integration',
-                value: _truthy(provider['ready'])
-                    ? 'Ready'
-                    : 'Not enabled',
+                value: _truthy(provider['ready']) ? 'Ready' : 'Not enabled',
                 icon: Icons.cloud_outlined,
                 tone: _truthy(provider['ready'])
                     ? _PillTone.success
@@ -682,8 +659,9 @@ class _GstComplianceV520ScreenState
   }
 
   void _openBlocker(Map<String, dynamic> blocker) {
-    final code = '${blocker['value']} ${blocker['code']} ${blocker['type']} ${blocker['area']}'
-        .toLowerCase();
+    final code =
+        '${blocker['value']} ${blocker['code']} ${blocker['type']} ${blocker['area']}'
+            .toLowerCase();
 
     if (code.contains('registration') || code.contains('location')) {
       _selectTab('registrations');
@@ -754,10 +732,7 @@ class _GstComplianceV520ScreenState
                           _s(row['name']),
                           _s(row['location_type']),
                           _s(row['gstin'], fallback: 'â€”'),
-                          _s(
-                            row['registration_legal_name'],
-                            fallback: 'â€”',
-                          ),
+                          _s(row['registration_legal_name'], fallback: 'â€”'),
                           row['registration_id'] == null
                               ? 'Not mapped'
                               : 'Mapped',
@@ -800,9 +775,7 @@ class _GstComplianceV520ScreenState
     );
   }
 
-  Future<void> _openRegistrationDialog({
-    Map<String, dynamic>? existing,
-  }) async {
+  Future<void> _openRegistrationDialog({Map<String, dynamic>? existing}) async {
     final result = await showDialog<_RegistrationFormValue>(
       context: context,
       builder: (context) => _RegistrationDialog(existing: existing),
@@ -940,9 +913,7 @@ class _GstComplianceV520ScreenState
     );
   }
 
-  Future<void> _openProductDialog({
-    Map<String, dynamic>? existing,
-  }) async {
+  Future<void> _openProductDialog({Map<String, dynamic>? existing}) async {
     Map<String, dynamic>? selectedProduct;
 
     if (existing == null) {
@@ -964,9 +935,7 @@ class _GstComplianceV520ScreenState
           return ListTile(
             dense: true,
             leading: Icon(
-              configured
-                  ? Icons.verified_outlined
-                  : Icons.inventory_2_outlined,
+              configured ? Icons.verified_outlined : Icons.inventory_2_outlined,
             ),
             title: Text(title),
             subtitle: Text(subtitle),
@@ -1019,8 +988,7 @@ class _GstComplianceV520ScreenState
           'Customer and supplier GST registration profiles used by the central v5.2 tax engine.',
       actions: [
         FilledButton.icon(
-          onPressed:
-              widget.service.can('manage') ? _openPartyDialog : null,
+          onPressed: widget.service.can('manage') ? _openPartyDialog : null,
           icon: const Icon(Icons.add, size: 18),
           label: const Text('Configure party'),
         ),
@@ -1082,16 +1050,13 @@ class _GstComplianceV520ScreenState
     );
   }
 
-  Future<void> _openPartyDialog({
-    Map<String, dynamic>? existing,
-  }) async {
+  Future<void> _openPartyDialog({Map<String, dynamic>? existing}) async {
     Map<String, dynamic>? selectedParty;
 
     if (existing == null) {
       selectedParty = await _pickLookupEntity(
         kind: _partyType == 'supplier' ? 'suppliers' : 'customers',
-        title:
-            _partyType == 'supplier' ? 'Select supplier' : 'Select customer',
+        title: _partyType == 'supplier' ? 'Select supplier' : 'Select customer',
         itemBuilder: (row) {
           return ListTile(
             dense: true,
@@ -1309,10 +1274,9 @@ class _GstComplianceV520ScreenState
                     ? () async {
                         _transactionOffset =
                             (_transactionOffset - _transactionPageSize)
-                                .clamp(0, 1 << 31).toInt();
-                        await _guard(
-                          () => _loadTransactions(resetPage: false),
-                        );
+                                .clamp(0, 1 << 31)
+                                .toInt();
+                        await _guard(() => _loadTransactions(resetPage: false));
                       }
                     : null,
                 icon: const Icon(Icons.chevron_left),
@@ -1323,9 +1287,7 @@ class _GstComplianceV520ScreenState
                 onPressed: canNext
                     ? () async {
                         _transactionOffset += _transactionPageSize;
-                        await _guard(
-                          () => _loadTransactions(resetPage: false),
-                        );
+                        await _guard(() => _loadTransactions(resetPage: false));
                       }
                     : null,
                 icon: const Icon(Icons.chevron_right),
@@ -1336,7 +1298,7 @@ class _GstComplianceV520ScreenState
                 total == 0
                     ? '0'
                     : '${_transactionOffset + 1}'
-                        'â€“${_transactionOffset + items.length} of $total',
+                          'â€“${_transactionOffset + items.length} of $total',
               ),
             ],
           ),
@@ -1346,14 +1308,8 @@ class _GstComplianceV520ScreenState
   }
 
   Future<void> _openEvidence(Map<String, dynamic> row) async {
-    final sourceType = _firstText(
-      row,
-      ['source_type', 'document_type'],
-    );
-    final sourceId = _firstText(
-      row,
-      ['source_id', 'id'],
-    );
+    final sourceType = _firstText(row, ['source_type', 'document_type']);
+    final sourceId = _firstText(row, ['source_id', 'id']);
 
     if (sourceType.isEmpty || sourceId.isEmpty) {
       _toast('Document evidence reference is incomplete.');
@@ -1426,10 +1382,7 @@ class _GstComplianceV520ScreenState
       subtitle:
           'Statutory preview only. Filing/submission is not enabled in this phase.',
       actions: const [
-        _StatusPill(
-          label: 'Preview only',
-          tone: _PillTone.warning,
-        ),
+        _StatusPill(label: 'Preview only', tone: _PillTone.warning),
       ],
       child: data == null
           ? const Center(child: CircularProgressIndicator())
@@ -1536,9 +1489,9 @@ class _GstComplianceV520ScreenState
 
   void _toast(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.maybeOf(context)?.showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    ScaffoldMessenger.maybeOf(
+      context,
+    )?.showSnackBar(SnackBar(content: Text(message)));
   }
 
   Map<String, dynamic>? _locationById(String? id) {
@@ -1589,9 +1542,7 @@ class _Page extends StatelessWidget {
                     children: [
                       Text(
                         title,
-                        style: Theme.of(context)
-                            .textTheme
-                            .titleMedium
+                        style: Theme.of(context).textTheme.titleMedium
                             ?.copyWith(fontWeight: FontWeight.w700),
                       ),
                       const SizedBox(height: 2),
@@ -1605,10 +1556,7 @@ class _Page extends StatelessWidget {
                 ...actions,
               ],
             ),
-            if (filters != null) ...[
-              const SizedBox(height: 12),
-              filters!,
-            ],
+            if (filters != null) ...[const SizedBox(height: 12), filters!],
             const SizedBox(height: 12),
             child,
           ],
@@ -1638,9 +1586,7 @@ class _NavTile extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
 
     return Material(
-      color: selected
-          ? scheme.secondaryContainer
-          : Colors.transparent,
+      color: selected ? scheme.secondaryContainer : Colors.transparent,
       borderRadius: BorderRadius.circular(8),
       child: InkWell(
         borderRadius: BorderRadius.circular(8),
@@ -1662,8 +1608,7 @@ class _NavTile extends StatelessWidget {
                   label,
                   style: TextStyle(
                     fontSize: 13,
-                    fontWeight:
-                        selected ? FontWeight.w700 : FontWeight.w500,
+                    fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
                     color: locked
                         ? scheme.onSurfaceVariant.withValues(alpha: 0.55)
                         : null,
@@ -1691,10 +1636,7 @@ class _NavTile extends StatelessWidget {
 enum _PillTone { success, warning, info, neutral, error }
 
 class _StatusPill extends StatelessWidget {
-  const _StatusPill({
-    required this.label,
-    required this.tone,
-  });
+  const _StatusPill({required this.label, required this.tone});
 
   final String label;
   final _PillTone tone;
@@ -1703,26 +1645,20 @@ class _StatusPill extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final (background, foreground) = switch (tone) {
-      _PillTone.success => (
-          scheme.primaryContainer,
-          scheme.onPrimaryContainer,
-        ),
+      _PillTone.success => (scheme.primaryContainer, scheme.onPrimaryContainer),
       _PillTone.warning => (
-          scheme.tertiaryContainer,
-          scheme.onTertiaryContainer,
-        ),
+        scheme.tertiaryContainer,
+        scheme.onTertiaryContainer,
+      ),
       _PillTone.info => (
-          scheme.secondaryContainer,
-          scheme.onSecondaryContainer,
-        ),
-      _PillTone.error => (
-          scheme.errorContainer,
-          scheme.onErrorContainer,
-        ),
+        scheme.secondaryContainer,
+        scheme.onSecondaryContainer,
+      ),
+      _PillTone.error => (scheme.errorContainer, scheme.onErrorContainer),
       _PillTone.neutral => (
-          scheme.surfaceContainerHighest,
-          scheme.onSurfaceVariant,
-        ),
+        scheme.surfaceContainerHighest,
+        scheme.onSurfaceVariant,
+      ),
     };
 
     return Container(
@@ -1771,10 +1707,9 @@ class _MetricCard extends StatelessWidget {
                 const SizedBox(height: 3),
                 Text(
                   value,
-                  style: Theme.of(context)
-                      .textTheme
-                      .titleMedium
-                      ?.copyWith(fontWeight: FontWeight.w800),
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
               ],
             ),
@@ -1807,17 +1742,15 @@ class _ResponsiveCards extends StatelessWidget {
         final columns = constraints.maxWidth >= 1180
             ? 4
             : constraints.maxWidth >= 700
-                ? 2
-                : 1;
-        final width =
-            (constraints.maxWidth - ((columns - 1) * 10)) / columns;
+            ? 2
+            : 1;
+        final width = (constraints.maxWidth - ((columns - 1) * 10)) / columns;
 
         return Wrap(
           spacing: 10,
           runSpacing: 10,
           children: [
-            for (final child in children)
-              SizedBox(width: width, child: child),
+            for (final child in children) SizedBox(width: width, child: child),
           ],
         );
       },
@@ -1826,10 +1759,7 @@ class _ResponsiveCards extends StatelessWidget {
 }
 
 class _TwoColumn extends StatelessWidget {
-  const _TwoColumn({
-    required this.left,
-    required this.right,
-  });
+  const _TwoColumn({required this.left, required this.right});
 
   final Widget left;
   final Widget right;
@@ -1839,13 +1769,7 @@ class _TwoColumn extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         if (constraints.maxWidth < 820) {
-          return Column(
-            children: [
-              left,
-              const SizedBox(height: 12),
-              right,
-            ],
-          );
+          return Column(children: [left, const SizedBox(height: 12), right]);
         }
 
         return Row(
@@ -1984,10 +1908,7 @@ class _EmptyState extends StatelessWidget {
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.bodySmall,
           ),
-          if (action != null) ...[
-            const SizedBox(height: 12),
-            action!,
-          ],
+          if (action != null) ...[const SizedBox(height: 12), action!],
         ],
       ),
     );
@@ -1995,10 +1916,7 @@ class _EmptyState extends StatelessWidget {
 }
 
 class _CompactTable extends StatelessWidget {
-  const _CompactTable({
-    required this.columns,
-    required this.rows,
-  });
+  const _CompactTable({required this.columns, required this.rows});
 
   final List<String> columns;
   final List<List<String>> rows;
@@ -2153,9 +2071,7 @@ class _JsonList extends StatelessWidget {
             margin: const EdgeInsets.only(bottom: 7),
             padding: const EdgeInsets.all(9),
             decoration: BoxDecoration(
-              border: Border.all(
-                color: Theme.of(context).dividerColor,
-              ),
+              border: Border.all(color: Theme.of(context).dividerColor),
               borderRadius: BorderRadius.circular(7),
             ),
             child: _KeyValueMap(data: row),
@@ -2220,26 +2136,25 @@ class _SearchBarState extends State<_SearchBar> {
 // =============================================================================
 
 class _BlockerTile extends StatelessWidget {
-  const _BlockerTile({
-    required this.blocker,
-    required this.onOpen,
-  });
+  const _BlockerTile({required this.blocker, required this.onOpen});
 
   final Map<String, dynamic> blocker;
   final VoidCallback onOpen;
 
   @override
   Widget build(BuildContext context) {
-    final title = _firstText(
-      blocker,
-      ['message', 'title', 'code', 'type', 'value'],
-      fallback: 'GST readiness blocker',
-    );
-    final detail = _firstText(
-      blocker,
-      ['detail', 'hint', 'area'],
-      fallback: '',
-    );
+    final title = _firstText(blocker, [
+      'message',
+      'title',
+      'code',
+      'type',
+      'value',
+    ], fallback: 'GST readiness blocker');
+    final detail = _firstText(blocker, [
+      'detail',
+      'hint',
+      'area',
+    ], fallback: '');
 
     return ListTile(
       dense: true,
@@ -2258,11 +2173,7 @@ class _BlockerTile extends StatelessWidget {
 // =============================================================================
 
 class _RegistrationCard extends StatelessWidget {
-  const _RegistrationCard({
-    required this.row,
-    this.onEdit,
-    this.onConfig,
-  });
+  const _RegistrationCard({required this.row, this.onEdit, this.onConfig});
 
   final Map<String, dynamic> row;
   final VoidCallback? onEdit;
@@ -2271,11 +2182,10 @@ class _RegistrationCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final gstin = _firstText(row, ['gstin']);
-    final name = _firstText(
-      row,
-      ['legal_name', 'trade_name'],
-      fallback: 'GST Registration',
-    );
+    final name = _firstText(row, [
+      'legal_name',
+      'trade_name',
+    ], fallback: 'GST Registration');
     final active = row['active'] != false;
 
     return Card(
@@ -2293,8 +2203,7 @@ class _RegistrationCard extends StatelessWidget {
             ),
             _StatusPill(
               label: active ? 'Active' : 'Inactive',
-              tone:
-                  active ? _PillTone.success : _PillTone.neutral,
+              tone: active ? _PillTone.success : _PillTone.neutral,
             ),
           ],
         ),
@@ -2331,8 +2240,7 @@ class _RegistrationDialog extends StatefulWidget {
   final Map<String, dynamic>? existing;
 
   @override
-  State<_RegistrationDialog> createState() =>
-      _RegistrationDialogState();
+  State<_RegistrationDialog> createState() => _RegistrationDialogState();
 }
 
 class _RegistrationDialogState extends State<_RegistrationDialog> {
@@ -2373,21 +2281,20 @@ class _RegistrationDialogState extends State<_RegistrationDialog> {
     final row = widget.existing ?? const <String, dynamic>{};
 
     _gstin = TextEditingController(text: _s(row['gstin'], fallback: ''));
-    _legal =
-        TextEditingController(text: _s(row['legal_name'], fallback: ''));
-    _trade =
-        TextEditingController(text: _s(row['trade_name'], fallback: ''));
-    _state =
-        TextEditingController(text: _s(row['state_code'], fallback: ''));
-    _address1 =
-        TextEditingController(text: _s(row['address_line1'], fallback: ''));
-    _address2 =
-        TextEditingController(text: _s(row['address_line2'], fallback: ''));
+    _legal = TextEditingController(text: _s(row['legal_name'], fallback: ''));
+    _trade = TextEditingController(text: _s(row['trade_name'], fallback: ''));
+    _state = TextEditingController(text: _s(row['state_code'], fallback: ''));
+    _address1 = TextEditingController(
+      text: _s(row['address_line1'], fallback: ''),
+    );
+    _address2 = TextEditingController(
+      text: _s(row['address_line2'], fallback: ''),
+    );
     _city = TextEditingController(text: _s(row['city'], fallback: ''));
-    _postal =
-        TextEditingController(text: _s(row['postal_code'], fallback: ''));
-    _provider =
-        TextEditingController(text: _s(row['provider_key'], fallback: ''));
+    _postal = TextEditingController(text: _s(row['postal_code'], fallback: ''));
+    _provider = TextEditingController(
+      text: _s(row['provider_key'], fallback: ''),
+    );
 
     final type = _s(row['registration_type'], fallback: 'regular');
     _type = _types.contains(type) ? type : 'regular';
@@ -2395,8 +2302,7 @@ class _RegistrationDialogState extends State<_RegistrationDialog> {
     _ewaybill = _truthy(row['ewaybill_enabled']);
     _returns = row['returns_enabled'] != false;
     _active = row['active'] != false;
-    _effectiveFrom =
-        _tryDate(row['effective_from']) ?? DateTime.now();
+    _effectiveFrom = _tryDate(row['effective_from']) ?? DateTime.now();
   }
 
   @override
@@ -2421,7 +2327,9 @@ class _RegistrationDialogState extends State<_RegistrationDialog> {
   Widget build(BuildContext context) {
     return AlertDialog(
       title: Text(
-        widget.existing == null ? 'Add GST registration' : 'Edit GST registration',
+        widget.existing == null
+            ? 'Add GST registration'
+            : 'Edit GST registration',
       ),
       content: SizedBox(
         width: 680,
@@ -2466,11 +2374,7 @@ class _RegistrationDialogState extends State<_RegistrationDialog> {
                   label: 'Legal name',
                   validator: _required,
                 ),
-                _field(
-                  width: 210,
-                  controller: _trade,
-                  label: 'Trade name',
-                ),
+                _field(width: 210, controller: _trade, label: 'Trade name'),
                 _field(
                   width: 150,
                   controller: _state,
@@ -2499,16 +2403,8 @@ class _RegistrationDialogState extends State<_RegistrationDialog> {
                   controller: _address2,
                   label: 'Address line 2',
                 ),
-                _field(
-                  width: 210,
-                  controller: _city,
-                  label: 'City',
-                ),
-                _field(
-                  width: 210,
-                  controller: _postal,
-                  label: 'Postal code',
-                ),
+                _field(width: 210, controller: _city, label: 'City'),
+                _field(width: 210, controller: _postal, label: 'Postal code'),
                 _field(
                   width: 210,
                   controller: _provider,
@@ -2535,14 +2431,12 @@ class _RegistrationDialogState extends State<_RegistrationDialog> {
                       FilterChip(
                         selected: _returns,
                         label: const Text('GST Returns'),
-                        onSelected: (value) =>
-                            setState(() => _returns = value),
+                        onSelected: (value) => setState(() => _returns = value),
                       ),
                       FilterChip(
                         selected: _active,
                         label: const Text('Active'),
-                        onSelected: (value) =>
-                            setState(() => _active = value),
+                        onSelected: (value) => setState(() => _active = value),
                       ),
                     ],
                   ),
@@ -2565,10 +2459,7 @@ class _RegistrationDialogState extends State<_RegistrationDialog> {
           onPressed: () => Navigator.pop(context),
           child: const Text('Cancel'),
         ),
-        FilledButton(
-          onPressed: _submit,
-          child: const Text('Save'),
-        ),
+        FilledButton(onPressed: _submit, child: const Text('Save')),
       ],
     );
   }
@@ -2606,10 +2497,10 @@ class _RegistrationDialogState extends State<_RegistrationDialog> {
       context,
       _RegistrationFormValue(
         id: _emptyToNull(
-          _firstText(
-            widget.existing ?? const <String, dynamic>{},
-            ['id', 'registration_id'],
-          ),
+          _firstText(widget.existing ?? const <String, dynamic>{}, [
+            'id',
+            'registration_id',
+          ]),
         ),
         gstin: _gstin.text.trim(),
         legalName: _legal.text.trim(),
@@ -2679,12 +2570,10 @@ class _LocationMappingDialog extends StatefulWidget {
   final List<Map<String, dynamic>> registrations;
 
   @override
-  State<_LocationMappingDialog> createState() =>
-      _LocationMappingDialogState();
+  State<_LocationMappingDialog> createState() => _LocationMappingDialogState();
 }
 
-class _LocationMappingDialogState
-    extends State<_LocationMappingDialog> {
+class _LocationMappingDialogState extends State<_LocationMappingDialog> {
   String? _locationId;
   String? _registrationId;
   DateTime _effectiveFrom = DateTime.now();
@@ -2734,8 +2623,7 @@ class _LocationMappingDialogState
                     ),
                   ),
               ],
-              onChanged: (value) =>
-                  setState(() => _registrationId = value),
+              onChanged: (value) => setState(() => _registrationId = value),
             ),
             const SizedBox(height: 10),
             _DateField(
@@ -2789,26 +2677,19 @@ class _LocationMappingValue {
 // =============================================================================
 
 class _ProductProfileCard extends StatelessWidget {
-  const _ProductProfileCard({
-    required this.row,
-    this.onEdit,
-  });
+  const _ProductProfileCard({required this.row, this.onEdit});
 
   final Map<String, dynamic> row;
   final VoidCallback? onEdit;
 
   @override
   Widget build(BuildContext context) {
-    final name = _firstText(
-      row,
-      ['product_name', 'name', 'variant_name'],
-      fallback: 'Product',
-    );
-    final variant = _firstText(
-      row,
-      ['variant_name'],
-      fallback: '',
-    );
+    final name = _firstText(row, [
+      'product_name',
+      'name',
+      'variant_name',
+    ], fallback: 'Product');
+    final variant = _firstText(row, ['variant_name'], fallback: '');
 
     return Card(
       margin: const EdgeInsets.only(bottom: 7),
@@ -2824,11 +2705,9 @@ class _ProductProfileCard extends StatelessWidget {
               ),
             ),
             _StatusPill(
-              label: _firstText(
-                row,
-                ['validation_status'],
-                fallback: 'configured',
-              ),
+              label: _firstText(row, [
+                'validation_status',
+              ], fallback: 'configured'),
               tone: _validationTone(row['validation_status']),
             ),
           ],
@@ -2894,12 +2773,10 @@ class _ProductGstDialogState extends State<_ProductGstDialog> {
   @override
   void initState() {
     super.initState();
-    final row = widget.existing ?? widget.selectedProduct ?? const <String, dynamic>{};
+    final row =
+        widget.existing ?? widget.selectedProduct ?? const <String, dynamic>{};
 
-    _variantId = _firstText(
-      row,
-      ['variant_id'],
-    );
+    _variantId = _firstText(row, ['variant_id']);
     _productLabel = [
       _firstText(row, ['product_name', 'name'], fallback: 'Product'),
       _firstText(row, ['variant_name'], fallback: ''),
@@ -2908,27 +2785,21 @@ class _ProductGstDialogState extends State<_ProductGstDialog> {
     _supplyKind = ['goods', 'service'].contains(row['supply_kind'])
         ? row['supply_kind'].toString()
         : (_s(row['item_type']).toLowerCase() == 'service'
-            ? 'service'
-            : 'goods');
+              ? 'service'
+              : 'goods');
     _taxability = _taxabilityValues.contains(row['taxability'])
         ? row['taxability'].toString()
         : 'taxable';
 
-    _hsn = TextEditingController(
-      text: _s(row['hsn_sac'], fallback: ''),
-    );
-    _gstRate = TextEditingController(
-      text: _number(row['gst_rate']).toString(),
-    );
+    _hsn = TextEditingController(text: _s(row['hsn_sac'], fallback: ''));
+    _gstRate = TextEditingController(text: _number(row['gst_rate']).toString());
     _cessRate = TextEditingController(
       text: _number(row['cess_rate']).toString(),
     );
     _cessPerUnit = TextEditingController(
       text: _number(row['cess_per_unit']).toString(),
     );
-    _notes = TextEditingController(
-      text: _s(row['notes'], fallback: ''),
-    );
+    _notes = TextEditingController(text: _s(row['notes'], fallback: ''));
 
     _taxInclusive = _truthy(row['tax_inclusive']);
     _reverseCharge = _truthy(row['reverse_charge']);
@@ -2975,10 +2846,7 @@ class _ProductGstDialogState extends State<_ProductGstDialog> {
                       isDense: true,
                     ),
                     items: const [
-                      DropdownMenuItem(
-                        value: 'goods',
-                        child: Text('Goods'),
-                      ),
+                      DropdownMenuItem(value: 'goods', child: Text('Goods')),
                       DropdownMenuItem(
                         value: 'service',
                         child: Text('Service'),
@@ -3030,8 +2898,7 @@ class _ProductGstDialogState extends State<_ProductGstDialog> {
                       return 'Required';
                     }
                     if (text.isNotEmpty &&
-                        !RegExp(r'^\d{4}(\d{2})?(\d{2})?$')
-                            .hasMatch(text)) {
+                        !RegExp(r'^\d{4}(\d{2})?(\d{2})?$').hasMatch(text)) {
                       return 'Use 4, 6 or 8 digits';
                     }
                     return null;
@@ -3062,8 +2929,7 @@ class _ProductGstDialogState extends State<_ProductGstDialog> {
                   width: 210,
                   label: 'Effective from',
                   value: _effectiveFrom,
-                  onChanged: (date) =>
-                      setState(() => _effectiveFrom = date),
+                  onChanged: (date) => setState(() => _effectiveFrom = date),
                 ),
                 SizedBox(
                   width: 640,
@@ -3074,8 +2940,7 @@ class _ProductGstDialogState extends State<_ProductGstDialog> {
                         selected: _taxInclusive,
                         label: const Text('Tax inclusive'),
                         onSelected: _taxability == 'taxable'
-                            ? (value) =>
-                                setState(() => _taxInclusive = value)
+                            ? (value) => setState(() => _taxInclusive = value)
                             : null,
                       ),
                       FilterChip(
@@ -3118,10 +2983,7 @@ class _ProductGstDialogState extends State<_ProductGstDialog> {
           onPressed: () => Navigator.pop(context),
           child: const Text('Cancel'),
         ),
-        FilledButton(
-          onPressed: _submit,
-          child: const Text('Save'),
-        ),
+        FilledButton(onPressed: _submit, child: const Text('Save')),
       ],
     );
   }
@@ -3139,8 +3001,9 @@ class _ProductGstDialogState extends State<_ProductGstDialog> {
         controller: controller,
         validator: validator,
         enabled: enabled,
-        keyboardType:
-            numeric ? const TextInputType.numberWithOptions(decimal: true) : null,
+        keyboardType: numeric
+            ? const TextInputType.numberWithOptions(decimal: true)
+            : null,
         decoration: InputDecoration(
           labelText: label,
           border: const OutlineInputBorder(),
@@ -3221,21 +3084,18 @@ class _ProductGstFormValue {
 // =============================================================================
 
 class _PartyProfileCard extends StatelessWidget {
-  const _PartyProfileCard({
-    required this.row,
-    this.onEdit,
-  });
+  const _PartyProfileCard({required this.row, this.onEdit});
 
   final Map<String, dynamic> row;
   final VoidCallback? onEdit;
 
   @override
   Widget build(BuildContext context) {
-    final name = _firstText(
-      row,
-      ['party_name', 'legal_name', 'trade_name'],
-      fallback: 'Party',
-    );
+    final name = _firstText(row, [
+      'party_name',
+      'legal_name',
+      'trade_name',
+    ], fallback: 'Party');
 
     return Card(
       margin: const EdgeInsets.only(bottom: 7),
@@ -3256,11 +3116,9 @@ class _PartyProfileCard extends StatelessWidget {
               ),
             ),
             _StatusPill(
-              label: _firstText(
-                row,
-                ['validation_status'],
-                fallback: 'configured',
-              ),
+              label: _firstText(row, [
+                'validation_status',
+              ], fallback: 'configured'),
               tone: _validationTone(row['validation_status']),
             ),
           ],
@@ -3268,11 +3126,7 @@ class _PartyProfileCard extends StatelessWidget {
         subtitle: Text(
           [
             _labelize(
-              _firstText(
-                row,
-                ['registration_type'],
-                fallback: 'unregistered',
-              ),
+              _firstText(row, ['registration_type'], fallback: 'unregistered'),
             ),
             _firstText(row, ['gstin'], fallback: ''),
             _firstText(row, ['state_code'], fallback: ''),
@@ -3343,37 +3197,24 @@ class _PartyGstDialogState extends State<_PartyGstDialog> {
   @override
   void initState() {
     super.initState();
-    final row = widget.existing ?? widget.selectedParty ?? const <String, dynamic>{};
+    final row =
+        widget.existing ?? widget.selectedParty ?? const <String, dynamic>{};
 
     _partyId = _firstText(row, ['party_id']);
-    _partyName = _firstText(
-      row,
-      ['party_name', 'name'],
-      fallback: 'Party',
-    );
-    _partyType = _firstText(
-      row,
-      ['party_type'],
-      fallback: 'customer',
-    );
+    _partyName = _firstText(row, ['party_name', 'name'], fallback: 'Party');
+    _partyType = _firstText(row, ['party_type'], fallback: 'customer');
 
-    final regType = _firstText(
-      row,
-      ['registration_type'],
-      fallback: 'unregistered',
-    );
+    final regType = _firstText(row, [
+      'registration_type',
+    ], fallback: 'unregistered');
     _registrationType = _registrationTypes.contains(regType)
         ? regType
         : 'unregistered';
 
-    _gstin =
-        TextEditingController(text: _s(row['gstin'], fallback: ''));
-    _legal =
-        TextEditingController(text: _s(row['legal_name'], fallback: ''));
-    _trade =
-        TextEditingController(text: _s(row['trade_name'], fallback: ''));
-    _state =
-        TextEditingController(text: _s(row['state_code'], fallback: ''));
+    _gstin = TextEditingController(text: _s(row['gstin'], fallback: ''));
+    _legal = TextEditingController(text: _s(row['legal_name'], fallback: ''));
+    _trade = TextEditingController(text: _s(row['trade_name'], fallback: ''));
+    _state = TextEditingController(text: _s(row['state_code'], fallback: ''));
     _pos = TextEditingController(
       text: _s(row['place_of_supply_code'], fallback: ''),
     );
@@ -3383,14 +3224,9 @@ class _PartyGstDialogState extends State<_PartyGstDialog> {
     _address2 = TextEditingController(
       text: _s(row['address_line2'], fallback: ''),
     );
-    _city =
-        TextEditingController(text: _s(row['city'], fallback: ''));
-    _postal = TextEditingController(
-      text: _s(row['postal_code'], fallback: ''),
-    );
-    _country = TextEditingController(
-      text: _s(row['country'], fallback: 'IN'),
-    );
+    _city = TextEditingController(text: _s(row['city'], fallback: ''));
+    _postal = TextEditingController(text: _s(row['postal_code'], fallback: ''));
+    _country = TextEditingController(text: _s(row['country'], fallback: 'IN'));
     _active = row['active'] != false;
   }
 
@@ -3473,26 +3309,10 @@ class _PartyGstDialogState extends State<_PartyGstDialog> {
                     return null;
                   },
                 ),
-                _field(
-                  width: 320,
-                  controller: _legal,
-                  label: 'Legal name',
-                ),
-                _field(
-                  width: 320,
-                  controller: _trade,
-                  label: 'Trade name',
-                ),
-                _field(
-                  width: 200,
-                  controller: _state,
-                  label: 'State code',
-                ),
-                _field(
-                  width: 200,
-                  controller: _pos,
-                  label: 'Place of supply',
-                ),
+                _field(width: 320, controller: _legal, label: 'Legal name'),
+                _field(width: 320, controller: _trade, label: 'Trade name'),
+                _field(width: 200, controller: _state, label: 'State code'),
+                _field(width: 200, controller: _pos, label: 'Place of supply'),
                 _field(
                   width: 320,
                   controller: _address1,
@@ -3503,28 +3323,15 @@ class _PartyGstDialogState extends State<_PartyGstDialog> {
                   controller: _address2,
                   label: 'Address line 2',
                 ),
-                _field(
-                  width: 210,
-                  controller: _city,
-                  label: 'City',
-                ),
-                _field(
-                  width: 210,
-                  controller: _postal,
-                  label: 'Postal code',
-                ),
-                _field(
-                  width: 150,
-                  controller: _country,
-                  label: 'Country',
-                ),
+                _field(width: 210, controller: _city, label: 'City'),
+                _field(width: 210, controller: _postal, label: 'Postal code'),
+                _field(width: 150, controller: _country, label: 'Country'),
                 SizedBox(
                   width: 650,
                   child: FilterChip(
                     selected: _active,
                     label: const Text('Active'),
-                    onSelected: (value) =>
-                        setState(() => _active = value),
+                    onSelected: (value) => setState(() => _active = value),
                   ),
                 ),
               ],
@@ -3537,10 +3344,7 @@ class _PartyGstDialogState extends State<_PartyGstDialog> {
           onPressed: () => Navigator.pop(context),
           child: const Text('Cancel'),
         ),
-        FilledButton(
-          onPressed: _submit,
-          child: const Text('Save'),
-        ),
+        FilledButton(onPressed: _submit, child: const Text('Save')),
       ],
     );
   }
@@ -3577,10 +3381,10 @@ class _PartyGstDialogState extends State<_PartyGstDialog> {
       context,
       _PartyGstFormValue(
         id: _emptyToNull(
-          _firstText(
-            widget.existing ?? const <String, dynamic>{},
-            ['id', 'profile_id'],
-          ),
+          _firstText(widget.existing ?? const <String, dynamic>{}, [
+            'id',
+            'profile_id',
+          ]),
         ),
         partyType: _partyType,
         partyId: _partyId,
@@ -3724,9 +3528,7 @@ class _LookupDialogState extends State<_LookupDialog> {
                 padding: const EdgeInsets.only(top: 8),
                 child: Text(
                   _error.toString(),
-                  style: TextStyle(
-                    color: Theme.of(context).colorScheme.error,
-                  ),
+                  style: TextStyle(color: Theme.of(context).colorScheme.error),
                 ),
               ),
             const SizedBox(height: 8),
@@ -3767,57 +3569,47 @@ class _LookupDialogState extends State<_LookupDialog> {
 // =============================================================================
 
 class _TransactionTile extends StatelessWidget {
-  const _TransactionTile({
-    required this.row,
-    required this.onOpen,
-  });
+  const _TransactionTile({required this.row, required this.onOpen});
 
   final Map<String, dynamic> row;
   final VoidCallback onOpen;
 
   @override
   Widget build(BuildContext context) {
-    final evidence = _firstText(
-      row,
-      ['evidence_status', 'evidence_type', 'status'],
-      fallback: 'unknown',
-    );
-    final authoritative =
-        evidence.toLowerCase().contains('authoritative');
+    final evidence = _firstText(row, [
+      'evidence_status',
+      'evidence_type',
+      'status',
+    ], fallback: 'unknown');
+    final authoritative = evidence.toLowerCase().contains('authoritative');
 
-    final number = _firstText(
-      row,
-      [
-        'document_number',
-        'source_number',
-        'invoice_number',
-        'number',
-      ],
-      fallback: 'Document',
-    );
-    final type = _firstText(
-      row,
-      ['source_type', 'document_type'],
-      fallback: '',
-    );
-    final date = _firstText(
-      row,
-      ['document_date', 'source_date', 'date'],
-      fallback: '',
-    );
+    final number = _firstText(row, [
+      'document_number',
+      'source_number',
+      'invoice_number',
+      'number',
+    ], fallback: 'Document');
+    final type = _firstText(row, [
+      'source_type',
+      'document_type',
+    ], fallback: '');
+    final date = _firstText(row, [
+      'document_date',
+      'source_date',
+      'date',
+    ], fallback: '');
 
-    final taxable = _firstNumber(
-      row,
-      ['taxable_value', 'taxable_total', 'subtotal'],
-    );
-    final tax = _firstNumber(
-      row,
-      ['tax_total', 'gst_total', 'collected_tax_total'],
-    );
-    final total = _firstNumber(
-      row,
-      ['grand_total', 'total'],
-    );
+    final taxable = _firstNumber(row, [
+      'taxable_value',
+      'taxable_total',
+      'subtotal',
+    ]);
+    final tax = _firstNumber(row, [
+      'tax_total',
+      'gst_total',
+      'collected_tax_total',
+    ]);
+    final total = _firstNumber(row, ['grand_total', 'total']);
 
     return Card(
       margin: const EdgeInsets.only(bottom: 6),
@@ -3826,9 +3618,7 @@ class _TransactionTile extends StatelessWidget {
         dense: true,
         onTap: onOpen,
         leading: Icon(
-          authoritative
-              ? Icons.verified_outlined
-              : Icons.history_outlined,
+          authoritative ? Icons.verified_outlined : Icons.history_outlined,
         ),
         title: Row(
           children: [
@@ -3840,9 +3630,7 @@ class _TransactionTile extends StatelessWidget {
             ),
             _StatusPill(
               label: authoritative ? 'Authoritative' : 'Legacy unverified',
-              tone: authoritative
-                  ? _PillTone.success
-                  : _PillTone.warning,
+              tone: authoritative ? _PillTone.success : _PillTone.warning,
             ),
           ],
         ),
@@ -3920,8 +3708,18 @@ class _EvidenceDialog extends StatelessWidget {
     final parsed = DateTime.tryParse(value);
     if (parsed == null) return value.isEmpty ? 'â€”' : value;
     const months = <String>[
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
     return '${parsed.day.toString().padLeft(2, '0')} '
         '${months[parsed.month - 1]} ${parsed.year}';
@@ -3956,16 +3754,16 @@ class _EvidenceDialog extends StatelessWidget {
                 Text(
                   title,
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w800,
-                      ),
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
                 if (subtitle != null) ...[
                   const SizedBox(height: 2),
                   Text(
                     subtitle,
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: scheme.onSurfaceVariant,
-                        ),
+                      color: scheme.onSurfaceVariant,
+                    ),
                   ),
                 ],
               ],
@@ -3990,7 +3788,9 @@ class _EvidenceDialog extends StatelessWidget {
         decoration: BoxDecoration(
           color: scheme.surfaceContainerLow,
           borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: scheme.outlineVariant.withValues(alpha: .6)),
+          border: Border.all(
+            color: scheme.outlineVariant.withValues(alpha: .6),
+          ),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -3998,9 +3798,9 @@ class _EvidenceDialog extends StatelessWidget {
             Text(
               label,
               style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: scheme.onSurfaceVariant,
-                    fontWeight: FontWeight.w700,
-                  ),
+                color: scheme.onSurfaceVariant,
+                fontWeight: FontWeight.w700,
+              ),
             ),
             const SizedBox(height: 4),
             SelectableText(
@@ -4034,7 +3834,9 @@ class _EvidenceDialog extends StatelessWidget {
               ? scheme.primaryContainer.withValues(alpha: .48)
               : scheme.surfaceContainerLow,
           borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: scheme.outlineVariant.withValues(alpha: .55)),
+          border: Border.all(
+            color: scheme.outlineVariant.withValues(alpha: .55),
+          ),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -4042,16 +3844,16 @@ class _EvidenceDialog extends StatelessWidget {
             Text(
               label,
               style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: scheme.onSurfaceVariant,
-                    fontWeight: FontWeight.w700,
-                  ),
+                color: scheme.onSurfaceVariant,
+                fontWeight: FontWeight.w700,
+              ),
             ),
             const SizedBox(height: 4),
             Text(
               _money(value),
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w900,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w900),
             ),
           ],
         ),
@@ -4059,17 +3861,11 @@ class _EvidenceDialog extends StatelessWidget {
     );
   }
 
-  Widget _snapshotSummary(
-    BuildContext context,
-    Map<String, dynamic> snapshot,
-  ) {
+  Widget _snapshotSummary(BuildContext context, Map<String, dynamic> snapshot) {
     final interstate = snapshot['interstate'] == true;
     final hashValid = snapshot['hash_valid'] == true;
     final taxMode = _eText(snapshot, ['tax_mode']);
-    final sourceNumber = _eText(
-      snapshot,
-      ['document_number', 'source_number'],
-    );
+    final sourceNumber = _eText(snapshot, ['document_number', 'source_number']);
     final documentKind = _nice(_eText(snapshot, ['document_kind']));
     final documentClass = _nice(_eText(snapshot, ['document_class']));
     final supplyType = _nice(_eText(snapshot, ['supply_type']));
@@ -4081,7 +3877,8 @@ class _EvidenceDialog extends StatelessWidget {
           context,
           'Document',
           Icons.receipt_long_outlined,
-          subtitle: 'Immutable GST identity captured when this document posted.',
+          subtitle:
+              'Immutable GST identity captured when this document posted.',
         ),
         Wrap(
           spacing: 8,
@@ -4197,7 +3994,9 @@ class _EvidenceDialog extends StatelessWidget {
         Row(
           children: [
             Icon(
-              hashValid ? Icons.verified_outlined : Icons.warning_amber_outlined,
+              hashValid
+                  ? Icons.verified_outlined
+                  : Icons.warning_amber_outlined,
               size: 18,
               color: hashValid
                   ? Theme.of(context).colorScheme.primary
@@ -4223,17 +4022,14 @@ class _EvidenceDialog extends StatelessWidget {
     );
   }
 
-  Widget _lineTable(
-    BuildContext context,
-    List<Map<String, dynamic>> lines,
-  ) {
+  Widget _lineTable(BuildContext context, List<Map<String, dynamic>> lines) {
     if (lines.isEmpty) return const SizedBox.shrink();
 
     final scheme = Theme.of(context).colorScheme;
     final headerStyle = Theme.of(context).textTheme.labelSmall?.copyWith(
-          fontWeight: FontWeight.w800,
-          color: scheme.onSurfaceVariant,
-        );
+      fontWeight: FontWeight.w800,
+      color: scheme.onSurfaceVariant,
+    );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -4243,7 +4039,8 @@ class _EvidenceDialog extends StatelessWidget {
           context,
           'GST Line Breakdown',
           Icons.format_list_bulleted_outlined,
-          subtitle: '${lines.length} immutable tax line${lines.length == 1 ? '' : 's'}.',
+          subtitle:
+              '${lines.length} immutable tax line${lines.length == 1 ? '' : 's'}.',
         ),
         Container(
           decoration: BoxDecoration(
@@ -4283,10 +4080,11 @@ class _EvidenceDialog extends StatelessWidget {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                _eText(
-                                  line,
-                                  ['product_name', 'variant_name', 'sku'],
-                                ),
+                                _eText(line, [
+                                  'product_name',
+                                  'variant_name',
+                                  'sku',
+                                ]),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: const TextStyle(
@@ -4317,9 +4115,7 @@ class _EvidenceDialog extends StatelessWidget {
                       DataCell(Text(_money(_eNum(line, 'cgst')))),
                       DataCell(
                         Text(
-                          _money(
-                            _eNum(line, 'sgst') + _eNum(line, 'utgst'),
-                          ),
+                          _money(_eNum(line, 'sgst') + _eNum(line, 'utgst')),
                         ),
                       ),
                       DataCell(Text(_money(_eNum(line, 'igst')))),
@@ -4335,10 +4131,7 @@ class _EvidenceDialog extends StatelessWidget {
     );
   }
 
-  Widget _journalSection(
-    BuildContext context,
-    Map<String, dynamic> journal,
-  ) {
+  Widget _journalSection(BuildContext context, Map<String, dynamic> journal) {
     final entry = _eMap(journal['entry']);
     final lines = _eRows(journal['lines']);
     if (entry.isEmpty && lines.isEmpty) return const SizedBox.shrink();
@@ -4359,11 +4152,7 @@ class _EvidenceDialog extends StatelessWidget {
           spacing: 8,
           runSpacing: 8,
           children: [
-            _field(
-              context,
-              'Journal No.',
-              _eText(entry, ['entry_number']),
-            ),
+            _field(context, 'Journal No.', _eText(entry, ['entry_number'])),
             _field(
               context,
               'Journal Date',
@@ -4374,11 +4163,7 @@ class _EvidenceDialog extends StatelessWidget {
               'Status',
               _nice(_eText(entry, ['status'], fallback: 'posted')),
             ),
-            _field(
-              context,
-              'Reference',
-              _eText(entry, ['source_reference']),
-            ),
+            _field(context, 'Reference', _eText(entry, ['source_reference'])),
           ],
         ),
         const SizedBox(height: 10),
@@ -4500,13 +4285,12 @@ class _EvidenceDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final evidence = _eText(
-      data,
-      ['evidence_status', 'evidence_type', 'status'],
-      fallback: 'unknown',
-    );
-    final authoritative =
-        evidence.toLowerCase().contains('authoritative');
+    final evidence = _eText(data, [
+      'evidence_status',
+      'evidence_type',
+      'status',
+    ], fallback: 'unknown');
+    final authoritative = evidence.toLowerCase().contains('authoritative');
 
     final snapshot = _eMap(data['snapshot']);
     final legacy = _eMap(data['legacy']);
@@ -4520,9 +4304,7 @@ class _EvidenceDialog extends StatelessWidget {
       title: Row(
         children: [
           Icon(
-            authoritative
-                ? Icons.verified_outlined
-                : Icons.history_outlined,
+            authoritative ? Icons.verified_outlined : Icons.history_outlined,
             size: 24,
           ),
           const SizedBox(width: 9),
@@ -4534,8 +4316,7 @@ class _EvidenceDialog extends StatelessWidget {
           ),
           _StatusPill(
             label: authoritative ? 'Authoritative' : 'Legacy unverified',
-            tone:
-                authoritative ? _PillTone.success : _PillTone.warning,
+            tone: authoritative ? _PillTone.success : _PillTone.warning,
           ),
         ],
       ),
@@ -4577,10 +4358,11 @@ class _EvidenceDialog extends StatelessWidget {
                       _field(
                         context,
                         'Document No.',
-                        _eText(
-                          legacy,
-                          ['document_number', 'source_number', 'source_reference'],
-                        ),
+                        _eText(legacy, [
+                          'document_number',
+                          'source_number',
+                          'source_reference',
+                        ]),
                       ),
                       _field(
                         context,
@@ -4627,10 +4409,7 @@ class _EvidenceDialog extends StatelessWidget {
 // =============================================================================
 
 class _JsonDetailDialog extends StatelessWidget {
-  const _JsonDetailDialog({
-    required this.title,
-    required this.data,
-  });
+  const _JsonDetailDialog({required this.title, required this.data});
 
   final String title;
   final Map<String, dynamic> data;
@@ -4642,9 +4421,7 @@ class _JsonDetailDialog extends StatelessWidget {
       content: SizedBox(
         width: 760,
         height: 600,
-        child: SingleChildScrollView(
-          child: _JsonSections(data: data),
-        ),
+        child: SingleChildScrollView(child: _JsonSections(data: data)),
       ),
       actions: [
         FilledButton(
@@ -4657,10 +4434,7 @@ class _JsonDetailDialog extends StatelessWidget {
 }
 
 class _InlineError extends StatelessWidget {
-  const _InlineError({
-    required this.error,
-    required this.onClose,
-  });
+  const _InlineError({required this.error, required this.onClose});
 
   final Object error;
   final VoidCallback onClose;
@@ -4685,10 +4459,7 @@ class _InlineError extends StatelessWidget {
             ),
             IconButton(
               onPressed: onClose,
-              icon: Icon(
-                Icons.close,
-                color: scheme.onErrorContainer,
-              ),
+              icon: Icon(Icons.close, color: scheme.onErrorContainer),
             ),
           ],
         ),
@@ -4698,10 +4469,7 @@ class _InlineError extends StatelessWidget {
 }
 
 class _FatalError extends StatelessWidget {
-  const _FatalError({
-    required this.error,
-    required this.onRetry,
-  });
+  const _FatalError({required this.error, required this.onRetry});
 
   final Object error;
   final VoidCallback onRetry;
@@ -4724,10 +4492,7 @@ class _FatalError extends StatelessWidget {
                   style: TextStyle(fontWeight: FontWeight.w700),
                 ),
                 const SizedBox(height: 8),
-                Text(
-                  error.toString(),
-                  textAlign: TextAlign.center,
-                ),
+                Text(error.toString(), textAlign: TextAlign.center),
                 const SizedBox(height: 14),
                 FilledButton.icon(
                   onPressed: onRetry,
@@ -4821,9 +4586,7 @@ Map<String, dynamic> _map(dynamic value) {
     return Map<String, dynamic>.from(value);
   }
   if (value is Map) {
-    return value.map(
-      (key, value) => MapEntry(key.toString(), value),
-    );
+    return value.map((key, value) => MapEntry(key.toString(), value));
   }
   return <String, dynamic>{};
 }
@@ -4831,17 +4594,17 @@ Map<String, dynamic> _map(dynamic value) {
 List<Map<String, dynamic>> _list(dynamic value) {
   if (value is! List) return const [];
 
-  return value.map<Map<String, dynamic>>((entry) {
-    if (entry is Map<String, dynamic>) {
-      return Map<String, dynamic>.from(entry);
-    }
-    if (entry is Map) {
-      return entry.map(
-        (key, value) => MapEntry(key.toString(), value),
-      );
-    }
-    return <String, dynamic>{'value': entry};
-  }).toList(growable: false);
+  return value
+      .map<Map<String, dynamic>>((entry) {
+        if (entry is Map<String, dynamic>) {
+          return Map<String, dynamic>.from(entry);
+        }
+        if (entry is Map) {
+          return entry.map((key, value) => MapEntry(key.toString(), value));
+        }
+        return <String, dynamic>{'value': entry};
+      })
+      .toList(growable: false);
 }
 
 List<String> _stringList(dynamic value) {
@@ -4898,10 +4661,7 @@ bool _truthy(dynamic value) {
 
 String _labelize(String value) {
   if (value.trim().isEmpty) return '';
-  final spaced = value
-      .replaceAll('_', ' ')
-      .replaceAll('-', ' ')
-      .trim();
+  final spaced = value.replaceAll('_', ' ').replaceAll('-', ' ').trim();
   if (spaced.isEmpty) return '';
   return '${spaced[0].toUpperCase()}${spaced.substring(1)}';
 }

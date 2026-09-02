@@ -52,7 +52,11 @@ class _InvoicePreviewScreenState extends State<InvoicePreviewScreen> {
       deviceId:
           origin['device_id']?.toString() ?? widget.session.device?.deviceId,
     );
-    final data = <String, dynamic>{'template': template, 'origin': origin, 'settings': settings};
+    final data = <String, dynamic>{
+      'template': template,
+      'origin': origin,
+      'settings': settings,
+    };
     try {
       await _service.logEvent(
         tenantId: widget.session.business.id,
@@ -109,7 +113,9 @@ class _InvoicePreviewScreenState extends State<InvoicePreviewScreen> {
         paperType: widget.paperType,
         template: template,
         origin: origin,
-        settingsOverride: Map<String, dynamic>.from(data['settings'] as Map? ?? const {}),
+        settingsOverride: Map<String, dynamic>.from(
+          data['settings'] as Map? ?? const {},
+        ),
       );
       final invoice = _invoiceNumber(origin);
       if (action == 'print') {
@@ -248,15 +254,23 @@ class _InvoicePreviewScreenState extends State<InvoicePreviewScreen> {
             settings['business.email']?.toString() ?? '',
           );
           final website = settings['business.website']?.toString().trim() ?? '';
-          final header = settings['documents.invoice_header']?.toString().trim() ?? '';
-          final configuredFooter = settings['documents.invoice_footer']?.toString().trim() ?? '';
+          final header =
+              settings['documents.invoice_header']?.toString().trim() ?? '';
+          final configuredFooter =
+              settings['documents.invoice_footer']?.toString().trim() ?? '';
           final terms = settings['documents.terms']?.toString().trim() ?? '';
-          final bankDetails = settings['documents.bank_details']?.toString().trim() ?? '';
-          final paymentDetails = settings['documents.payment_details']?.toString().trim() ?? '';
+          final bankDetails =
+              settings['documents.bank_details']?.toString().trim() ?? '';
+          final paymentDetails =
+              settings['documents.payment_details']?.toString().trim() ?? '';
           final paymentQrUrl =
               settings['documents.payment_qr_url']?.toString().trim() ?? '';
           final paymentQrLabel =
-              settings['documents.payment_qr_label']?.toString().trim().isNotEmpty == true
+              settings['documents.payment_qr_label']
+                      ?.toString()
+                      .trim()
+                      .isNotEmpty ==
+                  true
               ? settings['documents.payment_qr_label'].toString().trim()
               : 'Scan to Pay';
           final logoUrl = _value(
@@ -271,23 +285,22 @@ class _InvoicePreviewScreenState extends State<InvoicePreviewScreen> {
             origin['address_line2'],
             origin['city'],
             origin['postal_code'],
-          ].any(
-            (value) => value != null && value.toString().trim().isNotEmpty,
-          );
-          final locationAddressParts = <dynamic>[
-            origin['address_line1'],
-            origin['address_line2'],
-            origin['city'],
-            origin['state'],
-            origin['postal_code'],
-            origin['country'],
-          ]
-              .where(
-                (value) =>
-                    value != null && value.toString().trim().isNotEmpty,
-              )
-              .map((value) => value.toString().trim())
-              .toList();
+          ].any((value) => value != null && value.toString().trim().isNotEmpty);
+          final locationAddressParts =
+              <dynamic>[
+                    origin['address_line1'],
+                    origin['address_line2'],
+                    origin['city'],
+                    origin['state'],
+                    origin['postal_code'],
+                    origin['country'],
+                  ]
+                  .where(
+                    (value) =>
+                        value != null && value.toString().trim().isNotEmpty,
+                  )
+                  .map((value) => value.toString().trim())
+                  .toList();
           final addressParts = <String>[];
           if (hasDetailedLocationAddress) {
             addressParts.addAll(locationAddressParts);
@@ -367,9 +380,11 @@ class _InvoicePreviewScreenState extends State<InvoicePreviewScreen> {
                       Text('Phone: $phone', textAlign: TextAlign.center),
                     if (_flag(config, 'show_email', false) && email.isNotEmpty)
                       Text('Email: $email', textAlign: TextAlign.center),
-                    if (_flag(config, 'show_website', false) && website.isNotEmpty)
+                    if (_flag(config, 'show_website', false) &&
+                        website.isNotEmpty)
                       Text(website, textAlign: TextAlign.center),
-                    if (_flag(config, 'show_address', true) && address.isNotEmpty)
+                    if (_flag(config, 'show_address', true) &&
+                        address.isNotEmpty)
                       Text(address, textAlign: TextAlign.center),
                     const Divider(height: 26),
                     Text(
@@ -389,14 +404,20 @@ class _InvoicePreviewScreenState extends State<InvoicePreviewScreen> {
                     ),
                     if (_flag(config, 'show_customer', true)) ...[
                       Text('Customer: ${widget.sale.customerName}'),
-                      if ((widget.sale.customerTaxNumber ?? '').trim().isNotEmpty)
-                        Text('Customer GSTIN: ${widget.sale.customerTaxNumber}'),
+                      if ((widget.sale.customerTaxNumber ?? '')
+                          .trim()
+                          .isNotEmpty)
+                        Text(
+                          'Customer GSTIN: ${widget.sale.customerTaxNumber}',
+                        ),
                       if ((widget.sale.customerPhone ?? '').trim().isNotEmpty)
                         Text('Customer Phone: ${widget.sale.customerPhone}'),
                       if ((widget.sale.customerEmail ?? '').trim().isNotEmpty)
                         Text('Customer Email: ${widget.sale.customerEmail}'),
                       if ((widget.sale.customerAddress ?? '').trim().isNotEmpty)
-                        Text('Customer Address: ${widget.sale.customerAddress}'),
+                        Text(
+                          'Customer Address: ${widget.sale.customerAddress}',
+                        ),
                     ],
                     const Divider(),
                     ...widget.sale.items.map(
@@ -538,7 +559,8 @@ class _InvoicePreviewScreenState extends State<InvoicePreviewScreen> {
                           ],
                         ),
                     ],
-                    if (_flag(config, 'show_terms', true) && terms.isNotEmpty) ...[
+                    if (_flag(config, 'show_terms', true) &&
+                        terms.isNotEmpty) ...[
                       const SizedBox(height: 12),
                       Text('Terms: $terms'),
                     ],

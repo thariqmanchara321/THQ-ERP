@@ -21,6 +21,7 @@ import '../services/offline_pos_sync_service.dart';
 import '../services/offline_receipt_service.dart';
 import '../ui/v43_theme.dart';
 import '../widgets/customer_account_dialog.dart';
+import '../widgets/multi_payment_editor.dart';
 
 class PosScreen extends StatefulWidget {
   final ClientSession session;
@@ -72,6 +73,7 @@ class _PosScreenState extends State<PosScreen> {
   String _category = 'All';
   String _sort = 'name';
   String _paymentMethod = 'cash';
+  List<Map<String, dynamic>> _paymentAllocations = const [];
   String _orderMode = 'counter';
   int _step = 0;
   Timer? _searchDebounce;
@@ -97,10 +99,10 @@ class _PosScreenState extends State<PosScreen> {
 
   double _lineGross(_PosLine line) => line.quantity * line.unitPrice;
 
-  double get _subtotal => _cart.fold(0.0, (sum, line) => sum + _lineGross(line));
+  double get _subtotal =>
+      _cart.fold(0.0, (sum, line) => sum + _lineGross(line));
 
-  double get _cuttingCharges =>
-      _cart.fold(0.0, (sum, line) => sum + line.appliedCuttingCharge);
+  double get _cuttingCharges => 0.0;
 
   double get _manualOrderDiscount {
     final value = double.tryParse(_orderDiscount.text.trim()) ?? 0.0;
@@ -122,7 +124,10 @@ class _PosScreenState extends State<PosScreen> {
     return sum + (taxable * line.product.taxRate / 100.0);
   });
 
-  double get _roundOffAmount => double.tryParse(_roundOff.text.trim()) ?? 0.0;
+  double get _roundOffAmount {
+    final delta = _beforeRoundOff.roundToDouble() - _beforeRoundOff;
+    return delta.abs() < 0.000001 ? 0 : delta;
+  }
 
   double get _beforeRoundOff => _subtotal - _discount + _tax + _cuttingCharges;
 
@@ -131,23 +136,79 @@ class _PosScreenState extends State<PosScreen> {
   void _applyRoundOff() {
     final delta = _beforeRoundOff.roundToDouble() - _beforeRoundOff;
     setState(() {
-      _roundOff.text = delta.abs() < 0.000001 ? '0.00' : delta.toStringAsFixed(2);
+      _roundOff.text = delta.abs() < 0.000001
+          ? '0.00'
+          : delta.toStringAsFixed(2);
       _syncTendered();
     });
   }
 
-  double get _tenderedAmount => double.tryParse(_tendered.text.trim()) ?? 0.0;
-
-  double get _appliedPayment {
-    if (_paymentMethod == 'credit') return 0.0;
-    return _tenderedAmount.clamp(0.0, _total).toDouble();
+  double get _tenderedAmount {
+    if (_paymentAllocations.isEmpty) return 0;
+    final first = _paymentAllocations.first;
+    return (first['tendered_amount'] as num?)?.toDouble() ??
+        double.tryParse('${first['tendered_amount']}') ??
+        0;
   }
 
-  double get _accountBalance => (_total - _appliedPayment).clamp(0.0, _total).toDouble();
+  double get _allocatedTotal {
+    var remaining = _total;
+    var allocated = 0.0;
+    for (final allocation in _paymentAllocations) {
+      if (remaining <= 0) break;
+      final amount =
+          (allocation['tendered_amount'] as num?)?.toDouble() ??
+          double.tryParse('${allocation['tendered_amount']}') ??
+          0;
+      if (amount <= 0) continue;
+      final use = amount > remaining ? remaining : amount;
+      allocated += use;
+      remaining -= use;
+    }
+    return allocated;
+  }
 
-  double get _change => _paymentMethod == 'cash' && _tenderedAmount > _total
-      ? _tenderedAmount - _total
-      : 0.0;
+  double get _appliedPayment {
+    var remaining = _total;
+    var settled = 0.0;
+    for (final allocation in _paymentAllocations) {
+      if (remaining <= 0) break;
+      final amount =
+          (allocation['tendered_amount'] as num?)?.toDouble() ??
+          double.tryParse('${allocation['tendered_amount']}') ??
+          0;
+      if (amount <= 0) continue;
+      final use = amount > remaining ? remaining : amount;
+      if (allocation['method_code']?.toString() != 'credit') {
+        settled += use;
+      }
+      remaining -= use;
+    }
+    return settled;
+  }
+
+  double get _accountBalance =>
+      (_total - _appliedPayment).clamp(0.0, _total).toDouble();
+
+  double get _change {
+    var remaining = _total;
+    var change = 0.0;
+    for (final allocation in _paymentAllocations) {
+      final amount =
+          (allocation['tendered_amount'] as num?)?.toDouble() ??
+          double.tryParse('${allocation['tendered_amount']}') ??
+          0;
+      if (amount <= 0) continue;
+      final use = remaining <= 0
+          ? 0.0
+          : (amount > remaining ? remaining : amount);
+      if (allocation['method_code']?.toString() == 'cash' && amount > use) {
+        change += amount - use;
+      }
+      remaining = (remaining - use).clamp(0.0, _total).toDouble();
+    }
+    return change;
+  }
 
   List<String> get _categories {
     final values =
@@ -207,7 +268,10 @@ class _PosScreenState extends State<PosScreen> {
         'cash';
     unawaited(_offlineLocal.initialize());
     _load();
-    _offlineSyncTimer = Timer.periodic(const Duration(seconds: 20), (_) => unawaited(_offlineHeartbeat()));
+    _offlineSyncTimer = Timer.periodic(
+      const Duration(seconds: 20),
+      (_) => unawaited(_offlineHeartbeat()),
+    );
   }
 
   @override
@@ -242,15 +306,24 @@ class _PosScreenState extends State<PosScreen> {
         offline = true;
         catalogue = await _offlineSync.cachedCatalogue(widget.session);
         if (catalogue.products.isEmpty || catalogue.customers.isEmpty) {
-          throw StateError('POS is offline and no local product/customer cache is available yet. Connect once and refresh the POS before using offline billing. $onlineError');
+          throw StateError(
+            'POS is offline and no local product/customer cache is available yet. Connect once and refresh the POS before using offline billing. $onlineError',
+          );
         }
       }
       final products = catalogue.products
-          .where((product) => product.productStatus == 'active' && product.variantStatus == 'active')
+          .where(
+            (product) =>
+                product.productStatus == 'active' &&
+                product.variantStatus == 'active',
+          )
           .toList();
-      final customers = catalogue.customers.where((customer) => customer.isActive).toList();
+      final customers = catalogue.customers
+          .where((customer) => customer.isActive)
+          .toList();
       String? selectedCustomer = _customerId;
-      if (selectedCustomer == null || !customers.any((customer) => customer.id == selectedCustomer)) {
+      if (selectedCustomer == null ||
+          !customers.any((customer) => customer.id == selectedCustomer)) {
         for (final customer in customers) {
           if (customer.isWalkIn) {
             selectedCustomer = customer.id;
@@ -268,7 +341,9 @@ class _PosScreenState extends State<PosScreen> {
         if (!_categories.contains(_category)) _category = 'All';
       });
       if (!offline) {
-        try { await _refreshHeldSales(silent: true); } catch (_) {}
+        try {
+          await _refreshHeldSales(silent: true);
+        } catch (_) {}
       }
     } catch (error) {
       if (mounted) setState(() => _error = error.toString());
@@ -278,14 +353,23 @@ class _PosScreenState extends State<PosScreen> {
   }
 
   Future<void> _offlineHeartbeat() async {
-    if (_offlineHeartbeatBusy || _saving || !mounted || widget.session.device == null) return;
+    if (_offlineHeartbeatBusy ||
+        _saving ||
+        !mounted ||
+        widget.session.device == null) {
+      return;
+    }
     _offlineHeartbeatBusy = true;
     try {
       final result = await _offlineSync.syncPending(widget.session);
       if (result.synced > 0 || _offlineMode) {
         final catalogue = await _offlineSync.refreshCatalogue(widget.session);
         if (!mounted) return;
-        final products = catalogue.products.where((p) => p.productStatus == 'active' && p.variantStatus == 'active').toList();
+        final products = catalogue.products
+            .where(
+              (p) => p.productStatus == 'active' && p.variantStatus == 'active',
+            )
+            .toList();
         final customers = catalogue.customers.where((c) => c.isActive).toList();
         setState(() {
           _products = products;
@@ -322,20 +406,26 @@ class _PosScreenState extends State<PosScreen> {
       if (index >= 0) {
         final line = _cart[index];
         final next = line.quantity + line.quantityStep;
-        if (product.itemType != 'stock' || next * line.conversionToBase <= product.stockQuantity + 0.000001) {
+        if (product.itemType != 'stock' ||
+            next * line.conversionToBase <= product.stockQuantity + 0.000001) {
           line.quantity = next;
           line.resolvedUnitPrice = null;
           changedLine = line;
         } else {
-          _message('Only ${_formatStock(product.stockQuantity, product.baseUnitCode)} available.');
+          _message(
+            'Only ${_formatStock(product.stockQuantity, product.baseUnitCode)} available.',
+          );
         }
       } else {
         final line = _PosLine(product: product);
-        if (product.itemType != 'stock' || line.baseQuantity <= product.stockQuantity + 0.000001) {
+        if (product.itemType != 'stock' ||
+            line.baseQuantity <= product.stockQuantity + 0.000001) {
           _cart.add(line);
           changedLine = line;
         } else {
-          _message('Only ${_formatStock(product.stockQuantity, product.baseUnitCode)} available.');
+          _message(
+            'Only ${_formatStock(product.stockQuantity, product.baseUnitCode)} available.',
+          );
         }
       }
       _syncTendered();
@@ -457,7 +547,10 @@ class _PosScreenState extends State<PosScreen> {
     await _addSerialByCode(product, serial.trim());
   }
 
-  Future<void> _addSerialByCode(InventoryProduct product, String serialNumber) async {
+  Future<void> _addSerialByCode(
+    InventoryProduct product,
+    String serialNumber,
+  ) async {
     final device = widget.session.device;
     if (device == null) {
       _message('POS device context is unavailable.');
@@ -476,14 +569,19 @@ class _PosScreenState extends State<PosScreen> {
         );
       }
       if (resolved == null || resolved['status']?.toString() != 'in_stock') {
-        _message('Serial $serialNumber is not available at this POS store or offline cache.');
+        _message(
+          'Serial $serialNumber is not available at this POS store or offline cache.',
+        );
         return;
       }
       if (resolved['variant_id']?.toString() != product.variantId) {
         _message('Serial $serialNumber belongs to a different product.');
         return;
       }
-      _addResolvedSerial(product, resolved['serial_number']?.toString() ?? serialNumber);
+      _addResolvedSerial(
+        product,
+        resolved['serial_number']?.toString() ?? serialNumber,
+      );
     } catch (error) {
       _message(error.toString());
     }
@@ -491,11 +589,17 @@ class _PosScreenState extends State<PosScreen> {
 
   void _addResolvedSerial(InventoryProduct product, String serialNumber) {
     final normalized = serialNumber.trim().toLowerCase();
-    if (_cart.any((line) => line.serialNumbers.any((value) => value.trim().toLowerCase() == normalized))) {
+    if (_cart.any(
+      (line) => line.serialNumbers.any(
+        (value) => value.trim().toLowerCase() == normalized,
+      ),
+    )) {
       _message('Serial $serialNumber is already in this invoice.');
       return;
     }
-    var index = _cart.indexWhere((line) => line.product.variantId == product.variantId);
+    var index = _cart.indexWhere(
+      (line) => line.product.variantId == product.variantId,
+    );
     _PosLine line;
     setState(() {
       _selectedProduct = product;
@@ -519,7 +623,9 @@ class _PosScreenState extends State<PosScreen> {
 
   void _changeQuantity(_PosLine line, double delta) {
     if (line.product.trackingMode == 'serial') {
-      _message('Serial-tracked quantity is controlled by scanned serial numbers. Remove the line and rescan if needed.');
+      _message(
+        'Serial-tracked quantity is controlled by scanned serial numbers. Remove the line and rescan if needed.',
+      );
       return;
     }
     setState(() {
@@ -531,11 +637,14 @@ class _PosScreenState extends State<PosScreen> {
         }
         _cart.remove(line);
       } else if (line.product.itemType != 'stock' ||
-          next * line.conversionToBase <= line.product.stockQuantity + 0.000001) {
+          next * line.conversionToBase <=
+              line.product.stockQuantity + 0.000001) {
         line.quantity = next;
         line.resolvedUnitPrice = null;
       } else {
-        _message('Only ${_formatStock(line.product.stockQuantity, line.product.baseUnitCode)} available.');
+        _message(
+          'Only ${_formatStock(line.product.stockQuantity, line.product.baseUnitCode)} available.',
+        );
       }
       _syncTendered();
     });
@@ -545,7 +654,9 @@ class _PosScreenState extends State<PosScreen> {
   void _openQuantityEditor(_PosLine line) {
     if (_saving) return;
     if (line.product.trackingMode == 'serial') {
-      _message('Serial-tracked quantity is controlled by scanned serial numbers.');
+      _message(
+        'Serial-tracked quantity is controlled by scanned serial numbers.',
+      );
       return;
     }
     setState(() {
@@ -565,8 +676,11 @@ class _PosScreenState extends State<PosScreen> {
       nextQuantity = unit.quantityStep > 1 ? unit.quantityStep : 1.0;
     }
     final newBase = nextQuantity * unit.conversionToBase;
-    if (line.product.itemType == 'stock' && newBase > line.product.stockQuantity + 0.000001) {
-      _message('Only ${_formatStock(line.product.stockQuantity, line.product.baseUnitCode)} available.');
+    if (line.product.itemType == 'stock' &&
+        newBase > line.product.stockQuantity + 0.000001) {
+      _message(
+        'Only ${_formatStock(line.product.stockQuantity, line.product.baseUnitCode)} available.',
+      );
       return;
     }
     final quantityReset = (nextQuantity - line.quantity).abs() > 0.000001;
@@ -580,7 +694,9 @@ class _PosScreenState extends State<PosScreen> {
       _syncTendered();
     });
     if (quantityReset) {
-      _message('Quantity reset to ${line.displayQuantity} ${unit.code} for this unit.');
+      _message(
+        'Quantity reset to ${line.displayQuantity} ${unit.code} for this unit.',
+      );
     }
     unawaited(_resolveLinePrice(line));
   }
@@ -622,7 +738,9 @@ class _PosScreenState extends State<PosScreen> {
       line.resolvedUnitPrice = null;
       line.pricingSource = null;
       line.priceListId = null;
-      _message('Pricing refresh failed for ${line.product.productName}: $error');
+      _message(
+        'Pricing refresh failed for ${line.product.productName}: $error',
+      );
     }
   }
 
@@ -647,7 +765,10 @@ class _PosScreenState extends State<PosScreen> {
       if (product.sku.toLowerCase() == query ||
           (product.barcode ?? '').toLowerCase() == query ||
           (product.partNumber ?? '').toLowerCase() == query ||
-          product.identifiers.any((identifier) => identifier.active && identifier.code.toLowerCase() == query)) {
+          product.identifiers.any(
+            (identifier) =>
+                identifier.active && identifier.code.toLowerCase() == query,
+          )) {
         exact = product;
         break;
       }
@@ -678,10 +799,16 @@ class _PosScreenState extends State<PosScreen> {
         final variantId = serial['variant_id']?.toString();
         InventoryProduct? product;
         for (final row in _products) {
-          if (row.variantId == variantId) { product = row; break; }
+          if (row.variantId == variantId) {
+            product = row;
+            break;
+          }
         }
         if (product != null) {
-          _addResolvedSerial(product, serial['serial_number']?.toString() ?? raw);
+          _addResolvedSerial(
+            product,
+            serial['serial_number']?.toString() ?? raw,
+          );
           _search.clear();
           if (mounted) setState(() {});
           return;
@@ -815,7 +942,8 @@ class _PosScreenState extends State<PosScreen> {
     for (final line in _cart) {
       if (line.product.trackingMode == 'serial' &&
           (line.baseQuantity - line.serialNumbers.length).abs() > 0.000001) {
-        _error = '${line.product.productName}: scan exactly ${line.baseQuantity.toStringAsFixed(0)} serial number(s).';
+        _error =
+            '${line.product.productName}: scan exactly ${line.baseQuantity.toStringAsFixed(0)} serial number(s).';
         return false;
       }
     }
@@ -823,26 +951,42 @@ class _PosScreenState extends State<PosScreen> {
   }
 
   bool _validatePayment() {
-    if (_roundOffAmount.abs() > 1.000001) {
-      _error = 'Round off must be between -1.00 and 1.00.';
-      return false;
-    }
     final customer = _customer;
     if (customer == null) return false;
-    if (_tenderedAmount < -0.0001) {
-      _error = 'Payment amount cannot be negative.';
+    if (_paymentAllocations.isEmpty) {
+      _error = 'Allocate the invoice total to at least one payment method.';
       return false;
     }
-    if (_paymentMethod == 'credit' && customer.isWalkIn) {
-      _error = 'Walk-in Customer cannot use credit.';
+
+    var remaining = _total;
+    for (final allocation in _paymentAllocations) {
+      final method = allocation['method_code']?.toString() ?? '';
+      final amount =
+          (allocation['tendered_amount'] as num?)?.toDouble() ??
+          double.tryParse('${allocation['tendered_amount']}') ??
+          0;
+      if (amount < -0.0001) {
+        _error = 'Payment amount cannot be negative.';
+        return false;
+      }
+      if (method == 'credit' && customer.isWalkIn && amount > 0) {
+        _error = 'Credit requires a named customer.';
+        return false;
+      }
+      if (method != 'cash' && amount > remaining + 0.005) {
+        _error = 'Only Cash may exceed the remaining invoice amount.';
+        return false;
+      }
+      final used = amount > remaining ? remaining : amount;
+      remaining = (remaining - used).clamp(0.0, _total).toDouble();
+    }
+
+    if (remaining > 0.005) {
+      _error = 'Payment allocations must cover the invoice total.';
       return false;
     }
-    if (customer.isWalkIn && _appliedPayment + 0.0001 < _total) {
-      _error = 'Choose a named customer to leave an unpaid balance.';
-      return false;
-    }
-    if (_paymentMethod != 'cash' && _paymentMethod != 'credit' && _tenderedAmount > _total + 0.0001) {
-      _error = 'Received amount cannot exceed the invoice total for this payment method.';
+    if (customer.isWalkIn && _accountBalance > 0.005) {
+      _error = 'Walk-in sales must be fully settled.';
       return false;
     }
     return true;
@@ -875,6 +1019,7 @@ class _PosScreenState extends State<PosScreen> {
     'payment_method': _paymentMethod,
     'tendered': _tendered.text,
     'payment_reference': _paymentReference.text,
+    'payment_allocations': _paymentAllocations,
     'items': _cart
         .map(
           (line) => <String, dynamic>{
@@ -883,7 +1028,8 @@ class _PosScreenState extends State<PosScreen> {
             'unit_id': line.unit?.unitId,
             'cutting_charge_applied': line.cuttingChargeApplied,
             'discount': line.discount,
-            if (line.serialNumbers.isNotEmpty) 'serial_numbers': line.serialNumbers,
+            if (line.serialNumbers.isNotEmpty)
+              'serial_numbers': line.serialNumbers,
           },
         )
         .toList(),
@@ -896,8 +1042,9 @@ class _PosScreenState extends State<PosScreen> {
       setState(() {});
       return;
     }
-    _holdLabel.text =
-        _customer?.isWalkIn == false ? (_customer?.name ?? '') : '';
+    _holdLabel.text = _customer?.isWalkIn == false
+        ? (_customer?.name ?? '')
+        : '';
     setState(() {
       _workspace = _PosWorkspace.hold;
       _step = 0;
@@ -974,7 +1121,9 @@ class _PosScreenState extends State<PosScreen> {
 
   Future<void> _resumeSale() async {
     if (_cart.isNotEmpty) {
-      _message('Hold or clear the current sale before resuming another invoice.');
+      _message(
+        'Hold or clear the current sale before resuming another invoice.',
+      );
       return;
     }
     setState(() {
@@ -1046,7 +1195,9 @@ class _PosScreenState extends State<PosScreen> {
           line.serialNumbers
             ..clear()
             ..addAll((item['serial_numbers'] as List).map((e) => e.toString()));
-          if (product.trackingMode == 'serial') line.quantity = line.serialNumbers.length.toDouble();
+          if (product.trackingMode == 'serial') {
+            line.quantity = line.serialNumbers.length.toDouble();
+          }
         }
         restored.add(line);
       }
@@ -1061,7 +1212,8 @@ class _PosScreenState extends State<PosScreen> {
           ..clear()
           ..addAll(restored);
         final customerId = state['customer_id']?.toString();
-        if (customerId != null && _customers.any((row) => row.id == customerId)) {
+        if (customerId != null &&
+            _customers.any((row) => row.id == customerId)) {
           _customerId = customerId;
         }
         _orderMode = state['order_mode']?.toString() ?? 'counter';
@@ -1071,6 +1223,11 @@ class _PosScreenState extends State<PosScreen> {
         _paymentMethod = state['payment_method']?.toString() ?? 'cash';
         _tendered.text = state['tendered']?.toString() ?? '';
         _paymentReference.text = state['payment_reference']?.toString() ?? '';
+        _paymentAllocations =
+            (state['payment_allocations'] as List? ?? const [])
+                .whereType<Map>()
+                .map((e) => Map<String, dynamic>.from(e))
+                .toList();
         _selectedProduct = restored.first.product;
         _step = 0;
         _error = null;
@@ -1114,7 +1271,8 @@ class _PosScreenState extends State<PosScreen> {
         currencyCode: widget.session.currencyCode,
         locationId: widget.session.device?.locationId,
         deviceId: widget.session.device?.deviceId,
-        canReceive: widget.session.hasRole('owner') ||
+        canReceive:
+            widget.session.hasRole('owner') ||
             widget.session.hasPermission('payments.receive') ||
             widget.session.hasPermission('sales.manage'),
       ),
@@ -1213,7 +1371,8 @@ class _PosScreenState extends State<PosScreen> {
       setState(() => _error = 'POS device context is required for billing.');
       return;
     }
-    if (device.allowedModules.contains('cashier_shifts') && widget.session.hasModule('cashier_shifts')) {
+    if (device.allowedModules.contains('cashier_shifts') &&
+        widget.session.hasModule('cashier_shifts')) {
       var hasShift = false;
       try {
         final shift = await _shiftService.current(
@@ -1222,13 +1381,19 @@ class _PosScreenState extends State<PosScreen> {
         );
         hasShift = shift != null && shift.isNotEmpty;
         if (hasShift) {
-          await _offlineLocal.setMeta('shift:${widget.session.business.id}:${device.deviceId}', shift);
+          await _offlineLocal.setMeta(
+            'shift:${widget.session.business.id}:${device.deviceId}',
+            shift,
+          );
         }
       } catch (_) {
         hasShift = await _offlineSync.hasVerifiedOpenShift(widget.session);
       }
       if (!hasShift) {
-        setState(() => _error = 'Cashier Shift is enabled. Start a shift while online before offline billing.');
+        setState(
+          () => _error =
+              'Cashier Shift is enabled. Start a shift while online before offline billing.',
+        );
         return;
       }
     }
@@ -1251,25 +1416,26 @@ class _PosScreenState extends State<PosScreen> {
         'sale_date': now.toIso8601String().split('T').first,
         'sale_time': now.toUtc().toIso8601String(),
         'due_date': due?.toIso8601String().split('T').first,
-        'items': _cart.map((line) => <String, dynamic>{
-          'variant_id': line.product.variantId,
-          'product_name': line.product.productName,
-          'sku': line.product.sku,
-          'quantity': line.quantity,
-          'unit_id': line.unit?.unitId,
-          'unit_code': line.unitCode,
-          'unit_price': line.unitPrice,
-          'discount_amount': _effectiveLineDiscount(line),
-          'tax_rate': line.product.taxRate,
-          'conversion_to_base': line.conversionToBase,
-          'base_quantity': line.baseQuantity,
-          if (line.serialNumbers.isNotEmpty) 'serial_numbers': List<String>.from(line.serialNumbers),
-        }).toList(),
-        'additional_charges': _cuttingCharges,
-        'round_off': _roundOffAmount,
-        'initial_payment': payment,
-        'payment_method': _paymentMethod,
-        'payment_reference': _paymentReference.text.trim(),
+        'items': _cart
+            .map(
+              (line) => <String, dynamic>{
+                'variant_id': line.product.variantId,
+                'product_name': line.product.productName,
+                'sku': line.product.sku,
+                'quantity': line.quantity,
+                'unit_id': line.unit?.unitId,
+                'unit_code': line.unitCode,
+                'unit_price': line.unitPrice,
+                'discount_amount': _effectiveLineDiscount(line),
+                'tax_rate': line.product.taxRate,
+                'conversion_to_base': line.conversionToBase,
+                'base_quantity': line.baseQuantity,
+                if (line.serialNumbers.isNotEmpty)
+                  'serial_numbers': List<String>.from(line.serialNumbers),
+              },
+            )
+            .toList(),
+        'payment_allocations': _paymentAllocations,
         'notes': [
           'POS • ${_orderMode.replaceAll('_', ' ')}',
           if (_notes.text.trim().isNotEmpty) _notes.text.trim(),
@@ -1288,33 +1454,59 @@ class _PosScreenState extends State<PosScreen> {
       );
 
       try {
-        await _offlineSync.syncPending(widget.session, onlyRequestId: requestId);
+        await _offlineSync.syncPending(
+          widget.session,
+          onlyRequestId: requestId,
+        );
       } catch (_) {
         // The durable local queue is the source of truth during a network outage.
       }
       final record = await _offlineLocal.invoice(requestId);
-      if (record == null) throw StateError('Offline invoice queue record could not be reloaded.');
+      if (record == null) {
+        throw StateError('Offline invoice queue record could not be reloaded.');
+      }
 
       String? printWarning;
       String completedNumber = localNumber;
       if (record.status == 'synced') {
         _offlineMode = false;
         final result = record.serverResponse ?? const <String, dynamic>{};
-        final saleNumber = result['sale_number']?.toString() ?? result['number']?.toString() ?? '';
+        final saleNumber =
+            result['sale_number']?.toString() ??
+            result['number']?.toString() ??
+            '';
         completedNumber = saleNumber.isEmpty ? localNumber : saleNumber;
         String? saleId = result['sale_id']?.toString();
         if ((saleId == null || saleId.isEmpty) && saleNumber.isNotEmpty) {
           try {
-            saleId = await _sales.resolveSaleId(tenantId: widget.session.business.id, saleNumber: saleNumber);
+            saleId = await _sales.resolveSaleId(
+              tenantId: widget.session.business.id,
+              saleNumber: saleNumber,
+            );
           } catch (_) {}
         }
         SaleDetail? detail;
         if (saleId != null && saleId.isNotEmpty) {
-          try { detail = await _sales.getSaleDetail(tenantId: widget.session.business.id, saleId: saleId); } catch (_) {}
-        }
-        if (printAfter && saleId != null && saleId.isNotEmpty && detail != null) {
           try {
-            await _autoPrintCompletedSale(saleId: saleId, detail: detail, cashPayment: _paymentMethod == 'cash', forcePrint: true);
+            detail = await _sales.getSaleDetail(
+              tenantId: widget.session.business.id,
+              saleId: saleId,
+            );
+          } catch (_) {}
+        }
+        if (printAfter &&
+            saleId != null &&
+            saleId.isNotEmpty &&
+            detail != null) {
+          try {
+            await _autoPrintCompletedSale(
+              saleId: saleId,
+              detail: detail,
+              cashPayment: _paymentAllocations.any(
+                (entry) => entry['method_code']?.toString() == 'cash',
+              ),
+              forcePrint: true,
+            );
           } catch (error) {
             printWarning = error.toString();
           }
@@ -1338,16 +1530,34 @@ class _PosScreenState extends State<PosScreen> {
       final status = record.status;
       _resetSale();
       if (status == 'synced') {
-        _message('$completedNumber synchronized${printWarning != null ? ' • Print: $printWarning' : ''}${change > 0 ? ' • Change ${_money(change)}' : ''}${outstanding > 0.005 ? ' • ${_money(outstanding)} added to ${customer.name} account' : ''}.');
-        try { await _load(); } catch (_) {}
+        _message(
+          '$completedNumber synchronized${printWarning != null ? ' • Print: $printWarning' : ''}${change > 0 ? ' • Change ${_money(change)}' : ''}${outstanding > 0.005 ? ' • ${_money(outstanding)} added to ${customer.name} account' : ''}.',
+        );
+        try {
+          await _load();
+        } catch (_) {}
       } else if (status == 'conflict') {
-        _message('$localNumber saved locally but needs attention: ${record.conflictCode ?? 'CONFLICT'} • ${record.conflictMessage ?? 'Open Offline Sync.'}');
+        _message(
+          '$localNumber saved locally but needs attention: ${record.conflictCode ?? 'CONFLICT'} • ${record.conflictMessage ?? 'Open Offline Sync.'}',
+        );
         final catalogue = await _offlineSync.cachedCatalogue(widget.session);
-        if (mounted) setState(() { _products = catalogue.products; _customers = catalogue.customers; });
+        if (mounted) {
+          setState(() {
+            _products = catalogue.products;
+            _customers = catalogue.customers;
+          });
+        }
       } else {
-        _message('$localNumber saved offline and queued for automatic sync${printWarning != null ? ' • Print: $printWarning' : ''}.');
+        _message(
+          '$localNumber saved offline and queued for automatic sync${printWarning != null ? ' • Print: $printWarning' : ''}.',
+        );
         final catalogue = await _offlineSync.cachedCatalogue(widget.session);
-        if (mounted) setState(() { _products = catalogue.products; _customers = catalogue.customers; });
+        if (mounted) {
+          setState(() {
+            _products = catalogue.products;
+            _customers = catalogue.customers;
+          });
+        }
       }
       _searchFocus.requestFocus();
     } catch (error) {
@@ -1486,13 +1696,21 @@ class _PosScreenState extends State<PosScreen> {
             alignment: WrapAlignment.end,
             children: [
               Chip(
-                avatar: Icon(_offlineMode ? Icons.cloud_off_outlined : Icons.cloud_done_outlined, size: 16),
+                avatar: Icon(
+                  _offlineMode
+                      ? Icons.cloud_off_outlined
+                      : Icons.cloud_done_outlined,
+                  size: 16,
+                ),
                 label: Text(_offlineMode ? 'OFFLINE' : 'ONLINE'),
                 visualDensity: VisualDensity.compact,
               ),
               if (_step == 0)
                 OutlinedButton.icon(
-                  onPressed: _cart.isEmpty || _saving || _workspace == _PosWorkspace.hold
+                  onPressed:
+                      _cart.isEmpty ||
+                          _saving ||
+                          _workspace == _PosWorkspace.hold
                       ? null
                       : _openHoldEditor,
                   icon: const Icon(Icons.pause_circle_outline, size: 17),
@@ -1600,7 +1818,10 @@ class _PosScreenState extends State<PosScreen> {
                   children: [
                     Text(
                       'Hold Current Invoice',
-                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w900,
+                      ),
                     ),
                     SizedBox(height: 2),
                     Text(
@@ -1647,7 +1868,9 @@ class _PosScreenState extends State<PosScreen> {
                               ? 'Customer: ${_customer?.name ?? ''}'
                               : 'Walk-in customer',
                           style: TextStyle(
-                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurfaceVariant,
                           ),
                         ),
                         const SizedBox(height: 18),
@@ -1686,10 +1909,14 @@ class _PosScreenState extends State<PosScreen> {
                                   ? const SizedBox(
                                       width: 16,
                                       height: 16,
-                                      child: CircularProgressIndicator(strokeWidth: 2),
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                      ),
                                     )
                                   : const Icon(Icons.pause_circle_outline),
-                              label: Text(_saving ? 'Holding…' : 'Hold Invoice'),
+                              label: Text(
+                                _saving ? 'Holding…' : 'Hold Invoice',
+                              ),
                             ),
                             OutlinedButton(
                               onPressed: _saving ? null : _closeHoldEditor,
@@ -1726,21 +1953,39 @@ class _PosScreenState extends State<PosScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(children: [
-            IconButton.filledTonal(
-              tooltip: 'Back to products',
-              onPressed: () => setState(() {
-                _editingLine = null;
-                _workspace = _PosWorkspace.products;
-              }),
-              icon: const Icon(Icons.arrow_back),
-            ),
-            const SizedBox(width: 10),
-            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(line.product.productName, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900)),
-              Text('Quantity & unit • Stock ${_formatStock(line.product.stockQuantity, line.product.baseUnitCode)}', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),
-            ])),
-          ]),
+          Row(
+            children: [
+              IconButton.filledTonal(
+                tooltip: 'Back to products',
+                onPressed: () => setState(() {
+                  _editingLine = null;
+                  _workspace = _PosWorkspace.products;
+                }),
+                icon: const Icon(Icons.arrow_back),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      line.product.productName,
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    Text(
+                      'Quantity & unit • Stock ${_formatStock(line.product.stockQuantity, line.product.baseUnitCode)}',
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
           const SizedBox(height: 18),
           Align(
             alignment: Alignment.topLeft,
@@ -1749,95 +1994,142 @@ class _PosScreenState extends State<PosScreen> {
               child: Card(
                 child: Padding(
                   padding: const EdgeInsets.all(18),
-                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    if (units.length > 1) ...[
-                      const Text('Sale Unit', style: TextStyle(fontWeight: FontWeight.w800)),
-                      const SizedBox(height: 8),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: units.map((u) => ChoiceChip(
-                          label: Text('${u.name} (${u.code})'),
-                          selected: line.unit?.unitId == u.unitId,
-                          onSelected: (_) => _setLineUnit(line, u),
-                        )).toList(),
-                      ),
-                      const SizedBox(height: 18),
-                    ],
-                    Text('Quantity in ${line.unitCode}', style: const TextStyle(fontWeight: FontWeight.w800)),
-                    const SizedBox(height: 10),
-                    Row(mainAxisSize: MainAxisSize.min, children: [
-                      IconButton.filledTonal(onPressed: () => _changeQuantity(line, -line.quantityStep), icon: const Icon(Icons.remove)),
-                      const SizedBox(width: 12),
-                      SizedBox(
-                        width: 160,
-                        child: TextFormField(
-                          key: ValueKey('qty-${line.product.variantId}-${line.unitCode}-${line.quantity}'),
-                          initialValue: line.displayQuantity,
-                          textAlign: TextAlign.center,
-                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                          decoration: InputDecoration(border: const OutlineInputBorder(), suffixText: line.unitCode),
-                          onFieldSubmitted: (value) {
-                            final parsed = double.tryParse(value.trim());
-                            if (parsed == null || parsed <= 0) {
-                              _message('Enter a quantity greater than zero.');
-                              return;
-                            }
-                            final unit = line.unit;
-                            if (unit != null && !unit.acceptsQuantity(parsed)) {
-                              _message(unit.allowFractional
-                                  ? '${line.unitCode} quantity must use increments of ${unit.quantityStep}.'
-                                  : '${line.unitCode} only allows whole quantities in increments of ${unit.quantityStep}.');
-                              return;
-                            }
-                            if (line.product.itemType == 'stock' && parsed * line.conversionToBase > line.product.stockQuantity + 0.000001) {
-                              _message('Only ${_formatStock(line.product.stockQuantity, line.product.baseUnitCode)} available.');
-                              return;
-                            }
-                            setState(() {
-                              line.quantity = parsed;
-                              _syncTendered();
-                            });
-                          },
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (units.length > 1) ...[
+                        const Text(
+                          'Sale Unit',
+                          style: TextStyle(fontWeight: FontWeight.w800),
                         ),
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: units
+                              .map(
+                                (u) => ChoiceChip(
+                                  label: Text('${u.name} (${u.code})'),
+                                  selected: line.unit?.unitId == u.unitId,
+                                  onSelected: (_) => _setLineUnit(line, u),
+                                ),
+                              )
+                              .toList(),
+                        ),
+                        const SizedBox(height: 18),
+                      ],
+                      Text(
+                        'Quantity in ${line.unitCode}',
+                        style: const TextStyle(fontWeight: FontWeight.w800),
                       ),
-                      const SizedBox(width: 12),
-                      IconButton.filledTonal(onPressed: () => _changeQuantity(line, line.quantityStep), icon: const Icon(Icons.add)),
-                    ]),
-                    const SizedBox(height: 12),
-                    Text('Base stock impact: ${_formatStock(line.baseQuantity, line.product.baseUnitCode)}'),
-                    Text('Unit price: ${_money(line.unitPrice)}'),
-                    if ((line.unit?.cuttingAllowed ?? false) && (line.unit?.cuttingCharge ?? 0) > 0) ...[
+                      const SizedBox(height: 10),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton.filledTonal(
+                            onPressed: () =>
+                                _changeQuantity(line, -line.quantityStep),
+                            icon: const Icon(Icons.remove),
+                          ),
+                          const SizedBox(width: 12),
+                          SizedBox(
+                            width: 160,
+                            child: TextFormField(
+                              key: ValueKey(
+                                'qty-${line.product.variantId}-${line.unitCode}-${line.quantity}',
+                              ),
+                              initialValue: line.displayQuantity,
+                              textAlign: TextAlign.center,
+                              keyboardType:
+                                  const TextInputType.numberWithOptions(
+                                    decimal: true,
+                                  ),
+                              decoration: InputDecoration(
+                                border: const OutlineInputBorder(),
+                                suffixText: line.unitCode,
+                              ),
+                              onFieldSubmitted: (value) {
+                                final parsed = double.tryParse(value.trim());
+                                if (parsed == null || parsed <= 0) {
+                                  _message(
+                                    'Enter a quantity greater than zero.',
+                                  );
+                                  return;
+                                }
+                                final unit = line.unit;
+                                if (unit != null &&
+                                    !unit.acceptsQuantity(parsed)) {
+                                  _message(
+                                    unit.allowFractional
+                                        ? '${line.unitCode} quantity must use increments of ${unit.quantityStep}.'
+                                        : '${line.unitCode} only allows whole quantities in increments of ${unit.quantityStep}.',
+                                  );
+                                  return;
+                                }
+                                if (line.product.itemType == 'stock' &&
+                                    parsed * line.conversionToBase >
+                                        line.product.stockQuantity + 0.000001) {
+                                  _message(
+                                    'Only ${_formatStock(line.product.stockQuantity, line.product.baseUnitCode)} available.',
+                                  );
+                                  return;
+                                }
+                                setState(() {
+                                  line.quantity = parsed;
+                                  _syncTendered();
+                                });
+                              },
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          IconButton.filledTonal(
+                            onPressed: () =>
+                                _changeQuantity(line, line.quantityStep),
+                            icon: const Icon(Icons.add),
+                          ),
+                        ],
+                      ),
                       const SizedBox(height: 12),
-                      SwitchListTile.adaptive(
-                        contentPadding: EdgeInsets.zero,
-                        value: line.cuttingChargeApplied,
-                        onChanged: (value) => setState(() {
-                          line.cuttingChargeApplied = value;
-                          _syncTendered();
-                        }),
-                        title: Text('Add cutting charge ${_money(line.unit!.cuttingCharge)}'),
-                        subtitle: const Text('Optional service charge added once for this cart line.'),
+                      Text(
+                        'Base stock impact: ${_formatStock(line.baseQuantity, line.product.baseUnitCode)}',
+                      ),
+                      Text('Unit price: ${_money(line.unitPrice)}'),
+                      if ((line.unit?.cuttingAllowed ?? false) &&
+                          (line.unit?.cuttingCharge ?? 0) > 0) ...[
+                        const SizedBox(height: 12),
+                        const ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          leading: Icon(Icons.info_outline),
+                          title: Text(
+                            'Use a GST-classified Service product for cutting charges',
+                          ),
+                          subtitle: Text(
+                            'Build 30 no longer posts unclassified line charges.',
+                          ),
+                        ),
+                      ],
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          FilledButton.icon(
+                            onPressed: () => setState(() {
+                              _editingLine = null;
+                              _workspace = _PosWorkspace.products;
+                            }),
+                            icon: const Icon(Icons.check),
+                            label: const Text('Done'),
+                          ),
+                          const SizedBox(width: 8),
+                          OutlinedButton.icon(
+                            onPressed: () =>
+                                _changeQuantity(line, -line.quantity),
+                            icon: const Icon(Icons.delete_outline),
+                            label: const Text('Remove Item'),
+                          ),
+                        ],
                       ),
                     ],
-                    const SizedBox(height: 16),
-                    Row(children: [
-                      FilledButton.icon(
-                        onPressed: () => setState(() {
-                          _editingLine = null;
-                          _workspace = _PosWorkspace.products;
-                        }),
-                        icon: const Icon(Icons.check),
-                        label: const Text('Done'),
-                      ),
-                      const SizedBox(width: 8),
-                      OutlinedButton.icon(
-                        onPressed: () => _changeQuantity(line, -line.quantity),
-                        icon: const Icon(Icons.delete_outline),
-                        label: const Text('Remove Item'),
-                      ),
-                    ]),
-                  ]),
+                  ),
                 ),
               ),
             ),
@@ -1871,7 +2163,10 @@ class _PosScreenState extends State<PosScreen> {
                   children: [
                     Text(
                       'Held Invoices (${_heldSales.length})',
-                      style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w900,
+                      ),
                     ),
                     const SizedBox(height: 2),
                     Text(
@@ -1907,117 +2202,149 @@ class _PosScreenState extends State<PosScreen> {
             child: _heldLoading && _heldSales.isEmpty
                 ? const Center(child: CircularProgressIndicator())
                 : _heldSales.isEmpty
-                    ? Center(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.pause_circle_outline,
-                              size: 64,
-                              color: Theme.of(context).colorScheme.outline,
-                            ),
-                            const SizedBox(height: 14),
-                            const Text(
-                              'No held invoices',
-                              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
-                            ),
-                            const SizedBox(height: 5),
-                            const Text('Hold a sale first, then use Resume to continue it here.'),
-                          ],
+                ? Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.pause_circle_outline,
+                          size: 64,
+                          color: Theme.of(context).colorScheme.outline,
                         ),
-                      )
-                    : LayoutBuilder(
-                        builder: (context, constraints) {
-                          final columns = constraints.maxWidth >= 1250
-                              ? 5
-                              : constraints.maxWidth >= 980
-                                  ? 4
-                                  : constraints.maxWidth >= 700
-                                      ? 3
-                                      : constraints.maxWidth >= 460
-                                          ? 2
-                                          : 1;
-                          return GridView.builder(
-                            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                              crossAxisCount: columns,
-                              crossAxisSpacing: 10,
-                              mainAxisSpacing: 10,
-                              childAspectRatio: columns == 1 ? 2.9 : 1.65,
-                            ),
-                            itemCount: _heldSales.length,
-                            itemBuilder: (context, index) {
-                              final row = _heldSales[index];
-                              final total = (row['total'] as num?)?.toDouble() ??
-                                  double.tryParse('${row['total']}') ??
-                                  0.0;
-                              final created = DateTime.tryParse('${row['created_at']}')?.toLocal();
-                              final createdLabel = created == null
-                                  ? ''
-                                  : '${created.hour.toString().padLeft(2, '0')}:${created.minute.toString().padLeft(2, '0')}';
-                              final code = row['hold_code']?.toString().trim() ?? '';
-                              final label = row['label']?.toString().trim() ?? '';
-                              final customer = row['customer_name']?.toString().trim() ?? '';
-                              return Card(
-                                margin: EdgeInsets.zero,
-                                clipBehavior: Clip.antiAlias,
-                                child: InkWell(
-                                  onTap: () => _restoreHeldSale(row),
-                                  child: Padding(
-                                    padding: const EdgeInsets.all(14),
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                        const SizedBox(height: 14),
+                        const Text(
+                          'No held invoices',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        const SizedBox(height: 5),
+                        const Text(
+                          'Hold a sale first, then use Resume to continue it here.',
+                        ),
+                      ],
+                    ),
+                  )
+                : LayoutBuilder(
+                    builder: (context, constraints) {
+                      final columns = constraints.maxWidth >= 1250
+                          ? 5
+                          : constraints.maxWidth >= 980
+                          ? 4
+                          : constraints.maxWidth >= 700
+                          ? 3
+                          : constraints.maxWidth >= 460
+                          ? 2
+                          : 1;
+                      return GridView.builder(
+                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: columns,
+                          crossAxisSpacing: 10,
+                          mainAxisSpacing: 10,
+                          childAspectRatio: columns == 1 ? 2.9 : 1.65,
+                        ),
+                        itemCount: _heldSales.length,
+                        itemBuilder: (context, index) {
+                          final row = _heldSales[index];
+                          final total =
+                              (row['total'] as num?)?.toDouble() ??
+                              double.tryParse('${row['total']}') ??
+                              0.0;
+                          final created = DateTime.tryParse(
+                            '${row['created_at']}',
+                          )?.toLocal();
+                          final createdLabel = created == null
+                              ? ''
+                              : '${created.hour.toString().padLeft(2, '0')}:${created.minute.toString().padLeft(2, '0')}';
+                          final code =
+                              row['hold_code']?.toString().trim() ?? '';
+                          final label = row['label']?.toString().trim() ?? '';
+                          final customer =
+                              row['customer_name']?.toString().trim() ?? '';
+                          return Card(
+                            margin: EdgeInsets.zero,
+                            clipBehavior: Clip.antiAlias,
+                            child: InkWell(
+                              onTap: () => _restoreHeldSale(row),
+                              child: Padding(
+                                padding: const EdgeInsets.all(14),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
                                       children: [
-                                        Row(
-                                          children: [
-                                            const Icon(Icons.pause_circle_filled_outlined, size: 19),
-                                            const SizedBox(width: 7),
-                                            Expanded(
-                                              child: Text(
-                                                code.isEmpty ? 'Held Invoice' : code,
-                                                maxLines: 1,
-                                                overflow: TextOverflow.ellipsis,
-                                                style: const TextStyle(fontWeight: FontWeight.w900),
-                                              ),
-                                            ),
-                                            if (createdLabel.isNotEmpty)
-                                              Text(createdLabel, style: const TextStyle(fontSize: 10.5)),
-                                          ],
+                                        const Icon(
+                                          Icons.pause_circle_filled_outlined,
+                                          size: 19,
                                         ),
-                                        if (label.isNotEmpty) ...[
-                                          const SizedBox(height: 7),
-                                          Text(
-                                            label,
+                                        const SizedBox(width: 7),
+                                        Expanded(
+                                          child: Text(
+                                            code.isEmpty
+                                                ? 'Held Invoice'
+                                                : code,
                                             maxLines: 1,
                                             overflow: TextOverflow.ellipsis,
-                                            style: const TextStyle(fontWeight: FontWeight.w700),
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.w900,
+                                            ),
                                           ),
-                                        ],
-                                        const SizedBox(height: 5),
+                                        ),
+                                        if (createdLabel.isNotEmpty)
+                                          Text(
+                                            createdLabel,
+                                            style: const TextStyle(
+                                              fontSize: 10.5,
+                                            ),
+                                          ),
+                                      ],
+                                    ),
+                                    if (label.isNotEmpty) ...[
+                                      const SizedBox(height: 7),
+                                      Text(
+                                        label,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                    ],
+                                    const SizedBox(height: 5),
+                                    Text(
+                                      customer.isEmpty
+                                          ? 'Walk-in customer'
+                                          : customer,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    const Spacer(),
+                                    Row(
+                                      children: [
                                         Text(
-                                          customer.isEmpty ? 'Walk-in customer' : customer,
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
+                                          '${row['item_count'] ?? 0} item(s)',
+                                          style: const TextStyle(fontSize: 11),
                                         ),
                                         const Spacer(),
-                                        Row(
-                                          children: [
-                                            Text('${row['item_count'] ?? 0} item(s)', style: const TextStyle(fontSize: 11)),
-                                            const Spacer(),
-                                            Text(
-                                              _money(total),
-                                              style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w900),
-                                            ),
-                                          ],
+                                        Text(
+                                          _money(total),
+                                          style: const TextStyle(
+                                            fontSize: 17,
+                                            fontWeight: FontWeight.w900,
+                                          ),
                                         ),
                                       ],
                                     ),
-                                  ),
+                                  ],
                                 ),
-                              );
-                            },
+                              ),
+                            ),
                           );
                         },
-                      ),
+                      );
+                    },
+                  ),
           ),
         ],
       ),
@@ -2289,7 +2616,9 @@ class _PosScreenState extends State<PosScreen> {
               overflow: TextOverflow.ellipsis,
             ),
           ),
-          Text('Stock ${_formatStock(product.stockQuantity, product.baseUnitCode)}'),
+          Text(
+            'Stock ${_formatStock(product.stockQuantity, product.baseUnitCode)}',
+          ),
           const SizedBox(width: 16),
           Text(
             _money(product.sellingPrice),
@@ -2535,7 +2864,10 @@ class _PosScreenState extends State<PosScreen> {
               child: Text(
                 '${line.displayQuantity} ${line.unitCode}',
                 textAlign: TextAlign.center,
-                style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 11.5),
+                style: const TextStyle(
+                  fontWeight: FontWeight.w800,
+                  fontSize: 11.5,
+                ),
               ),
             ),
           ),
@@ -2765,156 +3097,52 @@ class _PosScreenState extends State<PosScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Payment',
-              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w900),
-            ),
-            const SizedBox(height: 8),
-            DropdownButtonFormField<String>(
-              initialValue: _paymentMethod,
-              isExpanded: true,
-              decoration: const InputDecoration(
-                labelText: 'Payment method',
-                prefixIcon: Icon(Icons.account_balance_wallet_outlined),
-              ),
-              items: const [
-                DropdownMenuItem(value: 'cash', child: Text('Cash')),
-                DropdownMenuItem(value: 'upi', child: Text('UPI')),
-                DropdownMenuItem(value: 'card', child: Text('Card')),
-                DropdownMenuItem(value: 'bank', child: Text('Bank')),
-                DropdownMenuItem(value: 'credit', child: Text('Credit / Due')),
-              ],
-              onChanged: (value) {
-                if (value == null) return;
-                setState(() {
-                  _paymentMethod = value;
-                  _syncTendered();
-                });
-              },
-            ),
-            const SizedBox(height: 12),
             TextField(
               controller: _orderDiscount,
               keyboardType: const TextInputType.numberWithOptions(
                 decimal: true,
               ),
-              decoration: InputDecoration(
+              decoration: const InputDecoration(
                 labelText: 'Invoice discount',
-                prefixIcon: const Icon(Icons.discount_outlined),
-                helperText: _manualOrderDiscount > 0
-                    ? 'Applied across sale items before tax.'
-                    : 'Optional',
+                prefixIcon: Icon(Icons.discount_outlined),
+                helperText: 'Always shown on the invoice, including 0.00.',
               ),
-              onChanged: (_) {
+              onChanged: (_) => setState(() {}),
+            ),
+            const SizedBox(height: 12),
+            MultiPaymentEditor(
+              tenantId: widget.session.business.id,
+              total: _total,
+              customerIsWalkIn: _customer?.isWalkIn ?? true,
+              customerName: _customer?.name ?? '',
+              initialAllocations: _paymentAllocations,
+              enabled: !_saving,
+              onChanged: (value) {
                 setState(() {
-                  _syncTendered();
+                  _paymentAllocations = value;
+                  if (value.isNotEmpty) {
+                    _paymentMethod =
+                        value.first['method_code']?.toString() ?? 'cash';
+                    _tendered.text = '${value.first['tendered_amount'] ?? ''}';
+                    _paymentReference.text =
+                        value.first['reference_number']?.toString() ?? '';
+                  }
+                  _error = null;
                 });
               },
             ),
             const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _roundOff,
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true, signed: true),
-                    decoration: const InputDecoration(
-                      labelText: 'Round Off',
-                      helperText: 'Post-tax adjustment (-1.00 to 1.00)',
-                      prefixIcon: Icon(Icons.exposure_zero),
-                    ),
-                    onChanged: (_) => setState(() { _syncTendered(); }),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                OutlinedButton.icon(
-                  onPressed: _saving ? null : _applyRoundOff,
-                  icon: const Icon(Icons.exposure_zero),
-                  label: const Text('Round Total'),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            if (_paymentMethod == 'credit')
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.orange.shade50,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.account_balance_wallet_outlined),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        _customer?.isWalkIn == false
-                            ? 'Full amount ${_money(_total)} will be added to ${_customer?.name} account.'
-                            : 'Choose a named customer to use credit.',
-                      ),
-                    ),
-                  ],
-                ),
-              )
-            else ...[
-              TextField(
-                controller: _tendered,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                decoration: InputDecoration(
-                  labelText: _paymentMethod == 'cash' ? 'Cash received' : 'Amount received',
-                  helperText: _customer?.isWalkIn == false
-                      ? 'You may receive less than the invoice total. The remaining balance is added to the customer account.'
-                      : 'Walk-in sales must be paid in full.',
-                  prefixIcon: const Icon(Icons.payments_outlined),
-                  suffixText: _paymentMethod == 'cash' && _change > 0
-                      ? 'Change ${_money(_change)}'
-                      : null,
-                ),
-                onChanged: (_) => setState(() {}),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: Colors.blueGrey.withValues(alpha: .06),
+                borderRadius: BorderRadius.circular(8),
               ),
-              if (_accountBalance > 0.005 && _customer?.isWalkIn == false)
-                Padding(
-                  padding: const EdgeInsets.only(top: 8),
-                  child: Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      '${_money(_accountBalance)} will remain on ${_customer?.name} account.',
-                      style: TextStyle(
-                        color: Colors.orange.shade800,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                ),
-              if (_paymentMethod == 'cash') ...[
-                const SizedBox(height: 10),
-                Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
-                  children: [
-                    FilledButton.tonal(onPressed: _cashExact, child: const Text('Exact')),
-                    for (final amount in const [10, 20, 50, 100, 200, 500, 1000, 2000])
-                      OutlinedButton(
-                        style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                        ),
-                        onPressed: () => _addCash(amount.toDouble()),
-                        child: Text('+₹$amount'),
-                      ),
-                    TextButton(
-                      onPressed: () => setState(() => _tendered.clear()),
-                      child: const Text('Clear'),
-                    ),
-                  ],
-                ),
-              ],
-            ],
-            const SizedBox(height: 12),
-            TextField(
-              controller: _paymentReference,
-              decoration: const InputDecoration(
-                labelText: 'Payment reference (optional)',
-                prefixIcon: Icon(Icons.tag_outlined),
+              child: const Text(
+                'Round-off is automatic. Freight, cutting, installation and '
+                'other charges must be GST-classified Service products.',
+                style: TextStyle(fontSize: 11),
               ),
             ),
             const SizedBox(height: 12),
@@ -2989,16 +3217,21 @@ class _PosScreenState extends State<PosScreen> {
             ),
             const Divider(height: 22),
             _reviewRow('Subtotal', _money(_subtotal)),
-            if (_discount > 0) _reviewRow('Discount', '- ${_money(_discount)}'),
+            _reviewRow('Discount', '- ${_money(_discount)}'),
             _reviewRow('Tax', _money(_tax)),
-            if (_roundOffAmount.abs() > 0.000001) _reviewRow('Round Off', _money(_roundOffAmount)),
+            if (_roundOffAmount.abs() > 0.000001)
+              _reviewRow('Round Off', _money(_roundOffAmount)),
             const Divider(height: 18),
             _reviewRow('Grand Total', _money(_total), strong: true),
             _reviewRow('Amount Received', _money(_appliedPayment)),
             if (_paymentMethod == 'cash')
               _reviewRow('Change', _money(_change), strong: _change > 0),
             if (_accountBalance > 0.005)
-              _reviewRow('Customer Account Balance', _money(_accountBalance), strong: true),
+              _reviewRow(
+                'Customer Account Balance',
+                _money(_accountBalance),
+                strong: true,
+              ),
           ],
         ),
       ),
@@ -3055,14 +3288,13 @@ class _PosScreenState extends State<PosScreen> {
                               ),
                               _reviewRow('Items', '${_cart.length}'),
                               _reviewRow('Subtotal', _money(_subtotal)),
-                              if (_discount > 0)
-                                _reviewRow(
-                                  'Discount',
-                                  '- ${_money(_discount)}',
-                                ),
+                              _reviewRow('Discount', '- ${_money(_discount)}'),
                               _reviewRow('Tax', _money(_tax)),
                               if (_roundOffAmount.abs() > 0.000001)
-                                _reviewRow('Round Off', _money(_roundOffAmount)),
+                                _reviewRow(
+                                  'Round Off',
+                                  _money(_roundOffAmount),
+                                ),
                               const Divider(height: 16),
                               _reviewRow(
                                 'Grand Total',
@@ -3073,9 +3305,16 @@ class _PosScreenState extends State<PosScreen> {
                                 'Payment',
                                 _paymentMethod.toUpperCase(),
                               ),
-                              _reviewRow('Amount received', _money(_appliedPayment)),
+                              _reviewRow(
+                                'Amount received',
+                                _money(_appliedPayment),
+                              ),
                               if (_paymentMethod == 'cash')
-                                _reviewRow('Change', _money(_change), strong: _change > 0),
+                                _reviewRow(
+                                  'Change',
+                                  _money(_change),
+                                  strong: _change > 0,
+                                ),
                               if (_accountBalance > 0.005)
                                 _reviewRow(
                                   'Added to customer account',
@@ -3102,8 +3341,7 @@ class _PosScreenState extends State<PosScreen> {
                           itemBuilder: (context, index) {
                             final line = _cart[index];
                             final net =
-                                _lineGross(line) -
-                                _effectiveLineDiscount(line);
+                                _lineGross(line) - _effectiveLineDiscount(line);
                             final lineTotal =
                                 net + (net * line.product.taxRate / 100);
                             return ListTile(
@@ -3203,7 +3441,11 @@ ProductUnitOption? _preferredPosUnit(InventoryProduct product) {
       if (unit.isBase && unit.allowSale && unit.active) return unit;
     }
     for (final unit in product.saleUnits) {
-      if ((unit.conversionToBase - 1).abs() <= 0.000001 && unit.allowSale && unit.active) return unit;
+      if ((unit.conversionToBase - 1).abs() <= 0.000001 &&
+          unit.allowSale &&
+          unit.active) {
+        return unit;
+      }
     }
   }
   return product.defaultSaleUnit;
@@ -3221,27 +3463,34 @@ class _PosLine {
   final List<String> serialNumbers = [];
 
   _PosLine({required this.product})
-      : unit = _preferredPosUnit(product),
-        quantity = (product.defaultSaleUnit?.quantityStep ?? product.quantityStep) > 1
-            ? (product.defaultSaleUnit?.quantityStep ?? product.quantityStep)
-            : 1.0,
-        discount = 0.0,
-        cuttingChargeApplied = false,
-        resolvedUnitPrice = null,
-        pricingSource = null,
-        priceListId = null;
+    : unit = _preferredPosUnit(product),
+      quantity =
+          (product.defaultSaleUnit?.quantityStep ?? product.quantityStep) > 1
+          ? (product.defaultSaleUnit?.quantityStep ?? product.quantityStep)
+          : 1.0,
+      discount = 0.0,
+      cuttingChargeApplied = false,
+      resolvedUnitPrice = null,
+      pricingSource = null,
+      priceListId = null;
 
   double get conversionToBase => unit?.conversionToBase ?? 1.0;
   double get baseQuantity => quantity * conversionToBase;
   double get quantityStep => (unit?.quantityStep ?? product.quantityStep) > 0
       ? (unit?.quantityStep ?? product.quantityStep)
       : 1.0;
-  double get unitPrice => resolvedUnitPrice ?? unit?.salePriceFor(product.sellingPrice) ?? product.sellingPrice;
+  double get unitPrice =>
+      resolvedUnitPrice ??
+      unit?.salePriceFor(product.sellingPrice) ??
+      product.sellingPrice;
   String get unitCode => unit?.code ?? product.baseUnitCode;
   String get displayQuantity {
     final decimals = unit?.decimalPlaces ?? (product.allowFractional ? 3 : 0);
-    return quantity.toStringAsFixed(quantity % 1 == 0 ? 0 : decimals.clamp(0, 6).toInt());
+    return quantity.toStringAsFixed(
+      quantity % 1 == 0 ? 0 : decimals.clamp(0, 6).toInt(),
+    );
   }
+
   double get appliedCuttingCharge =>
       cuttingChargeApplied ? (unit?.cuttingCharge ?? 0.0) : 0.0;
 }

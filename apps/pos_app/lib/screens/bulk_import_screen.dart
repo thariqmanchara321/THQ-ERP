@@ -481,8 +481,16 @@ class _BulkImportScreenState extends State<BulkImportScreen> {
                   ),
                   ButtonSegment(value: 'customers', label: Text('Customers')),
                   ButtonSegment(value: 'suppliers', label: Text('Suppliers')),
-                  ButtonSegment(value: 'sales', label: Text('Sales'), icon: Icon(Icons.receipt_long_outlined)),
-                  ButtonSegment(value: 'purchases', label: Text('Purchases'), icon: Icon(Icons.shopping_cart_outlined)),
+                  ButtonSegment(
+                    value: 'sales',
+                    label: Text('Sales'),
+                    icon: Icon(Icons.receipt_long_outlined),
+                  ),
+                  ButtonSegment(
+                    value: 'purchases',
+                    label: Text('Purchases'),
+                    icon: Icon(Icons.shopping_cart_outlined),
+                  ),
                 ],
                 selected: {_type},
                 onSelectionChanged: _busy

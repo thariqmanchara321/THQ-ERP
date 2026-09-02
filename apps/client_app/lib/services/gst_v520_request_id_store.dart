@@ -24,7 +24,7 @@ class GstV520RequestLease {
 /// clears the stored lease. Caller-supplied request IDs are never overwritten.
 class GstV520RequestIdStore {
   GstV520RequestIdStore({FlutterSecureStorage? storage})
-      : _storage = storage ?? const FlutterSecureStorage();
+    : _storage = storage ?? const FlutterSecureStorage();
 
   final FlutterSecureStorage _storage;
 
@@ -46,10 +46,7 @@ class GstV520RequestIdStore {
       );
     }
 
-    final safeOperation = operation.replaceAll(
-      RegExp(r'[^a-zA-Z0-9_-]'),
-      '_',
-    );
+    final safeOperation = operation.replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '_');
     final prefix = 'thq_v520_req_${tenantId}_$safeOperation';
     final fingerprintKey = '${prefix}_fp';
     final requestKey = '${prefix}_id';

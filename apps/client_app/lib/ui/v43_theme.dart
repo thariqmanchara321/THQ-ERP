@@ -132,21 +132,69 @@ class UiDesignProfile {
       scaffoldBackgroundColor: background,
       fontFamily: null,
       textTheme: TextTheme(
-        displayLarge: TextStyle(fontSize: 34, fontWeight: FontWeight.w800, color: textPrimary),
-        displayMedium: TextStyle(fontSize: 30, fontWeight: FontWeight.w800, color: textPrimary),
-        displaySmall: TextStyle(fontSize: 27, fontWeight: FontWeight.w800, color: textPrimary),
-        headlineLarge: TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: textPrimary),
-        headlineMedium: TextStyle(fontSize: 21, fontWeight: FontWeight.w800, color: textPrimary),
-        headlineSmall: TextStyle(fontSize: 19, fontWeight: FontWeight.w700, color: textPrimary),
-        titleLarge: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: textPrimary),
-        titleMedium: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: textPrimary),
-        titleSmall: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: textPrimary),
+        displayLarge: TextStyle(
+          fontSize: 34,
+          fontWeight: FontWeight.w800,
+          color: textPrimary,
+        ),
+        displayMedium: TextStyle(
+          fontSize: 30,
+          fontWeight: FontWeight.w800,
+          color: textPrimary,
+        ),
+        displaySmall: TextStyle(
+          fontSize: 27,
+          fontWeight: FontWeight.w800,
+          color: textPrimary,
+        ),
+        headlineLarge: TextStyle(
+          fontSize: 24,
+          fontWeight: FontWeight.w800,
+          color: textPrimary,
+        ),
+        headlineMedium: TextStyle(
+          fontSize: 21,
+          fontWeight: FontWeight.w800,
+          color: textPrimary,
+        ),
+        headlineSmall: TextStyle(
+          fontSize: 19,
+          fontWeight: FontWeight.w700,
+          color: textPrimary,
+        ),
+        titleLarge: TextStyle(
+          fontSize: 17,
+          fontWeight: FontWeight.w700,
+          color: textPrimary,
+        ),
+        titleMedium: TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.w700,
+          color: textPrimary,
+        ),
+        titleSmall: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+          color: textPrimary,
+        ),
         bodyLarge: TextStyle(fontSize: 14, color: textPrimary),
         bodyMedium: TextStyle(fontSize: 12.5, color: textPrimary),
         bodySmall: TextStyle(fontSize: 10.5, color: textSecondary),
-        labelLarge: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: textPrimary),
-        labelMedium: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600, color: textPrimary),
-        labelSmall: TextStyle(fontSize: 9.5, fontWeight: FontWeight.w600, color: textSecondary),
+        labelLarge: TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+          color: textPrimary,
+        ),
+        labelMedium: TextStyle(
+          fontSize: 10.5,
+          fontWeight: FontWeight.w600,
+          color: textPrimary,
+        ),
+        labelSmall: TextStyle(
+          fontSize: 9.5,
+          fontWeight: FontWeight.w600,
+          color: textSecondary,
+        ),
       ),
       appBarTheme: AppBarTheme(
         backgroundColor: surface,
@@ -231,7 +279,10 @@ class UiDesignProfile {
           borderRadius: BorderRadius.circular(r * 0.60),
         ),
         labelStyle: TextStyle(fontWeight: FontWeight.w600, color: textPrimary),
-        secondaryLabelStyle: TextStyle(fontWeight: FontWeight.w600, color: textPrimary),
+        secondaryLabelStyle: TextStyle(
+          fontWeight: FontWeight.w600,
+          color: textPrimary,
+        ),
         iconTheme: IconThemeData(color: textSecondary),
       ),
       navigationRailTheme: NavigationRailThemeData(
@@ -256,7 +307,10 @@ class UiDesignProfile {
         ),
       ),
       dataTableTheme: DataTableThemeData(
-        headingTextStyle: TextStyle(fontWeight: FontWeight.w700, color: textPrimary),
+        headingTextStyle: TextStyle(
+          fontWeight: FontWeight.w700,
+          color: textPrimary,
+        ),
         dataTextStyle: TextStyle(color: textPrimary),
         headingRowColor: WidgetStatePropertyAll(
           Color.alphaBlend(primary.withValues(alpha: 0.035), surface),

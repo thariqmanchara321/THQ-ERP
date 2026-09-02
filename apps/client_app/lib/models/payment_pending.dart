@@ -40,7 +40,8 @@ class PartyPendingSummary {
         v is num ? v.toDouble() : double.tryParse(v?.toString() ?? '') ?? 0;
     int i(dynamic v) =>
         v is num ? v.toInt() : int.tryParse(v?.toString() ?? '') ?? 0;
-    DateTime? d(dynamic v) => v == null ? null : DateTime.tryParse(v.toString());
+    DateTime? d(dynamic v) =>
+        v == null ? null : DateTime.tryParse(v.toString());
     return PartyPendingSummary(
       partyId: m['party_id']?.toString() ?? '',
       partyType: m['party_type']?.toString() ?? '',
@@ -187,7 +188,9 @@ class PartyPaymentDetail {
           .toList(growable: false),
       recentPayments: (m['recent_payments'] as List? ?? const [])
           .whereType<Map>()
-          .map((e) => PartyPaymentActivity.fromMap(Map<String, dynamic>.from(e)))
+          .map(
+            (e) => PartyPaymentActivity.fromMap(Map<String, dynamic>.from(e)),
+          )
           .toList(growable: false),
       grossOutstanding: n(m['gross_outstanding']),
       creditBalance: n(m['credit_balance']),

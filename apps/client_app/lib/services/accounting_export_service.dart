@@ -15,7 +15,12 @@ class AccountingExportService {
       .replaceAll(RegExp(r'_+'), '_')
       .replaceAll(RegExp(r'^_|_$'), '');
 
-  String _fileName(String business, String section, DateTime from, DateTime to) {
+  String _fileName(
+    String business,
+    String section,
+    DateTime from,
+    DateTime to,
+  ) {
     final d = DateFormat('yyyyMMdd');
     return '${_safe(business)}_${_safe(section)}_${d.format(from)}_${d.format(to)}';
   }
@@ -169,7 +174,9 @@ class AccountingExportService {
               pw.TableHelper.fromTextArray(
                 headers: const ['Metric', 'Value'],
                 data: _summaryRows(summary, gst, currencyCode),
-                headerDecoration: const pw.BoxDecoration(color: PdfColors.indigo700),
+                headerDecoration: const pw.BoxDecoration(
+                  color: PdfColors.indigo700,
+                ),
                 headerStyle: pw.TextStyle(
                   color: PdfColors.white,
                   fontWeight: pw.FontWeight.bold,
@@ -186,7 +193,9 @@ class AccountingExportService {
                 spacing: 12,
                 runSpacing: 6,
                 children: statementSummary.entries
-                    .where((entry) => entry.value is! Map && entry.value is! List)
+                    .where(
+                      (entry) => entry.value is! Map && entry.value is! List,
+                    )
                     .map(
                       (entry) => pw.Container(
                         padding: const pw.EdgeInsets.symmetric(
@@ -213,11 +222,17 @@ class AccountingExportService {
           } else {
             widgets.add(
               pw.TableHelper.fromTextArray(
-                headers: columns.map((key) => key.replaceAll('_', ' ').toUpperCase()).toList(),
-                data: sourceRows
-                    .map((row) => columns.map((key) => _value(row[key])).toList())
+                headers: columns
+                    .map((key) => key.replaceAll('_', ' ').toUpperCase())
                     .toList(),
-                headerDecoration: const pw.BoxDecoration(color: PdfColors.indigo700),
+                data: sourceRows
+                    .map(
+                      (row) => columns.map((key) => _value(row[key])).toList(),
+                    )
+                    .toList(),
+                headerDecoration: const pw.BoxDecoration(
+                  color: PdfColors.indigo700,
+                ),
                 headerStyle: pw.TextStyle(
                   color: PdfColors.white,
                   fontWeight: pw.FontWeight.bold,
@@ -242,10 +257,8 @@ class AccountingExportService {
     return doc.save();
   }
 
-  Future<void> printReport({
-    required Uint8List bytes,
-    required String name,
-  }) => Printing.layoutPdf(name: name, onLayout: (_) async => bytes);
+  Future<void> printReport({required Uint8List bytes, required String name}) =>
+      Printing.layoutPdf(name: name, onLayout: (_) async => bytes);
 
   Future<void> savePdf({
     required Uint8List bytes,
@@ -301,9 +314,15 @@ class AccountingExportService {
       );
       final columns = _columns(sourceRows);
       if (columns.isNotEmpty) {
-        sheet.appendRow(columns.map((key) => TextCellValue(key.replaceAll('_', ' '))).toList());
+        sheet.appendRow(
+          columns
+              .map((key) => TextCellValue(key.replaceAll('_', ' ')))
+              .toList(),
+        );
         for (final row in sourceRows) {
-          sheet.appendRow(columns.map((key) => TextCellValue(_value(row[key]))).toList());
+          sheet.appendRow(
+            columns.map((key) => TextCellValue(_value(row[key]))).toList(),
+          );
         }
       }
     }

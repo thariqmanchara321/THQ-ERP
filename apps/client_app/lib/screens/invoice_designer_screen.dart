@@ -153,10 +153,7 @@ class _InvoiceDesignerScreenState extends State<InvoiceDesignerScreen>
     if (!_canManage || _uploadingLogo) return;
     final file = await openFile(
       acceptedTypeGroups: const [
-        XTypeGroup(
-          label: 'Logo image',
-          extensions: ['png', 'jpg', 'jpeg'],
-        ),
+        XTypeGroup(label: 'Logo image', extensions: ['png', 'jpg', 'jpeg']),
       ],
     );
     if (file == null) return;
@@ -294,7 +291,7 @@ class _InvoiceDesignerScreenState extends State<InvoiceDesignerScreen>
     String? selectedDevice;
 
     final scope = await showDialog<Map<String, String?>>(
-        context: context,
+      context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setLocal) {
           final terminalOptions = devices
@@ -445,7 +442,16 @@ class _InvoiceDesignerScreenState extends State<InvoiceDesignerScreen>
     final selectedColumns = <String>{
       ...((draft['columns'] is List
               ? draft['columns'] as List
-              : const ['item', 'sku', 'hsn', 'qty', 'rate', 'discount', 'tax', 'total'])
+              : const [
+                  'item',
+                  'sku',
+                  'hsn',
+                  'qty',
+                  'rate',
+                  'discount',
+                  'tax',
+                  'total',
+                ])
           .map((value) => value.toString().trim().toLowerCase())
           .where((value) => value.isNotEmpty)),
     };
@@ -686,7 +692,9 @@ class _InvoiceDesignerScreenState extends State<InvoiceDesignerScreen>
                                 .map(
                                   (entry) => FilterChip(
                                     label: Text(entry.$2),
-                                    selected: selectedColumns.contains(entry.$1),
+                                    selected: selectedColumns.contains(
+                                      entry.$1,
+                                    ),
                                     onSelected: (value) => setLocal(() {
                                       if (value) {
                                         selectedColumns.add(entry.$1);
@@ -811,7 +819,10 @@ class _InvoiceDesignerScreenState extends State<InvoiceDesignerScreen>
                             _logoUrl.text.trim(),
                             fit: BoxFit.contain,
                             errorBuilder: (context, error, stackTrace) =>
-                                const Icon(Icons.broken_image_outlined, size: 28),
+                                const Icon(
+                                  Icons.broken_image_outlined,
+                                  size: 28,
+                                ),
                           ),
                   ),
                 if (config['show_header'] != false) ...[
@@ -984,10 +995,8 @@ class _InvoiceDesignerScreenState extends State<InvoiceDesignerScreen>
                       child: Image.network(
                         _paymentQrUrl.text.trim(),
                         fit: BoxFit.contain,
-                        errorBuilder: (_, _, _) => const Icon(
-                          Icons.qr_code_2_outlined,
-                          size: 34,
-                        ),
+                        errorBuilder: (_, _, _) =>
+                            const Icon(Icons.qr_code_2_outlined, size: 34),
                       ),
                     ),
                   ),
@@ -1129,13 +1138,19 @@ class _InvoiceDesignerScreenState extends State<InvoiceDesignerScreen>
                   width: 120,
                   height: 72,
                   child: _logoUrl.text.trim().isEmpty
-                      ? const Center(child: Icon(Icons.image_outlined, size: 32))
+                      ? const Center(
+                          child: Icon(Icons.image_outlined, size: 32),
+                        )
                       : Image.network(
                           _logoUrl.text.trim(),
                           fit: BoxFit.contain,
-                          errorBuilder: (context, error, stackTrace) => const Center(
-                            child: Icon(Icons.broken_image_outlined, size: 32),
-                          ),
+                          errorBuilder: (context, error, stackTrace) =>
+                              const Center(
+                                child: Icon(
+                                  Icons.broken_image_outlined,
+                                  size: 32,
+                                ),
+                              ),
                         ),
                 ),
                 const SizedBox(width: 10),
@@ -1157,15 +1172,21 @@ class _InvoiceDesignerScreenState extends State<InvoiceDesignerScreen>
                         spacing: 6,
                         children: [
                           OutlinedButton.icon(
-                            onPressed: !_canManage || _uploadingLogo ? null : _uploadLogo,
+                            onPressed: !_canManage || _uploadingLogo
+                                ? null
+                                : _uploadLogo,
                             icon: _uploadingLogo
                                 ? const SizedBox(
                                     width: 14,
                                     height: 14,
-                                    child: CircularProgressIndicator(strokeWidth: 2),
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
                                   )
                                 : const Icon(Icons.upload_outlined, size: 16),
-                            label: Text(_uploadingLogo ? 'Uploading…' : 'Upload'),
+                            label: Text(
+                              _uploadingLogo ? 'Uploading…' : 'Upload',
+                            ),
                           ),
                           if (_logoUrl.text.trim().isNotEmpty)
                             TextButton(
@@ -1182,7 +1203,11 @@ class _InvoiceDesignerScreenState extends State<InvoiceDesignerScreen>
               ],
             ),
           ),
-          _field(_logoUrl, 'Logo URL (advanced / optional)', Icons.link_outlined),
+          _field(
+            _logoUrl,
+            'Logo URL (advanced / optional)',
+            Icons.link_outlined,
+          ),
           _field(_header, 'Header text', Icons.vertical_align_top, lines: 2),
           _field(_footer, 'Footer text', Icons.vertical_align_bottom, lines: 2),
           _field(_terms, 'Terms & conditions', Icons.notes_outlined, lines: 2),
@@ -1268,8 +1293,7 @@ class _InvoiceDesignerScreenState extends State<InvoiceDesignerScreen>
                             TextButton(
                               onPressed: !_canManage
                                   ? null
-                                  : () =>
-                                        setState(() => _paymentQrUrl.clear()),
+                                  : () => setState(() => _paymentQrUrl.clear()),
                               child: const Text('Remove'),
                             ),
                         ],
@@ -1280,11 +1304,7 @@ class _InvoiceDesignerScreenState extends State<InvoiceDesignerScreen>
               ],
             ),
           ),
-          _field(
-            _paymentQrLabel,
-            'QR label',
-            Icons.label_outline,
-          ),
+          _field(_paymentQrLabel, 'QR label', Icons.label_outline),
           _field(
             _paymentQrUrl,
             'Payment QR URL (advanced / optional)',

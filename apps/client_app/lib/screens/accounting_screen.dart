@@ -170,12 +170,20 @@ class _AccountingScreenState extends State<AccountingScreen> {
       }
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(format == 'print' ? 'Print dialog opened.' : '${format.toUpperCase()} created.')),
+          SnackBar(
+            content: Text(
+              format == 'print'
+                  ? 'Print dialog opened.'
+                  : '${format.toUpperCase()} created.',
+            ),
+          ),
         );
       }
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.toString())));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(error.toString())));
       }
     } finally {
       if (mounted) setState(() => _exporting = false);
@@ -378,7 +386,8 @@ class _AccountingScreenState extends State<AccountingScreen> {
                             value: account['id'].toString(),
                             label: '${account['code']} • ${account['name']}',
                             subtitle: account['account_type']?.toString(),
-                            searchText: '${account['code']} ${account['name']} ${account['account_type'] ?? ''}',
+                            searchText:
+                                '${account['code']} ${account['name']} ${account['account_type'] ?? ''}',
                           ),
                         )
                         .toList(),
@@ -709,24 +718,33 @@ class _AccountingScreenState extends State<AccountingScreen> {
                     icon: const Icon(Icons.refresh),
                   ),
                   OutlinedButton.icon(
-                    onPressed: () => Navigator.of(context).push(MaterialPageRoute(
-                      builder: (_) => FinanceControlsScreen(session: widget.session),
-                    )),
+                    onPressed: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) =>
+                            FinanceControlsScreen(session: widget.session),
+                      ),
+                    ),
                     icon: const Icon(Icons.account_balance_outlined, size: 18),
                     label: const Text('Finance Controls'),
                   ),
                   OutlinedButton.icon(
-                    onPressed: _exporting || _loading ? null : () => _export('print'),
+                    onPressed: _exporting || _loading
+                        ? null
+                        : () => _export('print'),
                     icon: const Icon(Icons.print_outlined, size: 18),
                     label: const Text('Print'),
                   ),
                   FilledButton.tonalIcon(
-                    onPressed: _exporting || _loading ? null : () => _export('pdf'),
+                    onPressed: _exporting || _loading
+                        ? null
+                        : () => _export('pdf'),
                     icon: const Icon(Icons.picture_as_pdf_outlined, size: 18),
                     label: const Text('PDF'),
                   ),
                   FilledButton.tonalIcon(
-                    onPressed: _exporting || _loading ? null : () => _export('xlsx'),
+                    onPressed: _exporting || _loading
+                        ? null
+                        : () => _export('xlsx'),
                     icon: const Icon(Icons.table_view_outlined, size: 18),
                     label: const Text('Excel'),
                   ),
@@ -1368,7 +1386,8 @@ class _ManualJournalDialogState extends State<_ManualJournalDialog> {
                                     value: a['id'].toString(),
                                     label: '${a['code']} • ${a['name']}',
                                     subtitle: a['account_type']?.toString(),
-                                    searchText: '${a['code']} ${a['name']} ${a['account_type'] ?? ''}',
+                                    searchText:
+                                        '${a['code']} ${a['name']} ${a['account_type'] ?? ''}',
                                   ),
                                 )
                                 .toList(),

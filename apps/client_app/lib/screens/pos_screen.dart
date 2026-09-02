@@ -59,8 +59,7 @@ class _PosScreenState extends State<PosScreen> {
   double get _subtotal {
     return _cart.fold<double>(
       0.0,
-      (double sum, _PosLine line) =>
-          sum + (line.quantity * line.unitPrice),
+      (double sum, _PosLine line) => sum + (line.quantity * line.unitPrice),
     );
   }
 
@@ -73,20 +72,23 @@ class _PosScreenState extends State<PosScreen> {
 
   double get _tax {
     return _cart.fold<double>(0.0, (double sum, _PosLine line) {
-      final double taxable =
-          (line.quantity * line.unitPrice) - line.discount;
+      final double taxable = (line.quantity * line.unitPrice) - line.discount;
       return sum + (taxable * line.product.taxRate / 100.0);
     });
   }
 
   double get _beforeRoundOff => _subtotal - _discount + _tax;
 
-  double get _total => _beforeRoundOff + _roundOff;
+  double get _total => _beforeRoundOff.roundToDouble();
+
+  double get _automaticRoundOff => _total - _beforeRoundOff;
 
   void _applyRoundOff() {
     setState(() {
       final delta = _beforeRoundOff.roundToDouble() - _beforeRoundOff;
-      _roundOff = delta.abs() < 0.000001 ? 0.0 : double.parse(delta.toStringAsFixed(2));
+      _roundOff = delta.abs() < 0.000001
+          ? 0.0
+          : double.parse(delta.toStringAsFixed(2));
       _syncTendered();
     });
   }
@@ -227,14 +229,16 @@ class _PosScreenState extends State<PosScreen> {
       if (index >= 0) {
         final line = _cart[index];
         final next = line.quantity + line.quantityStep;
-        if (product.itemType != 'stock' || next * line.conversionToBase <= product.stockQuantity + 0.000001) {
+        if (product.itemType != 'stock' ||
+            next * line.conversionToBase <= product.stockQuantity + 0.000001) {
           line.quantity = next;
           line.resolvedUnitPrice = null;
           changed = line;
         }
       } else {
         final line = _PosLine(product: product);
-        if (product.itemType != 'stock' || line.baseQuantity <= product.stockQuantity + 0.000001) {
+        if (product.itemType != 'stock' ||
+            line.baseQuantity <= product.stockQuantity + 0.000001) {
           _cart.add(line);
           changed = line;
         }
@@ -251,7 +255,9 @@ class _PosScreenState extends State<PosScreen> {
       if (next <= 0.000001) {
         _cart.remove(line);
         keep = false;
-      } else if (line.product.itemType != 'stock' || next * line.conversionToBase <= line.product.stockQuantity + 0.000001) {
+      } else if (line.product.itemType != 'stock' ||
+          next * line.conversionToBase <=
+              line.product.stockQuantity + 0.000001) {
         line.quantity = next;
         line.resolvedUnitPrice = null;
       }
@@ -261,28 +267,45 @@ class _PosScreenState extends State<PosScreen> {
   }
 
   Future<void> _chooseUnit(_PosLine line) async {
-    final units = line.product.saleUnits.where((unit) => unit.allowSale && unit.active).toList();
+    final units = line.product.saleUnits
+        .where((unit) => unit.allowSale && unit.active)
+        .toList();
     if (units.length <= 1) return;
     final selected = await showDialog<ProductUnitOption>(
       context: context,
       builder: (dialogContext) => SimpleDialog(
         title: Text('Billing unit • ${line.product.productName}'),
-        children: units.map((unit) => SimpleDialogOption(
-          onPressed: () => Navigator.pop(dialogContext, unit),
-          child: ListTile(
-            contentPadding: EdgeInsets.zero,
-            title: Text('${unit.name} (${unit.code})'),
-            subtitle: Text('1 ${unit.code} = ${unit.conversionToBase} ${line.product.baseUnitCode}'),
-            trailing: Text(_money(unit.salePriceFor(line.product.sellingPrice))),
-          ),
-        )).toList(),
+        children: units
+            .map(
+              (unit) => SimpleDialogOption(
+                onPressed: () => Navigator.pop(dialogContext, unit),
+                child: ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: Text('${unit.name} (${unit.code})'),
+                  subtitle: Text(
+                    '1 ${unit.code} = ${unit.conversionToBase} ${line.product.baseUnitCode}',
+                  ),
+                  trailing: Text(
+                    _money(unit.salePriceFor(line.product.sellingPrice)),
+                  ),
+                ),
+              ),
+            )
+            .toList(),
       ),
     );
     if (selected == null || !mounted) return;
     var quantity = line.quantity;
-    if (!selected.acceptsQuantity(quantity)) quantity = selected.quantityStep > 1 ? selected.quantityStep : 1;
-    if (line.product.itemType == 'stock' && quantity * selected.conversionToBase > line.product.stockQuantity + 0.000001) {
-      setState(() => _error = 'Insufficient ${line.product.baseUnitCode} stock for ${selected.code}.');
+    if (!selected.acceptsQuantity(quantity)) {
+      quantity = selected.quantityStep > 1 ? selected.quantityStep : 1;
+    }
+    if (line.product.itemType == 'stock' &&
+        quantity * selected.conversionToBase >
+            line.product.stockQuantity + 0.000001) {
+      setState(
+        () => _error =
+            'Insufficient ${line.product.baseUnitCode} stock for ${selected.code}.',
+      );
       return;
     }
     setState(() {
@@ -309,7 +332,13 @@ class _PosScreenState extends State<PosScreen> {
         quantity: quantity,
         locationId: LocationScopeService.selectedLocationId.value,
       );
-      if (!mounted || !_cart.contains(line) || _customerId != customerId || line.unit?.unitId != unitId || (line.quantity - quantity).abs() > 0.000001) return;
+      if (!mounted ||
+          !_cart.contains(line) ||
+          _customerId != customerId ||
+          line.unit?.unitId != unitId ||
+          (line.quantity - quantity).abs() > 0.000001) {
+        return;
+      }
       setState(() {
         line.resolvedUnitPrice = resolution.unitPrice;
         line.pricingSource = resolution.sourceLabel;
@@ -433,7 +462,15 @@ class _PosScreenState extends State<PosScreen> {
       return;
     }
 
-    final double payment = _paymentMethod == 'credit' ? 0.0 : _total;
+    final paymentAllocations = <Map<String, dynamic>>[
+      <String, dynamic>{
+        'method_code': _paymentMethod,
+        'tendered_amount': _paymentMethod == 'credit'
+            ? _total
+            : (_paymentMethod == 'cash' ? _tenderedAmount : _total),
+        'reference_number': '',
+      },
+    ];
 
     setState(() {
       _saving = true;
@@ -460,11 +497,7 @@ class _PosScreenState extends State<PosScreen> {
               },
             )
             .toList(),
-        additionalCharges: 0.0,
-        roundOff: _roundOff,
-        initialPayment: payment,
-        paymentMethod: _paymentMethod == 'credit' ? 'credit' : _paymentMethod,
-        paymentReference: '',
+        paymentAllocations: paymentAllocations,
         notes: 'POS sale',
       );
 
@@ -710,12 +743,27 @@ class _PosScreenState extends State<PosScreen> {
               enabled: !_saving,
               hintText: 'Search customer name, ID, phone or GSTIN',
               prefixIcon: Icons.person_search_outlined,
-              options: _customers.map((customer) => SearchableSelectOption<String>(
-                value: customer.id,
-                label: customer.isWalkIn ? '${customer.name} (Default)' : customer.name,
-                subtitle: [customer.publicId, customer.phone, customer.taxNumber].whereType<String>().where((v) => v.trim().isNotEmpty).join(' • '),
-                searchText: '${customer.name} ${customer.publicId} ${customer.phone ?? ''} ${customer.email ?? ''} ${customer.taxNumber ?? ''}',
-              )).toList(),
+              options: _customers
+                  .map(
+                    (customer) => SearchableSelectOption<String>(
+                      value: customer.id,
+                      label: customer.isWalkIn
+                          ? '${customer.name} (Default)'
+                          : customer.name,
+                      subtitle:
+                          [
+                                customer.publicId,
+                                customer.phone,
+                                customer.taxNumber,
+                              ]
+                              .whereType<String>()
+                              .where((v) => v.trim().isNotEmpty)
+                              .join(' • '),
+                      searchText:
+                          '${customer.name} ${customer.publicId} ${customer.phone ?? ''} ${customer.email ?? ''} ${customer.taxNumber ?? ''}',
+                    ),
+                  )
+                  .toList(),
               onChanged: _saving
                   ? null
                   : (String? value) {
@@ -923,16 +971,22 @@ class _PosLine {
   String? pricingSource;
 
   _PosLine({required this.product})
-      : unit = product.defaultSaleUnit,
-        discount = 0.0,
-        quantity = (product.defaultSaleUnit?.quantityStep ?? product.quantityStep) > 1
-            ? (product.defaultSaleUnit?.quantityStep ?? product.quantityStep)
-            : 1.0,
-        resolvedUnitPrice = null;
+    : unit = product.defaultSaleUnit,
+      discount = 0.0,
+      quantity =
+          (product.defaultSaleUnit?.quantityStep ?? product.quantityStep) > 1
+          ? (product.defaultSaleUnit?.quantityStep ?? product.quantityStep)
+          : 1.0,
+      resolvedUnitPrice = null;
 
   double get conversionToBase => unit?.conversionToBase ?? 1.0;
   double get baseQuantity => quantity * conversionToBase;
-  double get quantityStep => (unit?.quantityStep ?? product.quantityStep) > 0 ? (unit?.quantityStep ?? product.quantityStep) : 1.0;
-  double get unitPrice => resolvedUnitPrice ?? unit?.salePriceFor(product.sellingPrice) ?? product.sellingPrice;
+  double get quantityStep => (unit?.quantityStep ?? product.quantityStep) > 0
+      ? (unit?.quantityStep ?? product.quantityStep)
+      : 1.0;
+  double get unitPrice =>
+      resolvedUnitPrice ??
+      unit?.salePriceFor(product.sellingPrice) ??
+      product.sellingPrice;
   String get unitCode => unit?.code ?? product.baseUnitCode;
 }

@@ -148,7 +148,9 @@ class _CashierShiftScreenState extends State<CashierShiftScreen> {
                   contentPadding: EdgeInsets.zero,
                   leading: const Icon(Icons.schedule_outlined),
                   title: const Text('Shift start time'),
-                  subtitle: Text(DateFormat('dd MMM yyyy • hh:mm a').format(startAt)),
+                  subtitle: Text(
+                    DateFormat('dd MMM yyyy • hh:mm a').format(startAt),
+                  ),
                   trailing: OutlinedButton(
                     onPressed: () async {
                       final picked = await _pickDateTime(startAt);
@@ -161,10 +163,13 @@ class _CashierShiftScreenState extends State<CashierShiftScreen> {
                 TextField(
                   controller: cash,
                   autofocus: true,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
                   decoration: const InputDecoration(
                     labelText: 'Opening cash',
-                    helperText: 'Cash physically in the drawer when the shift starts.',
+                    helperText:
+                        'Cash physically in the drawer when the shift starts.',
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -212,9 +217,9 @@ class _CashierShiftScreenState extends State<CashierShiftScreen> {
       await _load();
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error.toString())),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.toString())));
     }
   }
 
@@ -234,7 +239,9 @@ class _CashierShiftScreenState extends State<CashierShiftScreen> {
               TextField(
                 controller: amount,
                 autofocus: true,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
                 decoration: const InputDecoration(labelText: 'Amount'),
               ),
               const SizedBox(height: 12),
@@ -277,9 +284,9 @@ class _CashierShiftScreenState extends State<CashierShiftScreen> {
       await _load();
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error.toString())),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.toString())));
     }
   }
 
@@ -307,7 +314,9 @@ class _CashierShiftScreenState extends State<CashierShiftScreen> {
   Future<void> _closeShift() async {
     if (_shift == null) return;
     var endAt = DateTime.now();
-    final expected = _number(_shift!['expected_cash_now'] ?? _shift!['expected_cash']);
+    final expected = _number(
+      _shift!['expected_cash_now'] ?? _shift!['expected_cash'],
+    );
     final cash = TextEditingController(text: expected.toStringAsFixed(2));
     final note = TextEditingController();
     final accepted = await showDialog<bool>(
@@ -328,7 +337,9 @@ class _CashierShiftScreenState extends State<CashierShiftScreen> {
                   contentPadding: EdgeInsets.zero,
                   leading: const Icon(Icons.schedule_outlined),
                   title: const Text('Shift end time'),
-                  subtitle: Text(DateFormat('dd MMM yyyy • hh:mm a').format(endAt)),
+                  subtitle: Text(
+                    DateFormat('dd MMM yyyy • hh:mm a').format(endAt),
+                  ),
                   trailing: OutlinedButton(
                     onPressed: () async {
                       final picked = await _pickDateTime(endAt);
@@ -340,16 +351,21 @@ class _CashierShiftScreenState extends State<CashierShiftScreen> {
                 const SizedBox(height: 8),
                 TextField(
                   controller: cash,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
                   decoration: const InputDecoration(
                     labelText: 'Closing cash counted',
-                    helperText: 'Enter the cash physically counted in the drawer.',
+                    helperText:
+                        'Enter the cash physically counted in the drawer.',
                   ),
                 ),
                 const SizedBox(height: 12),
                 TextField(
                   controller: note,
-                  decoration: const InputDecoration(labelText: 'Closing note (optional)'),
+                  decoration: const InputDecoration(
+                    labelText: 'Closing note (optional)',
+                  ),
                 ),
               ],
             ),
@@ -410,29 +426,40 @@ class _CashierShiftScreenState extends State<CashierShiftScreen> {
       await _load();
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error.toString())),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.toString())));
     }
   }
 
   Future<void> _editShift(Map<String, dynamic> row) async {
     final isOpen = row['status']?.toString() == 'open';
-    final isOwnOpen = isOpen && row['user_id']?.toString() == widget.session.userId;
+    final isOwnOpen =
+        isOpen && row['user_id']?.toString() == widget.session.userId;
     if (!isOwnOpen && !_canManageClosed) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Owner or Shift Manage permission is required to edit this shift.')),
+        const SnackBar(
+          content: Text(
+            'Owner or Shift Manage permission is required to edit this shift.',
+          ),
+        ),
       );
       return;
     }
 
     var startAt = _time(row['opened_at']) ?? DateTime.now();
     var endAt = _time(row['closed_at']) ?? DateTime.now();
-    final opening = TextEditingController(text: _number(row['opening_cash']).toStringAsFixed(2));
-    final closing = TextEditingController(
-      text: row['declared_cash'] == null ? '' : _number(row['declared_cash']).toStringAsFixed(2),
+    final opening = TextEditingController(
+      text: _number(row['opening_cash']).toStringAsFixed(2),
     );
-    final note = TextEditingController(text: row['closing_note']?.toString() ?? '');
+    final closing = TextEditingController(
+      text: row['declared_cash'] == null
+          ? ''
+          : _number(row['declared_cash']).toStringAsFixed(2),
+    );
+    final note = TextEditingController(
+      text: row['closing_note']?.toString() ?? '',
+    );
     final reason = TextEditingController();
 
     final accepted = await showDialog<bool>(
@@ -463,8 +490,12 @@ class _CashierShiftScreenState extends State<CashierShiftScreen> {
                   const SizedBox(height: 8),
                   TextField(
                     controller: opening,
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                    decoration: const InputDecoration(labelText: 'Opening cash'),
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    decoration: const InputDecoration(
+                      labelText: 'Opening cash',
+                    ),
                   ),
                   if (!isOpen) ...[
                     const SizedBox(height: 12),
@@ -479,13 +510,19 @@ class _CashierShiftScreenState extends State<CashierShiftScreen> {
                     const SizedBox(height: 8),
                     TextField(
                       controller: closing,
-                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                      decoration: const InputDecoration(labelText: 'Closing cash'),
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
+                      decoration: const InputDecoration(
+                        labelText: 'Closing cash',
+                      ),
                     ),
                     const SizedBox(height: 12),
                     TextField(
                       controller: note,
-                      decoration: const InputDecoration(labelText: 'Closing note'),
+                      decoration: const InputDecoration(
+                        labelText: 'Closing note',
+                      ),
                     ),
                   ],
                   const SizedBox(height: 12),
@@ -493,7 +530,8 @@ class _CashierShiftScreenState extends State<CashierShiftScreen> {
                     controller: reason,
                     decoration: const InputDecoration(
                       labelText: 'Reason for correction *',
-                      helperText: 'Required. Stored permanently in the audit trail.',
+                      helperText:
+                          'Required. Stored permanently in the audit trail.',
                     ),
                   ),
                 ],
@@ -508,9 +546,13 @@ class _CashierShiftScreenState extends State<CashierShiftScreen> {
             FilledButton(
               onPressed: () {
                 final openingValue = double.tryParse(opening.text.trim());
-                final closingValue = isOpen ? null : double.tryParse(closing.text.trim());
+                final closingValue = isOpen
+                    ? null
+                    : double.tryParse(closing.text.trim());
                 if (openingValue == null || openingValue < 0) return;
-                if (!isOpen && (closingValue == null || closingValue < 0)) return;
+                if (!isOpen && (closingValue == null || closingValue < 0)) {
+                  return;
+                }
                 if (reason.text.trim().isEmpty) return;
                 Navigator.pop(dialogContext, true);
               },
@@ -529,7 +571,11 @@ class _CashierShiftScreenState extends State<CashierShiftScreen> {
     closing.dispose();
     note.dispose();
     reason.dispose();
-    if (accepted != true || openingValue == null || correctionReason.trim().isEmpty) return;
+    if (accepted != true ||
+        openingValue == null ||
+        correctionReason.trim().isEmpty) {
+      return;
+    }
 
     try {
       await _service.edit(
@@ -545,9 +591,9 @@ class _CashierShiftScreenState extends State<CashierShiftScreen> {
       await _load();
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error.toString())),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.toString())));
     }
   }
 
@@ -582,19 +628,33 @@ class _CashierShiftScreenState extends State<CashierShiftScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Cashier Shift', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900)),
+                        Text(
+                          'Cashier Shift',
+                          style: TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
                         SizedBox(height: 3),
-                        Text('Cashier time and drawer accountability. Independent from Terminal Daily.'),
+                        Text(
+                          'Cashier time and drawer accountability. Independent from Terminal Daily.',
+                        ),
                       ],
                     ),
                   ),
-                  IconButton(onPressed: _load, icon: const Icon(Icons.refresh), tooltip: 'Refresh'),
+                  IconButton(
+                    onPressed: _load,
+                    icon: const Icon(Icons.refresh),
+                    tooltip: 'Refresh',
+                  ),
                 ],
               ),
               const SizedBox(height: 6),
               Text(
                 '${widget.session.device?.locationCode ?? ''} • ${widget.session.device?.deviceCode ?? ''} • ${widget.session.username}',
-                style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
               ),
               const SizedBox(height: 16),
               if (_error != null)
@@ -612,9 +672,17 @@ class _CashierShiftScreenState extends State<CashierShiftScreen> {
                       children: [
                         const Icon(Icons.badge_outlined, size: 52),
                         const SizedBox(height: 12),
-                        const Text('No active cashier shift', style: TextStyle(fontSize: 21, fontWeight: FontWeight.w800)),
+                        const Text(
+                          'No active cashier shift',
+                          style: TextStyle(
+                            fontSize: 21,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
                         const SizedBox(height: 7),
-                        const Text('Start time is automatic and opening cash is recorded. Both can be corrected with an audit trail.'),
+                        const Text(
+                          'Start time is automatic and opening cash is recorded. Both can be corrected with an audit trail.',
+                        ),
                         const SizedBox(height: 18),
                         FilledButton.icon(
                           onPressed: _openShift,
@@ -639,10 +707,16 @@ class _CashierShiftScreenState extends State<CashierShiftScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    _shift!['shift_number']?.toString() ?? 'Current Shift',
-                                    style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
+                                    _shift!['shift_number']?.toString() ??
+                                        'Current Shift',
+                                    style: const TextStyle(
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.w900,
+                                    ),
                                   ),
-                                  Text('Started ${_dateTime(_shift!['opened_at'])} • ${_duration(_shift!)}'),
+                                  Text(
+                                    'Started ${_dateTime(_shift!['opened_at'])} • ${_duration(_shift!)}',
+                                  ),
                                 ],
                               ),
                             ),
@@ -660,14 +734,49 @@ class _CashierShiftScreenState extends State<CashierShiftScreen> {
                           spacing: 10,
                           runSpacing: 10,
                           children: [
-                            _metric('Started With', _money(_shift!['opening_cash']), Icons.account_balance_wallet_outlined),
-                            _metric('Expected Now', _money(_shift!['expected_cash_now'] ?? _shift!['expected_cash']), Icons.calculate_outlined),
-                            _metric('Cash Sales', _money(_shift!['cash_sales']), Icons.receipt_long_outlined),
-                            _metric('Customer Receipts', _money(_shift!['customer_receipts']), Icons.payments_outlined),
-                            _metric('Cash In', _money(_shift!['cash_in']), Icons.add_circle_outline),
-                            _metric('Cash Out', _money(_shift!['cash_out']), Icons.remove_circle_outline),
-                            _metric('Expenses', _money(_shift!['cash_expenses']), Icons.money_off_outlined),
-                            _metric('Refunds', _money(_shift!['refunds']), Icons.keyboard_return_outlined),
+                            _metric(
+                              'Started With',
+                              _money(_shift!['opening_cash']),
+                              Icons.account_balance_wallet_outlined,
+                            ),
+                            _metric(
+                              'Expected Now',
+                              _money(
+                                _shift!['expected_cash_now'] ??
+                                    _shift!['expected_cash'],
+                              ),
+                              Icons.calculate_outlined,
+                            ),
+                            _metric(
+                              'Cash Sales',
+                              _money(_shift!['cash_sales']),
+                              Icons.receipt_long_outlined,
+                            ),
+                            _metric(
+                              'Customer Receipts',
+                              _money(_shift!['customer_receipts']),
+                              Icons.payments_outlined,
+                            ),
+                            _metric(
+                              'Cash In',
+                              _money(_shift!['cash_in']),
+                              Icons.add_circle_outline,
+                            ),
+                            _metric(
+                              'Cash Out',
+                              _money(_shift!['cash_out']),
+                              Icons.remove_circle_outline,
+                            ),
+                            _metric(
+                              'Expenses',
+                              _money(_shift!['cash_expenses']),
+                              Icons.money_off_outlined,
+                            ),
+                            _metric(
+                              'Refunds',
+                              _money(_shift!['refunds']),
+                              Icons.keyboard_return_outlined,
+                            ),
                           ],
                         ),
                         const SizedBox(height: 16),
@@ -698,10 +807,20 @@ class _CashierShiftScreenState extends State<CashierShiftScreen> {
                 ),
               ],
               const SizedBox(height: 18),
-              const Text("Today's Shifts", style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900)),
+              const Text(
+                "Today's Shifts",
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
+              ),
               const SizedBox(height: 8),
               if (_history.isEmpty)
-                const Card(child: Padding(padding: EdgeInsets.all(18), child: Text("No shifts recorded today. Historical shifts are available in Terminal Daily.")))
+                const Card(
+                  child: Padding(
+                    padding: EdgeInsets.all(18),
+                    child: Text(
+                      "No shifts recorded today. Historical shifts are available in Terminal Daily.",
+                    ),
+                  ),
+                )
               else
                 Card(
                   clipBehavior: Clip.antiAlias,
@@ -723,7 +842,9 @@ class _CashierShiftScreenState extends State<CashierShiftScreen> {
 
   Widget _shiftTile(Map<String, dynamic> row) {
     final open = row['status']?.toString() == 'open';
-    final canEdit = (open && row['user_id']?.toString() == widget.session.userId) || _canManageClosed;
+    final canEdit =
+        (open && row['user_id']?.toString() == widget.session.userId) ||
+        _canManageClosed;
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
       leading: CircleAvatar(
@@ -737,7 +858,10 @@ class _CashierShiftScreenState extends State<CashierShiftScreen> {
               style: const TextStyle(fontWeight: FontWeight.w800),
             ),
           ),
-          Text(open ? 'OPEN' : 'CLOSED', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w900)),
+          Text(
+            open ? 'OPEN' : 'CLOSED',
+            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w900),
+          ),
         ],
       ),
       subtitle: Padding(
@@ -775,9 +899,18 @@ class _CashierShiftScreenState extends State<CashierShiftScreen> {
           children: [
             Icon(icon, size: 19),
             const SizedBox(height: 10),
-            Text(value, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900)),
+            Text(
+              value,
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
+            ),
             const SizedBox(height: 2),
-            Text(label, style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant)),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
           ],
         ),
       ),

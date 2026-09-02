@@ -33,7 +33,8 @@ class _PricingScreenState extends State<PricingScreen>
   List<Map<String, dynamic>> _listRules = const [];
   List<Map<String, dynamic>> _customerRules = const [];
 
-  bool get _canManage => widget.session.hasPermission('inventory.manage') ||
+  bool get _canManage =>
+      widget.session.hasPermission('inventory.manage') ||
       widget.session.hasPermission('sales.manage') ||
       widget.session.hasRole('owner');
 
@@ -68,14 +69,23 @@ class _PricingScreenState extends State<PricingScreen>
       final products = results[1] as List<InventoryProduct>;
       final customers = results[2] as List<Customer>;
       var listId = _selectedListId;
-      if (listId == null || !lists.any((e) => e['price_list_id']?.toString() == listId)) {
+      if (listId == null ||
+          !lists.any((e) => e['price_list_id']?.toString() == listId)) {
         final active = lists.where((e) => e['active'] != false).toList();
         final preferred = active.where((e) => e['is_default'] == true).toList();
-        listId = (preferred.isNotEmpty ? preferred.first : (active.isNotEmpty ? active.first : null))?['price_list_id']?.toString();
+        listId =
+            (preferred.isNotEmpty
+                    ? preferred.first
+                    : (active.isNotEmpty
+                          ? active.first
+                          : null))?['price_list_id']
+                ?.toString();
       }
       var customerId = _selectedCustomerId;
       if (customerId == null || !customers.any((e) => e.id == customerId)) {
-        final nonWalkIn = customers.where((e) => !e.isWalkIn && e.isActive).toList();
+        final nonWalkIn = customers
+            .where((e) => !e.isWalkIn && e.isActive)
+            .toList();
         customerId = nonWalkIn.isEmpty ? null : nonWalkIn.first.id;
       }
       setState(() {
@@ -130,7 +140,9 @@ class _PricingScreenState extends State<PricingScreen>
   }
 
   String _money(dynamic value) {
-    final amount = value is num ? value.toDouble() : double.tryParse('$value') ?? 0;
+    final amount = value is num
+        ? value.toDouble()
+        : double.tryParse('$value') ?? 0;
     return widget.session.currencyCode == 'INR'
         ? '₹${amount.toStringAsFixed(2)}'
         : '${widget.session.currencyCode} ${amount.toStringAsFixed(2)}';
@@ -138,9 +150,15 @@ class _PricingScreenState extends State<PricingScreen>
 
   Future<void> _editList([Map<String, dynamic>? current]) async {
     if (!_canManage) return;
-    final code = TextEditingController(text: current?['code']?.toString() ?? '');
-    final name = TextEditingController(text: current?['name']?.toString() ?? '');
-    final description = TextEditingController(text: current?['description']?.toString() ?? '');
+    final code = TextEditingController(
+      text: current?['code']?.toString() ?? '',
+    );
+    final name = TextEditingController(
+      text: current?['name']?.toString() ?? '',
+    );
+    final description = TextEditingController(
+      text: current?['description']?.toString() ?? '',
+    );
     var isDefault = current?['is_default'] == true;
     var active = current?['active'] != false;
     final saved = await showDialog<bool>(
@@ -153,11 +171,27 @@ class _PricingScreenState extends State<PricingScreen>
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                TextField(controller: code, decoration: const InputDecoration(labelText: 'Code', hintText: 'WHOLESALE')),
+                TextField(
+                  controller: code,
+                  decoration: const InputDecoration(
+                    labelText: 'Code',
+                    hintText: 'WHOLESALE',
+                  ),
+                ),
                 const SizedBox(height: 10),
-                TextField(controller: name, decoration: const InputDecoration(labelText: 'Name', hintText: 'Wholesale')),
+                TextField(
+                  controller: name,
+                  decoration: const InputDecoration(
+                    labelText: 'Name',
+                    hintText: 'Wholesale',
+                  ),
+                ),
                 const SizedBox(height: 10),
-                TextField(controller: description, maxLines: 2, decoration: const InputDecoration(labelText: 'Description')),
+                TextField(
+                  controller: description,
+                  maxLines: 2,
+                  decoration: const InputDecoration(labelText: 'Description'),
+                ),
                 const SizedBox(height: 8),
                 SwitchListTile(
                   contentPadding: EdgeInsets.zero,
@@ -175,10 +209,15 @@ class _PricingScreenState extends State<PricingScreen>
             ),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Cancel')),
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Cancel'),
+            ),
             FilledButton(
               onPressed: () async {
-                if (code.text.trim().isEmpty || name.text.trim().isEmpty) return;
+                if (code.text.trim().isEmpty || name.text.trim().isEmpty) {
+                  return;
+                }
                 try {
                   await _pricing.savePriceList(
                     tenantId: widget.session.business.id,
@@ -193,7 +232,9 @@ class _PricingScreenState extends State<PricingScreen>
                   Navigator.pop(dialogContext, true);
                 } catch (error) {
                   if (!dialogContext.mounted) return;
-                  ScaffoldMessenger.of(dialogContext).showSnackBar(SnackBar(content: Text(error.toString())));
+                  ScaffoldMessenger.of(
+                    dialogContext,
+                  ).showSnackBar(SnackBar(content: Text(error.toString())));
                 }
               },
               child: const Text('Save'),
@@ -214,12 +255,25 @@ class _PricingScreenState extends State<PricingScreen>
     Map<String, dynamic>? current,
   }) async {
     if (!_canManage || _products.isEmpty) return;
-    var variantId = current?['variant_id']?.toString() ?? _products.first.variantId;
-    InventoryProduct productFor(String id) => _products.firstWhere((e) => e.variantId == id, orElse: () => _products.first);
+    var variantId =
+        current?['variant_id']?.toString() ?? _products.first.variantId;
+    InventoryProduct productFor(String id) => _products.firstWhere(
+      (e) => e.variantId == id,
+      orElse: () => _products.first,
+    );
     var product = productFor(variantId);
-    var unitId = current?['unit_id']?.toString() ?? product.defaultSaleUnit?.unitId ?? (product.saleUnits.isNotEmpty ? product.saleUnits.first.unitId : '');
-    final qty = TextEditingController(text: current?['min_quantity']?.toString() ?? '1');
-    final price = TextEditingController(text: current?['unit_price']?.toString() ?? product.sellingPrice.toStringAsFixed(2));
+    var unitId =
+        current?['unit_id']?.toString() ??
+        product.defaultSaleUnit?.unitId ??
+        (product.saleUnits.isNotEmpty ? product.saleUnits.first.unitId : '');
+    final qty = TextEditingController(
+      text: current?['min_quantity']?.toString() ?? '1',
+    );
+    final price = TextEditingController(
+      text:
+          current?['unit_price']?.toString() ??
+          product.sellingPrice.toStringAsFixed(2),
+    );
     var active = current?['active'] != false;
 
     final saved = await showDialog<bool>(
@@ -232,7 +286,9 @@ class _PricingScreenState extends State<PricingScreen>
             unitId = product.defaultSaleUnit?.unitId ?? units.first.unitId;
           }
           return AlertDialog(
-            title: Text(customerSpecific ? 'Customer Specific Price' : 'Price Rule'),
+            title: Text(
+              customerSpecific ? 'Customer Specific Price' : 'Price Rule',
+            ),
             content: SizedBox(
               width: 560,
               child: Column(
@@ -244,55 +300,120 @@ class _PricingScreenState extends State<PricingScreen>
                     isRequired: true,
                     hintText: 'Search product, SKU, barcode or part number',
                     prefixIcon: Icons.inventory_2_outlined,
-                    options: _products.map((p) => SearchableSelectOption<String>(
-                      value: p.variantId,
-                      label: p.productName,
-                      subtitle: [p.sku, p.barcode, p.partNumber].where((v) => v != null && v.toString().trim().isNotEmpty).join(' • '),
-                      searchText: '${p.productName} ${p.sku} ${p.barcode ?? ''} ${p.partNumber ?? ''} ${p.searchCodes}',
-                    )).toList(),
+                    options: _products
+                        .map(
+                          (p) => SearchableSelectOption<String>(
+                            value: p.variantId,
+                            label: p.productName,
+                            subtitle: [p.sku, p.barcode, p.partNumber]
+                                .where(
+                                  (v) =>
+                                      v != null &&
+                                      v.toString().trim().isNotEmpty,
+                                )
+                                .join(' • '),
+                            searchText:
+                                '${p.productName} ${p.sku} ${p.barcode ?? ''} ${p.partNumber ?? ''} ${p.searchCodes}',
+                          ),
+                        )
+                        .toList(),
                     onChanged: (value) {
                       if (value == null) return;
                       setDialogState(() {
                         variantId = value;
                         final next = productFor(value);
-                        unitId = next.defaultSaleUnit?.unitId ?? (next.saleUnits.isNotEmpty ? next.saleUnits.first.unitId : '');
+                        unitId =
+                            next.defaultSaleUnit?.unitId ??
+                            (next.saleUnits.isNotEmpty
+                                ? next.saleUnits.first.unitId
+                                : '');
                       });
                     },
                   ),
                   const SizedBox(height: 10),
                   DropdownButtonFormField<String>(
-                    initialValue: units.any((e) => e.unitId == unitId) ? unitId : null,
+                    initialValue: units.any((e) => e.unitId == unitId)
+                        ? unitId
+                        : null,
                     decoration: const InputDecoration(labelText: 'Sale Unit'),
-                    items: units.map((u) => DropdownMenuItem(value: u.unitId, child: Text('${u.name} (${u.code})'))).toList(),
-                    onChanged: (value) => setDialogState(() => unitId = value ?? ''),
+                    items: units
+                        .map(
+                          (u) => DropdownMenuItem(
+                            value: u.unitId,
+                            child: Text('${u.name} (${u.code})'),
+                          ),
+                        )
+                        .toList(),
+                    onChanged: (value) =>
+                        setDialogState(() => unitId = value ?? ''),
                   ),
                   const SizedBox(height: 10),
                   Row(
                     children: [
-                      Expanded(child: TextField(controller: qty, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: 'Minimum Quantity'))),
+                      Expanded(
+                        child: TextField(
+                          controller: qty,
+                          keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true,
+                          ),
+                          decoration: const InputDecoration(
+                            labelText: 'Minimum Quantity',
+                          ),
+                        ),
+                      ),
                       const SizedBox(width: 10),
-                      Expanded(child: TextField(controller: price, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: 'Unit Price'))),
+                      Expanded(
+                        child: TextField(
+                          controller: price,
+                          keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true,
+                          ),
+                          decoration: const InputDecoration(
+                            labelText: 'Unit Price',
+                          ),
+                        ),
+                      ),
                     ],
                   ),
                   const SizedBox(height: 8),
-                  SwitchListTile(contentPadding: EdgeInsets.zero, value: active, onChanged: (value) => setDialogState(() => active = value), title: const Text('Active')),
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    value: active,
+                    onChanged: (value) => setDialogState(() => active = value),
+                    title: const Text('Active'),
+                  ),
                 ],
               ),
             ),
             actions: [
-              TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Cancel')),
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext, false),
+                child: const Text('Cancel'),
+              ),
               FilledButton(
                 onPressed: () async {
                   final minQty = double.tryParse(qty.text.trim());
                   final unitPrice = double.tryParse(price.text.trim());
-                  if (unitId.isEmpty || minQty == null || minQty <= 0 || unitPrice == null || unitPrice < 0) {
-                    ScaffoldMessenger.of(dialogContext).showSnackBar(const SnackBar(content: Text('Choose a valid product/unit, quantity and price.')));
+                  if (unitId.isEmpty ||
+                      minQty == null ||
+                      minQty <= 0 ||
+                      unitPrice == null ||
+                      unitPrice < 0) {
+                    ScaffoldMessenger.of(dialogContext).showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                          'Choose a valid product/unit, quantity and price.',
+                        ),
+                      ),
+                    );
                     return;
                   }
                   try {
                     if (customerSpecific) {
                       final customerId = _selectedCustomerId;
-                      if (customerId == null) throw StateError('Select a customer first.');
+                      if (customerId == null) {
+                        throw StateError('Select a customer first.');
+                      }
                       await _pricing.saveCustomerPrice(
                         tenantId: widget.session.business.id,
                         ruleId: current?['rule_id']?.toString(),
@@ -305,7 +426,9 @@ class _PricingScreenState extends State<PricingScreen>
                       );
                     } else {
                       final listId = _selectedListId;
-                      if (listId == null) throw StateError('Select a price list first.');
+                      if (listId == null) {
+                        throw StateError('Select a price list first.');
+                      }
                       await _pricing.savePriceRule(
                         tenantId: widget.session.business.id,
                         ruleId: current?['rule_id']?.toString(),
@@ -321,7 +444,9 @@ class _PricingScreenState extends State<PricingScreen>
                     Navigator.pop(dialogContext, true);
                   } catch (error) {
                     if (!dialogContext.mounted) return;
-                    ScaffoldMessenger.of(dialogContext).showSnackBar(SnackBar(content: Text(error.toString())));
+                    ScaffoldMessenger.of(
+                      dialogContext,
+                    ).showSnackBar(SnackBar(content: Text(error.toString())));
                   }
                 },
                 child: const Text('Save'),
@@ -348,7 +473,11 @@ class _PricingScreenState extends State<PricingScreen>
       );
       if (!mounted) return;
       await _load();
-      _message(priceListId == null ? 'Customer now uses the default retail price list.' : 'Customer price list updated.');
+      _message(
+        priceListId == null
+            ? 'Customer now uses the default retail price list.'
+            : 'Customer price list updated.',
+      );
     } catch (error) {
       _message(error.toString());
     }
@@ -359,11 +488,18 @@ class _PricingScreenState extends State<PricingScreen>
     if (_loading) return const Center(child: CircularProgressIndicator());
     if (_error != null) {
       return Center(
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Text(_error!, textAlign: TextAlign.center),
-          const SizedBox(height: 12),
-          OutlinedButton.icon(onPressed: _load, icon: const Icon(Icons.refresh), label: const Text('Retry')),
-        ]),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(_error!, textAlign: TextAlign.center),
+            const SizedBox(height: 12),
+            OutlinedButton.icon(
+              onPressed: _load,
+              icon: const Icon(Icons.refresh),
+              label: const Text('Retry'),
+            ),
+          ],
+        ),
       );
     }
     return Column(
@@ -374,7 +510,10 @@ class _PricingScreenState extends State<PricingScreen>
             controller: _tabs,
             tabs: const [
               Tab(icon: Icon(Icons.sell_outlined), text: 'Price Lists'),
-              Tab(icon: Icon(Icons.person_pin_outlined), text: 'Customer Pricing'),
+              Tab(
+                icon: Icon(Icons.person_pin_outlined),
+                text: 'Customer Pricing',
+              ),
             ],
           ),
         ),
@@ -389,7 +528,10 @@ class _PricingScreenState extends State<PricingScreen>
   }
 
   Widget _buildPriceLists() {
-    final selected = _lists.where((e) => e['price_list_id']?.toString() == _selectedListId).cast<Map<String, dynamic>?>().firstOrNull;
+    final selected = _lists
+        .where((e) => e['price_list_id']?.toString() == _selectedListId)
+        .cast<Map<String, dynamic>?>()
+        .firstOrNull;
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Row(
@@ -401,8 +543,17 @@ class _PricingScreenState extends State<PricingScreen>
               child: Column(
                 children: [
                   ListTile(
-                    title: const Text('Price Lists', style: TextStyle(fontWeight: FontWeight.w800)),
-                    trailing: _canManage ? IconButton(onPressed: () => _editList(), icon: const Icon(Icons.add), tooltip: 'Add price list') : null,
+                    title: const Text(
+                      'Price Lists',
+                      style: TextStyle(fontWeight: FontWeight.w800),
+                    ),
+                    trailing: _canManage
+                        ? IconButton(
+                            onPressed: () => _editList(),
+                            icon: const Icon(Icons.add),
+                            tooltip: 'Add price list',
+                          )
+                        : null,
                   ),
                   const Divider(height: 1),
                   Expanded(
@@ -412,12 +563,20 @@ class _PricingScreenState extends State<PricingScreen>
                         return ListTile(
                           selected: id == _selectedListId,
                           title: Text(list['name']?.toString() ?? ''),
-                          subtitle: Text('${list['code'] ?? ''}${list['is_default'] == true ? ' • DEFAULT' : ''}${list['active'] == false ? ' • INACTIVE' : ''}'),
+                          subtitle: Text(
+                            '${list['code'] ?? ''}${list['is_default'] == true ? ' • DEFAULT' : ''}${list['active'] == false ? ' • INACTIVE' : ''}',
+                          ),
                           onTap: () async {
                             setState(() => _selectedListId = id);
                             await _loadRules();
                           },
-                          trailing: _canManage ? IconButton(onPressed: () => _editList(list), icon: const Icon(Icons.edit_outlined), tooltip: 'Edit') : null,
+                          trailing: _canManage
+                              ? IconButton(
+                                  onPressed: () => _editList(list),
+                                  icon: const Icon(Icons.edit_outlined),
+                                  tooltip: 'Edit',
+                                )
+                              : null,
                         );
                       }).toList(),
                     ),
@@ -432,12 +591,25 @@ class _PricingScreenState extends State<PricingScreen>
               child: Column(
                 children: [
                   ListTile(
-                    title: Text(selected?['name']?.toString() ?? 'Select a price list', style: const TextStyle(fontWeight: FontWeight.w800)),
-                    subtitle: const Text('Quantity breaks use the greatest minimum quantity that matches the sale.'),
-                    trailing: _canManage && _selectedListId != null ? FilledButton.icon(onPressed: () => _editRule(customerSpecific: false), icon: const Icon(Icons.add), label: const Text('Add Price')) : null,
+                    title: Text(
+                      selected?['name']?.toString() ?? 'Select a price list',
+                      style: const TextStyle(fontWeight: FontWeight.w800),
+                    ),
+                    subtitle: const Text(
+                      'Quantity breaks use the greatest minimum quantity that matches the sale.',
+                    ),
+                    trailing: _canManage && _selectedListId != null
+                        ? FilledButton.icon(
+                            onPressed: () => _editRule(customerSpecific: false),
+                            icon: const Icon(Icons.add),
+                            label: const Text('Add Price'),
+                          )
+                        : null,
                   ),
                   const Divider(height: 1),
-                  Expanded(child: _ruleList(_listRules, customerSpecific: false)),
+                  Expanded(
+                    child: _ruleList(_listRules, customerSpecific: false),
+                  ),
                 ],
               ),
             ),
@@ -449,7 +621,10 @@ class _PricingScreenState extends State<PricingScreen>
 
   Widget _buildCustomerPricing() {
     final customers = _customers.where((e) => !e.isWalkIn).toList();
-    final customer = customers.where((e) => e.id == _selectedCustomerId).cast<Customer?>().firstOrNull;
+    final customer = customers
+        .where((e) => e.id == _selectedCustomerId)
+        .cast<Customer?>()
+        .firstOrNull;
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Row(
@@ -460,19 +635,35 @@ class _PricingScreenState extends State<PricingScreen>
             child: Card(
               child: Column(
                 children: [
-                  const ListTile(title: Text('Customers', style: TextStyle(fontWeight: FontWeight.w800)), subtitle: Text('Assign a price list or create exact customer prices.')),
+                  const ListTile(
+                    title: Text(
+                      'Customers',
+                      style: TextStyle(fontWeight: FontWeight.w800),
+                    ),
+                    subtitle: Text(
+                      'Assign a price list or create exact customer prices.',
+                    ),
+                  ),
                   const Divider(height: 1),
                   Expanded(
                     child: ListView(
-                      children: customers.map((c) => ListTile(
-                        selected: c.id == _selectedCustomerId,
-                        title: Text(c.name),
-                        subtitle: Text(c.priceListName?.isNotEmpty == true ? c.priceListName! : 'Default Retail'),
-                        onTap: () async {
-                          setState(() => _selectedCustomerId = c.id);
-                          await _loadRules();
-                        },
-                      )).toList(),
+                      children: customers
+                          .map(
+                            (c) => ListTile(
+                              selected: c.id == _selectedCustomerId,
+                              title: Text(c.name),
+                              subtitle: Text(
+                                c.priceListName?.isNotEmpty == true
+                                    ? c.priceListName!
+                                    : 'Default Retail',
+                              ),
+                              onTap: () async {
+                                setState(() => _selectedCustomerId = c.id);
+                                await _loadRules();
+                              },
+                            ),
+                          )
+                          .toList(),
                     ),
                   ),
                 ],
@@ -491,22 +682,44 @@ class _PricingScreenState extends State<PricingScreen>
                         Expanded(
                           child: DropdownButtonFormField<String?>(
                             initialValue: customer?.priceListId,
-                            decoration: const InputDecoration(labelText: 'Assigned Price List'),
+                            decoration: const InputDecoration(
+                              labelText: 'Assigned Price List',
+                            ),
                             items: [
-                              const DropdownMenuItem<String?>(value: null, child: Text('Default Retail')),
-                              ..._lists.where((e) => e['active'] != false).map((list) => DropdownMenuItem<String?>(value: list['price_list_id']?.toString(), child: Text(list['name']?.toString() ?? ''))),
+                              const DropdownMenuItem<String?>(
+                                value: null,
+                                child: Text('Default Retail'),
+                              ),
+                              ..._lists
+                                  .where((e) => e['active'] != false)
+                                  .map(
+                                    (list) => DropdownMenuItem<String?>(
+                                      value: list['price_list_id']?.toString(),
+                                      child: Text(
+                                        list['name']?.toString() ?? '',
+                                      ),
+                                    ),
+                                  ),
                             ],
-                            onChanged: _canManage && customer != null ? _setCustomerPriceList : null,
+                            onChanged: _canManage && customer != null
+                                ? _setCustomerPriceList
+                                : null,
                           ),
                         ),
                         const SizedBox(width: 12),
                         if (_canManage && customer != null)
-                          FilledButton.icon(onPressed: () => _editRule(customerSpecific: true), icon: const Icon(Icons.add), label: const Text('Specific Price')),
+                          FilledButton.icon(
+                            onPressed: () => _editRule(customerSpecific: true),
+                            icon: const Icon(Icons.add),
+                            label: const Text('Specific Price'),
+                          ),
                       ],
                     ),
                   ),
                   const Divider(height: 1),
-                  Expanded(child: _ruleList(_customerRules, customerSpecific: true)),
+                  Expanded(
+                    child: _ruleList(_customerRules, customerSpecific: true),
+                  ),
                 ],
               ),
             ),
@@ -516,7 +729,10 @@ class _PricingScreenState extends State<PricingScreen>
     );
   }
 
-  Widget _ruleList(List<Map<String, dynamic>> rules, {required bool customerSpecific}) {
+  Widget _ruleList(
+    List<Map<String, dynamic>> rules, {
+    required bool customerSpecific,
+  }) {
     if (rules.isEmpty) {
       return const Center(child: Text('No pricing rules yet.'));
     }
@@ -526,15 +742,32 @@ class _PricingScreenState extends State<PricingScreen>
       itemBuilder: (context, index) {
         final rule = rules[index];
         return ListTile(
-          title: Text('${rule['product_name'] ?? ''} • ${rule['unit_code'] ?? ''}'),
-          subtitle: Text('From qty ${rule['min_quantity'] ?? 1}${rule['active'] == false ? ' • INACTIVE' : ''}'),
+          title: Text(
+            '${rule['product_name'] ?? ''} • ${rule['unit_code'] ?? ''}',
+          ),
+          subtitle: Text(
+            'From qty ${rule['min_quantity'] ?? 1}${rule['active'] == false ? ' • INACTIVE' : ''}',
+          ),
           trailing: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(_money(rule['unit_price']), style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16)),
+              Text(
+                _money(rule['unit_price']),
+                style: const TextStyle(
+                  fontWeight: FontWeight.w900,
+                  fontSize: 16,
+                ),
+              ),
               if (_canManage) ...[
                 const SizedBox(width: 8),
-                IconButton(onPressed: () => _editRule(customerSpecific: customerSpecific, current: rule), icon: const Icon(Icons.edit_outlined), tooltip: 'Edit'),
+                IconButton(
+                  onPressed: () => _editRule(
+                    customerSpecific: customerSpecific,
+                    current: rule,
+                  ),
+                  icon: const Icon(Icons.edit_outlined),
+                  tooltip: 'Edit',
+                ),
               ],
             ],
           ),

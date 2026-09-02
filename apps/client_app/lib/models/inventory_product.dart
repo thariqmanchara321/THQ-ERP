@@ -126,10 +126,20 @@ class InventoryProduct {
       brandName: map['brand_name']?.toString(),
       unitName: map['unit_name']?.toString(),
       unitCode: map['unit_code']?.toString(),
-      baseUnitCode: map['base_unit_code']?.toString() ?? base['code']?.toString() ?? map['unit_code']?.toString() ?? 'PCS',
-      baseUnitName: base['name']?.toString() ?? map['unit_name']?.toString() ?? map['unit_code']?.toString() ?? 'Piece',
+      baseUnitCode:
+          map['base_unit_code']?.toString() ??
+          base['code']?.toString() ??
+          map['unit_code']?.toString() ??
+          'PCS',
+      baseUnitName:
+          base['name']?.toString() ??
+          map['unit_name']?.toString() ??
+          map['unit_code']?.toString() ??
+          'Piece',
       allowFractional: base['allow_fractional'] == true,
-      quantityStep: number(base['quantity_step']) > 0 ? number(base['quantity_step']) : 1,
+      quantityStep: number(base['quantity_step']) > 0
+          ? number(base['quantity_step'])
+          : 1,
       saleUnits: saleUnits,
       purchaseUnits: purchaseUnits,
       sku: map['sku']?.toString() ?? '',
@@ -144,7 +154,9 @@ class InventoryProduct {
       reorderLevel: number(map['reorder_level']),
       stockQuantity: number(map['stock_quantity']),
       trackingMode: map['tracking_mode']?.toString() ?? 'none',
-      trackedStockQuantity: map['tracked_stock_quantity'] == null ? null : number(map['tracked_stock_quantity']),
+      trackedStockQuantity: map['tracked_stock_quantity'] == null
+          ? null
+          : number(map['tracked_stock_quantity']),
       productStatus: map['product_status']?.toString() ?? '',
       variantStatus: map['variant_status']?.toString() ?? '',
       updatedAt: DateTime.tryParse(map['updated_at']?.toString() ?? ''),

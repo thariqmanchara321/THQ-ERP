@@ -27,7 +27,6 @@ class ExpenseService {
         .toList();
   }
 
-
   Future<List<ExpenseCategory>> getCategories({
     required String tenantId,
   }) async {

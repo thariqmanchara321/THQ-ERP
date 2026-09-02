@@ -9,7 +9,8 @@ class LoanService {
   final ThqApiService _api = ThqApiService();
   SupabaseClient get _supabase => Supabase.instance.client;
 
-  String? _readLocation(ClientSession session) => LocationScopeService.current(session);
+  String? _readLocation(ClientSession session) =>
+      LocationScopeService.current(session);
 
   String _writeLocation(ClientSession session) {
     final location = LocationScopeService.current(session);
@@ -32,7 +33,9 @@ class LoanService {
       request.resource == 'loan-warnings' ||
       request.resource == 'customer-loans' ||
       (request.resource == 'loans' &&
-          (request.action == 'list' || request.action == 'detail' || request.action == 'settings-get'));
+          (request.action == 'list' ||
+              request.action == 'detail' ||
+              request.action == 'settings-get'));
 
   bool _isCompatibilityFailure(Object error) {
     final message = error.toString().toLowerCase();
@@ -192,7 +195,9 @@ class LoanService {
             rpc = 'loan_settings_v491_set';
             params = {...base, 'p_reflect': p['reflect_in_accounting'] ?? true};
           default:
-            throw UnsupportedError('Unsupported loans action ${request.action}.');
+            throw UnsupportedError(
+              'Unsupported loans action ${request.action}.',
+            );
         }
       case 'loan-dashboard':
         rpc = 'loan_dashboard_v491';
@@ -218,33 +223,32 @@ class LoanService {
     String? status,
     String? direction,
     String query = '',
-  }) async =>
-      _rows(
-        await _call(
-          ThqApiRequest(
-            tenantId: session.business.id,
-            resource: 'loans',
-            action: 'list',
-            payload: {
-              'location_id': _readLocation(session),
-              'status': status,
-              'direction': direction,
-              'query': query,
-              'limit': 1000,
-            },
-          ),
-        ),
-      );
+  }) async => _rows(
+    await _call(
+      ThqApiRequest(
+        tenantId: session.business.id,
+        resource: 'loans',
+        action: 'list',
+        payload: {
+          'location_id': _readLocation(session),
+          'status': status,
+          'direction': direction,
+          'query': query,
+          'limit': 1000,
+        },
+      ),
+    ),
+  );
 
   Future<Map<String, dynamic>> dashboard(ClientSession session) async => _map(
-        await _call(
-          ThqApiRequest(
-            tenantId: session.business.id,
-            resource: 'loan-dashboard',
-            payload: {'location_id': _readLocation(session)},
-          ),
-        ),
-      );
+    await _call(
+      ThqApiRequest(
+        tenantId: session.business.id,
+        resource: 'loan-dashboard',
+        payload: {'location_id': _readLocation(session)},
+      ),
+    ),
+  );
 
   Future<List<Map<String, dynamic>>> warnings(ClientSession session) async =>
       _rows(
@@ -260,48 +264,45 @@ class LoanService {
   Future<Map<String, dynamic>> detail(
     ClientSession session,
     String loanId,
-  ) async =>
-      _map(
-        await _call(
-          ThqApiRequest(
-            tenantId: session.business.id,
-            resource: 'loans',
-            action: 'detail',
-            payload: {'loan_id': loanId},
-          ),
-        ),
-      );
+  ) async => _map(
+    await _call(
+      ThqApiRequest(
+        tenantId: session.business.id,
+        resource: 'loans',
+        action: 'detail',
+        payload: {'loan_id': loanId},
+      ),
+    ),
+  );
 
   Future<Map<String, dynamic>> create(
     ClientSession session,
     Map<String, dynamic> loan,
-  ) async =>
-      _map(
-        await _call(
-          ThqApiRequest(
-            tenantId: session.business.id,
-            resource: 'loans',
-            action: 'create',
-            payload: {'location_id': _writeLocation(session), 'loan': loan},
-          ),
-        ),
-      );
+  ) async => _map(
+    await _call(
+      ThqApiRequest(
+        tenantId: session.business.id,
+        resource: 'loans',
+        action: 'create',
+        payload: {'location_id': _writeLocation(session), 'loan': loan},
+      ),
+    ),
+  );
 
   Future<Map<String, dynamic>> update(
     ClientSession session,
     String loanId,
     Map<String, dynamic> loan,
-  ) async =>
-      _map(
-        await _call(
-          ThqApiRequest(
-            tenantId: session.business.id,
-            resource: 'loans',
-            action: 'update',
-            payload: {'loan_id': loanId, 'loan': loan},
-          ),
-        ),
-      );
+  ) async => _map(
+    await _call(
+      ThqApiRequest(
+        tenantId: session.business.id,
+        resource: 'loans',
+        action: 'update',
+        payload: {'loan_id': loanId, 'loan': loan},
+      ),
+    ),
+  );
 
   Future<void> submit(ClientSession session, String loanId) async {
     await _call(
@@ -361,25 +362,24 @@ class LoanService {
     required String paymentMethod,
     String referenceNumber = '',
     String notes = '',
-  }) async =>
-      _map(
-        await _call(
-          ThqApiRequest(
-            tenantId: session.business.id,
-            resource: 'loans',
-            action: 'payment',
-            payload: {
-              'loan_id': loanId,
-              'amount': amount,
-              'payment_date': date.toIso8601String().split('T').first,
-              'payment_method': paymentMethod,
-              'reference_number': referenceNumber,
-              'notes': notes,
-              'device_id': session.device?.deviceId,
-            },
-          ),
-        ),
-      );
+  }) async => _map(
+    await _call(
+      ThqApiRequest(
+        tenantId: session.business.id,
+        resource: 'loans',
+        action: 'payment',
+        payload: {
+          'loan_id': loanId,
+          'amount': amount,
+          'payment_date': date.toIso8601String().split('T').first,
+          'payment_method': paymentMethod,
+          'reference_number': referenceNumber,
+          'notes': notes,
+          'device_id': session.device?.deviceId,
+        },
+      ),
+    ),
+  );
 
   Future<void> reversePayment(
     ClientSession session,
@@ -501,14 +501,14 @@ class LoanService {
   }
 
   Future<Map<String, dynamic>> settings(ClientSession session) async => _map(
-        await _call(
-          ThqApiRequest(
-            tenantId: session.business.id,
-            resource: 'loans',
-            action: 'settings-get',
-          ),
-        ),
-      );
+    await _call(
+      ThqApiRequest(
+        tenantId: session.business.id,
+        resource: 'loans',
+        action: 'settings-get',
+      ),
+    ),
+  );
 
   Future<void> setAccountingEnabled(ClientSession session, bool enabled) async {
     await _call(
@@ -524,14 +524,13 @@ class LoanService {
   Future<Map<String, dynamic>> customerSummary(
     ClientSession session,
     String customerId,
-  ) async =>
-      _map(
-        await _call(
-          ThqApiRequest(
-            tenantId: session.business.id,
-            resource: 'customer-loans',
-            payload: {'customer_id': customerId},
-          ),
-        ),
-      );
+  ) async => _map(
+    await _call(
+      ThqApiRequest(
+        tenantId: session.business.id,
+        resource: 'customer-loans',
+        payload: {'customer_id': customerId},
+      ),
+    ),
+  );
 }

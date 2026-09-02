@@ -10,7 +10,6 @@ import '../models/app_menu_node.dart';
 import '../services/client_auth_service.dart';
 import '../services/client_session_service.dart';
 import '../services/device_heartbeat_service.dart';
-import '../services/device_installation_service.dart';
 import '../services/location_scope_service.dart';
 import '../services/navigation_service.dart';
 import '../services/thq_api_service.dart';
@@ -22,7 +21,6 @@ import 'backup_export_screen.dart';
 import 'bulk_import_screen.dart';
 import 'business_settings_screen.dart';
 import 'client_login_screen.dart';
-import 'client_entry_screen.dart';
 import 'customers_screen.dart';
 import 'dashboard_screen.dart';
 import 'error_logs_screen.dart';
@@ -266,47 +264,6 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
     );
   }
 
-  Future<void> _changeStoreBusiness() async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Change Store / Business?'),
-        content: const Text(
-          'This resets the current THQ business/device activation and returns '
-          'to Business Code + Activation. The permanent installation ID is kept.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton.icon(
-            onPressed: () => Navigator.pop(dialogContext, true),
-            icon: const Icon(Icons.restart_alt),
-            label: const Text('Reset & Change'),
-          ),
-        ],
-      ),
-    );
-    if (confirmed != true) return;
-
-    try {
-      await _authService.signOut();
-      await DeviceInstallationService().clearActivation();
-      LocationScopeService.selectedLocationId.value = null;
-      if (!mounted) return;
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => const ClientEntryScreen()),
-        (_) => false,
-      );
-    } catch (error) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Reset failed: $error')));
-    }
-  }
-
   void _openSearch([String query = '']) {
     Navigator.of(context).push(
       MaterialPageRoute(
@@ -468,12 +425,6 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
                     onTap: () => setState(() => _navCollapsed = !_navCollapsed),
                   ),
                   _navAction(
-                    icon: Icons.restart_alt,
-                    label: 'Change Store / Business',
-                    collapsed: _navCollapsed,
-                    onTap: _changeStoreBusiness,
-                  ),
-                  _navAction(
                     icon: Icons.logout,
                     label: 'Sign Out',
                     collapsed: _navCollapsed,
@@ -564,17 +515,6 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
                 ),
               ),
               const Divider(height: 1),
-              Material(
-                color: Colors.transparent,
-                child: ListTile(
-                  leading: const Icon(Icons.restart_alt),
-                  title: const Text('Change Store / Business'),
-                  onTap: () {
-                    Navigator.of(context).pop();
-                    _changeStoreBusiness();
-                  },
-                ),
-              ),
               Material(
                 color: Colors.transparent,
                 child: ListTile(
