@@ -60,116 +60,159 @@ class _PaymentCenterScreenState extends State<PaymentCenterScreen> {
   }
 
   @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            const Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Pending Payments',
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 9, 12, 12),
+      child: Column(
+        children: [
+          SizedBox(
+            height: 48,
+            child: Row(
+              children: [
+                Container(
+                  width: 4,
+                  height: 26,
+                  decoration: BoxDecoration(
+                    color: scheme.primary,
+                    borderRadius: BorderRadius.circular(999),
                   ),
-                  SizedBox(height: 4),
-                  Text(
-                    'Customer receivables and supplier payables grouped by party',
+                ),
+                const SizedBox(width: 9),
+                Expanded(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Pending Payments',
+                        style: TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      Text(
+                        'Customer receivables and supplier payables by party',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 10.5,
+                          color: scheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
                   ),
-                ],
+                ),
+                IconButton(
+                  tooltip: 'Refresh balances',
+                  visualDensity: VisualDensity.compact,
+                  onPressed: _refresh,
+                  icon: const Icon(Icons.refresh_rounded, size: 19),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 6),
+          Container(
+            height: 40,
+            padding: const EdgeInsets.symmetric(horizontal: 7),
+            decoration: BoxDecoration(
+              color: scheme.surface,
+              borderRadius: BorderRadius.circular(9),
+              border: Border.all(color: scheme.outlineVariant),
+            ),
+            child: TextField(
+              controller: _query,
+              onChanged: (_) => setState(() {}),
+              onSubmitted: (_) => setState(_load),
+              decoration: InputDecoration(
+                hintText:
+                    'Search customer, supplier, phone, email or tracking ID',
+                prefixIcon: const Icon(Icons.search, size: 17),
+                suffixIcon: _query.text.isEmpty
+                    ? null
+                    : IconButton(
+                        tooltip: 'Clear',
+                        visualDensity: VisualDensity.compact,
+                        onPressed: () {
+                          _query.clear();
+                          setState(_load);
+                        },
+                        icon: const Icon(Icons.close, size: 17),
+                      ),
+                border: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
               ),
             ),
-            IconButton(
-              tooltip: 'Refresh balances',
-              onPressed: _refresh,
-              icon: const Icon(Icons.refresh),
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        TextField(
-          controller: _query,
-          decoration: InputDecoration(
-            hintText: 'Search customer, supplier, phone, email or tracking ID',
-            prefixIcon: const Icon(Icons.search),
-            suffixIcon: _query.text.isEmpty
-                ? null
-                : IconButton(
-                    tooltip: 'Clear',
-                    onPressed: () {
-                      _query.clear();
-                      setState(_load);
-                    },
-                    icon: const Icon(Icons.close),
-                  ),
           ),
-          onChanged: (_) => setState(() {}),
-          onSubmitted: (_) => setState(_load),
-        ),
-        const SizedBox(height: 8),
-        Expanded(
-          child: FutureBuilder<PendingPaymentsData>(
-            future: _future,
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator());
-              }
-              if (snapshot.hasError) {
-                return Center(
-                  child: SelectableText(
-                    snapshot.error.toString(),
-                    textAlign: TextAlign.center,
-                  ),
-                );
-              }
-              final data = snapshot.data!;
-              return LayoutBuilder(
-                builder: (context, constraints) {
-                  final receive = _PartyPane(
-                    title: 'Customers • To Receive',
-                    subtitle: '${data.receivables.length} customer account(s)',
-                    icon: Icons.south_west_rounded,
-                    amount: data.totalReceivable,
-                    money: _m,
-                    rows: data.receivables,
-                    onOpen: _openParty,
+          const SizedBox(height: 6),
+          Expanded(
+            child: FutureBuilder<PendingPaymentsData>(
+              future: _future,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (snapshot.hasError) {
+                  return Center(
+                    child: SelectableText(
+                      snapshot.error.toString(),
+                      textAlign: TextAlign.center,
+                    ),
                   );
-                  final pay = _PartyPane(
-                    title: 'Suppliers • To Pay',
-                    subtitle: '${data.payables.length} supplier account(s)',
-                    icon: Icons.north_east_rounded,
-                    amount: data.totalPayable,
-                    money: _m,
-                    rows: data.payables,
-                    onOpen: _openParty,
-                  );
-                  if (constraints.maxWidth < 980) {
-                    return Column(
+                }
+
+                final data = snapshot.data!;
+                return LayoutBuilder(
+                  builder: (context, constraints) {
+                    final receive = _PartyPane(
+                      title: 'Customers - To Receive',
+                      subtitle:
+                          '${data.receivables.length} customer account(s)',
+                      icon: Icons.south_west_rounded,
+                      amount: data.totalReceivable,
+                      money: _m,
+                      rows: data.receivables,
+                      onOpen: _openParty,
+                    );
+                    final pay = _PartyPane(
+                      title: 'Suppliers - To Pay',
+                      subtitle: '${data.payables.length} supplier account(s)',
+                      icon: Icons.north_east_rounded,
+                      amount: data.totalPayable,
+                      money: _m,
+                      rows: data.payables,
+                      onOpen: _openParty,
+                    );
+
+                    if (constraints.maxWidth < 900) {
+                      return Column(
+                        children: [
+                          Expanded(child: receive),
+                          const SizedBox(height: 6),
+                          Expanded(child: pay),
+                        ],
+                      );
+                    }
+
+                    return Row(
                       children: [
                         Expanded(child: receive),
-                        const SizedBox(height: 14),
+                        const SizedBox(width: 6),
                         Expanded(child: pay),
                       ],
                     );
-                  }
-                  return Row(
-                    children: [
-                      Expanded(child: receive),
-                      const SizedBox(width: 14),
-                      Expanded(child: pay),
-                    ],
-                  );
-                },
-              );
-            },
+                  },
+                );
+              },
+            ),
           ),
-        ),
-      ],
-    ),
-  );
+        ],
+      ),
+    );
+  }
 }
 
 class _PartyPane extends StatelessWidget {
@@ -197,117 +240,256 @@ class _PartyPane extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) => Card(
-    child: Padding(
-      padding: const EdgeInsets.all(18),
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: scheme.surface,
+        borderRadius: BorderRadius.circular(11),
+        border: Border.all(color: scheme.outlineVariant),
+      ),
+      clipBehavior: Clip.antiAlias,
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Icon(icon),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: const TextStyle(
-                        fontSize: 19,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    Text(
-                      subtitle,
-                      style: TextStyle(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                  ],
+          Container(
+            height: 56,
+            padding: const EdgeInsets.symmetric(horizontal: 10),
+            color: scheme.surfaceContainerHighest.withValues(alpha: .45),
+            child: Row(
+              children: [
+                Container(
+                  width: 30,
+                  height: 30,
+                  decoration: BoxDecoration(
+                    color: scheme.primary.withValues(alpha: .08),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(icon, size: 16, color: scheme.primary),
                 ),
-              ),
-              Text(
-                money(amount),
-                style: const TextStyle(
-                  fontSize: 21,
-                  fontWeight: FontWeight.bold,
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      Text(
+                        subtitle,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 8.8,
+                          color: scheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            ],
+                Text(
+                  money(amount),
+                  maxLines: 1,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ],
+            ),
           ),
-          const Divider(height: 28),
+          Container(
+            height: 32,
+            padding: const EdgeInsets.symmetric(horizontal: 9),
+            color: scheme.surfaceContainerHighest.withValues(alpha: .20),
+            child: const Row(
+              children: [
+                Expanded(
+                  flex: 5,
+                  child: Text(
+                    'Party',
+                    style: TextStyle(
+                      fontSize: 8.8,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+                Expanded(
+                  flex: 3,
+                  child: Text(
+                    'Open / Due',
+                    style: TextStyle(
+                      fontSize: 8.8,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+                Expanded(
+                  flex: 3,
+                  child: Text(
+                    'Balance',
+                    textAlign: TextAlign.right,
+                    style: TextStyle(
+                      fontSize: 8.8,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+                SizedBox(width: 24),
+              ],
+            ),
+          ),
           Expanded(
             child: rows.isEmpty
                 ? const Center(child: Text('Nothing pending.'))
-                : ListView.separated(
+                : ListView.builder(
+                    padding: EdgeInsets.zero,
                     itemCount: rows.length,
-                    separatorBuilder: (_, _) => const Divider(height: 1),
                     itemBuilder: (context, index) {
                       final row = rows[index];
-                      final isCustomer = row.partyType == 'customer';
-                      final breakdown = isCustomer
-                          ? 'Sales ${money(row.salesOutstanding)} • Loans ${money(row.loanOutstanding)}'
-                          : 'Purchases ${money(row.purchaseOutstanding)} • Purchase invoices ${money(row.invoiceOutstanding)}'
-                                '${row.creditBalance > .005 ? ' • Credit ${money(row.creditBalance)}' : ''}';
-                      return ListTile(
-                        contentPadding: const EdgeInsets.symmetric(vertical: 6),
-                        leading: CircleAvatar(
-                          child: Icon(
-                            isCustomer
-                                ? Icons.person_outline
-                                : Icons.local_shipping_outlined,
-                          ),
-                        ),
-                        title: Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                row.partyName,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w700,
+                      final customer = row.partyType == 'customer';
+                      return Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          onTap: () => onOpen(row),
+                          child: Container(
+                            constraints: const BoxConstraints(minHeight: 50),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 9,
+                              vertical: 5,
+                            ),
+                            decoration: BoxDecoration(
+                              border: Border(
+                                bottom: BorderSide(
+                                  color: scheme.outlineVariant,
                                 ),
                               ),
                             ),
-                            Text(
-                              money(row.balance),
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                          ],
-                        ),
-                        subtitle: Padding(
-                          padding: const EdgeInsets.only(top: 4),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(breakdown),
-                              const SizedBox(height: 2),
-                              Text(
-                                '${row.documentCount} open item(s) • Next due ${_d(row.nextDueDate)}'
-                                '${row.overdue > .005 ? ' • Overdue ${money(row.overdue)}' : ''}',
-                                style: TextStyle(
-                                  color: row.overdue > .005
-                                      ? Theme.of(context).colorScheme.error
-                                      : Theme.of(
-                                          context,
-                                        ).colorScheme.onSurfaceVariant,
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  flex: 5,
+                                  child: Row(
+                                    children: [
+                                      Icon(
+                                        customer
+                                            ? Icons.person_outline
+                                            : Icons.local_shipping_outlined,
+                                        size: 16,
+                                        color: scheme.onSurfaceVariant,
+                                      ),
+                                      const SizedBox(width: 7),
+                                      Expanded(
+                                        child: Column(
+                                          mainAxisSize: MainAxisSize.min,
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              row.partyName,
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: const TextStyle(
+                                                fontSize: 9.8,
+                                                fontWeight: FontWeight.w800,
+                                              ),
+                                            ),
+                                            Text(
+                                              customer
+                                                  ? 'Sales ${money(row.salesOutstanding)} | Loans ${money(row.loanOutstanding)}'
+                                                  : 'Purchases ${money(row.purchaseOutstanding)} | Bills ${money(row.invoiceOutstanding)}',
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: TextStyle(
+                                                fontSize: 7.8,
+                                                color: scheme.onSurfaceVariant,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
-                              ),
-                            ],
+                                Expanded(
+                                  flex: 3,
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        '${row.documentCount} open',
+                                        style: const TextStyle(
+                                          fontSize: 8.8,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                      Text(
+                                        _d(row.nextDueDate),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          fontSize: 7.8,
+                                          color: row.overdue > .005
+                                              ? scheme.error
+                                              : scheme.onSurfaceVariant,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                Expanded(
+                                  flex: 3,
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    crossAxisAlignment: CrossAxisAlignment.end,
+                                    children: [
+                                      Text(
+                                        money(row.balance),
+                                        maxLines: 1,
+                                        style: const TextStyle(
+                                          fontSize: 9.8,
+                                          fontWeight: FontWeight.w900,
+                                        ),
+                                      ),
+                                      if (row.overdue > .005)
+                                        Text(
+                                          'Overdue ${money(row.overdue)}',
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: TextStyle(
+                                            fontSize: 7.5,
+                                            fontWeight: FontWeight.w700,
+                                            color: scheme.error,
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(
+                                  width: 24,
+                                  child: Icon(Icons.chevron_right, size: 17),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
-                        trailing: const Icon(Icons.chevron_right),
-                        onTap: () => onOpen(row),
                       );
                     },
                   ),
           ),
         ],
       ),
-    ),
-  );
+    );
+  }
 }
 
 class _PartyPaymentDetailScreen extends StatefulWidget {

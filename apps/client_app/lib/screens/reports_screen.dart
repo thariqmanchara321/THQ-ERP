@@ -163,91 +163,169 @@ class _ReportsScreenState extends State<ReportsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
     return Padding(
-      padding: EdgeInsets.all(MediaQuery.sizeOf(context).width < 700 ? 14 : 22),
+      padding: const EdgeInsets.fromLTRB(12, 9, 12, 12),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Reports',
-            style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
-          ),
-          const SizedBox(height: 5),
-          Row(
-            children: [
-              const Expanded(
-                child: Text('Sales, purchase, tax, profit and stock summary'),
-              ),
-              FilledButton.icon(
-                onPressed: () => Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) =>
-                        ReportsCenterV500Screen(session: widget.session),
+          SizedBox(
+            height: 48,
+            child: Row(
+              children: [
+                Container(
+                  width: 4,
+                  height: 26,
+                  decoration: BoxDecoration(
+                    color: scheme.primary,
+                    borderRadius: BorderRadius.circular(999),
                   ),
                 ),
-                icon: const Icon(Icons.analytics_outlined),
-                label: const Text('Reports Center v5'),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Wrap(
-            spacing: 10,
-            runSpacing: 10,
-            children: [
-              OutlinedButton.icon(
-                onPressed: () => _pick(true),
-                icon: const Icon(Icons.date_range),
-                label: Text('From ${_date(_from)}'),
-              ),
-              OutlinedButton.icon(
-                onPressed: () => _pick(false),
-                icon: const Icon(Icons.date_range),
-                label: Text('To ${_date(_to)}'),
-              ),
-              FilledButton.icon(
-                onPressed: _reload,
-                icon: const Icon(Icons.refresh),
-                label: const Text('Refresh'),
-              ),
-              FilledButton.tonalIcon(
-                onPressed: _exporting ? null : () => _export('pdf'),
-                icon: const Icon(Icons.picture_as_pdf_outlined),
-                label: const Text('PDF'),
-              ),
-              FilledButton.tonalIcon(
-                onPressed: _exporting ? null : () => _export('xlsx'),
-                icon: const Icon(Icons.table_view_outlined),
-                label: const Text('Excel'),
-              ),
-              OutlinedButton.icon(
-                onPressed: _exporting ? null : () => _export('print'),
-                icon: const Icon(Icons.print_outlined),
-                label: const Text('Print'),
-              ),
-              OutlinedButton.icon(
-                onPressed: () => _openHistory(sales: true),
-                icon: const Icon(Icons.receipt_long_outlined),
-                label: const Text('Sales History'),
-              ),
-              OutlinedButton.icon(
-                onPressed: () => _openHistory(sales: false),
-                icon: const Icon(Icons.shopping_cart_outlined),
-                label: const Text('Purchase History'),
-              ),
-              OutlinedButton.icon(
-                onPressed: () => Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) =>
-                        ReturnsRegisterScreen(session: widget.session),
+                const SizedBox(width: 9),
+                Expanded(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Reports',
+                        style: TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      Text(
+                        'Sales, purchase, tax, profit and stock summary',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 10.5,
+                          color: scheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                icon: const Icon(Icons.assignment_return_outlined),
-                label: const Text('Returns Register'),
-              ),
-            ],
+                FilledButton.tonalIcon(
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) =>
+                          ReportsCenterV500Screen(session: widget.session),
+                    ),
+                  ),
+                  icon: const Icon(Icons.analytics_outlined, size: 16),
+                  label: const Text('Reports Center'),
+                ),
+              ],
+            ),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 6),
+          Container(
+            constraints: const BoxConstraints(minHeight: 42),
+            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+            decoration: BoxDecoration(
+              color: scheme.surface,
+              borderRadius: BorderRadius.circular(9),
+              border: Border.all(color: scheme.outlineVariant),
+            ),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final controls = <Widget>[
+                  OutlinedButton.icon(
+                    onPressed: () => _pick(true),
+                    icon: const Icon(Icons.date_range, size: 15),
+                    label: Text('From ${_date(_from)}'),
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: () => _pick(false),
+                    icon: const Icon(Icons.event, size: 15),
+                    label: Text('To ${_date(_to)}'),
+                  ),
+                  IconButton(
+                    tooltip: 'Refresh',
+                    visualDensity: VisualDensity.compact,
+                    onPressed: _reload,
+                    icon: const Icon(Icons.refresh, size: 18),
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: () => _openHistory(sales: true),
+                    icon: const Icon(Icons.receipt_long_outlined, size: 15),
+                    label: const Text('Sales'),
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: () => _openHistory(sales: false),
+                    icon: const Icon(Icons.shopping_cart_outlined, size: 15),
+                    label: const Text('Purchases'),
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) =>
+                            ReturnsRegisterScreen(session: widget.session),
+                      ),
+                    ),
+                    icon: const Icon(
+                      Icons.assignment_return_outlined,
+                      size: 15,
+                    ),
+                    label: const Text('Returns'),
+                  ),
+                  PopupMenuButton<String>(
+                    tooltip: 'Print / Export',
+                    enabled: !_exporting,
+                    onSelected: _export,
+                    itemBuilder: (context) => const [
+                      PopupMenuItem(value: 'print', child: Text('Print')),
+                      PopupMenuItem(value: 'pdf', child: Text('Save PDF')),
+                      PopupMenuItem(value: 'xlsx', child: Text('Save Excel')),
+                    ],
+                    child: Container(
+                      height: 34,
+                      padding: const EdgeInsets.symmetric(horizontal: 9),
+                      decoration: BoxDecoration(
+                        color: scheme.surfaceContainerHighest,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: scheme.outlineVariant),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (_exporting)
+                            const SizedBox(
+                              width: 14,
+                              height: 14,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          else
+                            const Icon(Icons.ios_share_outlined, size: 15),
+                          const SizedBox(width: 5),
+                          const Text(
+                            'Export',
+                            style: TextStyle(
+                              fontSize: 9.5,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ];
+                return SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      for (final control in controls) ...[
+                        control,
+                        const SizedBox(width: 5),
+                      ],
+                    ],
+                  ),
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: 6),
           Expanded(
             child: FutureBuilder<ReportSummary>(
               future: _future,
@@ -328,50 +406,111 @@ class _ReportsScreenState extends State<ReportsScreen> {
                   ),
                 ];
 
-                return GridView.extent(
-                  maxCrossAxisExtent: 340,
-                  mainAxisSpacing: 12,
-                  crossAxisSpacing: 12,
-                  childAspectRatio: 2.0,
-                  children: rows
-                      .map(
-                        (row) => Container(
-                          padding: const EdgeInsets.all(18),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(14),
-                            border: Border.all(color: Colors.grey.shade200),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Text(
-                                row.label,
-                                style: TextStyle(color: Colors.grey.shade600),
+                return LayoutBuilder(
+                  builder: (context, constraints) {
+                    final columns = constraints.maxWidth >= 1100
+                        ? 4
+                        : constraints.maxWidth >= 760
+                        ? 3
+                        : 2;
+                    const gap = 6.0;
+                    final width =
+                        (constraints.maxWidth - ((columns - 1) * gap)) /
+                        columns;
+                    return SingleChildScrollView(
+                      child: Wrap(
+                        spacing: gap,
+                        runSpacing: gap,
+                        children: rows
+                            .map(
+                              (row) => SizedBox(
+                                width: width,
+                                child: _reportMetric(row),
                               ),
-                              const SizedBox(height: 4),
-                              Text(
-                                row.value,
-                                style: const TextStyle(
-                                  fontSize: 21,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              Text(
-                                row.caption,
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  color: Colors.grey.shade500,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      )
-                      .toList(),
+                            )
+                            .toList(),
+                      ),
+                    );
+                  },
                 );
               },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _reportMetric(_ReportCardData row) {
+    final scheme = Theme.of(context).colorScheme;
+    final icon = row.label.contains('Purchase')
+        ? Icons.shopping_cart_outlined
+        : row.label.contains('Tax')
+        ? Icons.percent_outlined
+        : row.label.contains('Profit')
+        ? Icons.trending_up
+        : row.label == 'Receivables'
+        ? Icons.call_received
+        : row.label == 'Payables'
+        ? Icons.call_made
+        : row.label == 'Stock Value'
+        ? Icons.inventory_2_outlined
+        : Icons.point_of_sale_outlined;
+
+    return Container(
+      height: 72,
+      padding: const EdgeInsets.symmetric(horizontal: 10),
+      decoration: BoxDecoration(
+        color: scheme.surface,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: scheme.outlineVariant),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              color: scheme.primary.withValues(alpha: .08),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, size: 16, color: scheme.primary),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  row.label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 8.8,
+                    color: scheme.onSurfaceVariant,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  row.value,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                Text(
+                  row.caption,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 7.8,
+                    color: scheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
             ),
           ),
         ],
