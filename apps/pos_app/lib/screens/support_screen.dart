@@ -68,36 +68,76 @@ class _SupportScreenState extends State<SupportScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Theme.of(context).colorScheme.surfaceContainerLowest,
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 760),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+    final scheme = Theme.of(context).colorScheme;
+
+    return Padding(
+      padding: const EdgeInsets.all(6),
+      child: Column(
+        children: [
+          Container(
+            height: 46,
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            decoration: BoxDecoration(
+              color: scheme.surface,
+              borderRadius: BorderRadius.circular(9),
+              border: Border.all(color: scheme.outlineVariant),
+            ),
+            child: Row(
               children: [
-                const Text(
-                  'Support Centre',
-                  style: TextStyle(fontSize: 28, fontWeight: FontWeight.w900),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Report an issue with business, store, device and user context attached automatically.',
-                  style: TextStyle(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                Container(
+                  width: 4,
+                  height: 25,
+                  decoration: BoxDecoration(
+                    color: scheme.primary,
+                    borderRadius: BorderRadius.circular(999),
                   ),
                 ),
-                const SizedBox(height: 18),
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(20),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Support Centre',
+                        style: TextStyle(
+                          fontSize: 14.5,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      Text(
+                        'Business, store, device and user context attach automatically',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 8.3,
+                          color: scheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 5),
+          Expanded(
+            child: SingleChildScrollView(
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 820),
+                  child: Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: scheme.surface,
+                      borderRadius: BorderRadius.circular(9),
+                      border: Border.all(color: scheme.outlineVariant),
+                    ),
                     child: Column(
                       children: [
                         Wrap(
-                          spacing: 10,
-                          runSpacing: 10,
+                          spacing: 5,
+                          runSpacing: 5,
                           children: [
                             _contextChip(
                               Icons.business_outlined,
@@ -119,15 +159,15 @@ class _SupportScreenState extends State<SupportScreen> {
                             ),
                           ],
                         ),
-                        const SizedBox(height: 18),
+                        const SizedBox(height: 8),
                         TextField(
                           controller: _subject,
                           decoration: const InputDecoration(
                             labelText: 'Subject',
-                            prefixIcon: Icon(Icons.subject),
+                            prefixIcon: Icon(Icons.subject, size: 17),
                           ),
                         ),
-                        const SizedBox(height: 12),
+                        const SizedBox(height: 7),
                         Row(
                           children: [
                             Expanded(
@@ -166,7 +206,7 @@ class _SupportScreenState extends State<SupportScreen> {
                                     setState(() => _category = v ?? 'general'),
                               ),
                             ),
-                            const SizedBox(width: 10),
+                            const SizedBox(width: 5),
                             Expanded(
                               child: DropdownButtonFormField<String>(
                                 initialValue: _priority,
@@ -197,25 +237,25 @@ class _SupportScreenState extends State<SupportScreen> {
                             ),
                           ],
                         ),
-                        const SizedBox(height: 12),
+                        const SizedBox(height: 7),
                         TextField(
                           controller: _description,
-                          minLines: 5,
-                          maxLines: 10,
+                          minLines: 4,
+                          maxLines: 8,
                           decoration: const InputDecoration(
                             labelText: 'Describe what happened',
                             alignLabelWithHint: true,
                           ),
                         ),
-                        const SizedBox(height: 18),
+                        const SizedBox(height: 8),
                         SizedBox(
                           width: double.infinity,
-                          height: 50,
+                          height: 38,
                           child: FilledButton.icon(
                             onPressed: _saving ? null : _submit,
-                            icon: const Icon(Icons.send_outlined),
+                            icon: const Icon(Icons.send_outlined, size: 15),
                             label: Text(
-                              _saving ? 'Sending…' : 'Send Support Request',
+                              _saving ? 'Sending...' : 'Send Support Request',
                             ),
                           ),
                         ),
@@ -223,10 +263,10 @@ class _SupportScreenState extends State<SupportScreen> {
                     ),
                   ),
                 ),
-              ],
+              ),
             ),
           ),
-        ),
+        ],
       ),
     );
   }

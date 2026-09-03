@@ -113,24 +113,89 @@ class _TrackingWorkspaceScreenState extends State<TrackingWorkspaceScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
     return DefaultTabController(
       length: 3,
-      child: Scaffold(
-        backgroundColor: const Color(0xFFF5F7FA),
-        appBar: AppBar(
-          title: const Text('Serial / Batch / Warranty'),
-          bottom: const TabBar(
-            tabs: [
-              Tab(icon: Icon(Icons.numbers_outlined), text: 'Serials'),
-              Tab(icon: Icon(Icons.inventory_2_outlined), text: 'Batches'),
-              Tab(icon: Icon(Icons.verified_user_outlined), text: 'Warranty'),
-            ],
-          ),
-        ),
-        body: Column(
+      child: Padding(
+        padding: const EdgeInsets.all(6),
+        child: Column(
           children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 18, 20, 8),
+            Container(
+              height: 46,
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              decoration: BoxDecoration(
+                color: scheme.surface,
+                borderRadius: BorderRadius.circular(9),
+                border: Border.all(color: scheme.outlineVariant),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 4,
+                    height: 25,
+                    decoration: BoxDecoration(
+                      color: scheme.primary,
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  const Expanded(
+                    child: Text(
+                      'Serial / Batch / Warranty',
+                      style: TextStyle(
+                        fontSize: 14.5,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    tooltip: 'Refresh',
+                    visualDensity: VisualDensity.compact,
+                    onPressed: _loading ? null : _load,
+                    icon: const Icon(Icons.refresh_rounded, size: 17),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 5),
+            Container(
+              height: 36,
+              decoration: BoxDecoration(
+                color: scheme.surface,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: scheme.outlineVariant),
+              ),
+              child: const TabBar(
+                labelStyle: TextStyle(
+                  fontSize: 8.8,
+                  fontWeight: FontWeight.w800,
+                ),
+                tabs: [
+                  Tab(
+                    icon: Icon(Icons.numbers_outlined, size: 15),
+                    text: 'Serials',
+                  ),
+                  Tab(
+                    icon: Icon(Icons.inventory_2_outlined, size: 15),
+                    text: 'Batches',
+                  ),
+                  Tab(
+                    icon: Icon(Icons.verified_user_outlined, size: 15),
+                    text: 'Warranty',
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 5),
+            Container(
+              height: 40,
+              padding: const EdgeInsets.all(3),
+              decoration: BoxDecoration(
+                color: scheme.surface,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: scheme.outlineVariant),
+              ),
               child: Row(
                 children: [
                   Expanded(
@@ -138,38 +203,46 @@ class _TrackingWorkspaceScreenState extends State<TrackingWorkspaceScreen> {
                       controller: _search,
                       onSubmitted: (_) => _load(),
                       decoration: const InputDecoration(
-                        labelText:
-                            'Search serial, batch, product, SKU, supplier, customer or invoice',
-                        prefixIcon: Icon(Icons.search),
-                        border: OutlineInputBorder(),
+                        hintText:
+                            'Serial, batch, product, SKU, supplier, customer or invoice...',
+                        prefixIcon: Icon(Icons.search, size: 16),
+                        border: InputBorder.none,
+                        enabledBorder: InputBorder.none,
+                        focusedBorder: InputBorder.none,
                       ),
                     ),
                   ),
-                  const SizedBox(width: 12),
-                  FilledButton.icon(
-                    onPressed: _loading ? null : _load,
-                    icon: const Icon(Icons.search),
-                    label: const Text('Search'),
+                  SizedBox(
+                    height: 32,
+                    child: FilledButton.icon(
+                      onPressed: _loading ? null : _load,
+                      icon: const Icon(Icons.search, size: 14),
+                      label: const Text('Search'),
+                    ),
                   ),
                 ],
               ),
             ),
-            if (_error != null)
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 8,
+            if (_error != null) ...[
+              const SizedBox(height: 5),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                decoration: BoxDecoration(
+                  color: scheme.errorContainer,
+                  borderRadius: BorderRadius.circular(8),
                 ),
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    _error!,
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.error,
-                    ),
+                child: Text(
+                  _error!,
+                  maxLines: 2,
+                  style: TextStyle(
+                    fontSize: 8.2,
+                    color: scheme.onErrorContainer,
                   ),
                 ),
               ),
+            ],
+            const SizedBox(height: 5),
             Expanded(
               child: _loading
                   ? const Center(child: CircularProgressIndicator())
@@ -191,9 +264,9 @@ class _TrackingWorkspaceScreenState extends State<TrackingWorkspaceScreen> {
       );
     }
     return ListView.separated(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(5),
       itemCount: _serials.length,
-      separatorBuilder: (_, _) => const SizedBox(height: 8),
+      separatorBuilder: (_, _) => const SizedBox(height: 4),
       itemBuilder: (_, i) {
         final r = _serials[i];
         final warranty = r['warranty_expiry'];
@@ -231,9 +304,9 @@ class _TrackingWorkspaceScreenState extends State<TrackingWorkspaceScreen> {
       );
     }
     return ListView.separated(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(5),
       itemCount: _batches.length,
-      separatorBuilder: (_, _) => const SizedBox(height: 8),
+      separatorBuilder: (_, _) => const SizedBox(height: 4),
       itemBuilder: (_, i) {
         final r = _batches[i];
         return Card(
@@ -267,9 +340,9 @@ class _TrackingWorkspaceScreenState extends State<TrackingWorkspaceScreen> {
       );
     }
     return ListView.separated(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(5),
       itemCount: _warranties.length,
-      separatorBuilder: (_, _) => const SizedBox(height: 8),
+      separatorBuilder: (_, _) => const SizedBox(height: 4),
       itemBuilder: (_, i) {
         final r = _warranties[i];
         final identifier = r['serial_number'] ?? r['batch_number'] ?? '-';

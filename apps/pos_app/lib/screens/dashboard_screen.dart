@@ -38,59 +38,88 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
     return Padding(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(6),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              const Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Dashboard',
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    SizedBox(height: 4),
-                    Text('Sales, cash flow, stock and customer performance'),
-                  ],
+          Container(
+            height: 46,
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            decoration: BoxDecoration(
+              color: scheme.surface,
+              borderRadius: BorderRadius.circular(9),
+              border: Border.all(color: scheme.outlineVariant),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 4,
+                  height: 25,
+                  decoration: BoxDecoration(
+                    color: scheme.primary,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
                 ),
-              ),
-              IconButton(onPressed: _refresh, icon: const Icon(Icons.refresh)),
-            ],
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Dashboard',
+                        style: TextStyle(
+                          fontSize: 14.5,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      Text(
+                        'Sales, cash flow, stock and customer performance',
+                        style: TextStyle(
+                          fontSize: 8.3,
+                          color: scheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  tooltip: 'Refresh dashboard',
+                  visualDensity: VisualDensity.compact,
+                  onPressed: _refresh,
+                  icon: const Icon(Icons.refresh_rounded, size: 17),
+                ),
+              ],
+            ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 5),
           Expanded(
             child: RefreshIndicator(
               onRefresh: _refresh,
-              child: ListView(
-                children: [
-                  FutureBuilder<DashboardData>(
-                    future: _summary,
-                    builder: (context, snapshot) {
-                      if (snapshot.connectionState == ConnectionState.waiting) {
-                        return const SizedBox(
-                          height: 180,
-                          child: Center(child: CircularProgressIndicator()),
-                        );
-                      }
-                      if (snapshot.hasError) {
-                        return Text(snapshot.error.toString());
-                      }
-                      final d = snapshot.data!;
-                      return GridView.count(
-                        crossAxisCount: 4,
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        crossAxisSpacing: 12,
-                        mainAxisSpacing: 12,
-                        childAspectRatio: 1.75,
-                        children: [
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                child: Column(
+                  children: [
+                    FutureBuilder<DashboardData>(
+                      future: _summary,
+                      builder: (context, snapshot) {
+                        if (snapshot.connectionState ==
+                            ConnectionState.waiting) {
+                          return const SizedBox(
+                            height: 100,
+                            child: Center(child: CircularProgressIndicator()),
+                          );
+                        }
+                        if (snapshot.hasError) {
+                          return Padding(
+                            padding: const EdgeInsets.all(8),
+                            child: Text(snapshot.error.toString()),
+                          );
+                        }
+                        final d = snapshot.data!;
+                        final metrics = <Widget>[
                           _Metric(
                             'Today Sales',
                             _money(d.todaySales),
@@ -131,65 +160,109 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             d.productCount.toString(),
                             Icons.inventory_2_outlined,
                           ),
-                        ],
-                      );
-                    },
-                  ),
-                  const SizedBox(height: 18),
-                  FutureBuilder<DashboardInsights>(
-                    future: _insights,
-                    builder: (context, snapshot) {
-                      if (snapshot.connectionState == ConnectionState.waiting) {
-                        return const SizedBox(
-                          height: 300,
-                          child: Center(child: CircularProgressIndicator()),
+                        ];
+
+                        return LayoutBuilder(
+                          builder: (context, constraints) {
+                            final columns = constraints.maxWidth >= 1000
+                                ? 4
+                                : constraints.maxWidth >= 700
+                                ? 3
+                                : 2;
+                            const gap = 5.0;
+                            final width =
+                                (constraints.maxWidth - ((columns - 1) * gap)) /
+                                columns;
+                            return Wrap(
+                              spacing: gap,
+                              runSpacing: gap,
+                              children: metrics
+                                  .map(
+                                    (metric) =>
+                                        SizedBox(width: width, child: metric),
+                                  )
+                                  .toList(),
+                            );
+                          },
                         );
-                      }
-                      if (snapshot.hasError) {
-                        return Text(snapshot.error.toString());
-                      }
-                      final d = snapshot.data!;
-                      return Column(
-                        children: [
-                          _SalesBars(rows: d.dailySales, money: _money),
-                          const SizedBox(height: 14),
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Expanded(
-                                child: _ListCard(
+                      },
+                    ),
+                    const SizedBox(height: 5),
+                    FutureBuilder<DashboardInsights>(
+                      future: _insights,
+                      builder: (context, snapshot) {
+                        if (snapshot.connectionState ==
+                            ConnectionState.waiting) {
+                          return const SizedBox(
+                            height: 180,
+                            child: Center(child: CircularProgressIndicator()),
+                          );
+                        }
+                        if (snapshot.hasError) {
+                          return Padding(
+                            padding: const EdgeInsets.all(8),
+                            child: Text(snapshot.error.toString()),
+                          );
+                        }
+
+                        final d = snapshot.data!;
+                        return Column(
+                          children: [
+                            _SalesBars(rows: d.dailySales, money: _money),
+                            const SizedBox(height: 5),
+                            LayoutBuilder(
+                              builder: (context, constraints) {
+                                final products = _ListCard(
                                   title: 'Top Selling Products',
                                   rows: d.topProducts
                                       .map(
                                         (x) => (
-                                          '${x.productName} • ${x.quantity.toStringAsFixed(0)} qty',
+                                          '${x.productName} | '
+                                              '${x.quantity.toStringAsFixed(0)} qty',
                                           _money(x.sales),
                                         ),
                                       )
                                       .toList(),
-                                ),
-                              ),
-                              const SizedBox(width: 14),
-                              Expanded(
-                                child: _ListCard(
+                                );
+                                final customers = _ListCard(
                                   title: 'Top Customers',
                                   rows: d.topCustomers
                                       .map(
                                         (x) => (
-                                          '${x.customerName} • ${x.invoiceCount} invoices',
+                                          '${x.customerName} | '
+                                              '${x.invoiceCount} invoices',
                                           _money(x.sales),
                                         ),
                                       )
                                       .toList(),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      );
-                    },
-                  ),
-                ],
+                                );
+
+                                if (constraints.maxWidth < 760) {
+                                  return Column(
+                                    children: [
+                                      products,
+                                      const SizedBox(height: 5),
+                                      customers,
+                                    ],
+                                  );
+                                }
+                                return Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Expanded(child: products),
+                                    const SizedBox(width: 5),
+                                    Expanded(child: customers),
+                                  ],
+                                );
+                              },
+                            ),
+                          ],
+                        );
+                      },
+                    ),
+                    const SizedBox(height: 2),
+                  ],
+                ),
               ),
             ),
           ),
@@ -205,41 +278,50 @@ class _Metric extends StatelessWidget {
   final IconData icon;
   const _Metric(this.label, this.value, this.icon);
   @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.all(16),
-    decoration: BoxDecoration(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(16),
-      border: Border.all(color: Colors.grey.shade200),
-    ),
-    child: Row(
-      children: [
-        CircleAvatar(child: Icon(icon)),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                label,
-                style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-              ),
-              Text(
-                value,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
+    return Container(
+      height: 58,
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      decoration: BoxDecoration(
+        color: scheme.surface,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: scheme.outlineVariant),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, size: 15, color: scheme.primary),
+          const SizedBox(width: 7),
+          Expanded(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  value,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w900,
+                  ),
                 ),
-              ),
-            ],
+                Text(
+                  label,
+                  maxLines: 1,
+                  style: TextStyle(
+                    fontSize: 7.5,
+                    color: scheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
           ),
-        ),
-      ],
-    ),
-  );
+        ],
+      ),
+    );
+  }
 }
 
 class _ListCard extends StatelessWidget {
@@ -247,33 +329,53 @@ class _ListCard extends StatelessWidget {
   final List<(String, String)> rows;
   const _ListCard({required this.title, required this.rows});
   @override
-  Widget build(BuildContext context) => Card(
-    child: Padding(
-      padding: const EdgeInsets.all(18),
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
+    return Container(
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: scheme.surface,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: scheme.outlineVariant),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             title,
-            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            style: const TextStyle(fontSize: 9.5, fontWeight: FontWeight.w900),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 4),
           if (rows.isEmpty)
-            const Text('No data yet.')
+            Text(
+              'No data yet.',
+              style: TextStyle(fontSize: 8, color: scheme.onSurfaceVariant),
+            )
           else
             ...rows
-                .take(10)
+                .take(8)
                 .map(
-                  (x) => Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 6),
+                  (x) => SizedBox(
+                    height: 25,
                     child: Row(
                       children: [
                         Expanded(
-                          child: Text(x.$1, overflow: TextOverflow.ellipsis),
+                          child: Text(
+                            x.$1,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(fontSize: 7.8),
+                          ),
                         ),
+                        const SizedBox(width: 6),
                         Text(
                           x.$2,
-                          style: const TextStyle(fontWeight: FontWeight.w600),
+                          maxLines: 1,
+                          style: const TextStyle(
+                            fontSize: 7.8,
+                            fontWeight: FontWeight.w800,
+                          ),
                         ),
                       ],
                     ),
@@ -281,8 +383,8 @@ class _ListCard extends StatelessWidget {
                 ),
         ],
       ),
-    ),
-  );
+    );
+  }
 }
 
 class _SalesBars extends StatelessWidget {

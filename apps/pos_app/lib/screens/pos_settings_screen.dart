@@ -310,36 +310,49 @@ class _PosSettingsScreenState extends State<PosSettingsScreen> {
       builder: (context, constraints) {
         final compact = constraints.maxWidth < 760;
         return ListView(
-          padding: EdgeInsets.all(compact ? 12 : 18),
+          padding: EdgeInsets.all(compact ? 6 : 8),
           children: [
-            Row(
-              children: [
-                const Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'POS Settings',
-                        style: TextStyle(
-                          fontSize: 21,
-                          fontWeight: FontWeight.w900,
-                        ),
-                      ),
-                      SizedBox(height: 3),
-                      Text(
-                        'Receipt printer, KOT routing, cash drawer and local backups.',
-                      ),
-                    ],
+            Container(
+              height: 46,
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surface,
+                borderRadius: BorderRadius.circular(9),
+                border: Border.all(
+                  color: Theme.of(context).colorScheme.outlineVariant,
+                ),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 4,
+                    height: 25,
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.primary,
+                      borderRadius: BorderRadius.circular(999),
+                    ),
                   ),
-                ),
-                IconButton(
-                  onPressed: _load,
-                  tooltip: 'Rescan printers',
-                  icon: const Icon(Icons.refresh),
-                ),
-              ],
+                  const SizedBox(width: 8),
+                  const Expanded(
+                    child: Text(
+                      'POS Settings',
+                      style: TextStyle(
+                        fontSize: 14.5,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: _load,
+                    tooltip: 'Rescan printers',
+                    visualDensity: VisualDensity.compact,
+                    icon: const Icon(Icons.refresh_rounded, size: 17),
+                  ),
+                ],
+              ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 5),
+
             _section(
               title: 'Invoice / receipt printer',
               icon: Icons.print_outlined,
@@ -577,18 +590,18 @@ class _PosSettingsScreenState extends State<PosSettingsScreen> {
     required Widget child,
   }) => Card(
     child: Padding(
-      padding: const EdgeInsets.all(15),
+      padding: const EdgeInsets.all(9),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(icon, size: 20),
+              Icon(icon, size: 15),
               const SizedBox(width: 8),
               Text(
                 title,
                 style: const TextStyle(
-                  fontSize: 15,
+                  fontSize: 10,
                   fontWeight: FontWeight.w800,
                 ),
               ),

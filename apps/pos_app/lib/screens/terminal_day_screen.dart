@@ -238,121 +238,129 @@ class _TerminalDayScreenState extends State<TerminalDayScreen> {
         ? Map<String, dynamic>.from(_data['shift_summary'] as Map)
         : <String, dynamic>{};
 
-    return Scaffold(
-      backgroundColor: Theme.of(context).colorScheme.surfaceContainerLowest,
-      body: SafeArea(
-        child: RefreshIndicator(
-          onRefresh: _load,
-          child: ListView(
-            padding: const EdgeInsets.all(18),
-            children: [
-              _header(),
-              const SizedBox(height: 16),
-              if (_loading)
-                const Padding(
-                  padding: EdgeInsets.all(48),
-                  child: Center(child: CircularProgressIndicator()),
-                )
-              else if (_error != null)
-                _errorCard()
-              else ...[
-                _headlineSummary(),
-                const SizedBox(height: 12),
-                _paymentSummary(),
-                const SizedBox(height: 12),
-                _activitySummary(),
-                const SizedBox(height: 12),
-                _shiftSummary(shifts),
-                const SizedBox(height: 12),
-                _invoiceSection(),
-              ],
-            ],
+    return Padding(
+      padding: const EdgeInsets.all(6),
+      child: Column(
+        children: [
+          _header(),
+          const SizedBox(height: 5),
+          Expanded(
+            child: _loading
+                ? const Center(child: CircularProgressIndicator())
+                : _error != null
+                ? _errorCard()
+                : RefreshIndicator(
+                    onRefresh: _load,
+                    child: SingleChildScrollView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      child: Column(
+                        children: [
+                          _headlineSummary(),
+                          const SizedBox(height: 5),
+                          _paymentSummary(),
+                          const SizedBox(height: 5),
+                          _activitySummary(),
+                          const SizedBox(height: 5),
+                          _shiftSummary(shifts),
+                          const SizedBox(height: 5),
+                          _invoiceSection(),
+                          const SizedBox(height: 2),
+                        ],
+                      ),
+                    ),
+                  ),
           ),
-        ),
+        ],
       ),
     );
   }
 
   Widget _header() {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final heading = Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Terminal Daily',
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900),
+    final scheme = Theme.of(context).colorScheme;
+
+    return Container(
+      height: 46,
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      decoration: BoxDecoration(
+        color: scheme.surface,
+        borderRadius: BorderRadius.circular(9),
+        border: Border.all(color: scheme.outlineVariant),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 4,
+            height: 25,
+            decoration: BoxDecoration(
+              color: scheme.primary,
+              borderRadius: BorderRadius.circular(999),
             ),
-            const SizedBox(height: 3),
-            const Text(
-              'Simple read-only summary for this POS. Choose any day, then drill into invoices only when needed.',
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Terminal Daily',
+                  style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w900),
+                ),
+                Text(
+                  '${widget.session.device?.locationCode ?? ''} | '
+                  '${widget.session.device?.deviceCode ?? ''}',
+                  maxLines: 1,
+                  style: TextStyle(
+                    fontSize: 8.3,
+                    color: scheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 3),
-            Text(
-              '${widget.session.device?.locationCode ?? ''} • ${widget.session.device?.deviceCode ?? ''}',
-              style: TextStyle(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
-            ),
-          ],
-        );
-        final actions = Wrap(
-          spacing: 7,
-          runSpacing: 7,
-          crossAxisAlignment: WrapCrossAlignment.center,
-          children: [
-            IconButton.filledTonal(
-              onPressed: _loading ? null : () => _moveDay(-1),
-              icon: const Icon(Icons.chevron_left),
-              tooltip: 'Previous day',
-            ),
-            OutlinedButton.icon(
-              onPressed: _pickDay,
-              icon: const Icon(Icons.calendar_today_outlined, size: 17),
-              label: Text(_date(_day)),
-            ),
-            IconButton.filledTonal(
-              onPressed: _loading || _isToday ? null : () => _moveDay(1),
-              icon: const Icon(Icons.chevron_right),
-              tooltip: 'Next day',
-            ),
-            OutlinedButton.icon(
-              onPressed: _exporting || _loading ? null : () => _export('pdf'),
-              icon: const Icon(Icons.picture_as_pdf_outlined, size: 17),
-              label: const Text('PDF'),
-            ),
-            OutlinedButton.icon(
-              onPressed: _exporting || _loading ? null : () => _export('xlsx'),
-              icon: const Icon(Icons.table_view_outlined, size: 17),
-              label: const Text('Excel'),
-            ),
-            OutlinedButton.icon(
-              onPressed: _exporting || _loading ? null : () => _export('print'),
-              icon: const Icon(Icons.print_outlined, size: 17),
-              label: const Text('Print'),
-            ),
-            IconButton(
-              onPressed: _loading ? null : _load,
-              icon: const Icon(Icons.refresh),
-              tooltip: 'Refresh',
-            ),
-          ],
-        );
-        if (constraints.maxWidth < 920) {
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [heading, const SizedBox(height: 12), actions],
-          );
-        }
-        return Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(child: heading),
-            const SizedBox(width: 16),
-            actions,
-          ],
-        );
-      },
+          ),
+          IconButton(
+            tooltip: 'Previous day',
+            visualDensity: VisualDensity.compact,
+            onPressed: _loading ? null : () => _moveDay(-1),
+            icon: const Icon(Icons.chevron_left, size: 18),
+          ),
+          OutlinedButton.icon(
+            onPressed: _pickDay,
+            icon: const Icon(Icons.calendar_today_outlined, size: 14),
+            label: Text(_date(_day)),
+          ),
+          IconButton(
+            tooltip: 'Next day',
+            visualDensity: VisualDensity.compact,
+            onPressed: _loading || _isToday ? null : () => _moveDay(1),
+            icon: const Icon(Icons.chevron_right, size: 18),
+          ),
+          const SizedBox(width: 3),
+          PopupMenuButton<String>(
+            tooltip: 'Print / Export',
+            enabled: !_exporting && !_loading,
+            onSelected: _export,
+            itemBuilder: (_) => const [
+              PopupMenuItem(value: 'pdf', child: Text('Save PDF')),
+              PopupMenuItem(value: 'xlsx', child: Text('Save Excel')),
+              PopupMenuItem(value: 'print', child: Text('Print')),
+            ],
+            icon: _exporting
+                ? const SizedBox(
+                    width: 14,
+                    height: 14,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.ios_share_outlined, size: 17),
+          ),
+          IconButton(
+            tooltip: 'Refresh',
+            visualDensity: VisualDensity.compact,
+            onPressed: _loading ? null : _load,
+            icon: const Icon(Icons.refresh_rounded, size: 17),
+          ),
+        ],
+      ),
     );
   }
 

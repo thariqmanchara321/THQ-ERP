@@ -76,69 +76,82 @@ class _ErrorLogsScreenState extends State<ErrorLogsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
     return Padding(
-      padding: const EdgeInsets.all(28),
+      padding: const EdgeInsets.all(6),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              const Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'System Logs',
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    SizedBox(height: 4),
-                    Text('Client, POS and recorded issues for this business'),
-                  ],
+          Container(
+            height: 46,
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            decoration: BoxDecoration(
+              color: scheme.surface,
+              borderRadius: BorderRadius.circular(9),
+              border: Border.all(color: scheme.outlineVariant),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 4,
+                  height: 25,
+                  decoration: BoxDecoration(
+                    color: scheme.primary,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
                 ),
-              ),
-              FilledButton.tonalIcon(
-                onPressed: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) =>
-                          BusinessActivityScreen(session: widget.session),
+                const SizedBox(width: 8),
+                const Expanded(
+                  child: Text(
+                    'System Logs',
+                    style: TextStyle(
+                      fontSize: 14.5,
+                      fontWeight: FontWeight.w900,
                     ),
-                  );
-                },
-                icon: const Icon(Icons.history),
-                label: const Text('Activity Log'),
-              ),
-              const SizedBox(width: 8),
-              FilledButton.tonalIcon(
-                onPressed: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) =>
-                          TrackingLookupScreen(session: widget.session),
-                    ),
-                  );
-                },
-                icon: const Icon(Icons.qr_code_2),
-                label: const Text('Track ID'),
-              ),
-              const SizedBox(width: 8),
-              FilledButton.tonalIcon(
-                onPressed: _reportIssue,
-                icon: const Icon(Icons.add_comment_outlined),
-                label: const Text('Report Issue'),
-              ),
-              const SizedBox(width: 8),
-              IconButton(
-                tooltip: 'Refresh',
-                onPressed: _refresh,
-                icon: const Icon(Icons.refresh),
-              ),
-            ],
+                  ),
+                ),
+                OutlinedButton.icon(
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) =>
+                            BusinessActivityScreen(session: widget.session),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.history, size: 14),
+                  label: const Text('Activity'),
+                ),
+                const SizedBox(width: 4),
+                OutlinedButton.icon(
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) =>
+                            TrackingLookupScreen(session: widget.session),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.qr_code_2, size: 14),
+                  label: const Text('Track ID'),
+                ),
+                const SizedBox(width: 4),
+                FilledButton.tonalIcon(
+                  onPressed: _reportIssue,
+                  icon: const Icon(Icons.add_comment_outlined, size: 14),
+                  label: const Text('Report Issue'),
+                ),
+                const SizedBox(width: 2),
+                IconButton(
+                  tooltip: 'Refresh',
+                  visualDensity: VisualDensity.compact,
+                  onPressed: _refresh,
+                  icon: const Icon(Icons.refresh_rounded, size: 17),
+                ),
+              ],
+            ),
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 5),
           Expanded(
             child: FutureBuilder<List<AppErrorLog>>(
               future: _future,
@@ -157,41 +170,69 @@ class _ErrorLogsScreenState extends State<ErrorLogsScreen> {
                   );
                 }
 
-                return ListView.separated(
-                  itemCount: rows.length,
-                  separatorBuilder: (_, _) => const SizedBox(height: 8),
-                  itemBuilder: (context, index) {
-                    final item = rows[index];
-                    final isIssue = item.severity == 'issue';
-                    return Card(
-                      child: ExpansionTile(
-                        leading: Icon(
-                          isIssue
-                              ? Icons.report_problem_outlined
-                              : item.severity == 'fatal'
-                              ? Icons.dangerous_outlined
-                              : Icons.error_outline,
-                        ),
-                        title: Text(
-                          item.message,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        subtitle: Text(
-                          '${item.appKey.toUpperCase()} • '
-                          '${item.severity.toUpperCase()} • '
-                          '${_date(item.createdAt)}',
-                        ),
-                        children: [
-                          if ((item.stackTrace ?? '').isNotEmpty)
-                            Padding(
-                              padding: const EdgeInsets.all(16),
-                              child: SelectableText(item.stackTrace!),
+                return Container(
+                  decoration: BoxDecoration(
+                    color: scheme.surface,
+                    borderRadius: BorderRadius.circular(9),
+                    border: Border.all(color: scheme.outlineVariant),
+                  ),
+                  clipBehavior: Clip.antiAlias,
+                  child: RefreshIndicator(
+                    onRefresh: _refresh,
+                    child: ListView.builder(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      padding: EdgeInsets.zero,
+                      itemCount: rows.length,
+                      itemBuilder: (context, index) {
+                        final item = rows[index];
+                        final isIssue = item.severity == 'issue';
+
+                        return ExpansionTile(
+                          dense: true,
+                          leading: Icon(
+                            isIssue
+                                ? Icons.report_problem_outlined
+                                : item.severity == 'fatal'
+                                ? Icons.dangerous_outlined
+                                : Icons.error_outline,
+                            size: 16,
+                          ),
+                          title: Text(
+                            item.message,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 8.8,
+                              fontWeight: FontWeight.w800,
                             ),
-                        ],
-                      ),
-                    );
-                  },
+                          ),
+                          subtitle: Text(
+                            '${item.appKey.toUpperCase()} | '
+                            '${item.severity.toUpperCase()} | '
+                            '${_date(item.createdAt)}',
+                            maxLines: 1,
+                            style: TextStyle(
+                              fontSize: 7.2,
+                              color: scheme.onSurfaceVariant,
+                            ),
+                          ),
+                          children: [
+                            if ((item.stackTrace ?? '').isNotEmpty)
+                              Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.all(8),
+                                color: scheme.surfaceContainerHighest
+                                    .withValues(alpha: .35),
+                                child: SelectableText(
+                                  item.stackTrace!,
+                                  style: const TextStyle(fontSize: 7.5),
+                                ),
+                              ),
+                          ],
+                        );
+                      },
+                    ),
+                  ),
                 );
               },
             ),
