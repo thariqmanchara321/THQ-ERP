@@ -182,41 +182,70 @@ class _PurchasesScreenState extends State<PurchasesScreen> {
         onFinished: _finishNewPurchase,
       );
     }
+
+    final scheme = Theme.of(context).colorScheme;
+
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      widget.historyOnly ? 'Purchase Details' : 'Purchases',
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
+          SizedBox(
+            height: 48,
+            child: Row(
+              children: [
+                Container(
+                  width: 4,
+                  height: 26,
+                  decoration: BoxDecoration(
+                    color: scheme.primary,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                ),
+                const SizedBox(width: 9),
+                Expanded(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        widget.historyOnly ? 'Purchase Details' : 'Purchases',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w900,
+                        ),
                       ),
-                    ),
-                    SizedBox(height: 5),
-                    Text('Purchase bills and stock received'),
-                  ],
+                      Text(
+                        'Supplier bills, stock received and payable status',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 10.5,
+                          color: scheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-
-              if (_canManage && !widget.historyOnly)
-                FilledButton.icon(
-                  onPressed: _newPurchase,
-                  icon: const Icon(Icons.add),
-                  label: const Text('New Purchase'),
+                IconButton(
+                  tooltip: 'Refresh purchases',
+                  visualDensity: VisualDensity.compact,
+                  onPressed: _refresh,
+                  icon: const Icon(Icons.refresh_rounded, size: 19),
                 ),
-            ],
+                if (_canManage && !widget.historyOnly) ...[
+                  const SizedBox(width: 4),
+                  FilledButton.icon(
+                    onPressed: _newPurchase,
+                    icon: const Icon(Icons.add, size: 17),
+                    label: const Text('New Purchase'),
+                  ),
+                ],
+              ],
+            ),
           ),
-
-          const SizedBox(height: 14),
-
+          const SizedBox(height: 8),
           Expanded(
             child: FutureBuilder<List<Purchase>>(
               future: _purchasesFuture,
@@ -224,19 +253,18 @@ class _PurchasesScreenState extends State<PurchasesScreen> {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
                 }
-
                 if (snapshot.hasError) {
                   return Center(
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.error_outline, size: 56),
-                        const SizedBox(height: 14),
+                        const Icon(Icons.error_outline, size: 42),
+                        const SizedBox(height: 10),
                         Text(
                           snapshot.error.toString(),
                           textAlign: TextAlign.center,
                         ),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 10),
                         OutlinedButton.icon(
                           onPressed: _refresh,
                           icon: const Icon(Icons.refresh),
@@ -247,28 +275,27 @@ class _PurchasesScreenState extends State<PurchasesScreen> {
                   );
                 }
 
-                final purchases = snapshot.data ?? [];
-
+                final purchases = snapshot.data ?? const <Purchase>[];
                 if (purchases.isEmpty) {
                   return Center(
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.shopping_cart_outlined, size: 70),
-                        const SizedBox(height: 18),
+                        const Icon(Icons.shopping_cart_outlined, size: 52),
+                        const SizedBox(height: 8),
                         const Text(
-                          'No Purchases Yet',
+                          'No purchases yet',
                           style: TextStyle(
-                            fontSize: 23,
-                            fontWeight: FontWeight.bold,
+                            fontSize: 17,
+                            fontWeight: FontWeight.w800,
                           ),
                         ),
                         if (_canManage && !widget.historyOnly) ...[
-                          const SizedBox(height: 20),
+                          const SizedBox(height: 10),
                           FilledButton.icon(
                             onPressed: _newPurchase,
                             icon: const Icon(Icons.add),
-                            label: const Text('Create First Purchase'),
+                            label: const Text('Create Purchase'),
                           ),
                         ],
                       ],
@@ -276,147 +303,218 @@ class _PurchasesScreenState extends State<PurchasesScreen> {
                   );
                 }
 
-                return RefreshIndicator(
-                  onRefresh: _refresh,
-                  child: ListView.separated(
-                    itemCount: purchases.length,
-                    separatorBuilder: (_, _) => const SizedBox(height: 10),
-                    itemBuilder: (context, index) {
-                      final purchase = purchases[index];
-
-                      return InkWell(
-                        borderRadius: BorderRadius.circular(16),
-
-                        onTap: () => _openPurchase(purchase),
-
-                        child: Container(
-                          padding: const EdgeInsets.all(18),
-
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(color: Colors.grey.shade200),
+                return LayoutBuilder(
+                  builder: (context, constraints) {
+                    final compact = constraints.maxWidth < 860;
+                    final veryCompact = constraints.maxWidth < 700;
+                    return Container(
+                      decoration: BoxDecoration(
+                        color: scheme.surface,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: scheme.outlineVariant),
+                      ),
+                      clipBehavior: Clip.antiAlias,
+                      child: Column(
+                        children: [
+                          Container(
+                            height: 38,
+                            padding: const EdgeInsets.symmetric(horizontal: 10),
+                            color: scheme.surfaceContainerHighest,
+                            child: _purchaseRegisterHeader(
+                              compact: compact,
+                              veryCompact: veryCompact,
+                            ),
                           ),
-
-                          child: Row(
-                            children: [
-                              Expanded(
-                                flex: 2,
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      purchase.number,
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                      ),
+                          Divider(height: 1, color: scheme.outlineVariant),
+                          Expanded(
+                            child: RefreshIndicator(
+                              onRefresh: _refresh,
+                              child: ListView.builder(
+                                physics: const AlwaysScrollableScrollPhysics(),
+                                padding: EdgeInsets.zero,
+                                itemCount: purchases.length,
+                                itemBuilder: (context, index) =>
+                                    _purchaseRegisterRow(
+                                      purchases[index],
+                                      compact: compact,
+                                      veryCompact: veryCompact,
                                     ),
-
-                                    const SizedBox(height: 4),
-
-                                    Text(
-                                      _date(purchase.purchaseDate),
-                                      style: TextStyle(
-                                        color: Colors.grey.shade600,
-                                        fontSize: 12,
-                                      ),
-                                    ),
-                                  ],
-                                ),
                               ),
-
-                              Expanded(
-                                flex: 3,
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      purchase.supplierName,
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-
-                                    const SizedBox(height: 4),
-
-                                    Text(
-                                      purchase.supplierInvoiceNumber ??
-                                          'No supplier invoice',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: Colors.grey.shade600,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-
-                              Expanded(
-                                flex: 2,
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'Total',
-                                      style: TextStyle(
-                                        fontSize: 11,
-                                        color: Colors.grey.shade600,
-                                      ),
-                                    ),
-
-                                    const SizedBox(height: 3),
-
-                                    Text(
-                                      _money(purchase.grandTotal),
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-
-                              Expanded(
-                                flex: 2,
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'Balance Due',
-                                      style: TextStyle(
-                                        fontSize: 11,
-                                        color: Colors.grey.shade600,
-                                      ),
-                                    ),
-
-                                    const SizedBox(height: 3),
-
-                                    Text(
-                                      _money(purchase.balanceDue),
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-
-                              _PaymentBadge(status: purchase.paymentStatus),
-
-                              const SizedBox(width: 10),
-
-                              const Icon(Icons.chevron_right),
-                            ],
+                            ),
                           ),
-                        ),
-                      );
-                    },
-                  ),
+                        ],
+                      ),
+                    );
+                  },
                 );
               },
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _purchaseRegisterHeader({
+    required bool compact,
+    required bool veryCompact,
+  }) {
+    Widget cell(String value, int flex, {TextAlign align = TextAlign.left}) =>
+        Expanded(
+          flex: flex,
+          child: Text(
+            value,
+            textAlign: align,
+            maxLines: 1,
+            style: const TextStyle(fontSize: 9.5, fontWeight: FontWeight.w800),
+          ),
+        );
+
+    return Row(
+      children: [
+        cell('Purchase', 2),
+        if (!veryCompact) cell('Date', 2),
+        cell('Supplier', 4),
+        if (!compact) cell('Supplier Invoice', 3),
+        cell('Total', 2, align: TextAlign.right),
+        cell('Balance', 2, align: TextAlign.right),
+        const SizedBox(width: 92, child: Text('Status')),
+        const SizedBox(width: 28),
+      ],
+    );
+  }
+
+  Widget _purchaseRegisterRow(
+    Purchase purchase, {
+    required bool compact,
+    required bool veryCompact,
+  }) {
+    final scheme = Theme.of(context).colorScheme;
+    Widget cell(
+      Widget child,
+      int flex, {
+      Alignment alignment = Alignment.centerLeft,
+    }) => Expanded(
+      flex: flex,
+      child: Align(
+        alignment: alignment,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 3),
+          child: child,
+        ),
+      ),
+    );
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => _openPurchase(purchase),
+        child: Container(
+          constraints: const BoxConstraints(minHeight: 48),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+          decoration: BoxDecoration(
+            border: Border(bottom: BorderSide(color: scheme.outlineVariant)),
+          ),
+          child: Row(
+            children: [
+              cell(
+                Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      purchase.number,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    if (veryCompact)
+                      Text(
+                        _date(purchase.purchaseDate),
+                        style: TextStyle(
+                          fontSize: 9,
+                          color: scheme.onSurfaceVariant,
+                        ),
+                      ),
+                  ],
+                ),
+                2,
+              ),
+              if (!veryCompact)
+                cell(
+                  Text(
+                    _date(purchase.purchaseDate),
+                    style: const TextStyle(fontSize: 10.5),
+                  ),
+                  2,
+                ),
+              cell(
+                Text(
+                  purchase.supplierName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                4,
+              ),
+              if (!compact)
+                cell(
+                  Text(
+                    purchase.supplierInvoiceNumber ?? 'â€”',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 10.5),
+                  ),
+                  3,
+                ),
+              cell(
+                Text(
+                  _money(purchase.grandTotal),
+                  maxLines: 1,
+                  style: const TextStyle(
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                2,
+                alignment: Alignment.centerRight,
+              ),
+              cell(
+                Text(
+                  _money(purchase.balanceDue),
+                  maxLines: 1,
+                  style: TextStyle(
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w700,
+                    color: purchase.balanceDue > 0.005
+                        ? scheme.error
+                        : scheme.onSurface,
+                  ),
+                ),
+                2,
+                alignment: Alignment.centerRight,
+              ),
+              SizedBox(
+                width: 92,
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: _PaymentBadge(status: purchase.paymentStatus),
+                ),
+              ),
+              const SizedBox(
+                width: 28,
+                child: Icon(Icons.chevron_right, size: 18),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

@@ -180,70 +180,90 @@ class _SalesScreenState extends State<SalesScreen> {
         onFinished: _finishNewSale,
       );
     }
+
+    final scheme = Theme.of(context).colorScheme;
+
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
-
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      widget.titleOverride ??
-                          (widget.historyOnly ? 'Sales History' : 'Sales'),
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
+          SizedBox(
+            height: 48,
+            child: Row(
+              children: [
+                Container(
+                  width: 4,
+                  height: 26,
+                  decoration: BoxDecoration(
+                    color: scheme.primary,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                ),
+                const SizedBox(width: 9),
+                Expanded(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        widget.titleOverride ??
+                            (widget.historyOnly ? 'Sales Details' : 'Sales'),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w900,
+                        ),
                       ),
-                    ),
-
-                    SizedBox(height: 5),
-
-                    Text('Invoices, payments and customer sales'),
-                  ],
+                      Text(
+                        'Invoices, customer balances and payment status',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 10.5,
+                          color: scheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-
-              if (_canManage && !widget.historyOnly)
-                FilledButton.icon(
-                  onPressed: _newSale,
-                  icon: const Icon(Icons.add),
-                  label: const Text('New Sale'),
+                IconButton(
+                  tooltip: 'Refresh sales',
+                  visualDensity: VisualDensity.compact,
+                  onPressed: _refresh,
+                  icon: const Icon(Icons.refresh_rounded, size: 19),
                 ),
-            ],
+                if (_canManage && !widget.historyOnly) ...[
+                  const SizedBox(width: 4),
+                  FilledButton.icon(
+                    onPressed: _newSale,
+                    icon: const Icon(Icons.add, size: 17),
+                    label: const Text('New Sale'),
+                  ),
+                ],
+              ],
+            ),
           ),
-
-          const SizedBox(height: 14),
-
+          const SizedBox(height: 8),
           Expanded(
             child: FutureBuilder<List<Sale>>(
               future: _salesFuture,
-
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
                 }
-
                 if (snapshot.hasError) {
                   return Center(
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.error_outline, size: 56),
-
-                        const SizedBox(height: 16),
-
+                        const Icon(Icons.error_outline, size: 42),
+                        const SizedBox(height: 10),
                         Text(
                           snapshot.error.toString(),
                           textAlign: TextAlign.center,
                         ),
-
                         const SizedBox(height: 10),
-
                         OutlinedButton.icon(
                           onPressed: _refresh,
                           icon: const Icon(Icons.refresh),
@@ -254,39 +274,27 @@ class _SalesScreenState extends State<SalesScreen> {
                   );
                 }
 
-                final sales = snapshot.data ?? [];
-
+                final sales = snapshot.data ?? const <Sale>[];
                 if (sales.isEmpty) {
                   return Center(
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.point_of_sale_outlined, size: 72),
-
-                        const SizedBox(height: 10),
-
+                        const Icon(Icons.point_of_sale_outlined, size: 52),
+                        const SizedBox(height: 8),
                         const Text(
-                          'No Sales Yet',
+                          'No sales yet',
                           style: TextStyle(
-                            fontSize: 23,
-                            fontWeight: FontWeight.bold,
+                            fontSize: 17,
+                            fontWeight: FontWeight.w800,
                           ),
                         ),
-
-                        const SizedBox(height: 8),
-
-                        Text(
-                          'Create your first sales invoice.',
-                          style: TextStyle(color: Colors.grey.shade600),
-                        ),
-
                         if (_canManage && !widget.historyOnly) ...[
                           const SizedBox(height: 10),
-
                           FilledButton.icon(
                             onPressed: _newSale,
                             icon: const Icon(Icons.add),
-                            label: const Text('Create First Sale'),
+                            label: const Text('Create Sale'),
                           ),
                         ],
                       ],
@@ -294,197 +302,218 @@ class _SalesScreenState extends State<SalesScreen> {
                   );
                 }
 
-                return RefreshIndicator(
-                  onRefresh: _refresh,
-
-                  child: ListView.separated(
-                    itemCount: sales.length,
-
-                    separatorBuilder: (_, _) => const SizedBox(height: 10),
-
-                    itemBuilder: (context, index) {
-                      final sale = sales[index];
-
-                      return InkWell(
-                        borderRadius: BorderRadius.circular(16),
-                        onTap: () => _openSale(sale),
-                        child: Container(
-                          padding: const EdgeInsets.all(18),
-
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-
-                            borderRadius: BorderRadius.circular(16),
-
-                            border: Border.all(color: Colors.grey.shade200),
+                return LayoutBuilder(
+                  builder: (context, constraints) {
+                    final compact = constraints.maxWidth < 900;
+                    final veryCompact = constraints.maxWidth < 720;
+                    return Container(
+                      decoration: BoxDecoration(
+                        color: scheme.surface,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: scheme.outlineVariant),
+                      ),
+                      clipBehavior: Clip.antiAlias,
+                      child: Column(
+                        children: [
+                          Container(
+                            height: 38,
+                            padding: const EdgeInsets.symmetric(horizontal: 10),
+                            color: scheme.surfaceContainerHighest,
+                            child: _salesRegisterHeader(
+                              compact: compact,
+                              veryCompact: veryCompact,
+                            ),
                           ),
-
-                          child: Row(
-                            children: [
-                              Expanded(
-                                flex: 2,
-
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-
-                                  children: [
-                                    Text(
-                                      sale.number,
-
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                      ),
+                          Divider(height: 1, color: scheme.outlineVariant),
+                          Expanded(
+                            child: RefreshIndicator(
+                              onRefresh: _refresh,
+                              child: ListView.builder(
+                                physics: const AlwaysScrollableScrollPhysics(),
+                                padding: EdgeInsets.zero,
+                                itemCount: sales.length,
+                                itemBuilder: (context, index) =>
+                                    _salesRegisterRow(
+                                      sales[index],
+                                      compact: compact,
+                                      veryCompact: veryCompact,
                                     ),
-
-                                    const SizedBox(height: 4),
-
-                                    Text(
-                                      _date(sale.saleDate),
-
-                                      style: TextStyle(
-                                        fontSize: 12,
-
-                                        color: Colors.grey.shade600,
-                                      ),
-                                    ),
-                                  ],
-                                ),
                               ),
-
-                              Expanded(
-                                flex: 3,
-
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-
-                                  children: [
-                                    Text(
-                                      sale.customerName,
-
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-
-                                    const SizedBox(height: 4),
-
-                                    Text(
-                                      'Customer',
-
-                                      style: TextStyle(
-                                        fontSize: 11,
-
-                                        color: Colors.grey.shade600,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-
-                              Expanded(
-                                flex: 2,
-
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-
-                                  children: [
-                                    Text(
-                                      'Total',
-
-                                      style: TextStyle(
-                                        fontSize: 11,
-
-                                        color: Colors.grey.shade600,
-                                      ),
-                                    ),
-
-                                    const SizedBox(height: 3),
-
-                                    Text(
-                                      _money(sale.grandTotal),
-
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-
-                              Expanded(
-                                flex: 2,
-
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-
-                                  children: [
-                                    Text(
-                                      'Balance Due',
-
-                                      style: TextStyle(
-                                        fontSize: 11,
-
-                                        color: Colors.grey.shade600,
-                                      ),
-                                    ),
-
-                                    const SizedBox(height: 3),
-
-                                    Text(
-                                      _money(sale.balanceDue),
-
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-
-                              Expanded(
-                                flex: 2,
-
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-
-                                  children: [
-                                    Text(
-                                      'Gross Profit',
-
-                                      style: TextStyle(
-                                        fontSize: 11,
-
-                                        color: Colors.grey.shade600,
-                                      ),
-                                    ),
-
-                                    const SizedBox(height: 3),
-
-                                    Text(
-                                      _money(sale.grossProfit),
-
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-
-                              _SalePaymentBadge(status: sale.paymentStatus),
-                              const SizedBox(width: 8),
-                              const Icon(Icons.chevron_right),
-                            ],
+                            ),
                           ),
-                        ),
-                      );
-                    },
-                  ),
+                        ],
+                      ),
+                    );
+                  },
                 );
               },
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _salesRegisterHeader({
+    required bool compact,
+    required bool veryCompact,
+  }) {
+    Widget cell(String value, int flex, {TextAlign align = TextAlign.left}) =>
+        Expanded(
+          flex: flex,
+          child: Text(
+            value,
+            textAlign: align,
+            maxLines: 1,
+            style: const TextStyle(fontSize: 9.5, fontWeight: FontWeight.w800),
+          ),
+        );
+
+    return Row(
+      children: [
+        cell('Invoice', 2),
+        if (!veryCompact) cell('Date', 2),
+        cell('Customer', 4),
+        cell('Total', 2, align: TextAlign.right),
+        cell('Balance', 2, align: TextAlign.right),
+        if (!compact) cell('Gross Profit', 2, align: TextAlign.right),
+        const SizedBox(width: 92, child: Text('Status')),
+        const SizedBox(width: 28),
+      ],
+    );
+  }
+
+  Widget _salesRegisterRow(
+    Sale sale, {
+    required bool compact,
+    required bool veryCompact,
+  }) {
+    final scheme = Theme.of(context).colorScheme;
+    Widget cell(
+      Widget child,
+      int flex, {
+      Alignment alignment = Alignment.centerLeft,
+    }) => Expanded(
+      flex: flex,
+      child: Align(
+        alignment: alignment,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 3),
+          child: child,
+        ),
+      ),
+    );
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => _openSale(sale),
+        child: Container(
+          constraints: const BoxConstraints(minHeight: 48),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+          decoration: BoxDecoration(
+            border: Border(bottom: BorderSide(color: scheme.outlineVariant)),
+          ),
+          child: Row(
+            children: [
+              cell(
+                Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      sale.number,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    if (veryCompact)
+                      Text(
+                        _date(sale.saleDate),
+                        style: TextStyle(
+                          fontSize: 9,
+                          color: scheme.onSurfaceVariant,
+                        ),
+                      ),
+                  ],
+                ),
+                2,
+              ),
+              if (!veryCompact)
+                cell(
+                  Text(
+                    _date(sale.saleDate),
+                    style: const TextStyle(fontSize: 10.5),
+                  ),
+                  2,
+                ),
+              cell(
+                Text(
+                  sale.customerName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                4,
+              ),
+              cell(
+                Text(
+                  _money(sale.grandTotal),
+                  maxLines: 1,
+                  style: const TextStyle(
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                2,
+                alignment: Alignment.centerRight,
+              ),
+              cell(
+                Text(
+                  _money(sale.balanceDue),
+                  maxLines: 1,
+                  style: TextStyle(
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w700,
+                    color: sale.balanceDue > 0.005
+                        ? scheme.error
+                        : scheme.onSurface,
+                  ),
+                ),
+                2,
+                alignment: Alignment.centerRight,
+              ),
+              if (!compact)
+                cell(
+                  Text(
+                    _money(sale.grossProfit),
+                    maxLines: 1,
+                    style: const TextStyle(fontSize: 10.5),
+                  ),
+                  2,
+                  alignment: Alignment.centerRight,
+                ),
+              SizedBox(
+                width: 92,
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: _SalePaymentBadge(status: sale.paymentStatus),
+                ),
+              ),
+              const SizedBox(
+                width: 28,
+                child: Icon(Icons.chevron_right, size: 18),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
