@@ -132,83 +132,106 @@ class _SuppliersScreenState extends State<SuppliersScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
     return Padding(
-      padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
-
+      padding: const EdgeInsets.fromLTRB(12, 9, 12, 12),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              const Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Suppliers',
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
+          SizedBox(
+            height: 48,
+            child: Row(
+              children: [
+                Container(
+                  width: 4,
+                  height: 26,
+                  decoration: BoxDecoration(
+                    color: scheme.primary,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                ),
+                const SizedBox(width: 9),
+                Expanded(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Suppliers',
+                        style: TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w900,
+                        ),
                       ),
-                    ),
-
-                    SizedBox(height: 5),
-
-                    Text('Manage vendors and purchase suppliers'),
-                  ],
+                      Text(
+                        'Vendor master, tax details and supplier statements',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 10.5,
+                          color: scheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-
-              if (_canManage)
-                FilledButton.icon(
-                  onPressed: _addSupplier,
-                  icon: const Icon(Icons.add),
-                  label: const Text('Add Supplier'),
+                IconButton(
+                  tooltip: 'Refresh suppliers',
+                  visualDensity: VisualDensity.compact,
+                  onPressed: _refresh,
+                  icon: const Icon(Icons.refresh_rounded, size: 18),
                 ),
-            ],
-          ),
-
-          const SizedBox(height: 24),
-
-          TextField(
-            controller: _searchController,
-
-            onChanged: (value) {
-              setState(() {
-                _search = value;
-              });
-            },
-
-            decoration: InputDecoration(
-              hintText: 'Search supplier, phone, GSTIN, city...',
-              prefixIcon: const Icon(Icons.search),
-
-              suffixIcon: _search.isEmpty
-                  ? null
-                  : IconButton(
-                      onPressed: () {
-                        _searchController.clear();
-
-                        setState(() {
-                          _search = '';
-                        });
-                      },
-                      icon: const Icon(Icons.close),
-                    ),
-
-              filled: true,
-              fillColor: Colors.white,
-
-              border: const OutlineInputBorder(),
+                if (_canManage)
+                  FilledButton.icon(
+                    onPressed: _addSupplier,
+                    icon: const Icon(Icons.add, size: 16),
+                    label: const Text('Add Supplier'),
+                  ),
+              ],
             ),
           ),
-
-          const SizedBox(height: 10),
-
+          const SizedBox(height: 6),
+          Container(
+            height: 40,
+            padding: const EdgeInsets.symmetric(horizontal: 7),
+            decoration: BoxDecoration(
+              color: scheme.surface,
+              borderRadius: BorderRadius.circular(9),
+              border: Border.all(color: scheme.outlineVariant),
+            ),
+            child: TextField(
+              controller: _searchController,
+              onChanged: (value) {
+                setState(() {
+                  _search = value;
+                });
+              },
+              decoration: InputDecoration(
+                hintText: 'Search supplier, phone, GSTIN, city...',
+                prefixIcon: const Icon(Icons.search, size: 17),
+                suffixIcon: _search.isEmpty
+                    ? null
+                    : IconButton(
+                        tooltip: 'Clear',
+                        visualDensity: VisualDensity.compact,
+                        onPressed: () {
+                          _searchController.clear();
+                          setState(() {
+                            _search = '';
+                          });
+                        },
+                        icon: const Icon(Icons.close, size: 17),
+                      ),
+                border: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
+              ),
+            ),
+          ),
+          const SizedBox(height: 6),
           Expanded(
             child: FutureBuilder<List<Supplier>>(
               future: _suppliersFuture,
-
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
@@ -221,8 +244,7 @@ class _SuppliersScreenState extends State<SuppliersScreen> {
                   );
                 }
 
-                final all = snapshot.data ?? [];
-
+                final all = snapshot.data ?? const <Supplier>[];
                 final suppliers = _filter(all);
 
                 if (all.isEmpty) {
@@ -238,27 +260,54 @@ class _SuppliersScreenState extends State<SuppliersScreen> {
                   );
                 }
 
-                return RefreshIndicator(
-                  onRefresh: _refresh,
+                return LayoutBuilder(
+                  builder: (context, constraints) {
+                    final compact = constraints.maxWidth < 820;
+                    final veryCompact = constraints.maxWidth < 620;
 
-                  child: ListView.separated(
-                    itemCount: suppliers.length,
-
-                    separatorBuilder: (_, _) => const SizedBox(height: 10),
-
-                    itemBuilder: (context, index) {
-                      final supplier = suppliers[index];
-
-                      return _SupplierCard(
-                        supplier: supplier,
-
-                        canManage: _canManage,
-
-                        onEdit: () => _editSupplier(supplier),
-                        onStatement: () => _openStatement(supplier),
-                      );
-                    },
-                  ),
+                    return Container(
+                      decoration: BoxDecoration(
+                        color: scheme.surface,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: scheme.outlineVariant),
+                      ),
+                      clipBehavior: Clip.antiAlias,
+                      child: Column(
+                        children: [
+                          if (!veryCompact)
+                            Container(
+                              height: 34,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 9,
+                              ),
+                              color: scheme.surfaceContainerHighest,
+                              child: _supplierHeader(compact: compact),
+                            ),
+                          Expanded(
+                            child: RefreshIndicator(
+                              onRefresh: _refresh,
+                              child: ListView.builder(
+                                physics: const AlwaysScrollableScrollPhysics(),
+                                padding: EdgeInsets.zero,
+                                itemCount: suppliers.length,
+                                itemBuilder: (context, index) {
+                                  final supplier = suppliers[index];
+                                  return _SupplierCard(
+                                    supplier: supplier,
+                                    compact: compact,
+                                    veryCompact: veryCompact,
+                                    canManage: _canManage,
+                                    onEdit: () => _editSupplier(supplier),
+                                    onStatement: () => _openStatement(supplier),
+                                  );
+                                },
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
                 );
               },
             ),
@@ -267,16 +316,41 @@ class _SuppliersScreenState extends State<SuppliersScreen> {
       ),
     );
   }
+
+  Widget _supplierHeader({required bool compact}) {
+    Widget cell(String label, int flex) => Expanded(
+      flex: flex,
+      child: Text(
+        label,
+        maxLines: 1,
+        style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w800),
+      ),
+    );
+
+    return Row(
+      children: [
+        cell('Supplier', 4),
+        cell('Contact', 3),
+        if (!compact) cell('Tax / Location', 3),
+        const SizedBox(width: 72, child: Text('Status')),
+        const SizedBox(width: 72),
+      ],
+    );
+  }
 }
 
 class _SupplierCard extends StatelessWidget {
   final Supplier supplier;
+  final bool compact;
+  final bool veryCompact;
   final bool canManage;
   final VoidCallback onEdit;
   final VoidCallback onStatement;
 
   const _SupplierCard({
     required this.supplier,
+    required this.compact,
+    required this.veryCompact,
     required this.canManage,
     required this.onEdit,
     required this.onStatement,
@@ -284,163 +358,233 @@ class _SupplierCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(18),
+    final scheme = Theme.of(context).colorScheme;
+    final location = [
+      supplier.city,
+      supplier.state,
+    ].where((value) => value != null && value.isNotEmpty).join(', ');
 
-      decoration: BoxDecoration(
-        color: Colors.white,
+    if (veryCompact) {
+      return Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onStatement,
+          child: Container(
+            constraints: const BoxConstraints(minHeight: 52),
+            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+            decoration: BoxDecoration(
+              border: Border(bottom: BorderSide(color: scheme.outlineVariant)),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.local_shipping_outlined, size: 17),
+                const SizedBox(width: 7),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        supplier.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      Text(
+                        [
+                          supplier.publicId,
+                          supplier.phone ?? '',
+                          location,
+                        ].where((value) => value.isNotEmpty).join(' | '),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 8.2,
+                          color: scheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  tooltip: 'Statement',
+                  visualDensity: VisualDensity.compact,
+                  onPressed: onStatement,
+                  icon: const Icon(Icons.receipt_long_outlined, size: 15),
+                ),
+                if (canManage)
+                  IconButton(
+                    tooltip: 'Edit Supplier',
+                    visualDensity: VisualDensity.compact,
+                    onPressed: onEdit,
+                    icon: const Icon(Icons.edit_outlined, size: 15),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
 
-        borderRadius: BorderRadius.circular(16),
-
-        border: Border.all(color: Colors.grey.shade200),
+    Widget cell(Widget child, int flex) => Expanded(
+      flex: flex,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 2),
+        child: child,
       ),
+    );
 
-      child: Row(
-        children: [
-          Container(
-            width: 54,
-            height: 54,
-
-            decoration: BoxDecoration(
-              color: Colors.indigo.shade50,
-
-              borderRadius: BorderRadius.circular(13),
-            ),
-
-            child: const Icon(Icons.local_shipping_outlined),
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onStatement,
+        child: Container(
+          constraints: const BoxConstraints(minHeight: 48),
+          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+          decoration: BoxDecoration(
+            border: Border(bottom: BorderSide(color: scheme.outlineVariant)),
           ),
-
-          const SizedBox(width: 16),
-
-          Expanded(
-            flex: 3,
-
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-
-              children: [
-                Text(
-                  supplier.name,
-
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-
-                const SizedBox(height: 3),
-                if (supplier.publicId.isNotEmpty)
-                  Text(
-                    'Supplier ID: ${supplier.publicId}',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.indigo.shade600,
+          child: Row(
+            children: [
+              cell(
+                Row(
+                  children: [
+                    Container(
+                      width: 28,
+                      height: 28,
+                      decoration: BoxDecoration(
+                        color: scheme.primary.withValues(alpha: .08),
+                        borderRadius: BorderRadius.circular(7),
+                      ),
+                      child: Icon(
+                        Icons.local_shipping_outlined,
+                        size: 15,
+                        color: scheme.primary,
+                      ),
                     ),
-                  ),
-                const SizedBox(height: 3),
-
-                Text(
-                  supplier.contactPerson ?? 'No contact person',
-
-                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                    const SizedBox(width: 7),
+                    Expanded(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            supplier.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 9.8,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                          Text(
+                            supplier.publicId.isEmpty
+                                ? supplier.contactPerson ?? ''
+                                : '${supplier.publicId} | ${supplier.contactPerson ?? ''}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 7.9,
+                              color: scheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-          ),
-
-          Expanded(
-            flex: 2,
-
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-
-              children: [
-                Text(
-                  supplier.phone ?? 'No phone',
-
-                  style: const TextStyle(fontWeight: FontWeight.w500),
-                ),
-
-                if (supplier.email != null)
-                  Text(
-                    supplier.email!,
-
-                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-                  ),
-              ],
-            ),
-          ),
-
-          Expanded(
-            flex: 2,
-
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-
-              children: [
-                Text(
-                  supplier.taxNumber ?? 'No Tax ID',
-
-                  style: const TextStyle(fontWeight: FontWeight.w500),
-                ),
-
-                Text(
-                  [supplier.city, supplier.state]
-                      .where((value) => value != null && value.isNotEmpty)
-                      .join(', '),
-
-                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-                ),
-              ],
-            ),
-          ),
-
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-
-            decoration: BoxDecoration(
-              color: supplier.isActive
-                  ? Colors.green.shade50
-                  : Colors.grey.shade100,
-
-              borderRadius: BorderRadius.circular(20),
-            ),
-
-            child: Text(
-              supplier.status.toUpperCase(),
-
-              style: TextStyle(
-                fontSize: 11,
-
-                fontWeight: FontWeight.bold,
-
-                color: supplier.isActive
-                    ? Colors.green.shade700
-                    : Colors.grey.shade700,
+                4,
               ),
-            ),
+              cell(
+                Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      supplier.phone ?? 'No phone',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontSize: 9),
+                    ),
+                    Text(
+                      supplier.email ?? '',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 7.8,
+                        color: scheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+                3,
+              ),
+              if (!compact)
+                cell(
+                  Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        supplier.taxNumber ?? 'No Tax ID',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontSize: 8.8),
+                      ),
+                      Text(
+                        location,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 7.8,
+                          color: scheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                  3,
+                ),
+              SizedBox(
+                width: 72,
+                child: Text(
+                  supplier.status.toUpperCase(),
+                  textAlign: TextAlign.center,
+                  maxLines: 1,
+                  style: TextStyle(
+                    fontSize: 7.8,
+                    fontWeight: FontWeight.w900,
+                    color: supplier.isActive
+                        ? scheme.primary
+                        : scheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
+              SizedBox(
+                width: 72,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    IconButton(
+                      tooltip: 'Statement',
+                      visualDensity: VisualDensity.compact,
+                      onPressed: onStatement,
+                      icon: const Icon(Icons.receipt_long_outlined, size: 15),
+                    ),
+                    if (canManage)
+                      IconButton(
+                        tooltip: 'Edit Supplier',
+                        visualDensity: VisualDensity.compact,
+                        onPressed: onEdit,
+                        icon: const Icon(Icons.edit_outlined, size: 15),
+                      ),
+                  ],
+                ),
+              ),
+            ],
           ),
-
-          const SizedBox(width: 8),
-          IconButton(
-            tooltip: 'Supplier Statement',
-            onPressed: onStatement,
-            icon: const Icon(Icons.receipt_long_outlined),
-          ),
-
-          if (canManage) ...[
-            const SizedBox(width: 12),
-
-            IconButton(
-              tooltip: 'Edit Supplier',
-
-              onPressed: onEdit,
-
-              icon: const Icon(Icons.edit_outlined),
-            ),
-          ],
-        ],
+        ),
       ),
     );
   }

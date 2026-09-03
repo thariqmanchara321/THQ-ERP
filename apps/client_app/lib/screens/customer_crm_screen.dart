@@ -64,13 +64,19 @@ class _CustomerCrmScreenState extends State<CustomerCrmScreen> {
     final crm = _data['crm'] is Map
         ? Map<String, dynamic>.from(_data['crm'] as Map)
         : <String, dynamic>{};
+    final scheme = Theme.of(context).colorScheme;
+
     return Scaffold(
       appBar: AppBar(
-        title: Text('CRM • ${widget.customer.name}'),
+        toolbarHeight: 46,
+        title: Text(
+          'CRM - ${widget.customer.name}',
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+        ),
         actions: [
           IconButton(
             onPressed: _loading ? null : _load,
-            icon: const Icon(Icons.refresh),
+            icon: const Icon(Icons.refresh, size: 18),
             tooltip: 'Refresh',
           ),
         ],
@@ -80,158 +86,277 @@ class _CustomerCrmScreenState extends State<CustomerCrmScreen> {
           : _error != null
           ? Center(
               child: Padding(
-                padding: const EdgeInsets.all(24),
+                padding: const EdgeInsets.all(20),
                 child: Text(_error!, textAlign: TextAlign.center),
               ),
             )
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(14),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Wrap(
-                    spacing: 10,
-                    runSpacing: 10,
+          : Padding(
+              padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final metrics = <(String, String, IconData)>[
+                    (
+                      'Gross Sales',
+                      _money(summary['gross_sales']),
+                      Icons.point_of_sale_outlined,
+                    ),
+                    (
+                      'Returns',
+                      _money(summary['returns']),
+                      Icons.keyboard_return_outlined,
+                    ),
+                    (
+                      'Payments',
+                      _money(summary['payments']),
+                      Icons.payments_outlined,
+                    ),
+                    (
+                      'Outstanding',
+                      _money(summary['outstanding_sales']),
+                      Icons.account_balance_wallet_outlined,
+                    ),
+                    (
+                      'Loan Receivable',
+                      _money(summary['loan_receivable']),
+                      Icons.south_west_outlined,
+                    ),
+                    (
+                      'Loan Payable',
+                      _money(summary['loan_payable']),
+                      Icons.north_east_outlined,
+                    ),
+                    (
+                      'Loyalty',
+                      '${crm['loyalty_points'] ?? 0} pts',
+                      Icons.stars_outlined,
+                    ),
+                  ];
+
+                  final columns = constraints.maxWidth >= 900
+                      ? 4
+                      : constraints.maxWidth >= 600
+                      ? 3
+                      : 2;
+                  const gap = 6.0;
+                  final metricWidth =
+                      (constraints.maxWidth - ((columns - 1) * gap)) / columns;
+
+                  return Column(
                     children: [
-                      _metric(
-                        'Gross Sales',
-                        _money(summary['gross_sales']),
-                        Icons.point_of_sale_outlined,
+                      Wrap(
+                        spacing: gap,
+                        runSpacing: gap,
+                        children: metrics
+                            .map(
+                              (metric) => SizedBox(
+                                width: metricWidth,
+                                child: _metric(metric.$1, metric.$2, metric.$3),
+                              ),
+                            )
+                            .toList(),
                       ),
-                      _metric(
-                        'Returns',
-                        _money(summary['returns']),
-                        Icons.keyboard_return_outlined,
-                      ),
-                      _metric(
-                        'Payments',
-                        _money(summary['payments']),
-                        Icons.payments_outlined,
-                      ),
-                      _metric(
-                        'Outstanding',
-                        _money(summary['outstanding_sales']),
-                        Icons.account_balance_wallet_outlined,
-                      ),
-                      _metric(
-                        'Loan Receivable',
-                        _money(summary['loan_receivable']),
-                        Icons.south_west_outlined,
-                      ),
-                      _metric(
-                        'Loan Payable',
-                        _money(summary['loan_payable']),
-                        Icons.north_east_outlined,
-                      ),
-                      _metric(
-                        'Loyalty',
-                        '${crm['loyalty_points'] ?? 0} pts',
-                        Icons.stars_outlined,
+                      const SizedBox(height: 6),
+                      Expanded(
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: scheme.surface,
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: scheme.outlineVariant),
+                          ),
+                          clipBehavior: Clip.antiAlias,
+                          child: Column(
+                            children: [
+                              Container(
+                                height: 36,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                ),
+                                color: scheme.surfaceContainerHighest,
+                                child: const Row(
+                                  children: [
+                                    Icon(Icons.person_outline, size: 16),
+                                    SizedBox(width: 7),
+                                    Text(
+                                      'CUSTOMER PROFILE',
+                                      style: TextStyle(
+                                        fontSize: 9,
+                                        fontWeight: FontWeight.w900,
+                                        letterSpacing: .4,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Expanded(
+                                child: SingleChildScrollView(
+                                  padding: const EdgeInsets.all(10),
+                                  child: Column(
+                                    children: [
+                                      _row(
+                                        'Customer ID',
+                                        widget.customer.publicId,
+                                      ),
+                                      _row(
+                                        'Phone',
+                                        widget.customer.phone ?? 'â€”',
+                                      ),
+                                      _row(
+                                        'Email',
+                                        widget.customer.email ?? 'â€”',
+                                      ),
+                                      _row(
+                                        'GSTIN / Tax ID',
+                                        widget.customer.taxNumber ?? 'â€”',
+                                      ),
+                                      _row(
+                                        'Credit Limit',
+                                        _money(widget.customer.creditLimit),
+                                      ),
+                                      _row(
+                                        'Customer Group',
+                                        crm['group_name']?.toString() ?? 'â€”',
+                                      ),
+                                      _row(
+                                        'Group Discount',
+                                        '${crm['group_discount_percent'] ?? 0}%',
+                                      ),
+                                      _row(
+                                        'Birthday',
+                                        crm['birthday']?.toString() ?? 'â€”',
+                                      ),
+                                      _row(
+                                        'Anniversary',
+                                        crm['anniversary']?.toString() ?? 'â€”',
+                                      ),
+                                      _row(
+                                        'Last Sale',
+                                        summary['last_sale_date']?.toString() ??
+                                            'â€”',
+                                      ),
+                                      const SizedBox(height: 10),
+                                      Container(
+                                        width: double.infinity,
+                                        padding: const EdgeInsets.all(9),
+                                        decoration: BoxDecoration(
+                                          color: scheme.surfaceContainerHighest
+                                              .withValues(alpha: .45),
+                                          borderRadius: BorderRadius.circular(
+                                            8,
+                                          ),
+                                        ),
+                                        child: Text(
+                                          'Customer-specific pricing, statements, sales history, returns, payments and loans remain linked through the existing THQ workspaces.',
+                                          style: TextStyle(
+                                            fontSize: 9,
+                                            color: scheme.onSurfaceVariant,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
                     ],
-                  ),
-                  const SizedBox(height: 14),
-                  Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(14),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Customer Profile',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          const SizedBox(height: 10),
-                          _row('Customer ID', widget.customer.publicId),
-                          _row('Phone', widget.customer.phone ?? '—'),
-                          _row('Email', widget.customer.email ?? '—'),
-                          _row(
-                            'GSTIN / Tax ID',
-                            widget.customer.taxNumber ?? '—',
-                          ),
-                          _row(
-                            'Credit Limit',
-                            _money(widget.customer.creditLimit),
-                          ),
-                          _row(
-                            'Customer Group',
-                            crm['group_name']?.toString() ?? '—',
-                          ),
-                          _row(
-                            'Group Discount',
-                            '${crm['group_discount_percent'] ?? 0}%',
-                          ),
-                          _row('Birthday', crm['birthday']?.toString() ?? '—'),
-                          _row(
-                            'Anniversary',
-                            crm['anniversary']?.toString() ?? '—',
-                          ),
-                          _row(
-                            'Last Sale',
-                            summary['last_sale_date']?.toString() ?? '—',
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    'Customer-specific pricing, statements, sales history, returns, payments and loans remain linked to this customer through the existing THQ workspaces.',
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ],
+                  );
+                },
               ),
             ),
     );
   }
 
-  Widget _metric(String label, String value, IconData icon) => SizedBox(
-    width: 180,
-    child: Card(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        child: Row(
-          children: [
-            Icon(icon, size: 20),
-            const SizedBox(width: 9),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(label, style: const TextStyle(fontSize: 11)),
-                  const SizedBox(height: 2),
-                  Text(
-                    value,
-                    style: const TextStyle(fontWeight: FontWeight.w700),
+  Widget _metric(String label, String value, IconData icon) {
+    final scheme = Theme.of(context).colorScheme;
+
+    return Container(
+      height: 60,
+      padding: const EdgeInsets.symmetric(horizontal: 9),
+      decoration: BoxDecoration(
+        color: scheme.surface,
+        borderRadius: BorderRadius.circular(9),
+        border: Border.all(color: scheme.outlineVariant),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 28,
+            height: 28,
+            decoration: BoxDecoration(
+              color: scheme.primary.withValues(alpha: .08),
+              borderRadius: BorderRadius.circular(7),
+            ),
+            child: Icon(icon, size: 14, color: scheme.primary),
+          ),
+          const SizedBox(width: 7),
+          Expanded(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 8.4,
+                    color: scheme.onSurfaceVariant,
                   ),
-                ],
+                ),
+                Text(
+                  value,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 10.3,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _row(String label, String value) {
+    final scheme = Theme.of(context).colorScheme;
+
+    return Container(
+      constraints: const BoxConstraints(minHeight: 38),
+      padding: const EdgeInsets.symmetric(vertical: 5),
+      decoration: BoxDecoration(
+        border: Border(bottom: BorderSide(color: scheme.outlineVariant)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          SizedBox(
+            width: 150,
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 9,
+                fontWeight: FontWeight.w700,
+                color: scheme.onSurfaceVariant,
               ),
             ),
-          ],
-        ),
-      ),
-    ),
-  );
-
-  Widget _row(String label, String value) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: 4),
-    child: Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SizedBox(
-          width: 170,
-          child: Text(
-            label,
-            style: const TextStyle(fontWeight: FontWeight.w600),
           ),
-        ),
-        Expanded(child: Text(value)),
-      ],
-    ),
-  );
+          const SizedBox(width: 8),
+          Expanded(
+            child: SelectableText(
+              value,
+              style: const TextStyle(
+                fontSize: 9.5,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
