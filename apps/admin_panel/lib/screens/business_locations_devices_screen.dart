@@ -230,9 +230,11 @@ class _BusinessLocationsDevicesScreenState
                                           sortOrder = 0;
                                         } else if (value == 'warehouse') {
                                           type = 'warehouse';
-                                          parentLocationId ??= _mainLocationId();
+                                          parentLocationId ??=
+                                              _mainLocationId();
                                         } else {
-                                          parentLocationId ??= _mainLocationId();
+                                          parentLocationId ??=
+                                              _mainLocationId();
                                         }
                                       });
                                     },
@@ -294,9 +296,17 @@ class _BusinessLocationsDevicesScreenState
                                           type = value;
                                           if (value == 'warehouse') {
                                             hierarchyRole = 'warehouse';
-                                          } else if (const ['production', 'office', 'scrap'].contains(value)) {
+                                          } else if (const [
+                                            'production',
+                                            'office',
+                                            'scrap',
+                                          ].contains(value)) {
                                             hierarchyRole = 'operational';
-                                          } else if (!isExistingMain && const ['store', 'branch'].contains(value)) {
+                                          } else if (!isExistingMain &&
+                                              const [
+                                                'store',
+                                                'branch',
+                                              ].contains(value)) {
                                             hierarchyRole = 'child_store';
                                           }
                                         });
@@ -627,11 +637,14 @@ class _BusinessLocationsDevicesScreenState
                             if (value != null) {
                               setLocalState(() {
                                 appType = value;
-                                systemRole = appType == 'pos' ? 'pos' : 'office';
+                                systemRole = appType == 'pos'
+                                    ? 'pos'
+                                    : 'office';
                                 if (appType == 'client') {
                                   selectedModules.clear();
                                 }
-                                if (appType == 'pos' && selectedModules.isEmpty) {
+                                if (appType == 'pos' &&
+                                    selectedModules.isEmpty) {
                                   selectedModules.add('sales');
                                 }
                               });
@@ -673,14 +686,26 @@ class _BusinessLocationsDevicesScreenState
                     const SizedBox(height: 10),
                     DropdownButtonFormField<String>(
                       initialValue: systemRole,
-                      decoration: const InputDecoration(labelText: 'System role'),
+                      decoration: const InputDecoration(
+                        labelText: 'System role',
+                      ),
                       items: const [
-                        DropdownMenuItem(value: 'back_office', child: Text('Back Office PC')),
-                        DropdownMenuItem(value: 'office', child: Text('Office PC')),
-                        DropdownMenuItem(value: 'inventory', child: Text('Inventory PC')),
+                        DropdownMenuItem(
+                          value: 'back_office',
+                          child: Text('Back Office PC'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'office',
+                          child: Text('Office PC'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'inventory',
+                          child: Text('Inventory PC'),
+                        ),
                       ],
                       onChanged: (value) {
-                        if (value != null) setLocalState(() => systemRole = value);
+                        if (value != null)
+                          setLocalState(() => systemRole = value);
                       },
                     ),
                   ],
@@ -884,10 +909,11 @@ class _BusinessLocationsDevicesScreenState
     final activeLocations = _locations
         .where((location) => location['active'] != false)
         .toList();
-    var locationId = device['location_id']?.toString() ??
+    var locationId =
+        device['location_id']?.toString() ??
         (activeLocations.isEmpty ? '' : activeLocations.first['id'].toString());
-    var systemRole = device['system_role']?.toString() ??
-        (isPos ? 'pos' : 'office');
+    var systemRole =
+        device['system_role']?.toString() ?? (isPos ? 'pos' : 'office');
     final name = TextEditingController(text: device['name']?.toString() ?? '');
     final invoicePrefix = TextEditingController(
       text: device['invoice_prefix']?.toString() ?? '',
@@ -913,32 +939,48 @@ class _BusinessLocationsDevicesScreenState
                     isExpanded: true,
                     decoration: const InputDecoration(
                       labelText: 'Assigned store / location',
-                      helperText: 'A system can be moved later without changing its system identity.',
+                      helperText:
+                          'A system can be moved later without changing its system identity.',
                     ),
                     items: activeLocations
                         .map(
                           (location) => DropdownMenuItem(
                             value: location['id'].toString(),
-                            child: Text('${location['location_code']} • ${location['name']}'),
+                            child: Text(
+                              '${location['location_code']} • ${location['name']}',
+                            ),
                           ),
                         )
                         .toList(),
                     onChanged: (value) {
-                      if (value != null) setLocalState(() => locationId = value);
+                      if (value != null)
+                        setLocalState(() => locationId = value);
                     },
                   ),
                   if (!isPos) ...[
                     const SizedBox(height: 12),
                     DropdownButtonFormField<String>(
                       initialValue: systemRole,
-                      decoration: const InputDecoration(labelText: 'System role'),
+                      decoration: const InputDecoration(
+                        labelText: 'System role',
+                      ),
                       items: const [
-                        DropdownMenuItem(value: 'back_office', child: Text('Back Office PC')),
-                        DropdownMenuItem(value: 'office', child: Text('Office PC')),
-                        DropdownMenuItem(value: 'inventory', child: Text('Inventory PC')),
+                        DropdownMenuItem(
+                          value: 'back_office',
+                          child: Text('Back Office PC'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'office',
+                          child: Text('Office PC'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'inventory',
+                          child: Text('Inventory PC'),
+                        ),
                       ],
                       onChanged: (value) {
-                        if (value != null) setLocalState(() => systemRole = value);
+                        if (value != null)
+                          setLocalState(() => systemRole = value);
                       },
                     ),
                   ],
@@ -948,7 +990,9 @@ class _BusinessLocationsDevicesScreenState
                       Expanded(
                         child: TextField(
                           controller: name,
-                          decoration: const InputDecoration(labelText: 'System name'),
+                          decoration: const InputDecoration(
+                            labelText: 'System name',
+                          ),
                         ),
                       ),
                       if (isPos) ...[
@@ -970,7 +1014,10 @@ class _BusinessLocationsDevicesScreenState
                   ),
                   if (isPos) ...[
                     const SizedBox(height: 18),
-                    const Text('Allowed POS modules', style: TextStyle(fontWeight: FontWeight.bold)),
+                    const Text(
+                      'Allowed POS modules',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
                     const SizedBox(height: 4),
                     Text(
                       'Cashier Shifts and Terminal Daily are operational modules and can be enabled per POS.',
@@ -1056,7 +1103,10 @@ class _BusinessLocationsDevicesScreenState
           'Unused systems are deleted. Systems with transactions, shifts, or installation history are safely archived so old invoices and audit history remain valid.',
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancel'),
+          ),
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: Colors.red),
             onPressed: () => Navigator.pop(dialogContext, true),
@@ -1095,7 +1145,10 @@ class _BusinessLocationsDevicesScreenState
           'Move or remove all assigned systems first. A store with transaction/accounting/stock history will be archived instead of destroying historical records.',
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancel'),
+          ),
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: Colors.red),
             onPressed: () => Navigator.pop(dialogContext, true),
@@ -1158,7 +1211,8 @@ class _BusinessLocationsDevicesScreenState
   }
 
   String _systemRoleLabel(Map<String, dynamic> device) {
-    final role = device['system_role']?.toString() ??
+    final role =
+        device['system_role']?.toString() ??
         (device['app_type'] == 'pos' ? 'pos' : 'office');
     return switch (role) {
       'pos' => 'POS',
@@ -1227,176 +1281,344 @@ class _BusinessLocationsDevicesScreenState
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final activeSystems = _devices
+        .where((d) => d['status']?.toString() != 'revoked')
+        .length;
+    final archivedSystems = _devices
+        .where((d) => d['status']?.toString() == 'revoked')
+        .length;
+
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
       appBar: AppBar(
-        title: Text('${widget.businessName} • Locations & Systems'),
+        toolbarHeight: 42,
+        title: Text(
+          '${widget.businessName} | Locations & Systems',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w900),
+        ),
         actions: const [AdminHomeButton()],
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
-          : RefreshIndicator(
-              onRefresh: _load,
-              child: ListView(
-                padding: const EdgeInsets.all(28),
+          : Padding(
+              padding: const EdgeInsets.all(6),
+              child: Column(
                 children: [
                   Container(
-                    padding: const EdgeInsets.all(18),
-                    decoration: BoxDecoration(
-                      color: Colors.indigo.shade50,
-                      borderRadius: BorderRadius.circular(16),
+                    constraints: const BoxConstraints(minHeight: 48),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 5,
                     ),
-                    child: Wrap(
-                      spacing: 10,
-                      runSpacing: 10,
-                      crossAxisAlignment: WrapCrossAlignment.center,
+                    decoration: BoxDecoration(
+                      color: scheme.surface,
+                      borderRadius: BorderRadius.circular(9),
+                      border: Border.all(color: scheme.outlineVariant),
+                    ),
+                    child: Row(
                       children: [
-                        const Icon(Icons.key_outlined),
-                        SizedBox(
-                          width: 310,
+                        Container(
+                          width: 4,
+                          height: 25,
+                          decoration: BoxDecoration(
+                            color: scheme.primary,
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
                           child: Column(
+                            mainAxisSize: MainAxisSize.min,
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               const Text(
-                                'Business activation code',
-                                style: TextStyle(fontWeight: FontWeight.bold),
+                                'Business Structure',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w900,
+                                ),
                               ),
-                              SelectableText(
-                                _identity['business_code']?.toString() ?? '-',
-                                style: const TextStyle(
-                                  fontSize: 24,
-                                  fontWeight: FontWeight.bold,
+                              Text(
+                                '${_locations.length} location(s) | '
+                                '$activeSystems active/configured system(s)'
+                                '${archivedSystems > 0 ? ' | $archivedSystems archived' : ''}',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 7.6,
+                                  color: scheme.onSurfaceVariant,
                                 ),
                               ),
                             ],
                           ),
                         ),
+                        IconButton(
+                          tooltip: 'Refresh',
+                          visualDensity: VisualDensity.compact,
+                          onPressed: _load,
+                          icon: const Icon(Icons.refresh_rounded, size: 17),
+                        ),
+                        const SizedBox(width: 3),
                         OutlinedButton.icon(
                           onPressed: () => _editLocation(),
-                          icon: const Icon(Icons.add_business),
-                          label: const Text('Add Store / Child Store'),
+                          icon: const Icon(Icons.add_business, size: 14),
+                          label: const Text('Store'),
                         ),
+                        const SizedBox(width: 4),
                         OutlinedButton.icon(
                           onPressed: _createSystem,
-                          icon: const Icon(Icons.add_to_queue),
-                          label: const Text('Add System / POS'),
+                          icon: const Icon(Icons.add_to_queue, size: 14),
+                          label: const Text('System / POS'),
                         ),
+                        const SizedBox(width: 4),
                         FilledButton.icon(
                           onPressed: _activateSystem,
-                          icon: const Icon(Icons.key_outlined),
-                          label: const Text('Activate System'),
+                          icon: const Icon(Icons.key_outlined, size: 14),
+                          label: const Text('Activate'),
                         ),
                       ],
                     ),
                   ),
-                  if (_error != null)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 12),
+                  const SizedBox(height: 5),
+                  Container(
+                    height: 44,
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    decoration: BoxDecoration(
+                      color: scheme.primaryContainer.withValues(alpha: .16),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: scheme.outlineVariant),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.key_outlined,
+                          size: 15,
+                          color: scheme.primary,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          'Business Code',
+                          style: TextStyle(
+                            fontSize: 7.5,
+                            color: scheme.onSurfaceVariant,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: SelectableText(
+                            _identity['business_code']?.toString() ?? '-',
+                            maxLines: 1,
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: .5,
+                            ),
+                          ),
+                        ),
+                        Text(
+                          'Use with one-time system activation code',
+                          style: TextStyle(
+                            fontSize: 7.3,
+                            color: scheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (_error != null) ...[
+                    const SizedBox(height: 5),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 5,
+                      ),
+                      decoration: BoxDecoration(
+                        color: scheme.errorContainer,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
                       child: Text(
                         _error!,
-                        style: const TextStyle(color: Colors.red),
-                      ),
-                    ),
-                  const SizedBox(height: 22),
-                  Row(
-                    children: [
-                      const Expanded(
-                        child: Text(
-                          'Business Structure',
-                          style: TextStyle(fontSize: 19, fontWeight: FontWeight.bold),
+                        maxLines: 2,
+                        style: TextStyle(
+                          fontSize: 8,
+                          color: scheme.onErrorContainer,
                         ),
                       ),
-                      Text(
-                        '${_locations.length} stores • ${_devices.where((d) => d['status'] != 'revoked').length} active/configured systems',
-                        style: TextStyle(color: Colors.grey.shade600),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  ..._locations.map((location) {
-                    final systems = _devices
-                        .where(
-                          (device) =>
-                              device['location_id']?.toString() == location['id']?.toString() &&
-                              device['status']?.toString() != 'revoked',
-                        )
-                        .toList();
-                    final isMain = location['hierarchy_role']?.toString() == 'main_store' ||
-                        location['location_code']?.toString().toUpperCase() == 'MAIN';
-                    return Card(
-                      margin: const EdgeInsets.only(bottom: 12),
-                      child: Column(
-                        children: [
-                          ListTile(
-                            leading: Icon(
-                              location['location_type']?.toString() == 'warehouse'
-                                  ? Icons.warehouse_outlined
-                                  : Icons.store_mall_directory,
-                              size: 30,
-                            ),
-                            title: Text(
-                              '${location['location_code']} • ${location['name']}',
-                              style: const TextStyle(fontWeight: FontWeight.w800),
-                            ),
-                            subtitle: Text(
-                              '${isMain ? 'MAIN STORE' : (location['location_type'] ?? 'store')} • ${location['tracking_code'] ?? ''}\n'
-                              '${_address(location)}${location['gstin'] == null ? '' : ' • GSTIN ${location['gstin']}'}',
-                            ),
-                            isThreeLine: true,
-                            trailing: Wrap(
-                              spacing: 2,
-                              crossAxisAlignment: WrapCrossAlignment.center,
-                              children: [
-                                Chip(
-                                  label: Text(location['active'] == false ? 'INACTIVE' : 'ACTIVE'),
-                                ),
-                                IconButton(
-                                  tooltip: 'Edit store',
-                                  onPressed: () => _editLocation(location),
-                                  icon: const Icon(Icons.edit_outlined),
-                                ),
-                                if (!isMain)
-                                  IconButton(
-                                    tooltip: 'Delete / archive store',
-                                    onPressed: () => _deleteLocation(location),
-                                    icon: const Icon(Icons.delete_outline, color: Colors.red),
-                                  ),
-                              ],
-                            ),
-                          ),
-                          const Divider(height: 1),
-                          if (systems.isEmpty)
-                            const Padding(
-                              padding: EdgeInsets.all(16),
-                              child: Align(
-                                alignment: Alignment.centerLeft,
-                                child: Text('No systems assigned to this store.'),
-                              ),
-                            )
-                          else
-                            ...systems.map(_systemTile),
-                          Padding(
-                            padding: const EdgeInsets.fromLTRB(12, 2, 12, 12),
-                            child: Align(
-                              alignment: Alignment.centerLeft,
-                              child: TextButton.icon(
-                                onPressed: _createSystem,
-                                icon: const Icon(Icons.add_to_queue, size: 18),
-                                label: const Text('Add system'),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                  }),
-                  if (_devices.any((d) => d['status']?.toString() == 'revoked')) ...[
-                    const SizedBox(height: 6),
-                    Text(
-                      '${_devices.where((d) => d['status']?.toString() == 'revoked').length} archived system(s) are retained in history and hidden from the active business structure.',
-                      style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
                     ),
                   ],
+                  const SizedBox(height: 5),
+                  Expanded(
+                    child: _locations.isEmpty
+                        ? const Center(child: Text('No locations configured.'))
+                        : RefreshIndicator(
+                            onRefresh: _load,
+                            child: ListView.builder(
+                              physics: const AlwaysScrollableScrollPhysics(),
+                              padding: EdgeInsets.zero,
+                              itemCount: _locations.length,
+                              itemBuilder: (context, index) {
+                                final location = _locations[index];
+                                final systems = _devices
+                                    .where(
+                                      (device) =>
+                                          device['location_id']?.toString() ==
+                                              location['id']?.toString() &&
+                                          device['status']?.toString() !=
+                                              'revoked',
+                                    )
+                                    .toList();
+                                final isMain =
+                                    location['hierarchy_role']?.toString() ==
+                                        'main_store' ||
+                                    location['location_code']
+                                            ?.toString()
+                                            .toUpperCase() ==
+                                        'MAIN';
+
+                                return Container(
+                                  margin: const EdgeInsets.only(bottom: 5),
+                                  decoration: BoxDecoration(
+                                    color: scheme.surface,
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(
+                                      color: scheme.outlineVariant,
+                                    ),
+                                  ),
+                                  clipBehavior: Clip.antiAlias,
+                                  child: Column(
+                                    children: [
+                                      Container(
+                                        constraints: const BoxConstraints(
+                                          minHeight: 48,
+                                        ),
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 8,
+                                          vertical: 4,
+                                        ),
+                                        color: scheme.surfaceContainerHighest
+                                            .withValues(alpha: .32),
+                                        child: Row(
+                                          children: [
+                                            Icon(
+                                              location['location_type']
+                                                          ?.toString() ==
+                                                      'warehouse'
+                                                  ? Icons.warehouse_outlined
+                                                  : Icons
+                                                        .store_mall_directory_outlined,
+                                              size: 16,
+                                              color: scheme.primary,
+                                            ),
+                                            const SizedBox(width: 7),
+                                            Expanded(
+                                              child: Column(
+                                                mainAxisSize: MainAxisSize.min,
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                children: [
+                                                  Text(
+                                                    '${location['location_code']} | '
+                                                    '${location['name']}',
+                                                    maxLines: 1,
+                                                    overflow:
+                                                        TextOverflow.ellipsis,
+                                                    style: const TextStyle(
+                                                      fontSize: 8.8,
+                                                      fontWeight:
+                                                          FontWeight.w900,
+                                                    ),
+                                                  ),
+                                                  Text(
+                                                    '${isMain ? 'MAIN STORE' : (location['location_type'] ?? 'store')} | '
+                                                    '${_address(location)}'
+                                                    '${location['gstin'] == null ? '' : ' | GSTIN ${location['gstin']}'}',
+                                                    maxLines: 1,
+                                                    overflow:
+                                                        TextOverflow.ellipsis,
+                                                    style: TextStyle(
+                                                      fontSize: 7.2,
+                                                      color: scheme
+                                                          .onSurfaceVariant,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                            Text(
+                                              '${systems.length} system(s)',
+                                              style: TextStyle(
+                                                fontSize: 7.4,
+                                                color: scheme.onSurfaceVariant,
+                                              ),
+                                            ),
+                                            const SizedBox(width: 5),
+                                            Text(
+                                              location['active'] == false
+                                                  ? 'INACTIVE'
+                                                  : 'ACTIVE',
+                                              style: TextStyle(
+                                                fontSize: 7,
+                                                fontWeight: FontWeight.w900,
+                                                color:
+                                                    location['active'] == false
+                                                    ? scheme.onSurfaceVariant
+                                                    : scheme.primary,
+                                              ),
+                                            ),
+                                            IconButton(
+                                              tooltip: 'Edit store',
+                                              visualDensity:
+                                                  VisualDensity.compact,
+                                              onPressed: () =>
+                                                  _editLocation(location),
+                                              icon: const Icon(
+                                                Icons.edit_outlined,
+                                                size: 14,
+                                              ),
+                                            ),
+                                            if (!isMain)
+                                              IconButton(
+                                                tooltip:
+                                                    'Delete / archive store',
+                                                visualDensity:
+                                                    VisualDensity.compact,
+                                                onPressed: () =>
+                                                    _deleteLocation(location),
+                                                icon: Icon(
+                                                  Icons.delete_outline,
+                                                  size: 14,
+                                                  color: scheme.error,
+                                                ),
+                                              ),
+                                          ],
+                                        ),
+                                      ),
+                                      if (systems.isEmpty)
+                                        Padding(
+                                          padding: const EdgeInsets.all(8),
+                                          child: Align(
+                                            alignment: Alignment.centerLeft,
+                                            child: Text(
+                                              'No systems assigned to this location.',
+                                              style: TextStyle(
+                                                fontSize: 7.6,
+                                                color: scheme.onSurfaceVariant,
+                                              ),
+                                            ),
+                                          ),
+                                        )
+                                      else
+                                        ...systems.map(_systemTile),
+                                    ],
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                  ),
                 ],
               ),
             ),

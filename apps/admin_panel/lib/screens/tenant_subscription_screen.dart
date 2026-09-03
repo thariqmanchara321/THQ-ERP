@@ -172,10 +172,15 @@ class _TenantSubscriptionScreenState extends State<TenantSubscriptionScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
       appBar: AppBar(
-        title: const Text('Tenant Subscription'),
+        toolbarHeight: 42,
+        title: const Text(
+          'Tenant Subscription',
+          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900),
+        ),
         actions: const [AdminHomeButton()],
       ),
       body: FutureBuilder<(TenantSubscriptionInfo, List<SubscriptionPlan>)>(
@@ -187,43 +192,95 @@ class _TenantSubscriptionScreenState extends State<TenantSubscriptionScreen> {
           if (snapshot.hasError) {
             return Center(child: Text(snapshot.error.toString()));
           }
+
           final data = snapshot.data!;
           final current = data.$1;
           final plans = data.$2;
-          return Center(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(32),
-              child: SizedBox(
-                width: 760,
-                child: Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(28),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          widget.businessName,
-                          style: const TextStyle(
-                            fontSize: 28,
-                            fontWeight: FontWeight.bold,
-                          ),
+
+          return Padding(
+            padding: const EdgeInsets.all(6),
+            child: Column(
+              children: [
+                Container(
+                  height: 46,
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  decoration: BoxDecoration(
+                    color: scheme.surface,
+                    borderRadius: BorderRadius.circular(9),
+                    border: Border.all(color: scheme.outlineVariant),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 4,
+                        height: 25,
+                        decoration: BoxDecoration(
+                          color: scheme.primary,
+                          borderRadius: BorderRadius.circular(999),
                         ),
-                        const SizedBox(height: 20),
-                        _Info('Plan', current.planName ?? 'No plan assigned'),
-                        _Info('Status', current.status),
-                        _Info('Billing cycle', current.billingCycle),
-                        _Info('Plan key', current.planKey ?? '-'),
-                        const SizedBox(height: 22),
-                        FilledButton.icon(
-                          onPressed: () => _edit(current, plans),
-                          icon: const Icon(Icons.edit_outlined),
-                          label: const Text('Manage Subscription'),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              widget.businessName,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                            Text(
+                              'Plan assignment, status and billing cycle',
+                              style: TextStyle(
+                                fontSize: 7.7,
+                                color: scheme.onSurfaceVariant,
+                              ),
+                            ),
+                          ],
                         ),
-                      ],
+                      ),
+                      FilledButton.icon(
+                        onPressed: () => _edit(current, plans),
+                        icon: const Icon(Icons.edit_outlined, size: 14),
+                        label: const Text('Manage'),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 5),
+                Expanded(
+                  child: Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 820),
+                      child: Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: scheme.surface,
+                          borderRadius: BorderRadius.circular(9),
+                          border: Border.all(color: scheme.outlineVariant),
+                        ),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            _Info(
+                              'Plan',
+                              current.planName ?? 'No plan assigned',
+                            ),
+                            _Info('Status', current.status),
+                            _Info('Billing cycle', current.billingCycle),
+                            _Info('Plan key', current.planKey ?? '-'),
+                          ],
+                        ),
+                      ),
                     ),
                   ),
                 ),
-              ),
+              ],
             ),
           );
         },
@@ -236,21 +293,34 @@ class _Info extends StatelessWidget {
   final String label, value;
   const _Info(this.label, this.value);
   @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: 7),
-    child: Row(
-      children: [
-        SizedBox(
-          width: 150,
-          child: Text(label, style: TextStyle(color: Colors.grey.shade600)),
-        ),
-        Expanded(
-          child: Text(
-            value,
-            style: const TextStyle(fontWeight: FontWeight.w600),
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
+    return Container(
+      height: 42,
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      decoration: BoxDecoration(
+        border: Border(bottom: BorderSide(color: scheme.outlineVariant)),
+      ),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 150,
+            child: Text(
+              label,
+              style: TextStyle(fontSize: 7.8, color: scheme.onSurfaceVariant),
+            ),
           ),
-        ),
-      ],
-    ),
-  );
+          Expanded(
+            child: Text(
+              value,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w800),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }

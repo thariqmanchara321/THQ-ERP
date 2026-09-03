@@ -55,92 +55,211 @@ class _TenantInvoiceTemplatesScreenState
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    backgroundColor: const Color(0xFFF5F7FA),
-    appBar: AppBar(title: Text('${widget.businessName} • Invoice Designs')),
-    body: FutureBuilder<List<Map<String, dynamic>>>(
-      future: _f,
-      builder: (context, s) {
-        if (s.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
-        if (s.hasError) return Center(child: Text(s.error.toString()));
-        final rows = s.data ?? [];
-        final a4 = rows.where((e) => e['paper_type'] == 'a4').toList();
-        final th = rows.where((e) => e['paper_type'] == '80mm').toList();
-        _a4 ??= a4.isEmpty ? null : a4.first['id']?.toString();
-        _thermal ??= th.isEmpty ? null : th.first['id']?.toString();
-        return Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(28),
-            child: SizedBox(
-              width: 760,
-              child: Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
+    return Scaffold(
+      appBar: AppBar(
+        toolbarHeight: 42,
+        title: Text(
+          '${widget.businessName} | Invoice Designs',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w900),
+        ),
+      ),
+      body: FutureBuilder<List<Map<String, dynamic>>>(
+        future: _f,
+        builder: (context, s) {
+          if (s.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          if (s.hasError) {
+            return Center(child: Text(s.error.toString()));
+          }
+
+          final rows = s.data ?? [];
+          final a4 = rows.where((e) => e['paper_type'] == 'a4').toList();
+          final thermal = rows.where((e) => e['paper_type'] == '80mm').toList();
+
+          _a4 ??= a4.isEmpty ? null : a4.first['id']?.toString();
+          _thermal ??= thermal.isEmpty ? null : thermal.first['id']?.toString();
+
+          return Padding(
+            padding: const EdgeInsets.all(6),
+            child: Column(
+              children: [
+                Container(
+                  height: 46,
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  decoration: BoxDecoration(
+                    color: scheme.surface,
+                    borderRadius: BorderRadius.circular(9),
+                    border: Border.all(color: scheme.outlineVariant),
+                  ),
+                  child: Row(
                     children: [
-                      const Text(
-                        'Invoice Template Assignment',
-                        style: TextStyle(
-                          fontSize: 25,
-                          fontWeight: FontWeight.bold,
+                      Container(
+                        width: 4,
+                        height: 25,
+                        decoration: BoxDecoration(
+                          color: scheme.primary,
+                          borderRadius: BorderRadius.circular(999),
                         ),
                       ),
-                      const SizedBox(height: 6),
-                      const Text(
-                        'Choose the default A4 invoice and 80mm counter receipt for this business.',
-                      ),
-                      const SizedBox(height: 22),
-                      DropdownButtonFormField<String>(
-                        initialValue: _a4,
-                        decoration: const InputDecoration(
-                          labelText: 'A4 Invoice',
-                        ),
-                        items: a4
-                            .map(
-                              (x) => DropdownMenuItem(
-                                value: x['id']?.toString(),
-                                child: Text(x['name']?.toString() ?? ''),
+                      const SizedBox(width: 8),
+                      const Expanded(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Invoice Template Assignment',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w900,
                               ),
-                            )
-                            .toList(),
-                        onChanged: (v) => setState(() => _a4 = v),
-                      ),
-                      const SizedBox(height: 16),
-                      DropdownButtonFormField<String>(
-                        initialValue: _thermal,
-                        decoration: const InputDecoration(
-                          labelText: '80mm Thermal Receipt',
+                            ),
+                            Text(
+                              'Default A4 invoice and 80mm receipt',
+                              style: TextStyle(fontSize: 7.7),
+                            ),
+                          ],
                         ),
-                        items: th
-                            .map(
-                              (x) => DropdownMenuItem(
-                                value: x['id']?.toString(),
-                                child: Text(x['name']?.toString() ?? ''),
-                              ),
-                            )
-                            .toList(),
-                        onChanged: (v) => setState(() => _thermal = v),
                       ),
-                      const SizedBox(height: 24),
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: FilledButton.icon(
-                          onPressed: _saving ? null : _save,
-                          icon: const Icon(Icons.save_outlined),
-                          label: Text(_saving ? 'Saving...' : 'Save Templates'),
-                        ),
+                      FilledButton.icon(
+                        onPressed: _saving ? null : _save,
+                        icon: _saving
+                            ? const SizedBox(
+                                width: 13,
+                                height: 13,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Icon(Icons.save_outlined, size: 14),
+                        label: Text(_saving ? 'Saving...' : 'Save Templates'),
                       ),
                     ],
                   ),
                 ),
-              ),
+                const SizedBox(height: 5),
+                Expanded(
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      final stacked = constraints.maxWidth < 760;
+
+                      Widget selector({
+                        required String title,
+                        required String subtitle,
+                        required IconData icon,
+                        required String? value,
+                        required List<Map<String, dynamic>> templates,
+                        required ValueChanged<String?> onChanged,
+                      }) {
+                        return Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: scheme.surface,
+                            borderRadius: BorderRadius.circular(9),
+                            border: Border.all(color: scheme.outlineVariant),
+                          ),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Icon(icon, size: 17, color: scheme.primary),
+                                  const SizedBox(width: 6),
+                                  Expanded(
+                                    child: Text(
+                                      title,
+                                      style: const TextStyle(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w900,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 3),
+                              Text(
+                                subtitle,
+                                style: TextStyle(
+                                  fontSize: 7.5,
+                                  color: scheme.onSurfaceVariant,
+                                ),
+                              ),
+                              const SizedBox(height: 10),
+                              DropdownButtonFormField<String>(
+                                initialValue: value,
+                                isExpanded: true,
+                                decoration: const InputDecoration(
+                                  labelText: 'Template',
+                                ),
+                                items: templates
+                                    .map(
+                                      (x) => DropdownMenuItem(
+                                        value: x['id']?.toString(),
+                                        child: Text(
+                                          x['name']?.toString() ?? '',
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    )
+                                    .toList(),
+                                onChanged: onChanged,
+                              ),
+                            ],
+                          ),
+                        );
+                      }
+
+                      final a4Panel = selector(
+                        title: 'A4 Invoice',
+                        subtitle: '${a4.length} template(s) available',
+                        icon: Icons.description_outlined,
+                        value: _a4,
+                        templates: a4,
+                        onChanged: (v) => setState(() => _a4 = v),
+                      );
+
+                      final thermalPanel = selector(
+                        title: '80mm Thermal Receipt',
+                        subtitle: '${thermal.length} template(s) available',
+                        icon: Icons.receipt_long_outlined,
+                        value: _thermal,
+                        templates: thermal,
+                        onChanged: (v) => setState(() => _thermal = v),
+                      );
+
+                      if (stacked) {
+                        return Column(
+                          children: [
+                            Expanded(child: a4Panel),
+                            const SizedBox(height: 5),
+                            Expanded(child: thermalPanel),
+                          ],
+                        );
+                      }
+
+                      return Row(
+                        children: [
+                          Expanded(child: a4Panel),
+                          const SizedBox(width: 5),
+                          Expanded(child: thermalPanel),
+                        ],
+                      );
+                    },
+                  ),
+                ),
+              ],
             ),
-          ),
-        );
-      },
-    ),
-  );
+          );
+        },
+      ),
+    );
+  }
 }

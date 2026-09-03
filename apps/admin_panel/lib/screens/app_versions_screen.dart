@@ -214,9 +214,15 @@ class _AppVersionsScreenState extends State<AppVersionsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('App Versions'),
+        toolbarHeight: 42,
+        title: const Text(
+          'App Versions',
+          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900),
+        ),
         leading: const AdminHomeButton(),
       ),
       body: _loading
@@ -224,76 +230,122 @@ class _AppVersionsScreenState extends State<AppVersionsScreen> {
           : _error != null
           ? Center(child: Text(_error!))
           : Padding(
-              padding: const EdgeInsets.all(24),
+              padding: const EdgeInsets.all(6),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Wrap(
-                    alignment: WrapAlignment.spaceBetween,
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    spacing: 12,
-                    runSpacing: 12,
-                    children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Release Management',
-                            style: TextStyle(
-                              fontSize: 28,
-                              fontWeight: FontWeight.w900,
-                            ),
-                          ),
-                          const Text(
-                            'See installed versions and publish update policy.',
-                          ),
-                          const SizedBox(height: 5),
-                          Text(
-                            'Running Admin: v${ThqReleaseContract.appVersion} • Build ${ThqReleaseContract.buildNumber} • migration ${ThqReleaseContract.minimumMigration}',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
-                              color: Theme.of(context).colorScheme.primary,
-                            ),
-                          ),
-                        ],
-                      ),
-                      FilledButton.icon(
-                        onPressed: _addRelease,
-                        icon: const Icon(Icons.add),
-                        label: const Text('Add Release'),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 18),
-                  Expanded(
+                  Container(
+                    height: 46,
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    decoration: BoxDecoration(
+                      color: scheme.surface,
+                      borderRadius: BorderRadius.circular(9),
+                      border: Border.all(color: scheme.outlineVariant),
+                    ),
                     child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Expanded(
-                          child: _panel(
-                            'Published Releases',
-                            _releases
-                                .map(
-                                  (r) =>
-                                      '${r['app_key']} • ${r['platform']} • ${r['version']} (${r['status']})${r['mandatory'] == true ? ' • REQUIRED' : ''}',
-                                )
-                                .toList(),
+                        Container(
+                          width: 4,
+                          height: 25,
+                          decoration: BoxDecoration(
+                            color: scheme.primary,
+                            borderRadius: BorderRadius.circular(999),
                           ),
                         ),
-                        const SizedBox(width: 14),
+                        const SizedBox(width: 8),
                         Expanded(
-                          child: _panel(
-                            'Installed Devices',
-                            _devices
-                                .map(
-                                  (d) =>
-                                      '${d['business_name']} • ${d['location_code']} • ${d['device_code']}\n${d['app_key']} ${d['version'] ?? 'unknown'} • ${d['platform'] ?? ''}',
-                                )
-                                .toList(),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Release Management',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w900,
+                                ),
+                              ),
+                              Text(
+                                'Admin v${ThqReleaseContract.appVersion} | '
+                                'Build ${ThqReleaseContract.buildNumber} | '
+                                'Migration ${ThqReleaseContract.minimumMigration}',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 7.5,
+                                  color: scheme.onSurfaceVariant,
+                                ),
+                              ),
+                            ],
                           ),
+                        ),
+                        IconButton(
+                          tooltip: 'Refresh',
+                          visualDensity: VisualDensity.compact,
+                          onPressed: _load,
+                          icon: const Icon(Icons.refresh_rounded, size: 17),
+                        ),
+                        const SizedBox(width: 3),
+                        FilledButton.icon(
+                          onPressed: _addRelease,
+                          icon: const Icon(Icons.add, size: 14),
+                          label: const Text('Add Release'),
                         ),
                       ],
+                    ),
+                  ),
+                  const SizedBox(height: 5),
+                  Expanded(
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        final stacked = constraints.maxWidth < 850;
+
+                        final releases = _panel(
+                          'Published Releases',
+                          _releases
+                              .map(
+                                (r) =>
+                                    '${r['app_key']} | '
+                                    '${r['platform']} | '
+                                    '${r['version']} '
+                                    '(${r['status']})'
+                                    '${r['mandatory'] == true ? ' | REQUIRED' : ''}',
+                              )
+                              .toList(),
+                        );
+
+                        final devices = _panel(
+                          'Installed Devices',
+                          _devices
+                              .map(
+                                (d) =>
+                                    '${d['business_name']} | '
+                                    '${d['location_code']} | '
+                                    '${d['device_code']}\n'
+                                    '${d['app_key']} '
+                                    '${d['version'] ?? 'unknown'} | '
+                                    '${d['platform'] ?? ''}',
+                              )
+                              .toList(),
+                        );
+
+                        if (stacked) {
+                          return Column(
+                            children: [
+                              Expanded(child: releases),
+                              const SizedBox(height: 5),
+                              Expanded(child: devices),
+                            ],
+                          );
+                        }
+
+                        return Row(
+                          children: [
+                            Expanded(child: releases),
+                            const SizedBox(width: 5),
+                            Expanded(child: devices),
+                          ],
+                        );
+                      },
                     ),
                   ),
                 ],
@@ -302,29 +354,71 @@ class _AppVersionsScreenState extends State<AppVersionsScreen> {
     );
   }
 
-  Widget _panel(String title, List<String> rows) => Card(
-    child: Padding(
-      padding: const EdgeInsets.all(16),
+  Widget _panel(String title, List<String> rows) {
+    final scheme = Theme.of(context).colorScheme;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: scheme.surface,
+        borderRadius: BorderRadius.circular(9),
+        border: Border.all(color: scheme.outlineVariant),
+      ),
+      clipBehavior: Clip.antiAlias,
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            title,
-            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+          Container(
+            height: 36,
+            padding: const EdgeInsets.symmetric(horizontal: 9),
+            color: scheme.surfaceContainerHighest.withValues(alpha: .42),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 8.8,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+                Text(
+                  '${rows.length}',
+                  style: TextStyle(
+                    fontSize: 7.5,
+                    color: scheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
           ),
-          const SizedBox(height: 10),
           Expanded(
             child: rows.isEmpty
                 ? const Center(child: Text('No records yet.'))
-                : ListView.separated(
+                : ListView.builder(
+                    padding: EdgeInsets.zero,
                     itemCount: rows.length,
-                    separatorBuilder: (_, _) => const Divider(),
-                    itemBuilder: (_, i) =>
-                        ListTile(dense: true, title: Text(rows[i])),
+                    itemBuilder: (_, i) => Container(
+                      constraints: const BoxConstraints(minHeight: 42),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 9,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        border: Border(
+                          bottom: BorderSide(color: scheme.outlineVariant),
+                        ),
+                      ),
+                      child: Text(
+                        rows[i],
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontSize: 7.8),
+                      ),
+                    ),
                   ),
           ),
         ],
       ),
-    ),
-  );
+    );
+  }
 }
