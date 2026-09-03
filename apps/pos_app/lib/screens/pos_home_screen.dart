@@ -13,6 +13,7 @@ import '../services/navigation_service.dart';
 import '../services/thq_api_service.dart';
 import '../services/ui_design_service.dart';
 import '../ui/v43_theme.dart';
+import '../ui/v600_pos_theme.dart';
 import 'cashier_shift_screen.dart';
 import 'customers_screen.dart';
 import 'error_logs_screen.dart';
@@ -542,13 +543,13 @@ class _PosHomeScreenState extends State<PosHomeScreen> {
         return UiDesignScope(
           profile: profile,
           child: Theme(
-            data: profile.theme(),
+            data: PosV600Theme.apply(profile.theme(), profile),
             child: Scaffold(
               body: Row(
                 children: [
                   AnimatedContainer(
                     duration: const Duration(milliseconds: 160),
-                    width: expanded ? 190 : 56,
+                    width: expanded ? 178 : 52,
                     decoration: BoxDecoration(
                       color: profile.sidebar,
                       border: Border(right: BorderSide(color: profile.border)),
@@ -581,15 +582,27 @@ class _PosHomeScreenState extends State<PosHomeScreen> {
                             _refreshing ? () {} : _requestRefresh,
                           ),
                           _action(Icons.logout, 'Sign Out', expanded, _logout),
+                          _release(expanded, profile),
                           const SizedBox(height: 4),
                         ],
                       ),
                     ),
                   ),
                   Expanded(
-                    child: KeyedSubtree(
-                      key: ValueKey('${page.key}:$_contentGeneration'),
-                      child: page.screen,
+                    child: Container(
+                      margin: const EdgeInsets.fromLTRB(5, 5, 5, 5),
+                      decoration: BoxDecoration(
+                        color: profile.background,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color: profile.border.withValues(alpha: .85),
+                        ),
+                      ),
+                      clipBehavior: Clip.antiAlias,
+                      child: KeyedSubtree(
+                        key: ValueKey('${page.key}:$_contentGeneration'),
+                        child: page.screen,
+                      ),
                     ),
                   ),
                 ],
@@ -685,46 +698,57 @@ class _PosHomeScreenState extends State<PosHomeScreen> {
     UiDesignProfile profile,
   ) {
     final active = page.key == _selectedKey;
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 2),
       child: Tooltip(
         message: expanded ? '' : label,
         child: Material(
           color: active
-              ? profile.primary.withValues(alpha: .10)
+              ? profile.primary.withValues(alpha: .09)
               : Colors.transparent,
           borderRadius: BorderRadius.circular(7),
           child: InkWell(
             borderRadius: BorderRadius.circular(7),
             onTap: () => setState(() => _selectedKey = page.key),
             child: SizedBox(
-              height: 36,
+              height: 34,
               child: Row(
                 mainAxisAlignment: expanded
                     ? MainAxisAlignment.start
                     : MainAxisAlignment.center,
                 children: [
-                  if (expanded) const SizedBox(width: 8),
+                  if (expanded)
+                    Container(
+                      width: 3,
+                      height: 21,
+                      decoration: BoxDecoration(
+                        color: active ? profile.primary : Colors.transparent,
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                    ),
+                  if (expanded) const SizedBox(width: 6),
                   Icon(
                     page.icon,
-                    size: 17,
+                    size: 16,
                     color: active ? profile.primary : null,
                   ),
                   if (expanded) ...[
-                    const SizedBox(width: 8),
+                    const SizedBox(width: 7),
                     Expanded(
                       child: Text(
                         label,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                          fontSize: 11,
+                          fontSize: 10.2,
                           fontWeight: active
-                              ? FontWeight.w700
-                              : FontWeight.w500,
+                              ? FontWeight.w800
+                              : FontWeight.w600,
                         ),
                       ),
                     ),
+                    const SizedBox(width: 6),
                   ],
                 ],
               ),
@@ -787,26 +811,80 @@ class _PosHomeScreenState extends State<PosHomeScreen> {
     VoidCallback onTap,
   ) => Tooltip(
     message: expanded ? '' : label,
-    child: InkWell(
-      onTap: onTap,
-      child: SizedBox(
-        height: 34,
-        child: Row(
-          mainAxisAlignment: expanded
-              ? MainAxisAlignment.start
-              : MainAxisAlignment.center,
-          children: [
-            if (expanded) const SizedBox(width: 10),
-            Icon(icon, size: 17),
-            if (expanded) ...[
-              const SizedBox(width: 8),
-              Text(label, style: const TextStyle(fontSize: 10.5)),
-            ],
-          ],
+    child: Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 5),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(7),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(7),
+          onTap: onTap,
+          child: SizedBox(
+            height: 31,
+            child: Row(
+              mainAxisAlignment: expanded
+                  ? MainAxisAlignment.start
+                  : MainAxisAlignment.center,
+              children: [
+                if (expanded) const SizedBox(width: 6),
+                Icon(icon, size: 15),
+                if (expanded) ...[
+                  const SizedBox(width: 7),
+                  Expanded(
+                    child: Text(
+                      label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 9.5,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
         ),
       ),
     ),
   );
+
+  Widget _release(bool expanded, UiDesignProfile profile) {
+    final text =
+        'v${ThqReleaseContract.appVersion}  Build ${ThqReleaseContract.buildNumber}';
+
+    if (!expanded) {
+      return Tooltip(
+        message: text,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 3),
+          child: Icon(
+            Icons.info_outline,
+            size: 12,
+            color: profile.textSecondary.withValues(alpha: .70),
+          ),
+        ),
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(11, 2, 7, 3),
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: Text(
+          text,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            fontSize: 7.7,
+            fontWeight: FontWeight.w600,
+            color: profile.textSecondary.withValues(alpha: .72),
+          ),
+        ),
+      ),
+    );
+  }
 
   IconData _groupIcon(String key) => switch (key) {
     'pos' => Icons.point_of_sale,
