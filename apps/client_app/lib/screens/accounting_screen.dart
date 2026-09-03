@@ -572,93 +572,143 @@ class _AccountingScreenState extends State<AccountingScreen> {
       .$2;
 
   Widget _sectionNavigation({required bool compact}) {
+    final scheme = Theme.of(context).colorScheme;
+
     if (compact) {
-      return DropdownButtonFormField<String>(
-        initialValue: _section,
-        isExpanded: true,
-        decoration: const InputDecoration(
-          labelText: 'Accounting section',
-          prefixIcon: Icon(Icons.account_balance_outlined),
-        ),
-        items: _sections
-            .map(
-              (item) => DropdownMenuItem(
-                value: item.$1,
-                child: Row(
-                  children: [
-                    Icon(item.$3, size: 18),
-                    const SizedBox(width: 10),
-                    Text(item.$2),
-                  ],
+      return SizedBox(
+        height: 40,
+        child: DropdownButtonFormField<String>(
+          initialValue: _section,
+          isExpanded: true,
+          isDense: true,
+          decoration: const InputDecoration(
+            labelText: 'Accounting section',
+            prefixIcon: Icon(Icons.account_balance_outlined, size: 18),
+          ),
+          items: _sections
+              .map(
+                (item) => DropdownMenuItem(
+                  value: item.$1,
+                  child: Row(
+                    children: [
+                      Icon(item.$3, size: 16),
+                      const SizedBox(width: 8),
+                      Text(item.$2),
+                    ],
+                  ),
                 ),
-              ),
-            )
-            .toList(),
-        onChanged: (value) {
-          if (value == null || value == _section) return;
-          setState(() => _section = value);
-          _load();
-        },
+              )
+              .toList(),
+          onChanged: (value) {
+            if (value == null || value == _section) return;
+            setState(() => _section = value);
+            _load();
+          },
+        ),
       );
     }
 
     return Container(
-      width: 214,
+      width: 190,
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
-        border: Border.all(color: Theme.of(context).dividerColor),
-        borderRadius: BorderRadius.circular(14),
+        color: scheme.surface,
+        border: Border.all(color: scheme.outlineVariant),
+        borderRadius: BorderRadius.circular(11),
       ),
-      child: ListView.separated(
-        padding: const EdgeInsets.all(8),
-        itemCount: _sections.length,
-        separatorBuilder: (_, _) => const SizedBox(height: 3),
-        itemBuilder: (context, index) {
-          final item = _sections[index];
-          final selected = item.$1 == _section;
-          return Material(
-            color: selected
-                ? Theme.of(context).colorScheme.primaryContainer
-                : Colors.transparent,
-            borderRadius: BorderRadius.circular(10),
-            child: InkWell(
-              borderRadius: BorderRadius.circular(10),
-              onTap: () {
-                if (selected) return;
-                setState(() => _section = item.$1);
-                _load();
-              },
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 11,
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        children: [
+          Container(
+            height: 38,
+            padding: const EdgeInsets.symmetric(horizontal: 10),
+            color: scheme.surfaceContainerHighest.withValues(alpha: .55),
+            child: const Row(
+              children: [
+                Icon(Icons.account_balance_outlined, size: 16),
+                SizedBox(width: 7),
+                Text(
+                  'ACCOUNTING',
+                  style: TextStyle(
+                    fontSize: 9.5,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: .5,
+                  ),
                 ),
-                child: Row(
-                  children: [
-                    Icon(
-                      item.$3,
-                      size: 19,
-                      color: selected
-                          ? Theme.of(context).colorScheme.primary
-                          : null,
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        item.$2,
-                        style: TextStyle(
-                          fontWeight: selected
-                              ? FontWeight.w700
-                              : FontWeight.w500,
+              ],
+            ),
+          ),
+          Expanded(
+            child: ListView.builder(
+              padding: const EdgeInsets.fromLTRB(5, 5, 5, 5),
+              itemCount: _sections.length,
+              itemBuilder: (context, index) {
+                final item = _sections[index];
+                final selected = item.$1 == _section;
+
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 2),
+                  child: Material(
+                    color: selected
+                        ? scheme.primaryContainer
+                        : Colors.transparent,
+                    borderRadius: BorderRadius.circular(7),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(7),
+                      onTap: () {
+                        if (selected) return;
+                        setState(() => _section = item.$1);
+                        _load();
+                      },
+                      child: SizedBox(
+                        height: 32,
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 3,
+                              height: 20,
+                              decoration: BoxDecoration(
+                                color: selected
+                                    ? scheme.primary
+                                    : Colors.transparent,
+                                borderRadius: BorderRadius.circular(999),
+                              ),
+                            ),
+                            const SizedBox(width: 7),
+                            Icon(
+                              item.$3,
+                              size: 15,
+                              color: selected
+                                  ? scheme.primary
+                                  : scheme.onSurfaceVariant,
+                            ),
+                            const SizedBox(width: 7),
+                            Expanded(
+                              child: Text(
+                                item.$2,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 9.5,
+                                  fontWeight: selected
+                                      ? FontWeight.w800
+                                      : FontWeight.w600,
+                                  color: selected
+                                      ? scheme.onPrimaryContainer
+                                      : scheme.onSurface,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 5),
+                          ],
                         ),
                       ),
                     ),
-                  ],
-                ),
-              ),
+                  ),
+                );
+              },
             ),
-          );
-        },
+          ),
+        ],
       ),
     );
   }
@@ -666,132 +716,280 @@ class _AccountingScreenState extends State<AccountingScreen> {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
+      padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final compact = constraints.maxWidth < 1040;
-          final content = Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          final compact = constraints.maxWidth < 980;
+
+          final workspace = Column(
             children: [
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                crossAxisAlignment: WrapCrossAlignment.center,
-                children: [
-                  SizedBox(
-                    width: compact ? constraints.maxWidth : 310,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Accounting',
-                          style: TextStyle(
-                            fontSize: 19,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                        Text(
-                          _sectionLabel(_section),
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: Theme.of(
-                              context,
-                            ).colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                      ],
-                    ),
+              _accountingTopBar(),
+              const SizedBox(height: 6),
+              if (compact) ...[
+                _sectionNavigation(compact: true),
+                const SizedBox(height: 6),
+              ],
+              if (_showRegisterSearch) ...[
+                _accountingSearchBar(),
+                const SizedBox(height: 6),
+              ],
+              Expanded(child: _body()),
+            ],
+          );
+
+          if (compact) return workspace;
+
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _sectionNavigation(compact: false),
+              const SizedBox(width: 8),
+              Expanded(child: workspace),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  bool get _showRegisterSearch => !const {
+    'overview',
+    'accounts',
+    'trial_balance',
+    'profit_loss',
+    'balance_sheet',
+    'cash_flow',
+  }.contains(_section);
+
+  Widget _accountingTopBar() {
+    final scheme = Theme.of(context).colorScheme;
+
+    return Container(
+      constraints: const BoxConstraints(minHeight: 50),
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+      decoration: BoxDecoration(
+        color: scheme.surface,
+        borderRadius: BorderRadius.circular(11),
+        border: Border.all(color: scheme.outlineVariant),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 4,
+            height: 27,
+            decoration: BoxDecoration(
+              color: scheme.primary,
+              borderRadius: BorderRadius.circular(999),
+            ),
+          ),
+          const SizedBox(width: 8),
+          SizedBox(
+            width: 205,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Accounting',
+                  maxLines: 1,
+                  style: TextStyle(fontSize: 15.5, fontWeight: FontWeight.w900),
+                ),
+                Text(
+                  _sectionLabel(_section),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 9.5,
+                    color: scheme.onSurfaceVariant,
                   ),
-                  OutlinedButton.icon(
-                    onPressed: () => _pickDate(from: true),
-                    icon: const Icon(Icons.calendar_today_outlined, size: 18),
-                    label: Text('From ${_date(_from)}'),
-                  ),
-                  OutlinedButton.icon(
-                    onPressed: () => _pickDate(from: false),
-                    icon: const Icon(Icons.event_outlined, size: 18),
-                    label: Text('To ${_date(_to)}'),
-                  ),
-                  IconButton(
-                    onPressed: _load,
-                    tooltip: 'Refresh',
-                    icon: const Icon(Icons.refresh),
-                  ),
-                  OutlinedButton.icon(
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                _accountingDateButton(
+                  label: 'From',
+                  value: _date(_from),
+                  icon: Icons.calendar_today_outlined,
+                  onPressed: () => _pickDate(from: true),
+                ),
+                const SizedBox(width: 5),
+                _accountingDateButton(
+                  label: 'To',
+                  value: _date(_to),
+                  icon: Icons.event_outlined,
+                  onPressed: () => _pickDate(from: false),
+                ),
+                const SizedBox(width: 5),
+                IconButton(
+                  tooltip: 'Refresh',
+                  visualDensity: VisualDensity.compact,
+                  onPressed: _load,
+                  icon: const Icon(Icons.refresh_rounded, size: 18),
+                ),
+                const SizedBox(width: 2),
+                Tooltip(
+                  message: 'Finance Controls',
+                  child: IconButton(
+                    visualDensity: VisualDensity.compact,
                     onPressed: () => Navigator.of(context).push(
                       MaterialPageRoute(
                         builder: (_) =>
                             FinanceControlsScreen(session: widget.session),
                       ),
                     ),
-                    icon: const Icon(Icons.account_balance_outlined, size: 18),
-                    label: const Text('Finance Controls'),
+                    icon: const Icon(
+                      Icons.account_balance_wallet_outlined,
+                      size: 18,
+                    ),
                   ),
-                  OutlinedButton.icon(
-                    onPressed: _exporting || _loading
-                        ? null
-                        : () => _export('print'),
-                    icon: const Icon(Icons.print_outlined, size: 18),
-                    label: const Text('Print'),
-                  ),
-                  FilledButton.tonalIcon(
-                    onPressed: _exporting || _loading
-                        ? null
-                        : () => _export('pdf'),
-                    icon: const Icon(Icons.picture_as_pdf_outlined, size: 18),
-                    label: const Text('PDF'),
-                  ),
-                  FilledButton.tonalIcon(
-                    onPressed: _exporting || _loading
-                        ? null
-                        : () => _export('xlsx'),
-                    icon: const Icon(Icons.table_view_outlined, size: 18),
-                    label: const Text('Excel'),
+                ),
+                if (_section == 'journal' && _canJournal) ...[
+                  const SizedBox(width: 4),
+                  FilledButton.icon(
+                    onPressed: _loading ? null : _postJournal,
+                    icon: const Icon(Icons.add, size: 16),
+                    label: const Text('Journal'),
                   ),
                 ],
-              ),
-              if (compact) ...[
-                const SizedBox(height: 10),
-                _sectionNavigation(compact: true),
-              ],
-              if (!const {
-                'overview',
-                'accounts',
-                'trial_balance',
-                'profit_loss',
-                'balance_sheet',
-                'cash_flow',
-              }.contains(_section)) ...[
-                const SizedBox(height: 10),
-                TextField(
-                  controller: _search,
-                  onSubmitted: (_) => _load(),
-                  decoration: InputDecoration(
-                    hintText:
-                        'Search invoice, product/SKU, party, account or reference…',
-                    prefixIcon: const Icon(Icons.search),
-                    suffixIcon: IconButton(
-                      onPressed: _load,
-                      icon: const Icon(Icons.arrow_forward),
+                const SizedBox(width: 5),
+                PopupMenuButton<String>(
+                  tooltip: 'Print / Export',
+                  enabled: !_exporting && !_loading,
+                  onSelected: _export,
+                  itemBuilder: (context) => const [
+                    PopupMenuItem(
+                      value: 'print',
+                      child: ListTile(
+                        dense: true,
+                        leading: Icon(Icons.print_outlined, size: 18),
+                        title: Text('Print'),
+                      ),
+                    ),
+                    PopupMenuItem(
+                      value: 'pdf',
+                      child: ListTile(
+                        dense: true,
+                        leading: Icon(Icons.picture_as_pdf_outlined, size: 18),
+                        title: Text('Save PDF'),
+                      ),
+                    ),
+                    PopupMenuItem(
+                      value: 'xlsx',
+                      child: ListTile(
+                        dense: true,
+                        leading: Icon(Icons.table_view_outlined, size: 18),
+                        title: Text('Save Excel'),
+                      ),
+                    ),
+                  ],
+                  child: Container(
+                    height: 34,
+                    padding: const EdgeInsets.symmetric(horizontal: 9),
+                    decoration: BoxDecoration(
+                      color: scheme.surfaceContainerHighest,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: scheme.outlineVariant),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (_exporting)
+                          const SizedBox(
+                            width: 14,
+                            height: 14,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        else
+                          const Icon(Icons.ios_share_outlined, size: 16),
+                        const SizedBox(width: 5),
+                        const Text(
+                          'Export',
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
               ],
-              const SizedBox(height: 10),
-              Expanded(child: _body()),
-            ],
-          );
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
-          if (compact) return content;
-          return Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+  Widget _accountingDateButton({
+    required String label,
+    required String value,
+    required IconData icon,
+    required VoidCallback onPressed,
+  }) {
+    return OutlinedButton(
+      onPressed: onPressed,
+      style: OutlinedButton.styleFrom(
+        minimumSize: const Size(0, 34),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14),
+          const SizedBox(width: 5),
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _sectionNavigation(compact: false),
-              const SizedBox(width: 14),
-              Expanded(child: content),
+              Text(label, style: const TextStyle(fontSize: 8)),
+              Text(
+                value,
+                style: const TextStyle(
+                  fontSize: 9.5,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
             ],
-          );
-        },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _accountingSearchBar() {
+    final scheme = Theme.of(context).colorScheme;
+
+    return Container(
+      height: 40,
+      padding: const EdgeInsets.symmetric(horizontal: 7),
+      decoration: BoxDecoration(
+        color: scheme.surface,
+        borderRadius: BorderRadius.circular(9),
+        border: Border.all(color: scheme.outlineVariant),
+      ),
+      child: TextField(
+        controller: _search,
+        onSubmitted: (_) => _load(),
+        decoration: InputDecoration(
+          hintText:
+              'Search invoice, product/SKU, party, account or reference...',
+          prefixIcon: const Icon(Icons.search, size: 17),
+          suffixIcon: IconButton(
+            tooltip: 'Search',
+            visualDensity: VisualDensity.compact,
+            onPressed: _load,
+            icon: const Icon(Icons.arrow_forward, size: 17),
+          ),
+          border: InputBorder.none,
+          enabledBorder: InputBorder.none,
+          focusedBorder: InputBorder.none,
+        ),
       ),
     );
   }
@@ -826,51 +1024,119 @@ class _AccountingScreenState extends State<AccountingScreen> {
   }
 
   Widget _overview() {
-    final s = _summary;
-    if (s == null) return const Center(child: Text('No accounting summary.'));
+    final summary = _summary;
+    if (summary == null) {
+      return const Center(child: Text('No accounting summary.'));
+    }
+
     final cards = <(String, String, IconData)>[
-      ('Revenue', _money(s.revenue), Icons.trending_up),
-      ('COGS', _money(s.costOfGoodsSold), Icons.inventory_2_outlined),
-      ('Gross Profit', _money(s.grossProfit), Icons.show_chart),
-      ('Expenses', _money(s.operatingExpenses), Icons.payments_outlined),
+      ('Revenue', _money(summary.revenue), Icons.trending_up),
+      ('COGS', _money(summary.costOfGoodsSold), Icons.inventory_2_outlined),
+      ('Gross Profit', _money(summary.grossProfit), Icons.show_chart),
+      ('Expenses', _money(summary.operatingExpenses), Icons.payments_outlined),
       (
         'Net Profit',
-        _money(s.netOperatingProfit),
+        _money(summary.netOperatingProfit),
         Icons.account_balance_wallet_outlined,
       ),
-      ('Receivables', _money(s.receivables), Icons.call_received),
-      ('Payables', _money(s.payables), Icons.call_made),
-      ('Inventory', _money(s.inventoryValue), Icons.warehouse_outlined),
+      ('Receivables', _money(summary.receivables), Icons.call_received),
+      ('Payables', _money(summary.payables), Icons.call_made),
+      ('Inventory', _money(summary.inventoryValue), Icons.warehouse_outlined),
     ];
-    return ListView(
-      children: [
-        Wrap(
-          spacing: 12,
-          runSpacing: 12,
-          children: cards
-              .map(
-                (item) =>
-                    _MetricCard(label: item.$1, value: item.$2, icon: item.$3),
-              )
-              .toList(),
-        ),
-        const SizedBox(height: 10),
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Wrap(
-              spacing: 36,
-              runSpacing: 14,
-              children: [
-                _MiniMetric('Taxable Sales', _money(_gst['taxable_sales'])),
-                _MiniMetric('Output GST', _money(_gst['output_gst'])),
-                _MiniMetric('Input GST', _money(_gst['input_gst'])),
-                _MiniMetric('Net GST Payable', _money(_gst['net_gst_payable'])),
-              ],
+
+    final scheme = Theme.of(context).colorScheme;
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final columns = constraints.maxWidth >= 1050
+            ? 4
+            : constraints.maxWidth >= 680
+            ? 3
+            : 2;
+        const gap = 6.0;
+        final itemWidth =
+            (constraints.maxWidth - ((columns - 1) * gap)) / columns;
+
+        return Column(
+          children: [
+            Expanded(
+              child: SingleChildScrollView(
+                child: Wrap(
+                  spacing: gap,
+                  runSpacing: gap,
+                  children: cards
+                      .map(
+                        (item) => SizedBox(
+                          width: itemWidth,
+                          child: _MetricCard(
+                            label: item.$1,
+                            value: item.$2,
+                            icon: item.$3,
+                          ),
+                        ),
+                      )
+                      .toList(),
+                ),
+              ),
             ),
-          ),
-        ),
-      ],
+            const SizedBox(height: 6),
+            Container(
+              constraints: const BoxConstraints(minHeight: 60),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+              decoration: BoxDecoration(
+                color: scheme.surface,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: scheme.outlineVariant),
+              ),
+              child: LayoutBuilder(
+                builder: (context, strip) {
+                  final gstItems = <(String, String)>[
+                    ('Taxable Sales', _money(_gst['taxable_sales'])),
+                    ('Output GST', _money(_gst['output_gst'])),
+                    ('Input GST', _money(_gst['input_gst'])),
+                    ('Net GST Payable', _money(_gst['net_gst_payable'])),
+                  ];
+
+                  if (strip.maxWidth < 600) {
+                    return SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: gstItems
+                            .map(
+                              (item) => SizedBox(
+                                width: 150,
+                                child: _MiniMetric(item.$1, item.$2),
+                              ),
+                            )
+                            .toList(),
+                      ),
+                    );
+                  }
+
+                  return Row(
+                    children: [
+                      for (var i = 0; i < gstItems.length; i++) ...[
+                        if (i > 0)
+                          Container(
+                            width: 1,
+                            height: 30,
+                            color: scheme.outlineVariant,
+                          ),
+                        Expanded(
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 9),
+                            child: _MiniMetric(gstItems[i].$1, gstItems[i].$2),
+                          ),
+                        ),
+                      ],
+                    ],
+                  );
+                },
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -882,7 +1148,7 @@ class _AccountingScreenState extends State<AccountingScreen> {
           children: [
             const Text('No accounts found.'),
             if (_canManage) ...[
-              const SizedBox(height: 12),
+              const SizedBox(height: 10),
               FilledButton.icon(
                 onPressed: () => _editAccount(),
                 icon: const Icon(Icons.add),
@@ -893,142 +1159,562 @@ class _AccountingScreenState extends State<AccountingScreen> {
         ),
       );
     }
+
+    final scheme = Theme.of(context).colorScheme;
+
     return Column(
       children: [
-        if (_canManage)
-          Align(
-            alignment: Alignment.centerRight,
-            child: Wrap(
-              spacing: 8,
-              runSpacing: 8,
+        if (_canManage) ...[
+          SizedBox(
+            height: 38,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.end,
               children: [
                 OutlinedButton.icon(
                   onPressed: _editMappings,
-                  icon: const Icon(Icons.hub_outlined),
-                  label: const Text('Account Mappings'),
+                  icon: const Icon(Icons.hub_outlined, size: 16),
+                  label: const Text('Mappings'),
                 ),
+                const SizedBox(width: 5),
                 FilledButton.icon(
                   onPressed: () => _editAccount(),
-                  icon: const Icon(Icons.add),
+                  icon: const Icon(Icons.add, size: 16),
                   label: const Text('Add Account'),
                 ),
               ],
             ),
           ),
-        if (_canManage) const SizedBox(height: 12),
+          const SizedBox(height: 5),
+        ],
         Expanded(
-          child: Card(
-            child: ListView.separated(
-              itemCount: _accounts.length,
-              separatorBuilder: (_, _) => const Divider(height: 1),
-              itemBuilder: (context, index) {
-                final a = _accounts[index];
-                return ListTile(
-                  leading: CircleAvatar(
-                    child: Text(a['code']?.toString().substring(0, 1) ?? 'A'),
-                  ),
-                  title: Text(
-                    '${a['code']}  •  ${a['name']}',
-                    style: const TextStyle(fontWeight: FontWeight.w600),
-                  ),
-                  subtitle: Text(
-                    '${a['account_type']} ${a['is_system'] == true ? '• System account' : ''}',
-                  ),
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      if (a['active'] == false)
-                        const Padding(
-                          padding: EdgeInsets.only(right: 8),
-                          child: Chip(label: Text('Archived')),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final compact = constraints.maxWidth < 720;
+
+              return Container(
+                decoration: BoxDecoration(
+                  color: scheme.surface,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: scheme.outlineVariant),
+                ),
+                clipBehavior: Clip.antiAlias,
+                child: Column(
+                  children: [
+                    if (!compact)
+                      Container(
+                        height: 34,
+                        padding: const EdgeInsets.symmetric(horizontal: 9),
+                        color: scheme.surfaceContainerHighest,
+                        child: const Row(
+                          children: [
+                            Expanded(
+                              flex: 2,
+                              child: Text(
+                                'Code',
+                                style: TextStyle(
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ),
+                            Expanded(
+                              flex: 5,
+                              child: Text(
+                                'Account',
+                                style: TextStyle(
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ),
+                            Expanded(
+                              flex: 2,
+                              child: Text(
+                                'Type',
+                                style: TextStyle(
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ),
+                            Expanded(
+                              flex: 2,
+                              child: Text(
+                                'Balance',
+                                textAlign: TextAlign.right,
+                                style: TextStyle(
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ),
+                            SizedBox(width: 84),
+                          ],
                         ),
-                      Text(
-                        _money(a['balance']),
-                        style: const TextStyle(fontWeight: FontWeight.w700),
                       ),
-                      if (_canManage) ...[
-                        const SizedBox(width: 6),
-                        IconButton(
-                          tooltip: 'Edit account',
-                          onPressed: () => _editAccount(a),
-                          icon: const Icon(Icons.edit_outlined),
-                        ),
-                        if (a['is_system'] != true && a['active'] != false)
-                          IconButton(
-                            tooltip: 'Archive account',
-                            onPressed: () => _archiveAccount(a),
-                            icon: const Icon(Icons.archive_outlined),
-                          ),
-                      ],
-                    ],
-                  ),
-                );
-              },
-            ),
+                    Expanded(
+                      child: ListView.builder(
+                        padding: EdgeInsets.zero,
+                        itemCount: _accounts.length,
+                        itemBuilder: (context, index) {
+                          final account = _accounts[index];
+                          return _accountRow(account, compact: compact);
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
           ),
         ),
       ],
     );
   }
 
-  Widget _registerView() {
-    final list = _rows.isEmpty
-        ? const Expanded(
-            child: Center(child: Text('No matching accounting entries.')),
-          )
-        : Expanded(
-            child: Card(
-              child: ListView.separated(
-                itemCount: _rows.length,
-                separatorBuilder: (_, _) => const Divider(height: 1),
-                itemBuilder: (context, index) {
-                  final row = _rows[index];
-                  return ListTile(
-                    leading: const Icon(Icons.receipt_long_outlined),
-                    title: Text(
-                      '${row['reference'] ?? '-'}  •  ${row['description'] ?? ''}',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    subtitle: Text(
-                      '${row['entry_date'] ?? ''}  •  ${row['party'] ?? ''}  •  ${row['location_code'] ?? ''}  •  ${row['user_name'] ?? ''}',
-                    ),
-                    trailing: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        if ((row['debit'] as num?)?.toDouble() != 0)
-                          Text(
-                            'DR ${_money(row['debit'])}',
-                            style: const TextStyle(fontWeight: FontWeight.w700),
-                          ),
-                        if ((row['credit'] as num?)?.toDouble() != 0)
-                          Text(
-                            'CR ${_money(row['credit'])}',
-                            style: const TextStyle(fontWeight: FontWeight.w700),
-                          ),
-                      ],
-                    ),
-                  );
-                },
+  Widget _accountRow(Map<String, dynamic> account, {required bool compact}) {
+    final scheme = Theme.of(context).colorScheme;
+    final archived = account['active'] == false;
+    final system = account['is_system'] == true;
+
+    if (compact) {
+      return Container(
+        constraints: const BoxConstraints(minHeight: 50),
+        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+        decoration: BoxDecoration(
+          border: Border(bottom: BorderSide(color: scheme.outlineVariant)),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 29,
+              height: 29,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: scheme.primary.withValues(alpha: .08),
+                borderRadius: BorderRadius.circular(7),
+              ),
+              child: Text(
+                (account['code']?.toString().isNotEmpty == true)
+                    ? account['code'].toString().substring(0, 1)
+                    : 'A',
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w900,
+                  color: scheme.primary,
+                ),
               ),
             ),
-          );
-    return Column(
-      children: [
-        if (_section == 'journal' && _canJournal) ...[
-          Align(
+            const SizedBox(width: 7),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    '${account['code'] ?? ''} | ${account['name'] ?? ''}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  Text(
+                    '${account['account_type'] ?? ''}'
+                    '${system ? ' | System' : ''}'
+                    '${archived ? ' | Archived' : ''}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 8.5,
+                      color: scheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Text(
+              _money(account['balance']),
+              style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w800),
+            ),
+            if (_canManage)
+              IconButton(
+                tooltip: 'Edit account',
+                visualDensity: VisualDensity.compact,
+                onPressed: () => _editAccount(account),
+                icon: const Icon(Icons.edit_outlined, size: 16),
+              ),
+          ],
+        ),
+      );
+    }
+
+    Widget cell(
+      Widget child,
+      int flex, {
+      Alignment alignment = Alignment.centerLeft,
+    }) => Expanded(
+      flex: flex,
+      child: Align(alignment: alignment, child: child),
+    );
+
+    return Container(
+      constraints: const BoxConstraints(minHeight: 42),
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+      decoration: BoxDecoration(
+        border: Border(bottom: BorderSide(color: scheme.outlineVariant)),
+      ),
+      child: Row(
+        children: [
+          cell(
+            Text(
+              account['code']?.toString() ?? '',
+              maxLines: 1,
+              style: const TextStyle(
+                fontSize: 9.5,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            2,
+          ),
+          cell(
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    account['name']?.toString() ?? '',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                if (system)
+                  Padding(
+                    padding: const EdgeInsets.only(left: 5),
+                    child: Text(
+                      'SYSTEM',
+                      style: TextStyle(
+                        fontSize: 7.5,
+                        fontWeight: FontWeight.w900,
+                        color: scheme.primary,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+            5,
+          ),
+          cell(
+            Text(
+              account['account_type']?.toString().toUpperCase() ?? '',
+              maxLines: 1,
+              style: const TextStyle(fontSize: 8.5),
+            ),
+            2,
+          ),
+          cell(
+            Text(
+              _money(account['balance']),
+              maxLines: 1,
+              style: TextStyle(
+                fontSize: 9.5,
+                fontWeight: FontWeight.w800,
+                color: archived ? scheme.onSurfaceVariant : scheme.onSurface,
+              ),
+            ),
+            2,
             alignment: Alignment.centerRight,
-            child: FilledButton.icon(
-              onPressed: _postJournal,
-              icon: const Icon(Icons.add),
-              label: const Text('Post Manual Journal'),
+          ),
+          SizedBox(
+            width: 84,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                if (archived)
+                  Tooltip(
+                    message: 'Archived',
+                    child: Icon(
+                      Icons.archive_outlined,
+                      size: 15,
+                      color: scheme.onSurfaceVariant,
+                    ),
+                  ),
+                if (_canManage) ...[
+                  IconButton(
+                    tooltip: 'Edit account',
+                    visualDensity: VisualDensity.compact,
+                    onPressed: () => _editAccount(account),
+                    icon: const Icon(Icons.edit_outlined, size: 15),
+                  ),
+                  if (!system && !archived)
+                    IconButton(
+                      tooltip: 'Archive account',
+                      visualDensity: VisualDensity.compact,
+                      onPressed: () => _archiveAccount(account),
+                      icon: const Icon(Icons.archive_outlined, size: 15),
+                    ),
+                ],
+              ],
             ),
           ),
-          const SizedBox(height: 10),
         ],
-        list,
+      ),
+    );
+  }
+
+  Widget _registerView() {
+    if (_rows.isEmpty) {
+      return const Center(child: Text('No matching accounting entries.'));
+    }
+
+    final scheme = Theme.of(context).colorScheme;
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compact = constraints.maxWidth < 820;
+        final veryCompact = constraints.maxWidth < 620;
+
+        return Container(
+          decoration: BoxDecoration(
+            color: scheme.surface,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: scheme.outlineVariant),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: Column(
+            children: [
+              if (!veryCompact)
+                Container(
+                  height: 34,
+                  padding: const EdgeInsets.symmetric(horizontal: 9),
+                  color: scheme.surfaceContainerHighest,
+                  child: _registerHeader(compact: compact),
+                ),
+              Expanded(
+                child: ListView.builder(
+                  padding: EdgeInsets.zero,
+                  itemCount: _rows.length,
+                  itemBuilder: (context, index) => _registerRow(
+                    _rows[index],
+                    compact: compact,
+                    veryCompact: veryCompact,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _registerHeader({required bool compact}) {
+    Widget cell(String label, int flex, {TextAlign align = TextAlign.left}) =>
+        Expanded(
+          flex: flex,
+          child: Text(
+            label,
+            textAlign: align,
+            maxLines: 1,
+            style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w800),
+          ),
+        );
+
+    return Row(
+      children: [
+        cell('Date', 2),
+        cell('Reference', 3),
+        cell('Description / Party', 5),
+        if (!compact) cell('Location / User', 3),
+        cell('Debit', 2, align: TextAlign.right),
+        cell('Credit', 2, align: TextAlign.right),
       ],
+    );
+  }
+
+  Widget _registerRow(
+    Map<String, dynamic> row, {
+    required bool compact,
+    required bool veryCompact,
+  }) {
+    final scheme = Theme.of(context).colorScheme;
+    final debit = (row['debit'] as num?)?.toDouble() ?? 0;
+    final credit = (row['credit'] as num?)?.toDouble() ?? 0;
+
+    if (veryCompact) {
+      return Container(
+        constraints: const BoxConstraints(minHeight: 52),
+        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+        decoration: BoxDecoration(
+          border: Border(bottom: BorderSide(color: scheme.outlineVariant)),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.receipt_long_outlined, size: 16),
+            const SizedBox(width: 7),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    '${row['reference'] ?? '-'} | ${row['description'] ?? ''}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 9.5,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  Text(
+                    '${row['entry_date'] ?? ''} | ${row['party'] ?? ''}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 8.5,
+                      color: scheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 7),
+            Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                if (debit.abs() > .0001)
+                  Text(
+                    'DR ${_money(debit)}',
+                    style: const TextStyle(
+                      fontSize: 9,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                if (credit.abs() > .0001)
+                  Text(
+                    'CR ${_money(credit)}',
+                    style: const TextStyle(
+                      fontSize: 9,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+              ],
+            ),
+          ],
+        ),
+      );
+    }
+
+    Widget cell(
+      Widget child,
+      int flex, {
+      Alignment alignment = Alignment.centerLeft,
+    }) => Expanded(
+      flex: flex,
+      child: Align(
+        alignment: alignment,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 2),
+          child: child,
+        ),
+      ),
+    );
+
+    return Container(
+      constraints: const BoxConstraints(minHeight: 43),
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+      decoration: BoxDecoration(
+        border: Border(bottom: BorderSide(color: scheme.outlineVariant)),
+      ),
+      child: Row(
+        children: [
+          cell(
+            Text(
+              row['entry_date']?.toString() ?? '',
+              maxLines: 1,
+              style: const TextStyle(fontSize: 9),
+            ),
+            2,
+          ),
+          cell(
+            Text(
+              row['reference']?.toString() ?? '-',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontSize: 9.5,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            3,
+          ),
+          cell(
+            Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  row['description']?.toString() ?? '',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 9.5),
+                ),
+                Text(
+                  row['party']?.toString() ?? '',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: 8, color: scheme.onSurfaceVariant),
+                ),
+              ],
+            ),
+            5,
+          ),
+          if (!compact)
+            cell(
+              Text(
+                '${row['location_code'] ?? ''}'
+                '${row['user_name']?.toString().isNotEmpty == true ? ' | ${row['user_name']}' : ''}',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontSize: 8.5),
+              ),
+              3,
+            ),
+          cell(
+            debit.abs() > .0001
+                ? Text(
+                    _money(debit),
+                    maxLines: 1,
+                    style: const TextStyle(
+                      fontSize: 9.5,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  )
+                : const SizedBox.shrink(),
+            2,
+            alignment: Alignment.centerRight,
+          ),
+          cell(
+            credit.abs() > .0001
+                ? Text(
+                    _money(credit),
+                    maxLines: 1,
+                    style: const TextStyle(
+                      fontSize: 9.5,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  )
+                : const SizedBox.shrink(),
+            2,
+            alignment: Alignment.centerRight,
+          ),
+        ],
+      ),
     );
   }
 
@@ -1074,55 +1760,127 @@ class _AccountingScreenState extends State<AccountingScreen> {
         break;
     }
 
+    final scheme = Theme.of(context).colorScheme;
+
     return Column(
       children: [
-        Align(
-          alignment: Alignment.centerLeft,
-          child: Wrap(
-            spacing: 10,
-            runSpacing: 10,
-            children: metrics.map((m) => _StatementMetric(m.$1, m.$2)).toList(),
+        SizedBox(
+          height: 56,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              if (constraints.maxWidth < 620) {
+                return ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: metrics.length,
+                  separatorBuilder: (_, _) => const SizedBox(width: 5),
+                  itemBuilder: (context, index) => SizedBox(
+                    width: 155,
+                    child: _StatementMetric(
+                      metrics[index].$1,
+                      metrics[index].$2,
+                    ),
+                  ),
+                );
+              }
+
+              return Row(
+                children: [
+                  for (var i = 0; i < metrics.length; i++) ...[
+                    if (i > 0) const SizedBox(width: 5),
+                    Expanded(
+                      child: _StatementMetric(metrics[i].$1, metrics[i].$2),
+                    ),
+                  ],
+                ],
+              );
+            },
           ),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 6),
         Expanded(
-          child: Card(
+          child: Container(
+            decoration: BoxDecoration(
+              color: scheme.surface,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: scheme.outlineVariant),
+            ),
+            clipBehavior: Clip.antiAlias,
             child: rows.isEmpty
                 ? const Center(
                     child: Text('No accounting balances for this period.'),
                   )
-                : ListView.separated(
-                    itemCount: rows.length,
-                    separatorBuilder: (_, _) => const Divider(height: 1),
-                    itemBuilder: (context, index) {
-                      final row = rows[index];
-                      final codeName =
-                          '${row['code'] ?? ''} • ${row['name'] ?? ''}';
-                      String trailing;
-                      String subtitle =
-                          row['account_type']?.toString().toUpperCase() ?? '';
-                      if (_section == 'trial_balance') {
-                        trailing =
-                            'DR ${_money(row['debit'])}   CR ${_money(row['credit'])}';
-                      } else if (_section == 'cash_flow') {
-                        trailing = _money(row['net_change']);
-                        subtitle =
-                            'In ${_money(row['inflow'])} • Out ${_money(row['outflow'])}';
-                      } else {
-                        trailing = _money(row['amount']);
-                      }
-                      return ListTile(
-                        dense: true,
-                        title: Text(
-                          codeName,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        subtitle: Text(subtitle),
-                        trailing: Text(
-                          trailing,
-                          style: const TextStyle(fontWeight: FontWeight.w800),
-                        ),
+                : LayoutBuilder(
+                    builder: (context, constraints) {
+                      final compact = constraints.maxWidth < 680;
+
+                      return Column(
+                        children: [
+                          if (!compact)
+                            Container(
+                              height: 34,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 9,
+                              ),
+                              color: scheme.surfaceContainerHighest,
+                              child: Row(
+                                children: [
+                                  const Expanded(
+                                    flex: 2,
+                                    child: Text(
+                                      'Code',
+                                      style: TextStyle(
+                                        fontSize: 9,
+                                        fontWeight: FontWeight.w800,
+                                      ),
+                                    ),
+                                  ),
+                                  const Expanded(
+                                    flex: 5,
+                                    child: Text(
+                                      'Account',
+                                      style: TextStyle(
+                                        fontSize: 9,
+                                        fontWeight: FontWeight.w800,
+                                      ),
+                                    ),
+                                  ),
+                                  const Expanded(
+                                    flex: 2,
+                                    child: Text(
+                                      'Type',
+                                      style: TextStyle(
+                                        fontSize: 9,
+                                        fontWeight: FontWeight.w800,
+                                      ),
+                                    ),
+                                  ),
+                                  Expanded(
+                                    flex: 3,
+                                    child: Text(
+                                      _section == 'trial_balance'
+                                          ? 'Debit / Credit'
+                                          : _section == 'cash_flow'
+                                          ? 'In / Out / Net'
+                                          : 'Amount',
+                                      textAlign: TextAlign.right,
+                                      style: const TextStyle(
+                                        fontSize: 9,
+                                        fontWeight: FontWeight.w800,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          Expanded(
+                            child: ListView.builder(
+                              padding: EdgeInsets.zero,
+                              itemCount: rows.length,
+                              itemBuilder: (context, index) =>
+                                  _statementRow(rows[index], compact: compact),
+                            ),
+                          ),
+                        ],
                       );
                     },
                   ),
@@ -1131,113 +1889,274 @@ class _AccountingScreenState extends State<AccountingScreen> {
       ],
     );
   }
+
+  Widget _statementRow(Map<String, dynamic> row, {required bool compact}) {
+    final scheme = Theme.of(context).colorScheme;
+    final code = row['code']?.toString() ?? '';
+    final name = row['name']?.toString() ?? '';
+    final type = row['account_type']?.toString().toUpperCase() ?? '';
+
+    String value;
+    String secondary = '';
+    if (_section == 'trial_balance') {
+      value = 'DR ${_money(row['debit'])} | CR ${_money(row['credit'])}';
+    } else if (_section == 'cash_flow') {
+      value = _money(row['net_change']);
+      secondary = 'In ${_money(row['inflow'])} | Out ${_money(row['outflow'])}';
+    } else {
+      value = _money(row['amount']);
+    }
+
+    if (compact) {
+      return Container(
+        constraints: const BoxConstraints(minHeight: 48),
+        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+        decoration: BoxDecoration(
+          border: Border(bottom: BorderSide(color: scheme.outlineVariant)),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    '$code | $name',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 9.5,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  Text(
+                    secondary.isEmpty ? type : '$type | $secondary',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 8.2,
+                      color: scheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              value,
+              maxLines: 1,
+              style: const TextStyle(
+                fontSize: 9.5,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Container(
+      constraints: const BoxConstraints(minHeight: 42),
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+      decoration: BoxDecoration(
+        border: Border(bottom: BorderSide(color: scheme.outlineVariant)),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            flex: 2,
+            child: Text(
+              code,
+              maxLines: 1,
+              style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w700),
+            ),
+          ),
+          Expanded(
+            flex: 5,
+            child: Text(
+              name,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 9.5),
+            ),
+          ),
+          Expanded(
+            flex: 2,
+            child: Text(
+              type,
+              maxLines: 1,
+              style: TextStyle(fontSize: 8.5, color: scheme.onSurfaceVariant),
+            ),
+          ),
+          Expanded(
+            flex: 3,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  value,
+                  maxLines: 1,
+                  style: const TextStyle(
+                    fontSize: 9.5,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                if (secondary.isNotEmpty)
+                  Text(
+                    secondary,
+                    maxLines: 1,
+                    style: TextStyle(
+                      fontSize: 7.8,
+                      color: scheme.onSurfaceVariant,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _MetricCard extends StatelessWidget {
   final String label;
   final String value;
   final IconData icon;
+
   const _MetricCard({
     required this.label,
     required this.value,
     required this.icon,
   });
+
   @override
-  Widget build(BuildContext context) => SizedBox(
-    width: 220,
-    child: Card(
-      child: Padding(
-        padding: const EdgeInsets.all(18),
-        child: Row(
-          children: [
-            Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.primaryContainer,
-                borderRadius: BorderRadius.circular(13),
-              ),
-              child: Icon(icon, color: Theme.of(context).colorScheme.primary),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(label, style: Theme.of(context).textTheme.labelMedium),
-                  const SizedBox(height: 3),
-                  Text(
-                    value,
-                    style: const TextStyle(
-                      fontSize: 17,
-                      fontWeight: FontWeight.w800,
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
+    return Container(
+      height: 70,
+      padding: const EdgeInsets.symmetric(horizontal: 10),
+      decoration: BoxDecoration(
+        color: scheme.surface,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: scheme.outlineVariant),
       ),
-    ),
-  );
+      child: Row(
+        children: [
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              color: scheme.primary.withValues(alpha: .08),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, size: 16, color: scheme.primary),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: 9, color: scheme.onSurfaceVariant),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  value,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _MiniMetric extends StatelessWidget {
   final String label;
   final String value;
+
   const _MiniMetric(this.label, this.value);
+
   @override
-  Widget build(BuildContext context) => SizedBox(
-    width: 180,
-    child: Column(
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: Theme.of(context).textTheme.labelMedium),
-        const SizedBox(height: 4),
+        Text(
+          label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(fontSize: 8.5, color: scheme.onSurfaceVariant),
+        ),
+        const SizedBox(height: 2),
         Text(
           value,
-          style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800),
         ),
       ],
-    ),
-  );
+    );
+  }
 }
 
 class _StatementMetric extends StatelessWidget {
   final String label;
   final String value;
+
   const _StatementMetric(this.label, this.value);
 
   @override
-  Widget build(BuildContext context) => Container(
-    width: 190,
-    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-    decoration: BoxDecoration(
-      color: Theme.of(context).colorScheme.surface,
-      border: Border.all(color: Theme.of(context).dividerColor),
-      borderRadius: BorderRadius.circular(12),
-    ),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 11,
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
+    return Container(
+      height: 54,
+      padding: const EdgeInsets.symmetric(horizontal: 9),
+      decoration: BoxDecoration(
+        color: scheme.surface,
+        borderRadius: BorderRadius.circular(9),
+        border: Border.all(color: scheme.outlineVariant),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(fontSize: 8.5, color: scheme.onSurfaceVariant),
           ),
-        ),
-        const SizedBox(height: 3),
-        Text(
-          value,
-          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
-          overflow: TextOverflow.ellipsis,
-        ),
-      ],
-    ),
-  );
+          const SizedBox(height: 2),
+          Text(
+            value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w900),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _ManualJournalDialog extends StatefulWidget {
