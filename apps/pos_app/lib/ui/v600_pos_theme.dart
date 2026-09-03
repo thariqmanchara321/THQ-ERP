@@ -18,31 +18,31 @@ abstract final class PosV600Theme {
 
     final text = base.textTheme.copyWith(
       headlineLarge: base.textTheme.headlineLarge?.copyWith(
-        fontSize: 21,
+        fontSize: 22,
         fontWeight: FontWeight.w900,
         letterSpacing: -.35,
       ),
       headlineMedium: base.textTheme.headlineMedium?.copyWith(
-        fontSize: 18,
+        fontSize: 19,
         fontWeight: FontWeight.w800,
         letterSpacing: -.25,
       ),
       titleLarge: base.textTheme.titleLarge?.copyWith(
-        fontSize: 16,
+        fontSize: 17,
         fontWeight: FontWeight.w800,
       ),
       titleMedium: base.textTheme.titleMedium?.copyWith(
-        fontSize: 13,
+        fontSize: 14,
         fontWeight: FontWeight.w800,
       ),
-      bodyLarge: base.textTheme.bodyLarge?.copyWith(fontSize: 13),
-      bodyMedium: base.textTheme.bodyMedium?.copyWith(fontSize: 12),
-      bodySmall: base.textTheme.bodySmall?.copyWith(fontSize: 10.5),
+      bodyLarge: base.textTheme.bodyLarge?.copyWith(fontSize: 14),
+      bodyMedium: base.textTheme.bodyMedium?.copyWith(fontSize: 13),
+      bodySmall: base.textTheme.bodySmall?.copyWith(fontSize: 11.5),
       labelLarge: base.textTheme.labelLarge?.copyWith(
-        fontSize: 11.5,
+        fontSize: 12.5,
         fontWeight: FontWeight.w700,
       ),
-      labelMedium: base.textTheme.labelMedium?.copyWith(fontSize: 10),
+      labelMedium: base.textTheme.labelMedium?.copyWith(fontSize: 11),
     );
 
     return base.copyWith(
@@ -80,7 +80,7 @@ abstract final class PosV600Theme {
         isDense: true,
         filled: true,
         fillColor: profile.surface,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 11, vertical: 9),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
           borderSide: BorderSide(color: profile.border),
@@ -100,7 +100,7 @@ abstract final class PosV600Theme {
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
           textStyle: const TextStyle(
-            fontSize: 11.5,
+            fontSize: 12.5,
             fontWeight: FontWeight.w800,
           ),
         ),
@@ -111,14 +111,14 @@ abstract final class PosV600Theme {
           padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
           side: BorderSide(color: profile.border),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-          textStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
+          textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
         ),
       ),
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
           minimumSize: const Size(0, 34),
           padding: const EdgeInsets.symmetric(horizontal: 9),
-          textStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
+          textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
         ),
       ),
       iconButtonTheme: IconButtonThemeData(
@@ -137,7 +137,7 @@ abstract final class PosV600Theme {
       ),
       chipTheme: base.chipTheme.copyWith(
         padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-        labelStyle: const TextStyle(fontSize: 10),
+        labelStyle: const TextStyle(fontSize: 11),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(7),
           side: BorderSide(color: profile.border),
@@ -150,7 +150,7 @@ abstract final class PosV600Theme {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(9)),
         contentTextStyle: TextStyle(
           color: scheme.onInverseSurface,
-          fontSize: 11,
+          fontSize: 12,
           fontWeight: FontWeight.w600,
         ),
       ),

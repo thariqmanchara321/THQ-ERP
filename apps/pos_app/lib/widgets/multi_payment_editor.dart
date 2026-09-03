@@ -248,7 +248,7 @@ class _MultiPaymentEditorState extends State<MultiPaymentEditor> {
         const Text(
           'Cash over-tender becomes change. Electronic overpayment is rejected. '
           'Credit stays in Accounts Receivable and requires a named customer.',
-          style: TextStyle(fontSize: 10.5),
+          style: TextStyle(fontSize: 11.5),
         ),
       ],
     );
@@ -327,7 +327,7 @@ class _MultiPaymentEditorState extends State<MultiPaymentEditor> {
           icon: const Icon(Icons.delete_outline),
         );
 
-        if (constraints.maxWidth < 700) {
+        if (constraints.maxWidth < 520) {
           return Column(
             children: [
               Row(

@@ -400,7 +400,7 @@ class _PosHomeScreenState extends State<PosHomeScreen> {
                   : _expandedGroups.add(node.id),
             ),
             child: SizedBox(
-              height: 29,
+              height: 33,
               child: Row(
                 children: [
                   const SizedBox(width: 7),
@@ -412,7 +412,7 @@ class _PosHomeScreenState extends State<PosHomeScreen> {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
-                        fontSize: 8.8,
+                        fontSize: 11.5,
                         fontWeight: FontWeight.w800,
                       ),
                     ),
@@ -625,7 +625,7 @@ class _PosHomeScreenState extends State<PosHomeScreen> {
         children: [
           Container(
             width: 34,
-            height: 34,
+            height: 36,
             clipBehavior: Clip.antiAlias,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(8),
@@ -712,7 +712,7 @@ class _PosHomeScreenState extends State<PosHomeScreen> {
             borderRadius: BorderRadius.circular(7),
             onTap: () => setState(() => _selectedKey = page.key),
             child: SizedBox(
-              height: 34,
+              height: 36,
               child: Row(
                 mainAxisAlignment: expanded
                     ? MainAxisAlignment.start
@@ -741,7 +741,7 @@ class _PosHomeScreenState extends State<PosHomeScreen> {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                          fontSize: 10.2,
+                          fontSize: 11.5,
                           fontWeight: active
                               ? FontWeight.w800
                               : FontWeight.w600,
@@ -786,7 +786,7 @@ class _PosHomeScreenState extends State<PosHomeScreen> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    fontSize: 10.5,
+                    fontSize: 11.5,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -794,7 +794,7 @@ class _PosHomeScreenState extends State<PosHomeScreen> {
                   _session.roleLabel,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 8),
+                  style: const TextStyle(fontSize: 9.5),
                 ),
               ],
             ),
@@ -820,7 +820,7 @@ class _PosHomeScreenState extends State<PosHomeScreen> {
           borderRadius: BorderRadius.circular(7),
           onTap: onTap,
           child: SizedBox(
-            height: 31,
+            height: 33,
             child: Row(
               mainAxisAlignment: expanded
                   ? MainAxisAlignment.start
@@ -836,7 +836,7 @@ class _PosHomeScreenState extends State<PosHomeScreen> {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
-                        fontSize: 9.5,
+                        fontSize: 10.8,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -877,7 +877,7 @@ class _PosHomeScreenState extends State<PosHomeScreen> {
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: TextStyle(
-            fontSize: 7.7,
+            fontSize: 9,
             fontWeight: FontWeight.w600,
             color: profile.textSecondary.withValues(alpha: .72),
           ),

@@ -181,7 +181,7 @@ class _CustomersScreenState extends State<CustomersScreen> {
                       Text(
                         'Customer master and statements',
                         style: TextStyle(
-                          fontSize: 8.3,
+                          fontSize: 9.8,
                           color: scheme.onSurfaceVariant,
                         ),
                       ),
@@ -292,7 +292,7 @@ class _CustomersScreenState extends State<CustomersScreen> {
                               child: Text(
                                 'Customer',
                                 style: TextStyle(
-                                  fontSize: 8.8,
+                                  fontSize: 10.2,
                                   fontWeight: FontWeight.w900,
                                 ),
                               ),
@@ -302,7 +302,7 @@ class _CustomersScreenState extends State<CustomersScreen> {
                               child: Text(
                                 'Contact',
                                 style: TextStyle(
-                                  fontSize: 8.8,
+                                  fontSize: 10.2,
                                   fontWeight: FontWeight.w900,
                                 ),
                               ),
@@ -313,18 +313,18 @@ class _CustomersScreenState extends State<CustomersScreen> {
                                 'Credit Limit',
                                 textAlign: TextAlign.right,
                                 style: TextStyle(
-                                  fontSize: 8.8,
+                                  fontSize: 10.2,
                                   fontWeight: FontWeight.w900,
                                 ),
                               ),
                             ),
                             SizedBox(
-                              width: 72,
+                              width: 88,
                               child: Text(
                                 'Status',
                                 textAlign: TextAlign.center,
                                 style: TextStyle(
-                                  fontSize: 8.8,
+                                  fontSize: 10.2,
                                   fontWeight: FontWeight.w900,
                                 ),
                               ),
@@ -392,7 +392,7 @@ class _CustomerCard extends StatelessWidget {
     ].where((value) => value != null && value.isNotEmpty).join(', ');
 
     return Container(
-      constraints: const BoxConstraints(minHeight: 48),
+      constraints: const BoxConstraints(minHeight: 55),
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
       decoration: BoxDecoration(
         color: customer.isWalkIn
@@ -407,8 +407,8 @@ class _CustomerCard extends StatelessWidget {
             child: Row(
               children: [
                 Container(
-                  width: 27,
-                  height: 27,
+                  width: 30,
+                  height: 30,
                   decoration: BoxDecoration(
                     color: scheme.primary.withValues(alpha: .08),
                     borderRadius: BorderRadius.circular(7),
@@ -417,7 +417,7 @@ class _CustomerCard extends StatelessWidget {
                     customer.isWalkIn
                         ? Icons.storefront_outlined
                         : Icons.person_outline,
-                    size: 14,
+                    size: 16,
                     color: scheme.primary,
                   ),
                 ),
@@ -432,7 +432,7 @@ class _CustomerCard extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
-                          fontSize: 9,
+                          fontSize: 10.8,
                           fontWeight: FontWeight.w800,
                         ),
                       ),
@@ -445,7 +445,7 @@ class _CustomerCard extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                          fontSize: 7.4,
+                          fontSize: 8.9,
                           color: scheme.onSurfaceVariant,
                         ),
                       ),
@@ -472,7 +472,7 @@ class _CustomerCard extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontSize: 7.2,
+                    fontSize: 8.8,
                     color: scheme.onSurfaceVariant,
                   ),
                 ),
@@ -486,19 +486,19 @@ class _CustomerCard extends StatelessWidget {
               textAlign: TextAlign.right,
               maxLines: 1,
               style: const TextStyle(
-                fontSize: 8.6,
+                fontSize: 10.1,
                 fontWeight: FontWeight.w900,
               ),
             ),
           ),
           SizedBox(
-            width: 72,
+            width: 88,
             child: Text(
               customer.isWalkIn ? 'DEFAULT' : customer.status.toUpperCase(),
               textAlign: TextAlign.center,
               maxLines: 1,
               style: TextStyle(
-                fontSize: 7,
+                fontSize: 9,
                 fontWeight: FontWeight.w900,
                 color: customer.isActive
                     ? scheme.primary
@@ -507,7 +507,7 @@ class _CustomerCard extends StatelessWidget {
             ),
           ),
           SizedBox(
-            width: 72,
+            width: 88,
             child: Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [

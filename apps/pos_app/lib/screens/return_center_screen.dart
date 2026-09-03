@@ -176,7 +176,7 @@ class _ReturnCenterScreenState extends State<ReturnCenterScreen>
                       Text(
                         "Today's invoices on this POS",
                         style: TextStyle(
-                          fontSize: 8.3,
+                          fontSize: 9.8,
                           color: scheme.onSurfaceVariant,
                         ),
                       ),
@@ -185,7 +185,10 @@ class _ReturnCenterScreenState extends State<ReturnCenterScreen>
                 ),
                 Text(
                   'Sales ${_sales.length} | Purchases ${_purchases.length}',
-                  style: TextStyle(fontSize: 8, color: scheme.onSurfaceVariant),
+                  style: TextStyle(
+                    fontSize: 9.5,
+                    color: scheme.onSurfaceVariant,
+                  ),
                 ),
                 const SizedBox(width: 6),
                 IconButton(
@@ -223,7 +226,7 @@ class _ReturnCenterScreenState extends State<ReturnCenterScreen>
                 final tabs = TabBar(
                   controller: _tabs,
                   labelStyle: const TextStyle(
-                    fontSize: 9,
+                    fontSize: 10.5,
                     fontWeight: FontWeight.w800,
                   ),
                   tabs: const [
@@ -314,7 +317,7 @@ class _ReturnCenterScreenState extends State<ReturnCenterScreen>
                   child: Text(
                     'Document',
                     style: TextStyle(
-                      fontSize: 8.8,
+                      fontSize: 10.2,
                       fontWeight: FontWeight.w900,
                     ),
                   ),
@@ -324,7 +327,7 @@ class _ReturnCenterScreenState extends State<ReturnCenterScreen>
                   child: Text(
                     'Party / Product',
                     style: TextStyle(
-                      fontSize: 8.8,
+                      fontSize: 10.2,
                       fontWeight: FontWeight.w900,
                     ),
                   ),
@@ -334,7 +337,7 @@ class _ReturnCenterScreenState extends State<ReturnCenterScreen>
                   child: Text(
                     'Status',
                     style: TextStyle(
-                      fontSize: 8.8,
+                      fontSize: 10.2,
                       fontWeight: FontWeight.w900,
                     ),
                   ),
@@ -345,7 +348,7 @@ class _ReturnCenterScreenState extends State<ReturnCenterScreen>
                     'Amount',
                     textAlign: TextAlign.right,
                     style: TextStyle(
-                      fontSize: 8.8,
+                      fontSize: 10.2,
                       fontWeight: FontWeight.w900,
                     ),
                   ),
@@ -395,7 +398,7 @@ class _ReturnCenterScreenState extends State<ReturnCenterScreen>
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                     style: const TextStyle(
-                                      fontSize: 8.8,
+                                      fontSize: 10.2,
                                       fontWeight: FontWeight.w800,
                                     ),
                                   ),
@@ -421,7 +424,7 @@ class _ReturnCenterScreenState extends State<ReturnCenterScreen>
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                     style: TextStyle(
-                                      fontSize: 7.4,
+                                      fontSize: 8.8,
                                       color: scheme.onSurfaceVariant,
                                     ),
                                   ),
@@ -430,13 +433,21 @@ class _ReturnCenterScreenState extends State<ReturnCenterScreen>
                           ),
                           Expanded(
                             flex: 2,
-                            child: Text(
-                              returnStatus,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                fontSize: 7.5,
-                                fontWeight: FontWeight.w800,
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 4,
+                              ),
+                              child: FittedBox(
+                                fit: BoxFit.scaleDown,
+                                alignment: Alignment.centerLeft,
+                                child: Text(
+                                  returnStatus,
+                                  maxLines: 1,
+                                  style: const TextStyle(
+                                    fontSize: 9.8,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
                               ),
                             ),
                           ),
@@ -447,7 +458,7 @@ class _ReturnCenterScreenState extends State<ReturnCenterScreen>
                               maxLines: 1,
                               textAlign: TextAlign.right,
                               style: const TextStyle(
-                                fontSize: 8.8,
+                                fontSize: 10.2,
                                 fontWeight: FontWeight.w900,
                               ),
                             ),

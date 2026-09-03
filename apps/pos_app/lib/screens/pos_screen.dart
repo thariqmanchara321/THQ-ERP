@@ -1638,7 +1638,7 @@ class _PosScreenState extends State<PosScreen> {
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        fontSize: 9.5,
+                        fontSize: 13,
                         fontWeight: FontWeight.w600,
                         color: scheme.onErrorContainer,
                       ),
@@ -1707,7 +1707,7 @@ class _PosScreenState extends State<PosScreen> {
                       'Billing',
                       maxLines: 1,
                       style: TextStyle(
-                        fontSize: 14.5,
+                        fontSize: 17,
                         fontWeight: FontWeight.w900,
                       ),
                     ),
@@ -1718,7 +1718,7 @@ class _PosScreenState extends State<PosScreen> {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        fontSize: 8.3,
+                        fontSize: 9.6,
                         color: scheme.onSurfaceVariant,
                       ),
                     ),
@@ -1832,7 +1832,7 @@ class _PosScreenState extends State<PosScreen> {
           Text(
             _offlineMode ? 'OFFLINE' : 'ONLINE',
             style: TextStyle(
-              fontSize: 7.8,
+              fontSize: 9.1,
               fontWeight: FontWeight.w900,
               color: _offlineMode
                   ? scheme.onErrorContainer
@@ -1860,8 +1860,7 @@ class _PosScreenState extends State<PosScreen> {
       key: const ValueKey('products'),
       builder: (context, constraints) {
         final design = UiDesignScope.of(context, appKey: 'pos');
-        final stacked =
-            constraints.maxWidth < 1020 || constraints.maxHeight < 610;
+        final stacked = constraints.maxWidth < 900;
 
         if (stacked) {
           final cartHeight = constraints.maxHeight < 560 ? 250.0 : 285.0;
@@ -1874,7 +1873,7 @@ class _PosScreenState extends State<PosScreen> {
           );
         }
 
-        final cartWidth = design.posCartWidth.clamp(350.0, 430.0).toDouble();
+        final cartWidth = design.posCartWidth.clamp(380.0, 455.0).toDouble();
 
         return Row(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -2263,7 +2262,7 @@ class _PosScreenState extends State<PosScreen> {
                     Text(
                       'Select an invoice to restore it and continue billing.',
                       style: TextStyle(
-                        fontSize: 11.5,
+                        fontSize: 12.5,
                         color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                     ),
@@ -2386,7 +2385,7 @@ class _PosScreenState extends State<PosScreen> {
                                           Text(
                                             createdLabel,
                                             style: const TextStyle(
-                                              fontSize: 10.5,
+                                              fontSize: 11.8,
                                             ),
                                           ),
                                       ],
@@ -2547,7 +2546,7 @@ class _PosScreenState extends State<PosScreen> {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
-                              fontSize: 9.5,
+                              fontSize: 13,
                               fontWeight: FontWeight.w800,
                             ),
                           ),
@@ -2629,7 +2628,7 @@ class _PosScreenState extends State<PosScreen> {
                   Text(
                     'Order',
                     style: TextStyle(
-                      fontSize: 8.5,
+                      fontSize: 9.8,
                       fontWeight: FontWeight.w800,
                       color: scheme.onSurfaceVariant,
                     ),
@@ -2655,7 +2654,7 @@ class _PosScreenState extends State<PosScreen> {
                   Text(
                     'Dine-in / KOT: Restaurant',
                     style: TextStyle(
-                      fontSize: 8.2,
+                      fontSize: 13,
                       color: scheme.onSurfaceVariant,
                     ),
                   ),
@@ -2710,7 +2709,7 @@ class _PosScreenState extends State<PosScreen> {
               alignment: Alignment.centerLeft,
               child: Text(
                 '${products.length} matching products',
-                style: TextStyle(fontSize: 8.2, color: scheme.onSurfaceVariant),
+                style: TextStyle(fontSize: 13, color: scheme.onSurfaceVariant),
               ),
             ),
           ),
@@ -2741,7 +2740,7 @@ class _PosScreenState extends State<PosScreen> {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(
-                fontSize: 8.8,
+                fontSize: 10.1,
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -2754,7 +2753,7 @@ class _PosScreenState extends State<PosScreen> {
           const SizedBox(width: 8),
           Text(
             _money(product.sellingPrice),
-            style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w900),
+            style: const TextStyle(fontSize: 10.3, fontWeight: FontWeight.w900),
           ),
         ],
       ),
@@ -2791,7 +2790,7 @@ class _PosScreenState extends State<PosScreen> {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        fontSize: 7.8,
+                        fontSize: 9.1,
                         fontWeight: FontWeight.w600,
                         color: scheme.onSurfaceVariant,
                       ),
@@ -2807,7 +2806,7 @@ class _PosScreenState extends State<PosScreen> {
                         : product.itemType,
                     maxLines: 1,
                     style: TextStyle(
-                      fontSize: 7.5,
+                      fontSize: 10.1,
                       fontWeight: FontWeight.w700,
                       color: outOfStock ? scheme.error : scheme.primary,
                     ),
@@ -2820,7 +2819,7 @@ class _PosScreenState extends State<PosScreen> {
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
-                  fontSize: 10.2,
+                  fontSize: 12.5,
                   fontWeight: FontWeight.w800,
                   height: 1.08,
                 ),
@@ -2830,7 +2829,7 @@ class _PosScreenState extends State<PosScreen> {
                 'SKU ${product.sku}',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(fontSize: 7.6, color: scheme.onSurfaceVariant),
+                style: TextStyle(fontSize: 8.9, color: scheme.onSurfaceVariant),
               ),
               const SizedBox(height: 2),
               Row(
@@ -2841,7 +2840,7 @@ class _PosScreenState extends State<PosScreen> {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
-                        fontSize: 10.8,
+                        fontSize: 13,
                         fontWeight: FontWeight.w900,
                       ),
                     ),
@@ -2886,7 +2885,7 @@ class _PosScreenState extends State<PosScreen> {
                     'Cart | ${_cart.length} ${_cart.length == 1 ? 'item' : 'items'}',
                     maxLines: 1,
                     style: const TextStyle(
-                      fontSize: 10.5,
+                      fontSize: 11.8,
                       fontWeight: FontWeight.w900,
                     ),
                   ),
@@ -2918,7 +2917,7 @@ class _PosScreenState extends State<PosScreen> {
                         Text(
                           'Scan, search or tap a product',
                           style: TextStyle(
-                            fontSize: 9,
+                            fontSize: 10.3,
                             color: scheme.onSurfaceVariant,
                           ),
                         ),
@@ -2971,7 +2970,7 @@ class _PosScreenState extends State<PosScreen> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    fontSize: 9.4,
+                    fontSize: 13,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
@@ -2982,7 +2981,7 @@ class _PosScreenState extends State<PosScreen> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontSize: 7.4,
+                    fontSize: 10.1,
                     color: scheme.onSurfaceVariant,
                   ),
                 ),
@@ -3012,7 +3011,7 @@ class _PosScreenState extends State<PosScreen> {
                 textAlign: TextAlign.center,
                 maxLines: 1,
                 style: const TextStyle(
-                  fontSize: 8.5,
+                  fontSize: 9.8,
                   fontWeight: FontWeight.w900,
                 ),
               ),
@@ -3036,7 +3035,7 @@ class _PosScreenState extends State<PosScreen> {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(
-                fontSize: 8.8,
+                fontSize: 10.1,
                 fontWeight: FontWeight.w900,
               ),
             ),
@@ -3114,8 +3113,7 @@ class _PosScreenState extends State<PosScreen> {
       padding: const EdgeInsets.fromLTRB(0, 0, 0, 0),
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final stacked =
-              constraints.maxWidth < 820 || constraints.maxHeight < 580;
+          final stacked = constraints.maxWidth < 760;
 
           final controls = Container(
             decoration: BoxDecoration(
@@ -3163,7 +3161,7 @@ class _PosScreenState extends State<PosScreen> {
                       child: Text(
                         'Payment',
                         style: TextStyle(
-                          fontSize: 12,
+                          fontSize: 13,
                           fontWeight: FontWeight.w900,
                         ),
                       ),
@@ -3171,7 +3169,7 @@ class _PosScreenState extends State<PosScreen> {
                     Text(
                       '${_cart.length} items',
                       style: TextStyle(
-                        fontSize: 8.5,
+                        fontSize: 9.8,
                         color: scheme.onSurfaceVariant,
                       ),
                     ),
@@ -3179,7 +3177,7 @@ class _PosScreenState extends State<PosScreen> {
                     Text(
                       _money(_total),
                       style: const TextStyle(
-                        fontSize: 14,
+                        fontSize: 15.5,
                         fontWeight: FontWeight.w900,
                       ),
                     ),
@@ -3327,14 +3325,14 @@ class _PosScreenState extends State<PosScreen> {
             const SizedBox(width: 6),
             const Text(
               'Payment Allocation',
-              style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w900),
+              style: TextStyle(fontSize: 11.8, fontWeight: FontWeight.w900),
             ),
             const Spacer(),
             Text(
               _customer?.name ?? '-',
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(fontSize: 8.5, color: scheme.onSurfaceVariant),
+              style: TextStyle(fontSize: 9.8, color: scheme.onSurfaceVariant),
             ),
           ],
         ),
@@ -3380,7 +3378,7 @@ class _PosScreenState extends State<PosScreen> {
           ),
           child: Text(
             'Round-off is automatic. GST-classified services must be used for freight, cutting, installation and other charges.',
-            style: TextStyle(fontSize: 8.2, color: scheme.onSurfaceVariant),
+            style: TextStyle(fontSize: 13, color: scheme.onSurfaceVariant),
           ),
         ),
         const SizedBox(height: 7),
@@ -3410,7 +3408,7 @@ class _PosScreenState extends State<PosScreen> {
               const Text(
                 'SALE SUMMARY',
                 style: TextStyle(
-                  fontSize: 8.8,
+                  fontSize: 10.1,
                   fontWeight: FontWeight.w900,
                   letterSpacing: .35,
                 ),
@@ -3418,7 +3416,7 @@ class _PosScreenState extends State<PosScreen> {
               const Spacer(),
               Text(
                 '${_cart.length} items',
-                style: TextStyle(fontSize: 8.2, color: scheme.onSurfaceVariant),
+                style: TextStyle(fontSize: 13, color: scheme.onSurfaceVariant),
               ),
             ],
           ),
@@ -3447,7 +3445,7 @@ class _PosScreenState extends State<PosScreen> {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
-                          fontSize: 8.8,
+                          fontSize: 10.1,
                           fontWeight: FontWeight.w700,
                         ),
                       ),
@@ -3456,7 +3454,7 @@ class _PosScreenState extends State<PosScreen> {
                     Text(
                       _money(_lineGross(line)),
                       style: const TextStyle(
-                        fontSize: 8.8,
+                        fontSize: 10.1,
                         fontWeight: FontWeight.w800,
                       ),
                     ),
@@ -3558,7 +3556,7 @@ class _PosScreenState extends State<PosScreen> {
                 const Expanded(
                   child: Text(
                     'Invoice Review',
-                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w900),
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w900),
                   ),
                 ),
                 Text(
@@ -3566,7 +3564,7 @@ class _PosScreenState extends State<PosScreen> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontSize: 8.5,
+                    fontSize: 9.8,
                     color: scheme.onSurfaceVariant,
                   ),
                 ),
@@ -3574,7 +3572,7 @@ class _PosScreenState extends State<PosScreen> {
                 Text(
                   _money(_total),
                   style: const TextStyle(
-                    fontSize: 14,
+                    fontSize: 15.5,
                     fontWeight: FontWeight.w900,
                   ),
                 ),
@@ -3585,8 +3583,7 @@ class _PosScreenState extends State<PosScreen> {
           Expanded(
             child: LayoutBuilder(
               builder: (context, constraints) {
-                final stacked =
-                    constraints.maxWidth < 800 || constraints.maxHeight < 520;
+                final stacked = constraints.maxWidth < 760;
 
                 final summary = Container(
                   decoration: BoxDecoration(
@@ -3651,7 +3648,7 @@ class _PosScreenState extends State<PosScreen> {
                               child: Text(
                                 'Item',
                                 style: TextStyle(
-                                  fontSize: 8.8,
+                                  fontSize: 10.1,
                                   fontWeight: FontWeight.w900,
                                 ),
                               ),
@@ -3662,7 +3659,7 @@ class _PosScreenState extends State<PosScreen> {
                                 'Qty',
                                 textAlign: TextAlign.center,
                                 style: TextStyle(
-                                  fontSize: 8.8,
+                                  fontSize: 10.1,
                                   fontWeight: FontWeight.w900,
                                 ),
                               ),
@@ -3673,7 +3670,7 @@ class _PosScreenState extends State<PosScreen> {
                                 'Tax',
                                 textAlign: TextAlign.center,
                                 style: TextStyle(
-                                  fontSize: 8.8,
+                                  fontSize: 10.1,
                                   fontWeight: FontWeight.w900,
                                 ),
                               ),
@@ -3684,7 +3681,7 @@ class _PosScreenState extends State<PosScreen> {
                                 'Total',
                                 textAlign: TextAlign.right,
                                 style: TextStyle(
-                                  fontSize: 8.8,
+                                  fontSize: 10.1,
                                   fontWeight: FontWeight.w900,
                                 ),
                               ),
@@ -3730,7 +3727,7 @@ class _PosScreenState extends State<PosScreen> {
                                           maxLines: 1,
                                           overflow: TextOverflow.ellipsis,
                                           style: const TextStyle(
-                                            fontSize: 9,
+                                            fontSize: 10.3,
                                             fontWeight: FontWeight.w800,
                                           ),
                                         ),
@@ -3738,7 +3735,7 @@ class _PosScreenState extends State<PosScreen> {
                                           line.product.sku,
                                           maxLines: 1,
                                           style: TextStyle(
-                                            fontSize: 7.5,
+                                            fontSize: 10.1,
                                             color: scheme.onSurfaceVariant,
                                           ),
                                         ),
@@ -3770,7 +3767,7 @@ class _PosScreenState extends State<PosScreen> {
                                       textAlign: TextAlign.right,
                                       maxLines: 1,
                                       style: const TextStyle(
-                                        fontSize: 8.8,
+                                        fontSize: 10.1,
                                         fontWeight: FontWeight.w900,
                                       ),
                                     ),
@@ -3972,7 +3969,7 @@ class _StepBadge extends StatelessWidget {
           foregroundColor: active ? Colors.white : null,
           child: Text(
             '$number',
-            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800),
           ),
         ),
         if (label.isNotEmpty) ...[
