@@ -230,20 +230,21 @@ class _LoanScreenState extends State<LoanScreen> {
   @override
   Widget build(BuildContext context) {
     if (_loading) return const Center(child: CircularProgressIndicator());
+
     if (_error != null) {
       return Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 680),
           child: Card(
             child: Padding(
-              padding: const EdgeInsets.all(24),
+              padding: const EdgeInsets.all(20),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.error_outline, size: 42),
-                  const SizedBox(height: 12),
+                  const Icon(Icons.error_outline, size: 38),
+                  const SizedBox(height: 10),
                   Text(_error!, textAlign: TextAlign.center),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 12),
                   FilledButton.icon(
                     onPressed: _load,
                     icon: const Icon(Icons.refresh),
@@ -264,18 +265,18 @@ class _LoanScreenState extends State<LoanScreen> {
         children: [
           _header(),
           if (_warning != null) ...[
-            const SizedBox(height: 10),
+            const SizedBox(height: 6),
             _banner(_warning!, Colors.orange, Icons.warning_amber_outlined),
           ],
           const SizedBox(height: 6),
           _metrics(),
           if (_warnings.isNotEmpty) ...[
-            const SizedBox(height: 12),
+            const SizedBox(height: 6),
             _warningPanel(),
           ],
           const SizedBox(height: 6),
           _filters(),
-          const SizedBox(height: 10),
+          const SizedBox(height: 6),
           Expanded(
             child: _loans.isEmpty
                 ? const Center(child: Text('No loans found for this scope.'))
@@ -283,8 +284,9 @@ class _LoanScreenState extends State<LoanScreen> {
                     onRefresh: _load,
                     child: ListView.separated(
                       physics: const AlwaysScrollableScrollPhysics(),
+                      padding: EdgeInsets.zero,
                       itemCount: _loans.length,
-                      separatorBuilder: (_, _) => const SizedBox(height: 8),
+                      separatorBuilder: (_, _) => const SizedBox(height: 5),
                       itemBuilder: (_, index) => _loanCard(_loans[index]),
                     ),
                   ),
@@ -294,59 +296,84 @@ class _LoanScreenState extends State<LoanScreen> {
     );
   }
 
-  Widget _header() => Row(
-    children: [
-      const Icon(Icons.account_balance_outlined, size: 22),
-      const SizedBox(width: 10),
-      const Expanded(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Loans & Credit',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+  Widget _header() {
+    final scheme = Theme.of(context).colorScheme;
+
+    return SizedBox(
+      height: 48,
+      child: Row(
+        children: [
+          Container(
+            width: 4,
+            height: 26,
+            decoration: BoxDecoration(
+              color: scheme.primary,
+              borderRadius: BorderRadius.circular(999),
             ),
-            Text(
-              'Given & taken loans • schedules • repayments',
-              style: TextStyle(fontSize: 11),
+          ),
+          const SizedBox(width: 9),
+          const Expanded(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Loans & Credit',
+                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.w900),
+                ),
+                Text(
+                  'Given and taken loans, schedules and repayments',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: 10.5),
+                ),
+              ],
+            ),
+          ),
+          Tooltip(
+            message: _loanAccountingEnabled
+                ? 'Loan accounting enabled'
+                : 'Loan accounting disabled',
+            child: IconButton(
+              tooltip: 'Loan settings',
+              visualDensity: VisualDensity.compact,
+              onPressed: _canManage ? _loanSettings : null,
+              icon: Icon(
+                _loanAccountingEnabled
+                    ? Icons.account_balance_outlined
+                    : Icons.money_off_outlined,
+                size: 19,
+              ),
+            ),
+          ),
+          IconButton(
+            tooltip: 'Refresh loans',
+            visualDensity: VisualDensity.compact,
+            onPressed: _load,
+            icon: const Icon(Icons.refresh_rounded, size: 19),
+          ),
+          if (_canCreate) ...[
+            const SizedBox(width: 4),
+            FilledButton.icon(
+              onPressed: () => _editLoan(),
+              icon: const Icon(Icons.add, size: 17),
+              label: const Text('New Loan'),
             ),
           ],
-        ),
+        ],
       ),
-      IconButton(
-        tooltip: 'Loan settings',
-        onPressed: _canManage ? _loanSettings : null,
-        icon: Icon(
-          _loanAccountingEnabled
-              ? Icons.account_balance_outlined
-              : Icons.money_off_outlined,
-        ),
-      ),
-      IconButton(
-        tooltip: 'Refresh',
-        onPressed: _load,
-        icon: const Icon(Icons.refresh),
-      ),
-      if (_canCreate) ...[
-        const SizedBox(width: 8),
-        FilledButton.icon(
-          onPressed: () => _editLoan(),
-          icon: const Icon(Icons.add),
-          label: const Text('New Loan'),
-        ),
-      ],
-    ],
-  );
+    );
+  }
 
   Widget _metrics() {
     final items = <(String, String, IconData)>[
       (
-        'Given Principal',
+        'Given',
         _money(_dashboard['given_active_principal']),
         Icons.arrow_outward,
       ),
       (
-        'Taken Principal',
+        'Taken',
         _money(_dashboard['taken_active_principal']),
         Icons.arrow_downward,
       ),
@@ -358,54 +385,113 @@ class _LoanScreenState extends State<LoanScreen> {
         Icons.fact_check_outlined,
       ),
       (
-        'Accounts',
+        'Accounting',
         _loanAccountingEnabled ? 'ON' : 'OFF',
-        _loanAccountingEnabled ? Icons.account_balance : Icons.money_off,
+        _loanAccountingEnabled
+            ? Icons.account_balance_outlined
+            : Icons.money_off_outlined,
       ),
     ];
-    return Wrap(
-      spacing: 10,
-      runSpacing: 10,
-      children: items
-          .map(
-            (item) => SizedBox(
-              width: 178,
-              child: Card(
-                margin: EdgeInsets.zero,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 8,
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(item.$3),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              item.$1,
-                              style: Theme.of(context).textTheme.bodySmall,
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              item.$2,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
+
+    final scheme = Theme.of(context).colorScheme;
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth < 820) {
+          return SizedBox(
+            height: 58,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: items.length,
+              separatorBuilder: (_, _) => const SizedBox(width: 6),
+              itemBuilder: (context, index) => SizedBox(
+                width: 146,
+                child: _loanMetricTile(
+                  items[index].$1,
+                  items[index].$2,
+                  items[index].$3,
+                  scheme,
                 ),
               ),
             ),
-          )
-          .toList(),
+          );
+        }
+
+        return SizedBox(
+          height: 58,
+          child: Row(
+            children: [
+              for (var index = 0; index < items.length; index++) ...[
+                if (index > 0) const SizedBox(width: 6),
+                Expanded(
+                  child: _loanMetricTile(
+                    items[index].$1,
+                    items[index].$2,
+                    items[index].$3,
+                    scheme,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _loanMetricTile(
+    String label,
+    String value,
+    IconData icon,
+    ColorScheme scheme,
+  ) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      decoration: BoxDecoration(
+        color: scheme.surface,
+        borderRadius: BorderRadius.circular(9),
+        border: Border.all(color: scheme.outlineVariant),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 28,
+            height: 28,
+            decoration: BoxDecoration(
+              color: scheme.primary.withValues(alpha: .08),
+              borderRadius: BorderRadius.circular(7),
+            ),
+            child: Icon(icon, size: 14, color: scheme.primary),
+          ),
+          const SizedBox(width: 7),
+          Expanded(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 8.5,
+                    color: scheme.onSurfaceVariant,
+                  ),
+                ),
+                Text(
+                  value,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 

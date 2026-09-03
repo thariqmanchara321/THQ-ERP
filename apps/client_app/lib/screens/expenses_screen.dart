@@ -194,178 +194,530 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
   }
 
   @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            const Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Expenses',
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
-                  ),
-                  SizedBox(height: 5),
-                  Text('Operating expenses and cash payments'),
-                ],
-              ),
-            ),
-            if (_canManage)
-              FilledButton.icon(
-                onPressed: _newExpense,
-                icon: const Icon(Icons.add),
-                label: const Text('New Expense'),
-              ),
-          ],
-        ),
-        const SizedBox(height: 10),
-        FutureBuilder<Map<String, dynamic>>(
-          future: _summary,
-          builder: (context, snapshot) {
-            final s = snapshot.data ?? const <String, dynamic>{};
-            double n(dynamic v) =>
-                v is num ? v.toDouble() : double.tryParse('$v') ?? 0;
-            return Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              crossAxisAlignment: WrapCrossAlignment.center,
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 9, 12, 12),
+      child: Column(
+        children: [
+          SizedBox(
+            height: 48,
+            child: Row(
               children: [
-                ActionChip(
-                  avatar: const Icon(Icons.date_range, size: 18),
-                  label: Text('${_d(_from)} — ${_d(_to)}'),
-                  onPressed: _pickExpensePeriod,
+                Container(
+                  width: 4,
+                  height: 26,
+                  decoration: BoxDecoration(
+                    color: scheme.primary,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
                 ),
-                Chip(label: Text('Expenses ${s['expense_count'] ?? 0}')),
-                Chip(label: Text('Total ${_m(n(s['total']))}')),
-                Chip(label: Text('Tax ${_m(n(s['tax']))}')),
-                Chip(label: Text('Before tax ${_m(n(s['net_before_tax']))}')),
-              ],
-            );
-          },
-        ),
-        const SizedBox(height: 10),
-        Expanded(
-          child: FutureBuilder<List<Expense>>(
-            future: _future,
-            builder: (context, s) {
-              if (s.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator());
-              }
-              if (s.hasError) {
-                return Center(
-                  child: Text(s.error.toString(), textAlign: TextAlign.center),
-                );
-              }
-              final rows = s.data ?? [];
-              if (rows.isEmpty) {
-                return const Center(child: Text('No expenses recorded yet.'));
-              }
-              return RefreshIndicator(
-                onRefresh: _refresh,
-                child: ListView.separated(
-                  itemCount: rows.length,
-                  separatorBuilder: (_, _) => const SizedBox(height: 10),
-                  itemBuilder: (context, i) {
-                    final e = rows[i];
-                    return InkWell(
-                      onTap: () => _showTracking(e),
-                      onLongPress: _canEdit ? () => _editExpense(e) : null,
-                      borderRadius: BorderRadius.circular(16),
-                      child: Container(
-                        padding: const EdgeInsets.all(18),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: Colors.grey.shade200),
+                const SizedBox(width: 9),
+                Expanded(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Expenses',
+                        style: TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w900,
                         ),
+                      ),
+                      Text(
+                        'Operating expenses, payments and journal tracking',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 10.5,
+                          color: scheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  tooltip: 'Expense period',
+                  visualDensity: VisualDensity.compact,
+                  onPressed: _pickExpensePeriod,
+                  icon: const Icon(Icons.date_range_outlined, size: 19),
+                ),
+                IconButton(
+                  tooltip: 'Refresh expenses',
+                  visualDensity: VisualDensity.compact,
+                  onPressed: _refresh,
+                  icon: const Icon(Icons.refresh_rounded, size: 19),
+                ),
+                if (_canManage) ...[
+                  const SizedBox(width: 4),
+                  FilledButton.icon(
+                    onPressed: _newExpense,
+                    icon: const Icon(Icons.add, size: 17),
+                    label: const Text('New Expense'),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(height: 7),
+          FutureBuilder<Map<String, dynamic>>(
+            future: _summary,
+            builder: (context, snapshot) {
+              final s = snapshot.data ?? const <String, dynamic>{};
+              double n(dynamic v) =>
+                  v is num ? v.toDouble() : double.tryParse('$v') ?? 0;
+
+              return LayoutBuilder(
+                builder: (context, constraints) {
+                  final compact = constraints.maxWidth < 760;
+                  final values = <(String, String, IconData)>[
+                    (
+                      'Period',
+                      '${_d(_from)} - ${_d(_to)}',
+                      Icons.date_range_outlined,
+                    ),
+                    (
+                      'Expenses',
+                      '${s['expense_count'] ?? 0}',
+                      Icons.receipt_long_outlined,
+                    ),
+                    (
+                      'Before Tax',
+                      _m(n(s['net_before_tax'])),
+                      Icons.calculate_outlined,
+                    ),
+                    ('Tax', _m(n(s['tax'])), Icons.percent_outlined),
+                    ('Total', _m(n(s['total'])), Icons.payments_outlined),
+                  ];
+
+                  if (compact) {
+                    return SizedBox(
+                      height: 92,
+                      child: SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
                         child: Row(
-                          children: [
-                            Expanded(
-                              flex: 2,
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    e.number,
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
+                          children: values
+                              .map(
+                                (item) => Padding(
+                                  padding: const EdgeInsets.only(right: 6),
+                                  child: SizedBox(
+                                    width: item.$1 == 'Period' ? 180 : 140,
+                                    child: _expenseMetric(
+                                      item.$1,
+                                      item.$2,
+                                      item.$3,
                                     ),
                                   ),
-                                  Text(
-                                    _d(e.expenseDate),
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.grey.shade600,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            Expanded(
-                              flex: 3,
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    e.categoryName,
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                  Text(
-                                    e.payee.isEmpty ? e.description : e.payee,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.grey.shade600,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            Expanded(
-                              flex: 2,
-                              child: Text(e.paymentMethod.toUpperCase()),
-                            ),
-                            Expanded(
-                              flex: 2,
-                              child: Text(
-                                _m(e.totalAmount),
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
                                 ),
-                              ),
-                            ),
-                            Chip(label: Text(e.status.toUpperCase())),
-                            IconButton(
-                              tooltip: 'Tracking & journal',
-                              onPressed: () => _showTracking(e),
-                              icon: const Icon(Icons.history, size: 18),
-                            ),
-                            if (_canEdit)
-                              IconButton(
-                                tooltip: 'Edit expense',
-                                onPressed: () => _editExpense(e),
-                                icon: const Icon(Icons.edit_outlined, size: 18),
-                              ),
-                          ],
+                              )
+                              .toList(),
                         ),
                       ),
                     );
-                  },
-                ),
+                  }
+
+                  return SizedBox(
+                    height: 58,
+                    child: Row(
+                      children: [
+                        for (var i = 0; i < values.length; i++) ...[
+                          if (i > 0) const SizedBox(width: 6),
+                          Expanded(
+                            flex: values[i].$1 == 'Period' ? 2 : 1,
+                            child: _expenseMetric(
+                              values[i].$1,
+                              values[i].$2,
+                              values[i].$3,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  );
+                },
               );
             },
           ),
-        ),
+          const SizedBox(height: 7),
+          Expanded(
+            child: FutureBuilder<List<Expense>>(
+              future: _future,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+
+                if (snapshot.hasError) {
+                  return Center(
+                    child: Text(
+                      snapshot.error.toString(),
+                      textAlign: TextAlign.center,
+                    ),
+                  );
+                }
+
+                final rows = snapshot.data ?? const <Expense>[];
+                if (rows.isEmpty) {
+                  return const Center(
+                    child: Text('No expenses recorded for this period.'),
+                  );
+                }
+
+                return LayoutBuilder(
+                  builder: (context, constraints) {
+                    final compact = constraints.maxWidth < 860;
+                    final veryCompact = constraints.maxWidth < 680;
+
+                    return Container(
+                      decoration: BoxDecoration(
+                        color: scheme.surface,
+                        borderRadius: BorderRadius.circular(11),
+                        border: Border.all(color: scheme.outlineVariant),
+                      ),
+                      clipBehavior: Clip.antiAlias,
+                      child: Column(
+                        children: [
+                          if (!veryCompact)
+                            Container(
+                              height: 36,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                              ),
+                              color: scheme.surfaceContainerHighest,
+                              child: _expenseRegisterHeader(compact: compact),
+                            ),
+                          Expanded(
+                            child: RefreshIndicator(
+                              onRefresh: _refresh,
+                              child: ListView.builder(
+                                physics: const AlwaysScrollableScrollPhysics(),
+                                padding: EdgeInsets.zero,
+                                itemCount: rows.length,
+                                itemBuilder: (context, index) =>
+                                    _expenseRegisterRow(
+                                      rows[index],
+                                      compact: compact,
+                                      veryCompact: veryCompact,
+                                    ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _expenseMetric(String label, String value, IconData icon) {
+    final scheme = Theme.of(context).colorScheme;
+
+    return Container(
+      height: 54,
+      padding: const EdgeInsets.symmetric(horizontal: 9),
+      decoration: BoxDecoration(
+        color: scheme.surface,
+        borderRadius: BorderRadius.circular(9),
+        border: Border.all(color: scheme.outlineVariant),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 28,
+            height: 28,
+            decoration: BoxDecoration(
+              color: scheme.primary.withValues(alpha: .08),
+              borderRadius: BorderRadius.circular(7),
+            ),
+            child: Icon(icon, size: 14, color: scheme.primary),
+          ),
+          const SizedBox(width: 7),
+          Expanded(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 8.5,
+                    color: scheme.onSurfaceVariant,
+                  ),
+                ),
+                Text(
+                  value,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _expenseRegisterHeader({required bool compact}) {
+    Widget cell(String label, int flex, {TextAlign align = TextAlign.left}) =>
+        Expanded(
+          flex: flex,
+          child: Text(
+            label,
+            textAlign: align,
+            maxLines: 1,
+            style: const TextStyle(fontSize: 9.5, fontWeight: FontWeight.w800),
+          ),
+        );
+
+    return Row(
+      children: [
+        cell('Expense', 2),
+        cell('Category / Payee', 4),
+        if (!compact) cell('Payment', 2),
+        cell('Amount', 2, align: TextAlign.right),
+        const SizedBox(width: 82, child: Text('Status')),
+        const SizedBox(width: 66),
       ],
-    ),
-  );
+    );
+  }
+
+  Widget _expenseRegisterRow(
+    Expense expense, {
+    required bool compact,
+    required bool veryCompact,
+  }) {
+    final scheme = Theme.of(context).colorScheme;
+
+    if (veryCompact) {
+      return Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () => _showTracking(expense),
+          onLongPress: _canEdit ? () => _editExpense(expense) : null,
+          child: Container(
+            constraints: const BoxConstraints(minHeight: 58),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              border: Border(bottom: BorderSide(color: scheme.outlineVariant)),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        '${expense.number} | ${expense.categoryName}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      Text(
+                        '${_d(expense.expenseDate)} | '
+                        '${expense.payee.isEmpty ? expense.description : expense.payee}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 9,
+                          color: scheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  _m(expense.totalAmount),
+                  style: const TextStyle(
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(width: 5),
+                IconButton(
+                  tooltip: 'Tracking & journal',
+                  visualDensity: VisualDensity.compact,
+                  onPressed: () => _showTracking(expense),
+                  icon: const Icon(Icons.history, size: 17),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    Widget cell(
+      Widget child,
+      int flex, {
+      Alignment alignment = Alignment.centerLeft,
+    }) => Expanded(
+      flex: flex,
+      child: Align(
+        alignment: alignment,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 3),
+          child: child,
+        ),
+      ),
+    );
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => _showTracking(expense),
+        onLongPress: _canEdit ? () => _editExpense(expense) : null,
+        child: Container(
+          constraints: const BoxConstraints(minHeight: 48),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+          decoration: BoxDecoration(
+            border: Border(bottom: BorderSide(color: scheme.outlineVariant)),
+          ),
+          child: Row(
+            children: [
+              cell(
+                Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      expense.number,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    Text(
+                      _d(expense.expenseDate),
+                      style: TextStyle(
+                        fontSize: 8.5,
+                        color: scheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+                2,
+              ),
+              cell(
+                Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      expense.categoryName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    Text(
+                      expense.payee.isEmpty
+                          ? expense.description
+                          : expense.payee,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 8.5,
+                        color: scheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+                4,
+              ),
+              if (!compact)
+                cell(
+                  Text(
+                    expense.paymentMethod.toUpperCase(),
+                    maxLines: 1,
+                    style: const TextStyle(fontSize: 9.5),
+                  ),
+                  2,
+                ),
+              cell(
+                Text(
+                  _m(expense.totalAmount),
+                  maxLines: 1,
+                  style: const TextStyle(
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                2,
+                alignment: Alignment.centerRight,
+              ),
+              SizedBox(
+                width: 82,
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 7,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: scheme.surfaceContainerHighest,
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: Text(
+                      expense.status.toUpperCase(),
+                      style: const TextStyle(
+                        fontSize: 8.5,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              SizedBox(
+                width: 66,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    IconButton(
+                      tooltip: 'Tracking & journal',
+                      visualDensity: VisualDensity.compact,
+                      onPressed: () => _showTracking(expense),
+                      icon: const Icon(Icons.history, size: 16),
+                    ),
+                    if (_canEdit)
+                      IconButton(
+                        tooltip: 'Edit expense',
+                        visualDensity: VisualDensity.compact,
+                        onPressed: () => _editExpense(expense),
+                        icon: const Icon(Icons.edit_outlined, size: 16),
+                      ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class _ExpenseDialog extends StatefulWidget {
