@@ -151,7 +151,6 @@ class _BusinessDetailsScreenState extends State<BusinessDetailsScreen> {
     );
   }
 
-
   Future<void> _customerAccounts() async {
     await Navigator.of(context).push(
       MaterialPageRoute(
@@ -434,369 +433,445 @@ class _BusinessDetailsScreenState extends State<BusinessDetailsScreen> {
   @override
   Widget build(BuildContext context) {
     final business = widget.business;
+    final scheme = Theme.of(context).colorScheme;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
-
       appBar: AppBar(
-        title: const Text(
-          'Business Details',
-          style: TextStyle(fontWeight: FontWeight.bold),
+        toolbarHeight: 42,
+        title: Text(
+          business.name,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w900),
         ),
       ),
-
-      body: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(32),
-
-          child: Container(
-            width: 900,
-            padding: const EdgeInsets.all(32),
-
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: Colors.grey.shade200),
-            ),
-
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Container(
-                          width: 64,
-                          height: 64,
-                          decoration: BoxDecoration(
-                            color: Colors.indigo.shade50,
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          child: const Icon(Icons.store_outlined, size: 32),
-                        ),
-                        const SizedBox(width: 18),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                business.name,
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  fontSize: 26,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              const SizedBox(height: 5),
-                              Text(
-                                business.businessType ?? 'General Business',
-                                style: TextStyle(
-                                  fontSize: 15,
-                                  color: Colors.grey.shade600,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        _StatusBadge(status: business.status),
-                      ],
-                    ),
-                    const SizedBox(height: 18),
-                    SizedBox(
-                      width: double.infinity,
-                      child: Wrap(
-                        spacing: 10,
-                        runSpacing: 10,
-                        alignment: WrapAlignment.start,
-                        children: [
-                          OutlinedButton.icon(
-                            onPressed: _manageLocationsDevices,
-                            icon: const Icon(
-                              Icons.store_mall_directory_outlined,
-                            ),
-                            label: const Text('Locations & Systems'),
-                          ),
-                          OutlinedButton.icon(
-                            onPressed: _systemHealth,
-                            icon: const Icon(Icons.health_and_safety_outlined),
-                            label: const Text('System Health'),
-                          ),
-
-                          OutlinedButton.icon(
-                            onPressed: _customerAccounts,
-                            icon: const Icon(Icons.account_balance_wallet_outlined),
-                            label: const Text('Customer Accounts'),
-                          ),
-                          OutlinedButton.icon(
-                            onPressed: _manageDivision,
-                            icon: const Icon(Icons.account_tree_outlined),
-                            label: const Text('Division'),
-                          ),
-                          OutlinedButton.icon(
-                            onPressed: _manageSubscription,
-                            icon: const Icon(Icons.payments_outlined),
-                            label: const Text('Subscription'),
-                          ),
-                          OutlinedButton.icon(
-                            onPressed: _manageInvoiceTemplates,
-                            icon: const Icon(Icons.receipt_long_outlined),
-                            label: const Text('Invoice Designs'),
-                          ),
-                          OutlinedButton.icon(
-                            onPressed: _manageRoles,
-                            icon: const Icon(
-                              Icons.admin_panel_settings_outlined,
-                            ),
-                            label: const Text('Manage Roles'),
-                          ),
-                          FilledButton.icon(
-                            onPressed: _manageUsers,
-                            icon: const Icon(Icons.manage_accounts_outlined),
-                            label: const Text('Manage Users'),
-                          ),
-                          OutlinedButton.icon(
-                            onPressed: _archiveBusiness,
-                            icon: const Icon(Icons.archive_outlined),
-                            label: const Text('Archive'),
-                          ),
-                          OutlinedButton.icon(
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: Theme.of(
-                                context,
-                              ).colorScheme.error,
-                            ),
-                            onPressed: _deleteBusiness,
-                            icon: const Icon(Icons.delete_forever_outlined),
-                            label: const Text('Delete'),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-
-                const SizedBox(height: 28),
-
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(18),
-                  decoration: BoxDecoration(
-                    color: Colors.grey.shade50,
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: Colors.grey.shade200),
-                  ),
-                  child: Wrap(
-                    spacing: 40,
-                    runSpacing: 16,
-                    children: [
-                      _InfoItem(label: 'Business ID', value: business.slug),
-
-                      _InfoItem(label: 'Status', value: business.status),
-
-                      _InfoItem(
-                        label: 'Current Modules',
-                        value: '${business.moduleCount}',
-                      ),
-                      if ((business.divisionName ?? '').isNotEmpty)
-                        _InfoItem(
-                          label: 'Division',
-                          value:
-                              '${business.divisionName} • ${business.divisionRole ?? 'child'}',
-                        ),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(height: 32),
-
-                const Divider(),
-
-                const SizedBox(height: 24),
-
-                Row(
-                  children: [
-                    const Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Modules',
-                            style: TextStyle(
-                              fontSize: 22,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-
-                          SizedBox(height: 5),
-
-                          Text('Choose which features this business can use.'),
-                        ],
-                      ),
-                    ),
-
-                    Text(
-                      '${_selectedModules.length} selected',
-                      style: TextStyle(
-                        color: Colors.grey.shade600,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
-
-                const SizedBox(height: 22),
-
-                FutureBuilder<List<BusinessModule>>(
-                  future: _modulesFuture,
-                  builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting) {
-                      return const Padding(
-                        padding: EdgeInsets.all(40),
-                        child: Center(child: CircularProgressIndicator()),
-                      );
-                    }
-
-                    if (snapshot.hasError) {
-                      return _LoadError(
-                        message: snapshot.error.toString(),
-                        onRetry: _retry,
-                      );
-                    }
-
-                    final modules = snapshot.data ?? [];
-
-                    return Column(
-                      children: modules.map((module) {
-                        final isDashboard = module.key == 'dashboard';
-
-                        final selected = _selectedModules.contains(module.key);
-
-                        return Container(
-                          margin: const EdgeInsets.only(bottom: 10),
-                          decoration: BoxDecoration(
-                            color: selected
-                                ? Colors.indigo.shade50
-                                : Colors.grey.shade50,
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: selected
-                                  ? Colors.indigo.shade100
-                                  : Colors.grey.shade200,
-                            ),
-                          ),
-                          child: CheckboxListTile(
-                            value: selected,
-                            controlAffinity: ListTileControlAffinity.leading,
-                            title: Text(
-                              module.name,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                            subtitle: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                if (module.description != null &&
-                                    module.description!.trim().isNotEmpty)
-                                  Text(module.description!),
-
-                                const SizedBox(height: 3),
-
-                                Text(
-                                  module.category,
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: Colors.grey.shade600,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            secondary: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                if (isDashboard)
-                                  const Padding(
-                                    padding: EdgeInsets.only(right: 6),
-                                    child: Chip(label: Text('Required')),
-                                  ),
-
-                                if (module.isCore)
-                                  const Chip(label: Text('Core')),
-                              ],
-                            ),
-                            onChanged: isDashboard || _saving
-                                ? null
-                                : (value) {
-                                    setState(() {
-                                      if (value == true) {
-                                        _selectedModules.add(module.key);
-                                      } else {
-                                        _selectedModules.remove(module.key);
-                                      }
-                                    });
-                                  },
-                          ),
-                        );
-                      }).toList(),
-                    );
-                  },
-                ),
-
-                if (_error != null) ...[
-                  const SizedBox(height: 20),
-
+      body: Padding(
+        padding: const EdgeInsets.all(6),
+        child: Column(
+          children: [
+            Container(
+              constraints: const BoxConstraints(minHeight: 54),
+              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+              decoration: BoxDecoration(
+                color: scheme.surface,
+                borderRadius: BorderRadius.circular(9),
+                border: Border.all(color: scheme.outlineVariant),
+              ),
+              child: Row(
+                children: [
                   Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(14),
+                    width: 31,
+                    height: 31,
                     decoration: BoxDecoration(
-                      color: Colors.red.shade50,
+                      color: scheme.primary.withValues(alpha: .08),
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: Text(
-                      _error!,
-                      style: TextStyle(color: Colors.red.shade700),
+                    child: Icon(
+                      Icons.store_outlined,
+                      size: 17,
+                      color: scheme.primary,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          business.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                        Text(
+                          '${business.businessType ?? 'General Business'} | '
+                          '${business.slug}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 7.8,
+                            color: scheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  _StatusBadge(status: business.status),
+                  const SizedBox(width: 5),
+                  Text(
+                    '${_selectedModules.length} modules',
+                    style: TextStyle(
+                      fontSize: 7.8,
+                      color: scheme.onSurfaceVariant,
                     ),
                   ),
                 ],
-
-                const SizedBox(height: 30),
-
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    OutlinedButton(
-                      onPressed: _saving
-                          ? null
-                          : () {
-                              Navigator.of(context).pop();
-                            },
-                      child: const Text('Cancel'),
+              ),
+            ),
+            const SizedBox(height: 5),
+            Container(
+              constraints: const BoxConstraints(minHeight: 40),
+              padding: const EdgeInsets.all(4),
+              decoration: BoxDecoration(
+                color: scheme.surface,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: scheme.outlineVariant),
+              ),
+              child: Wrap(
+                spacing: 4,
+                runSpacing: 4,
+                children: [
+                  OutlinedButton.icon(
+                    onPressed: _manageLocationsDevices,
+                    icon: const Icon(
+                      Icons.store_mall_directory_outlined,
+                      size: 14,
                     ),
-
-                    const SizedBox(width: 12),
-
-                    FilledButton.icon(
-                      onPressed: _saving ? null : _save,
-                      icon: _saving
-                          ? const SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Icon(Icons.save_outlined),
-                      label: Text(_saving ? 'Saving...' : 'Save Changes'),
+                    label: const Text('Locations'),
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: _systemHealth,
+                    icon: const Icon(
+                      Icons.health_and_safety_outlined,
+                      size: 14,
+                    ),
+                    label: const Text('Health'),
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: _customerAccounts,
+                    icon: const Icon(
+                      Icons.account_balance_wallet_outlined,
+                      size: 14,
+                    ),
+                    label: const Text('Accounts'),
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: _manageDivision,
+                    icon: const Icon(Icons.account_tree_outlined, size: 14),
+                    label: const Text('Division'),
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: _manageSubscription,
+                    icon: const Icon(Icons.payments_outlined, size: 14),
+                    label: const Text('Subscription'),
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: _manageInvoiceTemplates,
+                    icon: const Icon(Icons.receipt_long_outlined, size: 14),
+                    label: const Text('Invoices'),
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: _manageRoles,
+                    icon: const Icon(
+                      Icons.admin_panel_settings_outlined,
+                      size: 14,
+                    ),
+                    label: const Text('Roles'),
+                  ),
+                  FilledButton.icon(
+                    onPressed: _manageUsers,
+                    icon: const Icon(Icons.manage_accounts_outlined, size: 14),
+                    label: const Text('Users'),
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: _archiveBusiness,
+                    icon: const Icon(Icons.archive_outlined, size: 14),
+                    label: const Text('Archive'),
+                  ),
+                  OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: scheme.error,
+                    ),
+                    onPressed: _deleteBusiness,
+                    icon: const Icon(Icons.delete_forever_outlined, size: 14),
+                    label: const Text('Delete'),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 5),
+            SizedBox(
+              height: 52,
+              child: Row(
+                children: [
+                  Expanded(
+                    child: _detailMetric(
+                      'Business ID',
+                      business.slug,
+                      Icons.tag,
+                    ),
+                  ),
+                  const SizedBox(width: 5),
+                  Expanded(
+                    child: _detailMetric(
+                      'Status',
+                      business.status,
+                      Icons.check_circle_outline,
+                    ),
+                  ),
+                  const SizedBox(width: 5),
+                  Expanded(
+                    child: _detailMetric(
+                      'Modules',
+                      '${business.moduleCount}',
+                      Icons.extension_outlined,
+                    ),
+                  ),
+                  if ((business.divisionName ?? '').isNotEmpty) ...[
+                    const SizedBox(width: 5),
+                    Expanded(
+                      child: _detailMetric(
+                        'Division',
+                        '${business.divisionName} | '
+                            '${business.divisionRole ?? 'child'}',
+                        Icons.account_tree_outlined,
+                      ),
                     ),
                   ],
+                ],
+              ),
+            ),
+            const SizedBox(height: 5),
+            Expanded(
+              child: Container(
+                decoration: BoxDecoration(
+                  color: scheme.surface,
+                  borderRadius: BorderRadius.circular(9),
+                  border: Border.all(color: scheme.outlineVariant),
+                ),
+                clipBehavior: Clip.antiAlias,
+                child: Column(
+                  children: [
+                    Container(
+                      height: 36,
+                      padding: const EdgeInsets.symmetric(horizontal: 9),
+                      color: scheme.surfaceContainerHighest.withValues(
+                        alpha: .45,
+                      ),
+                      child: Row(
+                        children: [
+                          const Expanded(
+                            child: Text(
+                              'MODULE ACCESS',
+                              style: TextStyle(
+                                fontSize: 8.8,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: .3,
+                              ),
+                            ),
+                          ),
+                          Text(
+                            '${_selectedModules.length} selected',
+                            style: TextStyle(
+                              fontSize: 7.5,
+                              color: scheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (_error != null)
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 5,
+                        ),
+                        color: scheme.errorContainer,
+                        child: Text(
+                          _error!,
+                          maxLines: 2,
+                          style: TextStyle(
+                            fontSize: 8,
+                            color: scheme.onErrorContainer,
+                          ),
+                        ),
+                      ),
+                    Expanded(
+                      child: FutureBuilder<List<BusinessModule>>(
+                        future: _modulesFuture,
+                        builder: (context, snapshot) {
+                          if (snapshot.connectionState ==
+                              ConnectionState.waiting) {
+                            return const Center(
+                              child: CircularProgressIndicator(),
+                            );
+                          }
+
+                          if (snapshot.hasError) {
+                            return _LoadError(
+                              message: snapshot.error.toString(),
+                              onRetry: _retry,
+                            );
+                          }
+
+                          final modules = snapshot.data ?? [];
+                          return ListView.builder(
+                            padding: EdgeInsets.zero,
+                            itemCount: modules.length,
+                            itemBuilder: (context, index) {
+                              final module = modules[index];
+                              final isDashboard = module.key == 'dashboard';
+                              final selected = _selectedModules.contains(
+                                module.key,
+                              );
+
+                              return Container(
+                                constraints: const BoxConstraints(
+                                  minHeight: 46,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: selected
+                                      ? scheme.primaryContainer.withValues(
+                                          alpha: .08,
+                                        )
+                                      : Colors.transparent,
+                                  border: Border(
+                                    bottom: BorderSide(
+                                      color: scheme.outlineVariant,
+                                    ),
+                                  ),
+                                ),
+                                child: CheckboxListTile(
+                                  dense: true,
+                                  contentPadding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                  ),
+                                  value: selected,
+                                  controlAffinity:
+                                      ListTileControlAffinity.leading,
+                                  title: Text(
+                                    module.name,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      fontSize: 8.8,
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                                  ),
+                                  subtitle: Text(
+                                    [
+                                      if ((module.description ?? '')
+                                          .trim()
+                                          .isNotEmpty)
+                                        module.description!.trim(),
+                                      module.category,
+                                    ].join(' | '),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontSize: 7.2,
+                                      color: scheme.onSurfaceVariant,
+                                    ),
+                                  ),
+                                  secondary: Wrap(
+                                    spacing: 3,
+                                    children: [
+                                      if (isDashboard)
+                                        const Chip(label: Text('Required')),
+                                      if (module.isCore)
+                                        const Chip(label: Text('Core')),
+                                    ],
+                                  ),
+                                  onChanged: isDashboard || _saving
+                                      ? null
+                                      : (value) {
+                                          setState(() {
+                                            if (value == true) {
+                                              _selectedModules.add(module.key);
+                                            } else {
+                                              _selectedModules.remove(
+                                                module.key,
+                                              );
+                                            }
+                                          });
+                                        },
+                                ),
+                              );
+                            },
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 5),
+            SizedBox(
+              height: 38,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  OutlinedButton(
+                    onPressed: _saving
+                        ? null
+                        : () => Navigator.of(context).pop(),
+                    child: const Text('Cancel'),
+                  ),
+                  const SizedBox(width: 5),
+                  FilledButton.icon(
+                    onPressed: _saving ? null : _save,
+                    icon: _saving
+                        ? const SizedBox(
+                            width: 14,
+                            height: 14,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.save_outlined, size: 15),
+                    label: Text(_saving ? 'Saving...' : 'Save Changes'),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _detailMetric(String label, String value, IconData icon) {
+    final scheme = Theme.of(context).colorScheme;
+
+    return Container(
+      height: 52,
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      decoration: BoxDecoration(
+        color: scheme.surface,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: scheme.outlineVariant),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, size: 13, color: scheme.primary),
+          const SizedBox(width: 5),
+          Expanded(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  value,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 8.6,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                Text(
+                  label,
+                  maxLines: 1,
+                  style: TextStyle(fontSize: 7, color: scheme.onSurfaceVariant),
                 ),
               ],
             ),
           ),
-        ),
+        ],
       ),
     );
   }

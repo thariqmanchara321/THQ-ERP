@@ -288,62 +288,84 @@ class _BusinessesScreenState extends State<BusinessesScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
+    final scheme = Theme.of(context).colorScheme;
 
+    return Scaffold(
       appBar: AppBar(
+        toolbarHeight: 42,
         title: const Text(
           'Businesses',
-          style: TextStyle(fontWeight: FontWeight.bold),
+          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900),
         ),
-
         actions: const [AdminHomeButton()],
       ),
-
       body: Padding(
-        padding: const EdgeInsets.all(32),
+        padding: const EdgeInsets.all(6),
         child: Column(
           children: [
-            Row(
-              children: [
-                const Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Businesses',
-                        style: TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      SizedBox(height: 6),
-                      Text('Manage businesses using THQ.'),
-                    ],
+            Container(
+              height: 46,
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              decoration: BoxDecoration(
+                color: scheme.surface,
+                borderRadius: BorderRadius.circular(9),
+                border: Border.all(color: scheme.outlineVariant),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 4,
+                    height: 25,
+                    decoration: BoxDecoration(
+                      color: scheme.primary,
+                      borderRadius: BorderRadius.circular(999),
+                    ),
                   ),
-                ),
-
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    OutlinedButton.icon(
-                      onPressed: _addChildStore,
-                      icon: const Icon(Icons.add_business_outlined),
-                      label: const Text('Add Child Store'),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Business Registry',
+                          style: TextStyle(
+                            fontSize: 14.5,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                        Text(
+                          'Tenants, divisions, stores and module access',
+                          style: TextStyle(
+                            fontSize: 8.3,
+                            color: scheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
                     ),
-                    FilledButton.icon(
-                      onPressed: _createBusiness,
-                      icon: const Icon(Icons.add),
-                      label: const Text('Create Business'),
-                    ),
-                  ],
-                ),
-              ],
+                  ),
+                  IconButton(
+                    tooltip: 'Refresh',
+                    visualDensity: VisualDensity.compact,
+                    onPressed: _refresh,
+                    icon: const Icon(Icons.refresh_rounded, size: 17),
+                  ),
+                  const SizedBox(width: 3),
+                  OutlinedButton.icon(
+                    onPressed: _addChildStore,
+                    icon: const Icon(Icons.add_business_outlined, size: 15),
+                    label: const Text('Child Store'),
+                  ),
+                  const SizedBox(width: 4),
+                  FilledButton.icon(
+                    onPressed: _createBusiness,
+                    icon: const Icon(Icons.add, size: 15),
+                    label: const Text('Create Business'),
+                  ),
+                ],
+              ),
             ),
-
-            const SizedBox(height: 30),
-
+            const SizedBox(height: 5),
             Expanded(
               child: FutureBuilder<List<Business>>(
                 future: _businessesFuture,
@@ -360,31 +382,189 @@ class _BusinessesScreenState extends State<BusinessesScreen> {
                   }
 
                   final businesses = snapshot.data ?? [];
-
                   if (businesses.isEmpty) {
                     return _EmptyBusinesses(onCreate: _createBusiness);
                   }
 
-                  return RefreshIndicator(
-                    onRefresh: _refresh,
-                    child: ListView.separated(
-                      itemCount: businesses.length,
-                      separatorBuilder: (_, _) => const SizedBox(height: 12),
-                      itemBuilder: (context, index) {
-                        final business = businesses[index];
+                  final activeCount = businesses
+                      .where((b) => b.status.toLowerCase() == 'active')
+                      .length;
+                  final moduleTotal = businesses.fold<int>(
+                    0,
+                    (sum, b) => sum + b.moduleCount,
+                  );
 
-                        return _BusinessCard(
-                          business: business,
-                          onTap: () => _openBusiness(business),
-                        );
-                      },
-                    ),
+                  return Column(
+                    children: [
+                      SizedBox(
+                        height: 54,
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: _adminMetric(
+                                'Businesses',
+                                '${businesses.length}',
+                                Icons.store_outlined,
+                              ),
+                            ),
+                            const SizedBox(width: 5),
+                            Expanded(
+                              child: _adminMetric(
+                                'Active',
+                                '$activeCount',
+                                Icons.check_circle_outline,
+                              ),
+                            ),
+                            const SizedBox(width: 5),
+                            Expanded(
+                              child: _adminMetric(
+                                'Module Assignments',
+                                '$moduleTotal',
+                                Icons.extension_outlined,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 5),
+                      Expanded(
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: scheme.surface,
+                            borderRadius: BorderRadius.circular(9),
+                            border: Border.all(color: scheme.outlineVariant),
+                          ),
+                          clipBehavior: Clip.antiAlias,
+                          child: Column(
+                            children: [
+                              Container(
+                                height: 34,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 9,
+                                ),
+                                color: scheme.surfaceContainerHighest
+                                    .withValues(alpha: .45),
+                                child: const Row(
+                                  children: [
+                                    Expanded(
+                                      flex: 4,
+                                      child: Text(
+                                        'Business',
+                                        style: TextStyle(
+                                          fontSize: 8.8,
+                                          fontWeight: FontWeight.w900,
+                                        ),
+                                      ),
+                                    ),
+                                    Expanded(
+                                      flex: 3,
+                                      child: Text(
+                                        'Type / Division',
+                                        style: TextStyle(
+                                          fontSize: 8.8,
+                                          fontWeight: FontWeight.w900,
+                                        ),
+                                      ),
+                                    ),
+                                    Expanded(
+                                      flex: 2,
+                                      child: Text(
+                                        'Modules',
+                                        textAlign: TextAlign.right,
+                                        style: TextStyle(
+                                          fontSize: 8.8,
+                                          fontWeight: FontWeight.w900,
+                                        ),
+                                      ),
+                                    ),
+                                    SizedBox(
+                                      width: 88,
+                                      child: Text(
+                                        'Status',
+                                        textAlign: TextAlign.center,
+                                        style: TextStyle(
+                                          fontSize: 8.8,
+                                          fontWeight: FontWeight.w900,
+                                        ),
+                                      ),
+                                    ),
+                                    SizedBox(width: 30),
+                                  ],
+                                ),
+                              ),
+                              Expanded(
+                                child: RefreshIndicator(
+                                  onRefresh: _refresh,
+                                  child: ListView.builder(
+                                    physics:
+                                        const AlwaysScrollableScrollPhysics(),
+                                    padding: EdgeInsets.zero,
+                                    itemCount: businesses.length,
+                                    itemBuilder: (context, index) {
+                                      final business = businesses[index];
+                                      return _BusinessCard(
+                                        business: business,
+                                        onTap: () => _openBusiness(business),
+                                      );
+                                    },
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
                   );
                 },
               ),
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _adminMetric(String label, String value, IconData icon) {
+    final scheme = Theme.of(context).colorScheme;
+
+    return Container(
+      height: 54,
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      decoration: BoxDecoration(
+        color: scheme.surface,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: scheme.outlineVariant),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, size: 14, color: scheme.primary),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  value,
+                  maxLines: 1,
+                  style: const TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                Text(
+                  label,
+                  maxLines: 1,
+                  style: TextStyle(
+                    fontSize: 7.3,
+                    color: scheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -398,116 +578,122 @@ class _BusinessCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     final active = business.status.toLowerCase() == 'active';
+    final division = (business.divisionName ?? '').isEmpty
+        ? 'Standalone'
+        : '${business.divisionName} | ${business.divisionRole ?? 'child'}';
 
     return Material(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(16),
-
+      color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
-
         child: Container(
-          padding: const EdgeInsets.all(20),
+          constraints: const BoxConstraints(minHeight: 48),
+          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.grey.shade200),
+            border: Border(bottom: BorderSide(color: scheme.outlineVariant)),
           ),
-
           child: Row(
             children: [
-              Container(
-                width: 52,
-                height: 52,
-                decoration: BoxDecoration(
-                  color: Colors.indigo.shade50,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Icon(Icons.store_outlined),
-              ),
-
-              const SizedBox(width: 18),
-
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                flex: 4,
+                child: Row(
                   children: [
-                    Text(
-                      business.name,
-                      style: const TextStyle(
-                        fontSize: 17,
-                        fontWeight: FontWeight.w600,
+                    Container(
+                      width: 27,
+                      height: 27,
+                      decoration: BoxDecoration(
+                        color: scheme.primary.withValues(alpha: .08),
+                        borderRadius: BorderRadius.circular(7),
+                      ),
+                      child: Icon(
+                        Icons.store_outlined,
+                        size: 14,
+                        color: scheme.primary,
                       ),
                     ),
-
-                    const SizedBox(height: 5),
-
+                    const SizedBox(width: 7),
+                    Expanded(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            business.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 9,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                          Text(
+                            business.slug,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 7.3,
+                              color: scheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                flex: 3,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
                     Text(
                       business.businessType ?? 'General Business',
-                      style: TextStyle(color: Colors.grey.shade600),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontSize: 8.2),
                     ),
-                    if ((business.divisionName ?? '').isNotEmpty) ...[
-                      const SizedBox(height: 3),
-                      Text(
-                        '${business.divisionName} • ${business.divisionRole ?? 'child'}',
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: Colors.indigo.shade600,
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-
-              SizedBox(
-                width: 150,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
                     Text(
-                      '${business.moduleCount} modules',
-                      style: const TextStyle(fontWeight: FontWeight.w500),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      business.slug,
+                      division,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey.shade600,
+                        fontSize: 7.2,
+                        color: scheme.onSurfaceVariant,
                       ),
                     ),
                   ],
                 ),
               ),
-
-              const SizedBox(width: 20),
-
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 6,
-                ),
-                decoration: BoxDecoration(
-                  color: active ? Colors.green.shade50 : Colors.grey.shade100,
-                  borderRadius: BorderRadius.circular(20),
-                ),
+              Expanded(
+                flex: 2,
                 child: Text(
-                  business.status.toUpperCase(),
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: active
-                        ? Colors.green.shade700
-                        : Colors.grey.shade700,
+                  '${business.moduleCount}',
+                  textAlign: TextAlign.right,
+                  style: const TextStyle(
+                    fontSize: 8.6,
+                    fontWeight: FontWeight.w900,
                   ),
                 ),
               ),
-
-              const SizedBox(width: 14),
-
-              const Icon(Icons.chevron_right),
+              SizedBox(
+                width: 88,
+                child: Text(
+                  business.status.toUpperCase(),
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 7,
+                    fontWeight: FontWeight.w900,
+                    color: active ? scheme.primary : scheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
+              const SizedBox(
+                width: 30,
+                child: Icon(Icons.chevron_right, size: 15),
+              ),
             ],
           ),
         ),

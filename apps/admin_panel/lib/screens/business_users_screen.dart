@@ -152,24 +152,21 @@ class _BusinessUsersScreenState extends State<BusinessUsersScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
+    final scheme = Theme.of(context).colorScheme;
 
+    return Scaffold(
       appBar: AppBar(
+        toolbarHeight: 42,
         title: const Text(
           'Business Users',
-          style: TextStyle(fontWeight: FontWeight.bold),
+          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900),
         ),
-
         actions: const [AdminHomeButton()],
       ),
-
       body: Padding(
-        padding: const EdgeInsets.all(32),
-
+        padding: const EdgeInsets.all(6),
         child: FutureBuilder<BusinessUsersData>(
           future: _future,
-
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
               return const Center(child: CircularProgressIndicator());
@@ -185,72 +182,90 @@ class _BusinessUsersScreenState extends State<BusinessUsersScreen> {
             final data = snapshot.data!;
 
             return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            widget.businessName,
-                            style: const TextStyle(
-                              fontSize: 24,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-
-                          const SizedBox(height: 6),
-
-                          Text(
-                            '${data.users.length} business user${data.users.length == 1 ? '' : 's'}',
-                            style: TextStyle(color: Colors.grey.shade600),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    FilledButton.icon(
-                      onPressed: data.roles.isEmpty
-                          ? null
-                          : () => _addUser(data.roles),
-                      icon: const Icon(Icons.person_add_alt_1),
-                      label: const Text('Add User'),
-                    ),
-                  ],
-                ),
-
-                const SizedBox(height: 28),
-
-                if (data.roles.isEmpty)
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.orange.shade50,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Text(
-                      'This business does not have any roles yet.',
-                    ),
+                Container(
+                  height: 46,
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  decoration: BoxDecoration(
+                    color: scheme.surface,
+                    borderRadius: BorderRadius.circular(9),
+                    border: Border.all(color: scheme.outlineVariant),
                   ),
-
-                if (data.roles.isNotEmpty && data.roles.length == 1)
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 4,
+                        height: 25,
+                        decoration: BoxDecoration(
+                          color: scheme.primary,
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              widget.businessName,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                            Text(
+                              '${data.users.length} user(s) | '
+                              '${data.roles.length} role(s)',
+                              style: TextStyle(
+                                fontSize: 7.8,
+                                color: scheme.onSurfaceVariant,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        tooltip: 'Refresh',
+                        visualDensity: VisualDensity.compact,
+                        onPressed: _reload,
+                        icon: const Icon(Icons.refresh_rounded, size: 17),
+                      ),
+                      const SizedBox(width: 3),
+                      FilledButton.icon(
+                        onPressed: data.roles.isEmpty
+                            ? null
+                            : () => _addUser(data.roles),
+                        icon: const Icon(Icons.person_add_alt_1, size: 15),
+                        label: const Text('Add User'),
+                      ),
+                    ],
+                  ),
+                ),
+                if (data.roles.isEmpty) ...[
+                  const SizedBox(height: 5),
                   Container(
                     width: double.infinity,
-                    margin: const EdgeInsets.only(bottom: 18),
-                    padding: const EdgeInsets.all(14),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 5,
+                    ),
                     decoration: BoxDecoration(
-                      color: Colors.blue.shade50,
-                      borderRadius: BorderRadius.circular(12),
+                      color: scheme.errorContainer,
+                      borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
-                      'Available role: ${data.roles.first.name}. '
-                      'Manager, Cashier, Salesperson and other roles will be added later.',
+                      'This business does not have any roles yet.',
+                      style: TextStyle(
+                        fontSize: 8,
+                        color: scheme.onErrorContainer,
+                      ),
                     ),
                   ),
-
+                ],
+                const SizedBox(height: 5),
                 Expanded(
                   child: data.users.isEmpty
                       ? _EmptyUsers(
@@ -258,19 +273,75 @@ class _BusinessUsersScreenState extends State<BusinessUsersScreen> {
                               ? null
                               : () => _addUser(data.roles),
                         )
-                      : ListView.separated(
-                          itemCount: data.users.length,
-                          separatorBuilder: (_, _) =>
-                              const SizedBox(height: 12),
-                          itemBuilder: (context, index) {
-                            final user = data.users[index];
-
-                            return _UserCard(
-                              user: user,
-                              onReset: () => _resetPassword(user),
-                              onDelete: () => _deleteUser(user),
-                            );
-                          },
+                      : Container(
+                          decoration: BoxDecoration(
+                            color: scheme.surface,
+                            borderRadius: BorderRadius.circular(9),
+                            border: Border.all(color: scheme.outlineVariant),
+                          ),
+                          clipBehavior: Clip.antiAlias,
+                          child: Column(
+                            children: [
+                              Container(
+                                height: 34,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 9,
+                                ),
+                                color: scheme.surfaceContainerHighest
+                                    .withValues(alpha: .45),
+                                child: const Row(
+                                  children: [
+                                    Expanded(
+                                      flex: 4,
+                                      child: Text(
+                                        'User',
+                                        style: TextStyle(
+                                          fontSize: 8.8,
+                                          fontWeight: FontWeight.w900,
+                                        ),
+                                      ),
+                                    ),
+                                    Expanded(
+                                      flex: 3,
+                                      child: Text(
+                                        'Roles',
+                                        style: TextStyle(
+                                          fontSize: 8.8,
+                                          fontWeight: FontWeight.w900,
+                                        ),
+                                      ),
+                                    ),
+                                    SizedBox(
+                                      width: 84,
+                                      child: Text(
+                                        'Status',
+                                        textAlign: TextAlign.center,
+                                        style: TextStyle(
+                                          fontSize: 8.8,
+                                          fontWeight: FontWeight.w900,
+                                        ),
+                                      ),
+                                    ),
+                                    SizedBox(width: 150),
+                                  ],
+                                ),
+                              ),
+                              Expanded(
+                                child: ListView.builder(
+                                  padding: EdgeInsets.zero,
+                                  itemCount: data.users.length,
+                                  itemBuilder: (context, index) {
+                                    final user = data.users[index];
+                                    return _UserCard(
+                                      user: user,
+                                      onReset: () => _resetPassword(user),
+                                      onDelete: () => _deleteUser(user),
+                                    );
+                                  },
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                 ),
               ],
@@ -296,106 +367,109 @@ class _UserCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     final active = user.status.toLowerCase() == 'active';
-
     final displayName = user.name.trim().isEmpty ? 'Unnamed User' : user.name;
 
     return Container(
-      padding: const EdgeInsets.all(20),
+      constraints: const BoxConstraints(minHeight: 50),
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border(bottom: BorderSide(color: scheme.outlineVariant)),
       ),
-
       child: Row(
         children: [
-          Container(
-            width: 52,
-            height: 52,
-            decoration: BoxDecoration(
-              color: Colors.indigo.shade50,
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: const Icon(Icons.person_outline),
-          ),
-
-          const SizedBox(width: 18),
-
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            flex: 4,
+            child: Row(
               children: [
-                Text(
-                  displayName,
-                  style: const TextStyle(
-                    fontSize: 17,
-                    fontWeight: FontWeight.w600,
+                Container(
+                  width: 27,
+                  height: 27,
+                  decoration: BoxDecoration(
+                    color: scheme.primary.withValues(alpha: .08),
+                    borderRadius: BorderRadius.circular(7),
+                  ),
+                  child: Icon(
+                    Icons.person_outline,
+                    size: 14,
+                    color: scheme.primary,
                   ),
                 ),
-
-                const SizedBox(height: 5),
-
-                Text(
-                  user.username.isNotEmpty
-                      ? '@${user.username}'
-                      : (user.email ?? 'No username'),
-                  style: TextStyle(color: Colors.grey.shade600),
-                ),
-
-                const SizedBox(height: 9),
-
-                Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
-                  children: [
-                    ...user.roles.map(
-                      (role) => Chip(
-                        label: Text(role.name),
-                        visualDensity: VisualDensity.compact,
-                      ),
-                    ),
-
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 5,
-                      ),
-                      decoration: BoxDecoration(
-                        color: active
-                            ? Colors.green.shade50
-                            : Colors.grey.shade100,
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Text(
-                        user.status.toUpperCase(),
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: active
-                              ? Colors.green.shade700
-                              : Colors.grey.shade700,
+                const SizedBox(width: 7),
+                Expanded(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        displayName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 8.8,
+                          fontWeight: FontWeight.w800,
                         ),
                       ),
-                    ),
-                  ],
+                      Text(
+                        user.username.isNotEmpty
+                            ? '@${user.username}'
+                            : (user.email ?? 'No username'),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 7.2,
+                          color: scheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
           ),
-
-          OutlinedButton.icon(
-            onPressed: onReset,
-            icon: const Icon(Icons.password_outlined),
-            label: const Text('Reset Password'),
+          Expanded(
+            flex: 3,
+            child: Text(
+              user.roles.isEmpty
+                  ? 'No role'
+                  : user.roles.map((r) => r.name).join(', '),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 8),
+            ),
           ),
-
-          const SizedBox(width: 10),
-
-          IconButton(
-            tooltip: 'Delete User',
-            onPressed: onDelete,
-            icon: const Icon(Icons.delete_outline),
+          SizedBox(
+            width: 84,
+            child: Text(
+              user.status.toUpperCase(),
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 7,
+                fontWeight: FontWeight.w900,
+                color: active ? scheme.primary : scheme.onSurfaceVariant,
+              ),
+            ),
+          ),
+          SizedBox(
+            width: 150,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                OutlinedButton.icon(
+                  onPressed: onReset,
+                  icon: const Icon(Icons.password_outlined, size: 13),
+                  label: const Text('Password'),
+                ),
+                const SizedBox(width: 3),
+                IconButton(
+                  tooltip: 'Delete User',
+                  visualDensity: VisualDensity.compact,
+                  onPressed: onDelete,
+                  icon: const Icon(Icons.delete_outline, size: 14),
+                ),
+              ],
+            ),
           ),
         ],
       ),

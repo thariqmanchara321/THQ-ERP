@@ -230,17 +230,14 @@ class _BusinessRolesScreenState extends State<BusinessRolesScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
-
       appBar: AppBar(
+        toolbarHeight: 42,
         title: const Text(
           'Roles & Permissions',
-          style: TextStyle(fontWeight: FontWeight.bold),
+          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900),
         ),
-
         actions: const [AdminHomeButton()],
       ),
-
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _error != null && _roles.isEmpty
@@ -255,42 +252,79 @@ class _BusinessRolesScreenState extends State<BusinessRolesScreen> {
     }
 
     final selectedRole = _selectedRole;
+    final scheme = Theme.of(context).colorScheme;
 
     return Padding(
-      padding: const EdgeInsets.all(32),
-
+      padding: const EdgeInsets.all(6),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            widget.businessName,
-            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+          Container(
+            height: 46,
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            decoration: BoxDecoration(
+              color: scheme.surface,
+              borderRadius: BorderRadius.circular(9),
+              border: Border.all(color: scheme.outlineVariant),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 4,
+                  height: 25,
+                  decoration: BoxDecoration(
+                    color: scheme.primary,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        widget.businessName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      Text(
+                        '${_roles.length} role(s) | '
+                        '${_permissions.length} permission(s)',
+                        style: TextStyle(
+                          fontSize: 7.8,
+                          color: scheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  tooltip: 'Refresh',
+                  visualDensity: VisualDensity.compact,
+                  onPressed: _saving ? null : _load,
+                  icon: const Icon(Icons.refresh_rounded, size: 17),
+                ),
+              ],
+            ),
           ),
-
-          const SizedBox(height: 6),
-
-          Text(
-            'Configure what each employee role can access.',
-            style: TextStyle(color: Colors.grey.shade600),
-          ),
-
-          const SizedBox(height: 28),
-
+          const SizedBox(height: 5),
           Expanded(
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 SizedBox(
-                  width: 270,
+                  width: 235,
                   child: _RolesPanel(
                     roles: _roles,
                     selectedRoleId: _selectedRoleId,
                     onSelect: _selectRole,
                   ),
                 ),
-
-                const SizedBox(width: 20),
-
+                const SizedBox(width: 5),
                 Expanded(
                   child: selectedRole == null
                       ? const SizedBox()
@@ -370,17 +404,17 @@ class _RolesPanel extends StatelessWidget {
       color: Colors.white,
       clipBehavior: Clip.antiAlias,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(9),
         side: BorderSide(color: Colors.grey.shade200),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Padding(
-            padding: EdgeInsets.all(20),
+            padding: EdgeInsets.all(9),
             child: Text(
               'Roles',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              style: TextStyle(fontSize: 10, fontWeight: FontWeight.w900),
             ),
           ),
 
@@ -388,7 +422,7 @@ class _RolesPanel extends StatelessWidget {
 
           Expanded(
             child: ListView.builder(
-              padding: const EdgeInsets.all(10),
+              padding: const EdgeInsets.all(5),
               itemCount: roles.length,
               itemBuilder: (context, index) {
                 final role = roles[index];
@@ -464,7 +498,7 @@ class _PermissionEditor extends StatelessWidget {
       color: Colors.white,
       clipBehavior: Clip.antiAlias,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(9),
         side: BorderSide(color: Colors.grey.shade200),
       ),
       child: Column(
