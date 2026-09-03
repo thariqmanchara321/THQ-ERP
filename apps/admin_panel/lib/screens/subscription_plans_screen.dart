@@ -41,8 +41,8 @@ class _SubscriptionPlansScreenState extends State<SubscriptionPlansScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
       appBar: AppBar(
+        toolbarHeight: 42,
         title: const Text('Subscription Plans'),
         actions: const [AdminHomeButton()],
       ),
@@ -64,28 +64,28 @@ class _SubscriptionPlansScreenState extends State<SubscriptionPlansScreen> {
           return RefreshIndicator(
             onRefresh: _refresh,
             child: ListView(
-              padding: const EdgeInsets.all(28),
+              padding: const EdgeInsets.all(6),
               children: [
                 const Text(
                   'Subscription Plans',
-                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 6),
                 Text(
                   'Plans control commercial entitlements and usage limits; tenant modules and user permissions remain separate controls.',
                   style: TextStyle(color: Colors.grey.shade600),
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 6),
                 Wrap(
-                  spacing: 16,
-                  runSpacing: 16,
+                  spacing: 6,
+                  runSpacing: 6,
                   children: plans
                       .map(
                         (p) => SizedBox(
                           width: 340,
                           child: Card(
                             child: Padding(
-                              padding: const EdgeInsets.all(20),
+                              padding: const EdgeInsets.all(8),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
@@ -95,7 +95,7 @@ class _SubscriptionPlansScreenState extends State<SubscriptionPlansScreen> {
                                         child: Text(
                                           p.name,
                                           style: const TextStyle(
-                                            fontSize: 20,
+                                            fontSize: 11,
                                             fontWeight: FontWeight.bold,
                                           ),
                                         ),
@@ -111,11 +111,11 @@ class _SubscriptionPlansScreenState extends State<SubscriptionPlansScreen> {
                                     maxLines: 2,
                                     overflow: TextOverflow.ellipsis,
                                   ),
-                                  const SizedBox(height: 14),
+                                  const SizedBox(height: 5),
                                   Text(
                                     '${p.currencyCode} ${p.monthlyPrice.toStringAsFixed(0)} / month',
                                     style: const TextStyle(
-                                      fontSize: 18,
+                                      fontSize: 10.5,
                                       fontWeight: FontWeight.w600,
                                     ),
                                   ),
@@ -390,7 +390,10 @@ class _PlanDialogState extends State<_PlanDialog> {
             const Divider(),
             const Align(
               alignment: Alignment.centerLeft,
-              child: Text('Entitled modules', style: TextStyle(fontWeight: FontWeight.bold)),
+              child: Text(
+                'Entitled modules',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
             ),
             const SizedBox(height: 8),
             DropdownButtonFormField<String>(
@@ -404,10 +407,12 @@ class _PlanDialogState extends State<_PlanDialog> {
               ),
               items: widget.modules
                   .where((m) => m.isActive && !_selected.contains(m.key))
-                  .map((m) => DropdownMenuItem<String>(
-                        value: m.key,
-                        child: Text('${m.name}  •  ${m.category}'),
-                      ))
+                  .map(
+                    (m) => DropdownMenuItem<String>(
+                      value: m.key,
+                      child: Text('${m.name}  •  ${m.category}'),
+                    ),
+                  )
                   .toList(),
               onChanged: (key) {
                 if (key != null) _addModule(key);
@@ -430,7 +435,8 @@ class _PlanDialogState extends State<_PlanDialog> {
                             ? const Icon(Icons.lock_outline, size: 16)
                             : null,
                         label: Text(label),
-                        onDeleted: key == 'dashboard' || _isRequiredCompanion(key)
+                        onDeleted:
+                            key == 'dashboard' || _isRequiredCompanion(key)
                             ? null
                             : () => _removeModule(key),
                       );

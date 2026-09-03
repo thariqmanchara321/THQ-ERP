@@ -226,8 +226,8 @@ class _InvoiceTemplatesScreenState extends State<InvoiceTemplatesScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
       appBar: AppBar(
+        toolbarHeight: 42,
         title: const Text('Invoice Templates'),
         actions: const [AdminHomeButton()],
       ),
@@ -248,11 +248,11 @@ class _InvoiceTemplatesScreenState extends State<InvoiceTemplatesScreen> {
 
           final rows = snapshot.data ?? const [];
           return ListView(
-            padding: const EdgeInsets.all(28),
+            padding: const EdgeInsets.all(6),
             children: [
               const Text(
                 'Invoice Designer',
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 5),
               const Text(
@@ -260,7 +260,7 @@ class _InvoiceTemplatesScreenState extends State<InvoiceTemplatesScreen> {
                 'fields, sample logos and footer text. Businesses can be '
                 'assigned different A4 and thermal templates.',
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 6),
               ...rows.map(
                 (item) => Card(
                   child: ListTile(

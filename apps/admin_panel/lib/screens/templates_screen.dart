@@ -44,8 +44,8 @@ class _TemplatesScreenState extends State<TemplatesScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
       appBar: AppBar(
+        toolbarHeight: 42,
         title: const Text('Business Templates'),
         actions: const [AdminHomeButton()],
       ),
@@ -67,18 +67,18 @@ class _TemplatesScreenState extends State<TemplatesScreen> {
           return RefreshIndicator(
             onRefresh: _refresh,
             child: ListView(
-              padding: const EdgeInsets.all(28),
+              padding: const EdgeInsets.all(6),
               children: [
                 const Text(
                   'Business Templates',
-                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 6),
                 Text(
                   'Reusable starting configurations for retail, restaurant, workshop, healthcare, labs and custom businesses.',
                   style: TextStyle(color: Colors.grey.shade600),
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 6),
                 ...rows.map(
                   (t) => Card(
                     child: ListTile(

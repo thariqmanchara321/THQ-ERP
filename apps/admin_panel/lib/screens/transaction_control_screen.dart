@@ -131,7 +131,7 @@ class _TransactionControlScreenState extends State<TransactionControlScreen> {
               const Text(
                 'This is a controlled accounting correction. Paid documents and documents with returns are blocked from direct voiding.',
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 4),
               TextField(
                 controller: reason,
                 minLines: 2,
@@ -189,24 +189,25 @@ class _TransactionControlScreenState extends State<TransactionControlScreen> {
     final selected = _businesses.where((b) => b.id == _tenantId).firstOrNull;
     return Scaffold(
       appBar: AppBar(
+        toolbarHeight: 42,
         title: const Text('Transaction Control'),
         actions: const [AdminHomeButton()],
       ),
       body: LayoutBuilder(
         builder: (context, constraints) => Padding(
-          padding: EdgeInsets.all(constraints.maxWidth < 720 ? 12 : 20),
+          padding: const EdgeInsets.all(6),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text(
                 'Cross-business Transaction Control',
-                style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900),
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w900),
               ),
               const SizedBox(height: 3),
               const Text(
                 'Inspect store/terminal transactions and apply audited safe corrections without bypassing stock or accounting rules.',
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 5),
               Wrap(
                 spacing: 9,
                 runSpacing: 9,
@@ -283,7 +284,7 @@ class _TransactionControlScreenState extends State<TransactionControlScreen> {
                     ),
                   ),
                 ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 4),
               Expanded(
                 child: _loading
                     ? const Center(child: CircularProgressIndicator())
@@ -295,7 +296,7 @@ class _TransactionControlScreenState extends State<TransactionControlScreen> {
                       )
                     : ListView.separated(
                         itemCount: _rows.length,
-                        separatorBuilder: (_, _) => const SizedBox(height: 7),
+                        separatorBuilder: (_, _) => const SizedBox(height: 4),
                         itemBuilder: (context, index) {
                           final row = _rows[index];
                           final status = row['status']?.toString() ?? '';
@@ -315,7 +316,7 @@ class _TransactionControlScreenState extends State<TransactionControlScreen> {
                                 vertical: 11,
                               ),
                               child: Wrap(
-                                spacing: 18,
+                                spacing: 6,
                                 runSpacing: 8,
                                 crossAxisAlignment: WrapCrossAlignment.center,
                                 children: [
@@ -433,7 +434,7 @@ class _TypeBadge extends StatelessWidget {
     padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
     decoration: BoxDecoration(
       color: Theme.of(context).colorScheme.primary.withValues(alpha: .09),
-      borderRadius: BorderRadius.circular(20),
+      borderRadius: BorderRadius.circular(9),
     ),
     child: Text(
       type.toUpperCase(),
@@ -729,7 +730,7 @@ class _TransactionEditDialogState extends State<_TransactionEditDialog> {
                                 labelText: 'Notes',
                               ),
                             ),
-                            const SizedBox(height: 12),
+                            const SizedBox(height: 4),
                             const Align(
                               alignment: Alignment.centerLeft,
                               child: Text(
@@ -739,7 +740,7 @@ class _TransactionEditDialogState extends State<_TransactionEditDialog> {
                             ),
                             ..._items.map(_itemRow),
                             if (_payments.isNotEmpty) ...[
-                              const SizedBox(height: 12),
+                              const SizedBox(height: 4),
                               const Align(
                                 alignment: Alignment.centerLeft,
                                 child: Text(
@@ -783,7 +784,7 @@ class _TransactionEditDialogState extends State<_TransactionEditDialog> {
                                 labelText: 'Return reason / note',
                               ),
                             ),
-                            const SizedBox(height: 12),
+                            const SizedBox(height: 4),
                             const Align(
                               alignment: Alignment.centerLeft,
                               child: Text(
@@ -851,7 +852,7 @@ class _TransactionEditDialogState extends State<_TransactionEditDialog> {
                               },
                             ),
                           ],
-                          const SizedBox(height: 14),
+                          const SizedBox(height: 5),
                           TextField(
                             controller: _reason,
                             minLines: 2,

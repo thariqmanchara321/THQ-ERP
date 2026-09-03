@@ -51,6 +51,7 @@ class _UiDesignStudioScreenState extends State<UiDesignStudioScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        toolbarHeight: 42,
         title: const Text(
           'Design Studio',
           style: TextStyle(fontWeight: FontWeight.w900),
@@ -75,7 +76,7 @@ class _UiDesignStudioScreenState extends State<UiDesignStudioScreen>
               }
               final rows = snapshot.data!;
               return ListView(
-                padding: const EdgeInsets.all(24),
+                padding: const EdgeInsets.all(6),
                 children: [
                   Row(
                     children: [
@@ -86,7 +87,7 @@ class _UiDesignStudioScreenState extends State<UiDesignStudioScreen>
                             Text(
                               'UI templates',
                               style: TextStyle(
-                                fontSize: 26,
+                                fontSize: 14,
                                 fontWeight: FontWeight.w900,
                               ),
                             ),
@@ -104,10 +105,10 @@ class _UiDesignStudioScreenState extends State<UiDesignStudioScreen>
                       ),
                     ],
                   ),
-                  const SizedBox(height: 22),
+                  const SizedBox(height: 6),
                   Wrap(
-                    spacing: 14,
-                    runSpacing: 14,
+                    spacing: 5,
+                    runSpacing: 5,
                     children: rows
                         .map(
                           (r) => _TemplatePreviewCard(
@@ -175,7 +176,7 @@ class _TemplatePreviewCard extends StatelessWidget {
               Container(
                 height: 150,
                 color: bg,
-                padding: const EdgeInsets.all(14),
+                padding: const EdgeInsets.all(7),
                 child: Row(
                   children: [
                     Container(
@@ -186,7 +187,7 @@ class _TemplatePreviewCard extends StatelessWidget {
                       ),
                       child: Column(
                         children: [
-                          const SizedBox(height: 12),
+                          const SizedBox(height: 4),
                           Container(
                             width: 28,
                             height: 28,
@@ -195,7 +196,7 @@ class _TemplatePreviewCard extends StatelessWidget {
                               borderRadius: BorderRadius.circular(9),
                             ),
                           ),
-                          const SizedBox(height: 12),
+                          const SizedBox(height: 4),
                           for (var i = 0; i < 4; i++)
                             Container(
                               margin: const EdgeInsets.only(bottom: 8),
@@ -263,7 +264,7 @@ class _TemplatePreviewCard extends StatelessWidget {
                                       ),
                                     ],
                                   ),
-                                  const SizedBox(height: 12),
+                                  const SizedBox(height: 4),
                                   Expanded(
                                     child: Align(
                                       alignment: Alignment.bottomLeft,
@@ -530,15 +531,15 @@ class _DesignTemplateDialogState extends State<_DesignTemplateDialog> {
                   field('radius', 'Radius', width: 120),
                 ],
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 5),
               const Text(
                 'Color pattern',
                 style: TextStyle(fontWeight: FontWeight.w900),
               ),
               const SizedBox(height: 8),
               Wrap(
-                spacing: 10,
-                runSpacing: 10,
+                spacing: 4,
+                runSpacing: 4,
                 children: [
                   field('primary', 'Primary'),
                   field('secondary', 'Secondary'),
@@ -549,7 +550,7 @@ class _DesignTemplateDialogState extends State<_DesignTemplateDialog> {
                   field('border', 'Border'),
                 ],
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 5),
               Row(
                 children: [
                   Expanded(
@@ -767,17 +768,17 @@ class _BusinessBrandingPanelState extends State<_BusinessBrandingPanel> {
   @override
   Widget build(BuildContext context) {
     return ListView(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(6),
       children: [
         const Text(
           'Business branding',
-          style: TextStyle(fontSize: 26, fontWeight: FontWeight.w900),
+          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900),
         ),
         const SizedBox(height: 4),
         const Text(
           'Choose a preset for each business, then override only the colors or shape values you want.',
         ),
-        const SizedBox(height: 20),
+        const SizedBox(height: 6),
         Row(
           children: [
             Expanded(
@@ -816,7 +817,7 @@ class _BusinessBrandingPanelState extends State<_BusinessBrandingPanel> {
             ),
           ],
         ),
-        const SizedBox(height: 14),
+        const SizedBox(height: 5),
         DropdownButtonFormField<String>(
           key: ValueKey('$appKey:$templateId'),
           initialValue: options.any((e) => e['id']?.toString() == templateId)
@@ -833,15 +834,15 @@ class _BusinessBrandingPanelState extends State<_BusinessBrandingPanel> {
               .toList(),
           onChanged: (v) => setState(() => templateId = v),
         ),
-        const SizedBox(height: 18),
+        const SizedBox(height: 5),
         const Text(
           'Optional business overrides',
           style: TextStyle(fontWeight: FontWeight.w900),
         ),
         const SizedBox(height: 8),
         Wrap(
-          spacing: 10,
-          runSpacing: 10,
+          spacing: 4,
+          runSpacing: 4,
           children: [
             for (final e in [
               ('Primary', primary),
@@ -865,7 +866,7 @@ class _BusinessBrandingPanelState extends State<_BusinessBrandingPanel> {
               ),
           ],
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 4),
         Row(
           children: [
             Expanded(
@@ -920,7 +921,7 @@ class _BusinessBrandingPanelState extends State<_BusinessBrandingPanel> {
             ],
           ],
         ),
-        const SizedBox(height: 20),
+        const SizedBox(height: 6),
         Align(
           alignment: Alignment.centerLeft,
           child: FilledButton.icon(

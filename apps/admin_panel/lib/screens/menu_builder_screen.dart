@@ -388,6 +388,7 @@ class _MenuBuilderScreenState extends State<MenuBuilderScreen> {
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(
+      toolbarHeight: 42,
       title: const Text('THQ Menu Builder'),
       actions: const [AdminHomeButton()],
     ),
@@ -397,13 +398,13 @@ class _MenuBuilderScreenState extends State<MenuBuilderScreen> {
       label: const Text('Menu / Group'),
     ),
     body: Padding(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(7),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
             'Dynamic Client & POS Navigation',
-            style: TextStyle(fontSize: 19, fontWeight: FontWeight.w900),
+            style: TextStyle(fontSize: 11, fontWeight: FontWeight.w900),
           ),
           const Text(
             'Rename, nest, reorder, hide and role-filter menu groups without changing stable feature IDs.',

@@ -19,7 +19,6 @@ class _PlatformErrorLogsScreenState extends State<PlatformErrorLogsScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    backgroundColor: const Color(0xFFF5F7FA),
     appBar: AppBar(title: const Text('Application Error Logs')),
     body: FutureBuilder<List<Map<String, dynamic>>>(
       future: _f,
@@ -30,9 +29,9 @@ class _PlatformErrorLogsScreenState extends State<PlatformErrorLogsScreen> {
         if (s.hasError) return Center(child: Text(s.error.toString()));
         final rows = s.data ?? [];
         return ListView.separated(
-          padding: const EdgeInsets.all(28),
+          padding: const EdgeInsets.all(6),
           itemCount: rows.length,
-          separatorBuilder: (_, _) => const SizedBox(height: 8),
+          separatorBuilder: (_, _) => const SizedBox(height: 4),
           itemBuilder: (context, i) {
             final x = rows[i];
             return Card(
@@ -44,7 +43,7 @@ class _PlatformErrorLogsScreenState extends State<PlatformErrorLogsScreen> {
                 children: [
                   if ((x['stack_trace']?.toString() ?? '').isNotEmpty)
                     Padding(
-                      padding: const EdgeInsets.all(16),
+                      padding: const EdgeInsets.all(8),
                       child: SelectableText(x['stack_trace'].toString()),
                     ),
                 ],

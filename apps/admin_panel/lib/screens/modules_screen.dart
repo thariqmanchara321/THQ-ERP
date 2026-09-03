@@ -45,8 +45,8 @@ class _ModulesScreenState extends State<ModulesScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
       appBar: AppBar(
+        toolbarHeight: 42,
         title: const Text('Module Catalogue'),
         actions: [
           TextButton.icon(
@@ -82,18 +82,18 @@ class _ModulesScreenState extends State<ModulesScreen> {
           return RefreshIndicator(
             onRefresh: _refresh,
             child: ListView(
-              padding: const EdgeInsets.all(28),
+              padding: const EdgeInsets.all(6),
               children: [
                 const Text(
                   'Module Catalogue',
-                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 6),
                 Text(
                   'Control core, POS and industry modules, dependencies and availability.',
                   style: TextStyle(color: Colors.grey.shade600),
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 6),
                 ...groups.entries.map(
                   (entry) => _Group(
                     title: entry.key,
@@ -126,15 +126,15 @@ class _Group extends StatelessWidget {
     return Card(
       margin: const EdgeInsets.only(bottom: 18),
       child: Padding(
-        padding: const EdgeInsets.all(18),
+        padding: const EdgeInsets.all(8),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
               title,
-              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 4),
             ...modules.map(
               (module) => ListTile(
                 contentPadding: EdgeInsets.zero,
@@ -374,7 +374,7 @@ class _Error extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         Text(message, textAlign: TextAlign.center),
-        const SizedBox(height: 12),
+        const SizedBox(height: 4),
         OutlinedButton(onPressed: retry, child: const Text('Retry')),
       ],
     ),

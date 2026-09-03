@@ -44,7 +44,7 @@ class _PlatformAdminsScreenState extends State<PlatformAdminsScreen> {
                 const Text(
                   'The username must already belong to an authenticated THQ user. Flutter never receives the service-role key.',
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 5),
                 TextField(
                   controller: username,
                   decoration: const InputDecoration(
@@ -52,7 +52,7 @@ class _PlatformAdminsScreenState extends State<PlatformAdminsScreen> {
                     border: OutlineInputBorder(),
                   ),
                 ),
-                const SizedBox(height: 14),
+                const SizedBox(height: 5),
                 DropdownButtonFormField<String>(
                   initialValue: role,
                   decoration: const InputDecoration(
@@ -166,8 +166,8 @@ class _PlatformAdminsScreenState extends State<PlatformAdminsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
       appBar: AppBar(
+        toolbarHeight: 42,
         title: const Text('Platform Admins'),
         actions: const [AdminHomeButton()],
       ),
@@ -189,18 +189,18 @@ class _PlatformAdminsScreenState extends State<PlatformAdminsScreen> {
           return RefreshIndicator(
             onRefresh: _refresh,
             child: ListView(
-              padding: const EdgeInsets.all(28),
+              padding: const EdgeInsets.all(6),
               children: [
                 const Text(
                   'Platform Administrators',
-                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 6),
                 Text(
                   'Separate platform responsibilities instead of granting every employee unrestricted Super Admin access.',
                   style: TextStyle(color: Colors.grey.shade600),
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 6),
                 ...rows.map(
                   (a) => Card(
                     child: ListTile(

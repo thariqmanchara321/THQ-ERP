@@ -57,7 +57,7 @@ class _PlatformSettingsScreenState extends State<PlatformSettingsScreen> {
               children: [
                 if ((setting.description ?? '').isNotEmpty)
                   Text(setting.description!),
-                const SizedBox(height: 12),
+                const SizedBox(height: 4),
                 TextField(
                   controller: controller,
                   minLines: 1,
@@ -118,8 +118,8 @@ class _PlatformSettingsScreenState extends State<PlatformSettingsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
       appBar: AppBar(
+        toolbarHeight: 42,
         title: const Text('Platform Settings'),
         actions: const [AdminHomeButton()],
       ),
@@ -136,18 +136,18 @@ class _PlatformSettingsScreenState extends State<PlatformSettingsScreen> {
           return RefreshIndicator(
             onRefresh: _refresh,
             child: ListView(
-              padding: const EdgeInsets.all(28),
+              padding: const EdgeInsets.all(6),
               children: [
                 const Text(
                   'Platform Settings',
-                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 6),
                 Text(
                   'Global defaults only. Tenant-specific business settings continue to override these values.',
                   style: TextStyle(color: Colors.grey.shade600),
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 6),
                 ...rows.map(
                   (s) => Card(
                     child: ListTile(

@@ -49,22 +49,23 @@ class _PlatformSupportScreenState extends State<PlatformSupportScreen> {
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(
+      toolbarHeight: 42,
       title: const Text('Support Centre'),
       leading: const AdminHomeButton(),
     ),
     body: Padding(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(6),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
             'Support Tickets',
-            style: TextStyle(fontSize: 28, fontWeight: FontWeight.w900),
+            style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w900),
           ),
           const Text(
             'Business issues arrive with tenant/device/application context.',
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 5),
           Wrap(
             spacing: 8,
             children:
@@ -88,7 +89,7 @@ class _PlatformSupportScreenState extends State<PlatformSupportScreen> {
                     )
                     .toList(),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 5),
           Expanded(
             child: _loading
                 ? const Center(child: CircularProgressIndicator())
@@ -98,12 +99,12 @@ class _PlatformSupportScreenState extends State<PlatformSupportScreen> {
                 ? const Center(child: Text('No support tickets in this view.'))
                 : ListView.separated(
                     itemCount: _rows.length,
-                    separatorBuilder: (_, _) => const SizedBox(height: 8),
+                    separatorBuilder: (_, _) => const SizedBox(height: 4),
                     itemBuilder: (context, index) {
                       final row = _rows[index];
                       return Card(
                         child: Padding(
-                          padding: const EdgeInsets.all(16),
+                          padding: const EdgeInsets.all(8),
                           child: Row(
                             children: [
                               CircleAvatar(
