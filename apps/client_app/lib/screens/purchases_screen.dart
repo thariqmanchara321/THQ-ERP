@@ -466,7 +466,7 @@ class _PurchasesScreenState extends State<PurchasesScreen> {
               if (!compact)
                 cell(
                   Text(
-                    purchase.supplierInvoiceNumber ?? 'â€”',
+                    purchase.supplierInvoiceNumber ?? '—',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(fontSize: 10.5),
@@ -670,6 +670,7 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
   double get _subtotal =>
       _lines.fold(0, (total, line) => total + line.subtotal);
 
+  // ignore: unused_element
   double get _lineDiscount =>
       _lines.fold(0, (total, line) => total + line.discount);
 

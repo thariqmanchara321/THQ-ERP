@@ -1,3 +1,4 @@
+// ignore_for_file: curly_braces_in_flow_control_structures
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -99,8 +100,7 @@ class _State extends State<MobilePosHomeScreen> {
               : 'Synced',
         );
     } catch (_) {
-      if (mounted)
-        setState(() => syncText = 'Offline â€¢ invoices stay queued');
+      if (mounted) setState(() => syncText = 'Offline • invoices stay queued');
     } finally {
       syncing = false;
     }
@@ -859,7 +859,7 @@ class _State extends State<MobilePosHomeScreen> {
                       subtitle: Text(
                         l.serialNumbers.isNotEmpty
                             ? 'Serial ${l.serialNumbers.join(', ')}'
-                            : '${l.quantity.toStringAsFixed(l.quantity % 1 == 0 ? 0 : 2)} ${l.unit.code} Ã— ${money(l.unitPrice)}',
+                            : '${l.quantity.toStringAsFixed(l.quantity % 1 == 0 ? 0 : 2)} ${l.unit.code} × ${money(l.unitPrice)}',
                       ),
                       trailing: Row(
                         mainAxisSize: MainAxisSize.min,
@@ -956,7 +956,7 @@ class _PaymentState extends State<_PaymentDialog> {
   @override
   Widget build(BuildContext context) => AlertDialog(
     title: Text(
-      'Payment â€¢ ${widget.currency} ${widget.total.toStringAsFixed(2)}',
+      'Payment • ${widget.currency} ${widget.total.toStringAsFixed(2)}',
     ),
     content: Column(
       mainAxisSize: MainAxisSize.min,

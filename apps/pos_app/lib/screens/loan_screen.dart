@@ -368,6 +368,7 @@ class _LoanScreenState extends State<LoanScreen> {
     );
   }
 
+  // ignore: unused_element
   Widget _header() => Row(
     children: [
       const Icon(Icons.account_balance_outlined, size: 22),

@@ -330,7 +330,7 @@ class _GstComplianceV520ScreenState extends State<GstComplianceV520Screen> {
   Widget _buildHeader(bool wide) {
     final selectedLocation = _locationById(_controller.locationId);
     final rangeLabel =
-        '${_date(_controller.from)}  â†’  ${_date(_controller.to)}';
+        '${_date(_controller.from)}  →  ${_date(_controller.to)}';
 
     return Material(
       elevation: 0.6,
@@ -710,7 +710,7 @@ class _GstComplianceV520ScreenState extends State<GstComplianceV520Screen> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           _SectionCard(
-            title: 'Location â†’ registration',
+            title: 'Location → registration',
             icon: Icons.location_on_outlined,
             child: _locations.isEmpty
                 ? const _EmptyState(
@@ -731,8 +731,8 @@ class _GstComplianceV520ScreenState extends State<GstComplianceV520Screen> {
                         [
                           _s(row['name']),
                           _s(row['location_type']),
-                          _s(row['gstin'], fallback: 'â€”'),
-                          _s(row['registration_legal_name'], fallback: 'â€”'),
+                          _s(row['gstin'], fallback: '—'),
+                          _s(row['registration_legal_name'], fallback: '—'),
                           row['registration_id'] == null
                               ? 'Not mapped'
                               : 'Mapped',
@@ -925,7 +925,7 @@ class _GstComplianceV520ScreenState extends State<GstComplianceV520Screen> {
           final title = [
             _s(row['product_name']),
             _s(row['variant_name']),
-          ].where((e) => e.isNotEmpty && e != 'â€”').join(' â€¢ ');
+          ].where((e) => e.isNotEmpty && e != '—').join(' • ');
           final subtitle = [
             _s(row['sku'], fallback: ''),
             configured ? 'GST configured' : 'Not configured',
@@ -1298,7 +1298,7 @@ class _GstComplianceV520ScreenState extends State<GstComplianceV520Screen> {
                 total == 0
                     ? '0'
                     : '${_transactionOffset + 1}'
-                          'â€“${_transactionOffset + items.length} of $total',
+                          '–${_transactionOffset + items.length} of $total',
               ),
             ],
           ),
@@ -2212,7 +2212,7 @@ class _RegistrationCard extends StatelessWidget {
             gstin,
             _labelize(_s(row['registration_type'], fallback: '')),
             _s(row['state_code'], fallback: ''),
-          ].where((e) => e.isNotEmpty).join('  â€¢  '),
+          ].where((e) => e.isNotEmpty).join('  •  '),
         ),
         trailing: Wrap(
           spacing: 0,
@@ -2618,7 +2618,7 @@ class _LocationMappingDialogState extends State<_LocationMappingDialog> {
                   DropdownMenuItem(
                     value: _firstText(row, ['id', 'registration_id']),
                     child: Text(
-                      '${_s(row['gstin'])} â€¢ '
+                      '${_s(row['gstin'])} • '
                       '${_firstText(row, ['legal_name', 'trade_name'])}',
                     ),
                   ),
@@ -2700,7 +2700,7 @@ class _ProductProfileCard extends StatelessWidget {
           children: [
             Expanded(
               child: Text(
-                variant.isEmpty ? name : '$name â€¢ $variant',
+                variant.isEmpty ? name : '$name • $variant',
                 style: const TextStyle(fontWeight: FontWeight.w700),
               ),
             ),
@@ -2714,12 +2714,12 @@ class _ProductProfileCard extends StatelessWidget {
         ),
         subtitle: Text(
           [
-            'HSN/SAC ${_firstText(row, ['hsn_sac'], fallback: 'â€”')}',
+            'HSN/SAC ${_firstText(row, ['hsn_sac'], fallback: '—')}',
             '${_number(row['gst_rate']).toStringAsFixed(2)}% GST',
             _labelize(_firstText(row, ['taxability'], fallback: 'taxable')),
             _truthy(row['tax_inclusive']) ? 'Inclusive' : 'Exclusive',
             _truthy(row['reverse_charge']) ? 'RCM' : '',
-          ].where((e) => e.isNotEmpty).join('  â€¢  '),
+          ].where((e) => e.isNotEmpty).join('  •  '),
         ),
         trailing: IconButton(
           tooltip: 'Edit GST profile',
@@ -2780,7 +2780,7 @@ class _ProductGstDialogState extends State<_ProductGstDialog> {
     _productLabel = [
       _firstText(row, ['product_name', 'name'], fallback: 'Product'),
       _firstText(row, ['variant_name'], fallback: ''),
-    ].where((e) => e.isNotEmpty).join(' â€¢ ');
+    ].where((e) => e.isNotEmpty).join(' • ');
 
     _supplyKind = ['goods', 'service'].contains(row['supply_kind'])
         ? row['supply_kind'].toString()
@@ -3131,7 +3131,7 @@ class _PartyProfileCard extends StatelessWidget {
             _firstText(row, ['gstin'], fallback: ''),
             _firstText(row, ['state_code'], fallback: ''),
             _firstText(row, ['place_of_supply_code'], fallback: ''),
-          ].where((e) => e.isNotEmpty).join('  â€¢  '),
+          ].where((e) => e.isNotEmpty).join('  •  '),
         ),
         trailing: IconButton(
           tooltip: 'Edit GST profile',
@@ -3265,7 +3265,7 @@ class _PartyGstDialogState extends State<_PartyGstDialog> {
                 SizedBox(
                   width: 650,
                   child: Text(
-                    '${_labelize(_partyType)} â€¢ $_partyName',
+                    '${_labelize(_partyType)} • $_partyName',
                     style: const TextStyle(fontWeight: FontWeight.w700),
                   ),
                 ),
@@ -3641,7 +3641,7 @@ class _TransactionTile extends StatelessWidget {
             'Taxable ${taxable.toStringAsFixed(2)}',
             'GST ${tax.toStringAsFixed(2)}',
             'Total ${total.toStringAsFixed(2)}',
-          ].where((e) => e.isNotEmpty).join('  â€¢  '),
+          ].where((e) => e.isNotEmpty).join('  •  '),
         ),
         trailing: const Icon(Icons.chevron_right),
       ),
@@ -3666,7 +3666,7 @@ class _EvidenceDialog extends StatelessWidget {
   String _eText(
     Map<String, dynamic> source,
     List<String> keys, {
-    String fallback = 'â€”',
+    String fallback = '—',
   }) {
     for (final key in keys) {
       final value = source[key];
@@ -3682,7 +3682,7 @@ class _EvidenceDialog extends StatelessWidget {
     return double.tryParse(value?.toString() ?? '') ?? 0;
   }
 
-  String _money(double value) => 'â‚¹${value.toStringAsFixed(2)}';
+  String _money(double value) => '₹${value.toStringAsFixed(2)}';
 
   String _qty(double value) {
     if ((value - value.roundToDouble()).abs() < 0.000001) {
@@ -3692,7 +3692,7 @@ class _EvidenceDialog extends StatelessWidget {
   }
 
   String _nice(String value) {
-    if (value.trim().isEmpty || value == 'â€”') return 'â€”';
+    if (value.trim().isEmpty || value == '—') return '—';
     return value
         .replaceAll('_', ' ')
         .split(' ')
@@ -3706,7 +3706,7 @@ class _EvidenceDialog extends StatelessWidget {
 
   String _dateLabel(String value) {
     final parsed = DateTime.tryParse(value);
-    if (parsed == null) return value.isEmpty ? 'â€”' : value;
+    if (parsed == null) return value.isEmpty ? '—' : value;
     const months = <String>[
       'Jan',
       'Feb',
@@ -4006,7 +4006,7 @@ class _EvidenceDialog extends StatelessWidget {
             Expanded(
               child: Text(
                 hashValid
-                    ? 'Snapshot integrity verified â€¢ ${_eText(snapshot, ['engine_version'], fallback: 'GST v5.2 engine')}'
+                    ? 'Snapshot integrity verified • ${_eText(snapshot, ['engine_version'], fallback: 'GST v5.2 engine')}'
                     : 'Snapshot integrity check failed. Review this evidence before relying on it.',
                 style: TextStyle(
                   fontWeight: FontWeight.w700,
@@ -4615,7 +4615,7 @@ List<String> _stringList(dynamic value) {
       .toList(growable: false);
 }
 
-String _s(dynamic value, {String fallback = 'â€”'}) {
+String _s(dynamic value, {String fallback = '—'}) {
   if (value == null) return fallback;
   final text = value.toString().trim();
   return text.isEmpty ? fallback : text;
@@ -4667,14 +4667,14 @@ String _labelize(String value) {
 }
 
 String _display(dynamic value) {
-  if (value == null) return 'â€”';
+  if (value == null) return '—';
   if (value is bool) return value ? 'Yes' : 'No';
   if (value is num) return value.toString();
   if (value is Map || value is List) {
     return const JsonEncoder.withIndent('  ').convert(value);
   }
   final text = value.toString().trim();
-  return text.isEmpty ? 'â€”' : text;
+  return text.isEmpty ? '—' : text;
 }
 
 String _date(DateTime value) {

@@ -133,7 +133,7 @@ class _PurchasesScreenState extends State<PurchasesScreen> {
                       Text(
                         widget.historyOnly
                             ? 'Purchase History'
-                            : 'Todayâ€™s Purchases',
+                            : 'Today’s Purchases',
                         style: const TextStyle(
                           fontSize: 14.5,
                           fontWeight: FontWeight.w900,

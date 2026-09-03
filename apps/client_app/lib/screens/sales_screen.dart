@@ -658,6 +658,7 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
     }
   }
 
+  // ignore: unused_element
   double _number(TextEditingController controller) {
     return double.tryParse(controller.text.trim()) ?? 0;
   }

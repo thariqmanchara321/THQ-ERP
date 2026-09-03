@@ -877,6 +877,7 @@ class _BusinessDetailsScreenState extends State<BusinessDetailsScreen> {
   }
 }
 
+// ignore: unused_element
 class _InfoItem extends StatelessWidget {
   final String label;
   final String value;

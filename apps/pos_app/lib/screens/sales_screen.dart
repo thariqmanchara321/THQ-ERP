@@ -117,7 +117,7 @@ class _SalesScreenState extends State<SalesScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const Text(
-                        'Todayâ€™s Sales',
+                        'Today’s Sales',
                         style: TextStyle(
                           fontSize: 14.5,
                           fontWeight: FontWeight.w900,

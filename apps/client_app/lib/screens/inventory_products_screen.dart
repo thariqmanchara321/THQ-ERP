@@ -681,7 +681,7 @@ class _ProductCard extends StatelessWidget {
   const _ProductCard({required this.product, required this.currencyCode});
 
   String _money(double value) {
-    if (currencyCode == 'INR') return 'â‚¹${value.toStringAsFixed(2)}';
+    if (currencyCode == 'INR') return '₹${value.toStringAsFixed(2)}';
     return '$currencyCode ${value.toStringAsFixed(2)}';
   }
 

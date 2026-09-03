@@ -133,6 +133,7 @@ class _PosScreenState extends State<PosScreen> {
 
   double get _total => _beforeRoundOff + _roundOffAmount;
 
+  // ignore: unused_element
   void _applyRoundOff() {
     final delta = _beforeRoundOff.roundToDouble() - _beforeRoundOff;
     setState(() {
@@ -151,6 +152,7 @@ class _PosScreenState extends State<PosScreen> {
         0;
   }
 
+  // ignore: unused_element
   double get _allocatedTotal {
     var remaining = _total;
     var allocated = 0.0;
@@ -912,9 +914,11 @@ class _PosScreenState extends State<PosScreen> {
     }
   }
 
+  // ignore: unused_element
   void _cashExact() =>
       setState(() => _tendered.text = _total.toStringAsFixed(2));
 
+  // ignore: unused_element
   void _addCash(double amount) {
     setState(() {
       _tendered.text = (_tenderedAmount + amount).toStringAsFixed(2);
@@ -1398,6 +1402,7 @@ class _PosScreenState extends State<PosScreen> {
       }
     }
 
+    // ignore: unused_local_variable
     final payment = _appliedPayment;
     final outstanding = _accountBalance;
     final now = DateTime.now();

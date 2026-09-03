@@ -81,6 +81,7 @@ class _PosScreenState extends State<PosScreen> {
 
   double get _total => _beforeRoundOff.roundToDouble();
 
+  // ignore: unused_element
   double get _automaticRoundOff => _total - _beforeRoundOff;
 
   void _applyRoundOff() {

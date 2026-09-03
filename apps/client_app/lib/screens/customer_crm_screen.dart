@@ -198,15 +198,15 @@ class _CustomerCrmScreenState extends State<CustomerCrmScreen> {
                                       ),
                                       _row(
                                         'Phone',
-                                        widget.customer.phone ?? 'â€”',
+                                        widget.customer.phone ?? '—',
                                       ),
                                       _row(
                                         'Email',
-                                        widget.customer.email ?? 'â€”',
+                                        widget.customer.email ?? '—',
                                       ),
                                       _row(
                                         'GSTIN / Tax ID',
-                                        widget.customer.taxNumber ?? 'â€”',
+                                        widget.customer.taxNumber ?? '—',
                                       ),
                                       _row(
                                         'Credit Limit',
@@ -214,7 +214,7 @@ class _CustomerCrmScreenState extends State<CustomerCrmScreen> {
                                       ),
                                       _row(
                                         'Customer Group',
-                                        crm['group_name']?.toString() ?? 'â€”',
+                                        crm['group_name']?.toString() ?? '—',
                                       ),
                                       _row(
                                         'Group Discount',
@@ -222,16 +222,16 @@ class _CustomerCrmScreenState extends State<CustomerCrmScreen> {
                                       ),
                                       _row(
                                         'Birthday',
-                                        crm['birthday']?.toString() ?? 'â€”',
+                                        crm['birthday']?.toString() ?? '—',
                                       ),
                                       _row(
                                         'Anniversary',
-                                        crm['anniversary']?.toString() ?? 'â€”',
+                                        crm['anniversary']?.toString() ?? '—',
                                       ),
                                       _row(
                                         'Last Sale',
                                         summary['last_sale_date']?.toString() ??
-                                            'â€”',
+                                            '—',
                                       ),
                                       const SizedBox(height: 10),
                                       Container(

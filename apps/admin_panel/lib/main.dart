@@ -30,18 +30,23 @@ Future<void> main() async {
 }
 
 class ThqAdminApp extends StatelessWidget {
-  const ThqAdminApp({super.key});
+  final bool? authenticatedOverride;
+
+  const ThqAdminApp({super.key, this.authenticatedOverride});
 
   @override
   Widget build(BuildContext context) {
+    final authenticated =
+        authenticatedOverride ??
+        (Supabase.instance.client.auth.currentSession != null);
+
     return MaterialApp(
       title: 'THQ Admin',
       debugShowCheckedModeBanner: false,
-      builder: (context, child) => NumericZeroAutoSelect(child: child ?? const SizedBox.shrink()),
+      builder: (context, child) =>
+          NumericZeroAutoSelect(child: child ?? const SizedBox.shrink()),
       theme: UiDesignProfile.fallback('client').theme(),
-      home: Supabase.instance.client.auth.currentSession == null
-          ? const LoginScreen()
-          : const AdminDashboardV600(),
+      home: authenticated ? const AdminDashboardV600() : const LoginScreen(),
     );
   }
 }
