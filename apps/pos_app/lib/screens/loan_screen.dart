@@ -235,17 +235,17 @@ class _LoanScreenState extends State<LoanScreen> {
           constraints: const BoxConstraints(maxWidth: 680),
           child: Card(
             child: Padding(
-              padding: const EdgeInsets.all(24),
+              padding: const EdgeInsets.all(16),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.error_outline, size: 42),
-                  const SizedBox(height: 12),
+                  const Icon(Icons.error_outline, size: 32),
+                  const SizedBox(height: 8),
                   Text(_error!, textAlign: TextAlign.center),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 10),
                   FilledButton.icon(
                     onPressed: _load,
-                    icon: const Icon(Icons.refresh),
+                    icon: const Icon(Icons.refresh, size: 15),
                     label: const Text('Retry'),
                   ),
                 ],
@@ -256,25 +256,99 @@ class _LoanScreenState extends State<LoanScreen> {
       );
     }
 
+    final scheme = Theme.of(context).colorScheme;
+
     return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
+      padding: const EdgeInsets.all(6),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _header(),
+          Container(
+            height: 46,
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            decoration: BoxDecoration(
+              color: scheme.surface,
+              borderRadius: BorderRadius.circular(9),
+              border: Border.all(color: scheme.outlineVariant),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 4,
+                  height: 25,
+                  decoration: BoxDecoration(
+                    color: scheme.primary,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Loans & Credit',
+                        style: TextStyle(
+                          fontSize: 14.5,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      Text(
+                        'Given & taken | schedules | repayments',
+                        style: TextStyle(
+                          fontSize: 8.3,
+                          color: scheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  tooltip: _loanAccountingEnabled
+                      ? 'Loan accounting enabled'
+                      : 'Loan accounting disabled',
+                  visualDensity: VisualDensity.compact,
+                  onPressed: _canManage ? _loanSettings : null,
+                  icon: Icon(
+                    _loanAccountingEnabled
+                        ? Icons.account_balance_outlined
+                        : Icons.money_off_outlined,
+                    size: 17,
+                  ),
+                ),
+                IconButton(
+                  tooltip: 'Refresh',
+                  visualDensity: VisualDensity.compact,
+                  onPressed: _load,
+                  icon: const Icon(Icons.refresh_rounded, size: 17),
+                ),
+                if (_canCreate) ...[
+                  const SizedBox(width: 3),
+                  FilledButton.icon(
+                    onPressed: () => _editLoan(),
+                    icon: const Icon(Icons.add, size: 15),
+                    label: const Text('New Loan'),
+                  ),
+                ],
+              ],
+            ),
+          ),
           if (_warning != null) ...[
-            const SizedBox(height: 10),
+            const SizedBox(height: 5),
             _banner(_warning!, Colors.orange, Icons.warning_amber_outlined),
           ],
-          const SizedBox(height: 6),
+          const SizedBox(height: 5),
           _metrics(),
           if (_warnings.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            _warningPanel(),
+            const SizedBox(height: 5),
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxHeight: 116),
+              child: _warningPanel(),
+            ),
           ],
-          const SizedBox(height: 6),
+          const SizedBox(height: 5),
           _filters(),
-          const SizedBox(height: 10),
+          const SizedBox(height: 5),
           Expanded(
             child: _loans.isEmpty
                 ? const Center(child: Text('No loans found for this scope.'))
@@ -282,8 +356,9 @@ class _LoanScreenState extends State<LoanScreen> {
                     onRefresh: _load,
                     child: ListView.separated(
                       physics: const AlwaysScrollableScrollPhysics(),
+                      padding: EdgeInsets.zero,
                       itemCount: _loans.length,
-                      separatorBuilder: (_, _) => const SizedBox(height: 8),
+                      separatorBuilder: (_, _) => const SizedBox(height: 5),
                       itemBuilder: (_, index) => _loanCard(_loans[index]),
                     ),
                   ),

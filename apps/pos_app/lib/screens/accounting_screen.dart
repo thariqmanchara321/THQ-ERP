@@ -347,101 +347,129 @@ class _AccountingScreenState extends State<AccountingScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
+    const sectionItems = <DropdownMenuItem<String>>[
+      DropdownMenuItem(value: 'overview', child: Text('Overview')),
+      DropdownMenuItem(value: 'accounts', child: Text('Chart of Accounts')),
+      DropdownMenuItem(value: 'sales', child: Text('Sales Register')),
+      DropdownMenuItem(value: 'purchases', child: Text('Purchase Register')),
+      DropdownMenuItem(value: 'cash', child: Text('Cash Book')),
+      DropdownMenuItem(value: 'bank', child: Text('Bank / UPI / Card')),
+      DropdownMenuItem(value: 'gst', child: Text('GST Register')),
+      DropdownMenuItem(value: 'all', child: Text('General Ledger')),
+    ];
+
     return Padding(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(6),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Wrap(
-            spacing: 12,
-            runSpacing: 12,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
-              const SizedBox(
-                width: 360,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Accounting',
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.w800,
-                      ),
+          Container(
+            height: 46,
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            decoration: BoxDecoration(
+              color: scheme.surface,
+              borderRadius: BorderRadius.circular(9),
+              border: Border.all(color: scheme.outlineVariant),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 4,
+                  height: 25,
+                  decoration: BoxDecoration(
+                    color: scheme.primary,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                const SizedBox(
+                  width: 135,
+                  child: Text(
+                    'Accounting',
+                    style: TextStyle(
+                      fontSize: 14.5,
+                      fontWeight: FontWeight.w900,
                     ),
-                    SizedBox(height: 4),
-                    Text('Accounts, registers, GST and financial activity'),
-                  ],
+                  ),
                 ),
-              ),
-              OutlinedButton.icon(
-                onPressed: () => _pickDate(from: true),
-                icon: const Icon(Icons.calendar_today_outlined),
-                label: Text('From ${_date(_from)}'),
-              ),
-              OutlinedButton.icon(
-                onPressed: () => _pickDate(from: false),
-                icon: const Icon(Icons.event_outlined),
-                label: Text('To ${_date(_to)}'),
-              ),
-              IconButton(
-                onPressed: _load,
-                tooltip: 'Refresh',
-                icon: const Icon(Icons.refresh),
-              ),
-            ],
-          ),
-          const SizedBox(height: 18),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: SegmentedButton<String>(
-              segments: const [
-                ButtonSegment(
-                  value: 'overview',
-                  label: Text('Overview'),
-                  icon: Icon(Icons.dashboard_outlined),
+                SizedBox(
+                  width: 190,
+                  child: DropdownButtonFormField<String>(
+                    initialValue: _section,
+                    isExpanded: true,
+                    items: sectionItems,
+                    decoration: const InputDecoration(labelText: 'Workspace'),
+                    onChanged: (value) {
+                      if (value == null) return;
+                      setState(() => _section = value);
+                      _load();
+                    },
+                  ),
                 ),
-                ButtonSegment(
-                  value: 'accounts',
-                  label: Text('Chart of Accounts'),
-                  icon: Icon(Icons.account_tree_outlined),
+                const SizedBox(width: 4),
+                OutlinedButton.icon(
+                  onPressed: () => _pickDate(from: true),
+                  icon: const Icon(Icons.calendar_today_outlined, size: 14),
+                  label: Text(_date(_from)),
                 ),
-                ButtonSegment(value: 'sales', label: Text('Sales Register')),
-                ButtonSegment(
-                  value: 'purchases',
-                  label: Text('Purchase Register'),
+                const SizedBox(width: 4),
+                OutlinedButton.icon(
+                  onPressed: () => _pickDate(from: false),
+                  icon: const Icon(Icons.event_outlined, size: 14),
+                  label: Text(_date(_to)),
                 ),
-                ButtonSegment(value: 'cash', label: Text('Cash Book')),
-                ButtonSegment(value: 'bank', label: Text('Bank / UPI / Card')),
-                ButtonSegment(value: 'gst', label: Text('GST Register')),
-                ButtonSegment(value: 'all', label: Text('General Ledger')),
+                const Spacer(),
+                IconButton(
+                  tooltip: 'Refresh',
+                  visualDensity: VisualDensity.compact,
+                  onPressed: _load,
+                  icon: const Icon(Icons.refresh_rounded, size: 17),
+                ),
               ],
-              selected: {_section},
-              onSelectionChanged: (values) {
-                setState(() => _section = values.first);
-                _load();
-              },
             ),
           ),
-          const SizedBox(height: 16),
-          if (_section != 'overview' && _section != 'accounts')
-            Padding(
-              padding: const EdgeInsets.only(bottom: 14),
+          if (_section != 'overview' && _section != 'accounts') ...[
+            const SizedBox(height: 5),
+            Container(
+              height: 40,
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              decoration: BoxDecoration(
+                color: scheme.surface,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: scheme.outlineVariant),
+              ),
               child: TextField(
                 controller: _search,
                 onSubmitted: (_) => _load(),
                 decoration: InputDecoration(
-                  hintText:
-                      'Search invoice number, product/party, account or reference…',
-                  prefixIcon: const Icon(Icons.search),
+                  hintText: 'Search invoice, party, account or reference...',
+                  prefixIcon: const Icon(Icons.search, size: 16),
                   suffixIcon: IconButton(
+                    tooltip: 'Search',
+                    visualDensity: VisualDensity.compact,
                     onPressed: _load,
-                    icon: const Icon(Icons.arrow_forward),
+                    icon: const Icon(Icons.arrow_forward, size: 15),
                   ),
+                  border: InputBorder.none,
+                  enabledBorder: InputBorder.none,
+                  focusedBorder: InputBorder.none,
                 ),
               ),
             ),
-          Expanded(child: _body()),
+          ],
+          const SizedBox(height: 5),
+          Expanded(
+            child: Container(
+              padding: const EdgeInsets.all(5),
+              decoration: BoxDecoration(
+                color: scheme.surface,
+                borderRadius: BorderRadius.circular(9),
+                border: Border.all(color: scheme.outlineVariant),
+              ),
+              child: _body(),
+            ),
+          ),
         ],
       ),
     );

@@ -822,70 +822,114 @@ class _StockTransfersScreenState extends State<StockTransfersScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
     return DefaultTabController(
       length: 4,
       child: Padding(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.all(6),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Wrap(
-              spacing: 12,
-              runSpacing: 10,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: [
-                const SizedBox(
-                  width: 520,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Warehouse & Transfers',
-                        style: TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.w800,
+            Container(
+              height: 46,
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              decoration: BoxDecoration(
+                color: scheme.surface,
+                borderRadius: BorderRadius.circular(9),
+                border: Border.all(color: scheme.outlineVariant),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 4,
+                    height: 25,
+                    decoration: BoxDecoration(
+                      color: scheme.primary,
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Warehouse & Transfers',
+                          style: TextStyle(
+                            fontSize: 14.5,
+                            fontWeight: FontWeight.w900,
+                          ),
                         ),
-                      ),
-                      SizedBox(height: 4),
-                      Text(
-                        'Request → Approve → Dispatch → In Transit → Receive, with stock counts and reconciliation.',
-                      ),
-                    ],
+                        Text(
+                          'Transfer, warehouse, count and reconciliation',
+                          style: TextStyle(
+                            fontSize: 8.3,
+                            color: scheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-                if (_canManage)
-                  FilledButton.icon(
-                    onPressed: _createTransfer,
-                    icon: const Icon(Icons.swap_horiz),
-                    label: const Text('New Transfer Request'),
+                  if (_canCount)
+                    OutlinedButton.icon(
+                      onPressed: _stockCount,
+                      icon: const Icon(Icons.fact_check_outlined, size: 15),
+                      label: const Text('Stock Count'),
+                    ),
+                  if (_canManage) ...[
+                    const SizedBox(width: 4),
+                    FilledButton.icon(
+                      onPressed: _createTransfer,
+                      icon: const Icon(Icons.swap_horiz, size: 15),
+                      label: const Text('New Transfer'),
+                    ),
+                  ],
+                  const SizedBox(width: 2),
+                  IconButton(
+                    tooltip: 'Refresh',
+                    visualDensity: VisualDensity.compact,
+                    onPressed: _refresh,
+                    icon: const Icon(Icons.refresh_rounded, size: 17),
                   ),
-                if (_canCount)
-                  OutlinedButton.icon(
-                    onPressed: _stockCount,
-                    icon: const Icon(Icons.fact_check_outlined),
-                    label: const Text('New Stock Count'),
-                  ),
-                IconButton(
-                  onPressed: _refresh,
-                  tooltip: 'Refresh',
-                  icon: const Icon(Icons.refresh),
-                ),
-              ],
+                ],
+              ),
             ),
-            const SizedBox(height: 16),
-            const TabBar(
-              isScrollable: true,
-              tabs: [
-                Tab(icon: Icon(Icons.swap_horiz), text: 'Transfers'),
-                Tab(icon: Icon(Icons.warehouse_outlined), text: 'Warehouses'),
-                Tab(
-                  icon: Icon(Icons.fact_check_outlined),
-                  text: 'Stock Counts',
+            const SizedBox(height: 5),
+            Container(
+              height: 36,
+              decoration: BoxDecoration(
+                color: scheme.surface,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: scheme.outlineVariant),
+              ),
+              child: const TabBar(
+                isScrollable: true,
+                labelStyle: TextStyle(
+                  fontSize: 8.8,
+                  fontWeight: FontWeight.w800,
                 ),
-                Tab(icon: Icon(Icons.balance_outlined), text: 'Reconciliation'),
-              ],
+                tabs: [
+                  Tab(
+                    icon: Icon(Icons.swap_horiz, size: 15),
+                    text: 'Transfers',
+                  ),
+                  Tab(
+                    icon: Icon(Icons.warehouse_outlined, size: 15),
+                    text: 'Warehouses',
+                  ),
+                  Tab(
+                    icon: Icon(Icons.fact_check_outlined, size: 15),
+                    text: 'Stock Counts',
+                  ),
+                  Tab(
+                    icon: Icon(Icons.balance_outlined, size: 15),
+                    text: 'Reconciliation',
+                  ),
+                ],
+              ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 5),
             Expanded(
               child: TabBarView(
                 children: [

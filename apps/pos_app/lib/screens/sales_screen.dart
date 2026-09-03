@@ -86,72 +86,91 @@ class _SalesScreenState extends State<SalesScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
     return Padding(
-      padding: const EdgeInsets.all(28),
-
+      padding: const EdgeInsets.all(6),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              const Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Today’s Sales',
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
+          Container(
+            height: 46,
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            decoration: BoxDecoration(
+              color: scheme.surface,
+              borderRadius: BorderRadius.circular(9),
+              border: Border.all(color: scheme.outlineVariant),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 4,
+                  height: 25,
+                  decoration: BoxDecoration(
+                    color: scheme.primary,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Todayâ€™s Sales',
+                        style: TextStyle(
+                          fontSize: 14.5,
+                          fontWeight: FontWeight.w900,
+                        ),
                       ),
-                    ),
-
-                    SizedBox(height: 5),
-
-                    Text('Invoices, payments and customer sales'),
-                  ],
+                      Text(
+                        'Invoices, payments and customer sales',
+                        style: TextStyle(
+                          fontSize: 8.3,
+                          color: scheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-
-              if (_canManage)
-                FilledButton.icon(
-                  onPressed: _newSale,
-                  icon: const Icon(Icons.add),
-                  label: const Text('New Sale'),
+                IconButton(
+                  tooltip: 'Refresh',
+                  visualDensity: VisualDensity.compact,
+                  onPressed: _refresh,
+                  icon: const Icon(Icons.refresh_rounded, size: 17),
                 ),
-            ],
+                if (_canManage) ...[
+                  const SizedBox(width: 3),
+                  FilledButton.icon(
+                    onPressed: _newSale,
+                    icon: const Icon(Icons.add, size: 15),
+                    label: const Text('New Sale'),
+                  ),
+                ],
+              ],
+            ),
           ),
-
-          const SizedBox(height: 24),
-
+          const SizedBox(height: 5),
           Expanded(
             child: FutureBuilder<List<Sale>>(
               future: _salesFuture,
-
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
                 }
-
                 if (snapshot.hasError) {
                   return Center(
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.error_outline, size: 56),
-
-                        const SizedBox(height: 16),
-
                         Text(
                           snapshot.error.toString(),
                           textAlign: TextAlign.center,
                         ),
-
-                        const SizedBox(height: 18),
-
+                        const SizedBox(height: 8),
                         OutlinedButton.icon(
                           onPressed: _refresh,
-                          icon: const Icon(Icons.refresh),
+                          icon: const Icon(Icons.refresh, size: 15),
                           label: const Text('Retry'),
                         ),
                       ],
@@ -160,38 +179,30 @@ class _SalesScreenState extends State<SalesScreen> {
                 }
 
                 final sales = snapshot.data ?? [];
-
                 if (sales.isEmpty) {
                   return Center(
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.point_of_sale_outlined, size: 72),
-
-                        const SizedBox(height: 18),
-
+                        Icon(
+                          Icons.point_of_sale_outlined,
+                          size: 36,
+                          color: scheme.outline,
+                        ),
+                        const SizedBox(height: 7),
                         const Text(
-                          'No Sales Yet',
+                          'No sales yet today.',
                           style: TextStyle(
-                            fontSize: 23,
-                            fontWeight: FontWeight.bold,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
                           ),
                         ),
-
-                        const SizedBox(height: 8),
-
-                        Text(
-                          'Create your first sales invoice.',
-                          style: TextStyle(color: Colors.grey.shade600),
-                        ),
-
                         if (_canManage) ...[
-                          const SizedBox(height: 22),
-
+                          const SizedBox(height: 8),
                           FilledButton.icon(
                             onPressed: _newSale,
-                            icon: const Icon(Icons.add),
-                            label: const Text('Create First Sale'),
+                            icon: const Icon(Icons.add, size: 15),
+                            label: const Text('Create Sale'),
                           ),
                         ],
                       ],
@@ -199,194 +210,323 @@ class _SalesScreenState extends State<SalesScreen> {
                   );
                 }
 
-                return RefreshIndicator(
-                  onRefresh: _refresh,
+                final total = sales.fold<double>(
+                  0,
+                  (sum, row) => sum + row.grandTotal,
+                );
+                final due = sales.fold<double>(
+                  0,
+                  (sum, row) => sum + row.balanceDue,
+                );
+                final profit = sales.fold<double>(
+                  0,
+                  (sum, row) => sum + row.grossProfit,
+                );
 
-                  child: ListView.separated(
-                    itemCount: sales.length,
-
-                    separatorBuilder: (_, _) => const SizedBox(height: 10),
-
-                    itemBuilder: (context, index) {
-                      final sale = sales[index];
-
-                      return InkWell(
-                        borderRadius: BorderRadius.circular(16),
-                        onTap: () => _openSale(sale),
-                        child: Container(
-                          padding: const EdgeInsets.all(18),
-
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-
-                            borderRadius: BorderRadius.circular(16),
-
-                            border: Border.all(color: Colors.grey.shade200),
+                return Column(
+                  children: [
+                    SizedBox(
+                      height: 54,
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: _salesMetric(
+                              'Invoices',
+                              '${sales.length}',
+                              Icons.receipt_long_outlined,
+                            ),
                           ),
-
-                          child: Row(
-                            children: [
-                              Expanded(
-                                flex: 2,
-
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-
-                                  children: [
-                                    Text(
-                                      sale.number,
-
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-
-                                    const SizedBox(height: 4),
-
-                                    Text(
-                                      _date(sale.saleDate),
-
-                                      style: TextStyle(
-                                        fontSize: 12,
-
-                                        color: Colors.grey.shade600,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-
-                              Expanded(
-                                flex: 3,
-
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-
-                                  children: [
-                                    Text(
-                                      sale.customerName,
-
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-
-                                    const SizedBox(height: 4),
-
-                                    Text(
-                                      'Customer',
-
-                                      style: TextStyle(
-                                        fontSize: 11,
-
-                                        color: Colors.grey.shade600,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-
-                              Expanded(
-                                flex: 2,
-
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-
-                                  children: [
-                                    Text(
-                                      'Total',
-
-                                      style: TextStyle(
-                                        fontSize: 11,
-
-                                        color: Colors.grey.shade600,
-                                      ),
-                                    ),
-
-                                    const SizedBox(height: 3),
-
-                                    Text(
-                                      _money(sale.grandTotal),
-
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-
-                              Expanded(
-                                flex: 2,
-
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-
-                                  children: [
-                                    Text(
-                                      'Balance Due',
-
-                                      style: TextStyle(
-                                        fontSize: 11,
-
-                                        color: Colors.grey.shade600,
-                                      ),
-                                    ),
-
-                                    const SizedBox(height: 3),
-
-                                    Text(
-                                      _money(sale.balanceDue),
-
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-
-                              Expanded(
-                                flex: 2,
-
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-
-                                  children: [
-                                    Text(
-                                      'Gross Profit',
-
-                                      style: TextStyle(
-                                        fontSize: 11,
-
-                                        color: Colors.grey.shade600,
-                                      ),
-                                    ),
-
-                                    const SizedBox(height: 3),
-
-                                    Text(
-                                      _money(sale.grossProfit),
-
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-
-                              _SalePaymentBadge(status: sale.paymentStatus),
-                              const SizedBox(width: 8),
-                              const Icon(Icons.chevron_right),
-                            ],
+                          const SizedBox(width: 5),
+                          Expanded(
+                            child: _salesMetric(
+                              'Sales',
+                              _money(total),
+                              Icons.point_of_sale_outlined,
+                            ),
                           ),
+                          const SizedBox(width: 5),
+                          Expanded(
+                            child: _salesMetric(
+                              'Balance Due',
+                              _money(due),
+                              Icons.schedule_outlined,
+                            ),
+                          ),
+                          const SizedBox(width: 5),
+                          Expanded(
+                            child: _salesMetric(
+                              'Gross Profit',
+                              _money(profit),
+                              Icons.trending_up,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 5),
+                    Expanded(
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: scheme.surface,
+                          borderRadius: BorderRadius.circular(9),
+                          border: Border.all(color: scheme.outlineVariant),
                         ),
-                      );
-                    },
-                  ),
+                        clipBehavior: Clip.antiAlias,
+                        child: Column(
+                          children: [
+                            Container(
+                              height: 34,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 9,
+                              ),
+                              color: scheme.surfaceContainerHighest.withValues(
+                                alpha: .45,
+                              ),
+                              child: const Row(
+                                children: [
+                                  Expanded(
+                                    flex: 2,
+                                    child: Text(
+                                      'Invoice',
+                                      style: TextStyle(
+                                        fontSize: 8.8,
+                                        fontWeight: FontWeight.w900,
+                                      ),
+                                    ),
+                                  ),
+                                  Expanded(
+                                    flex: 3,
+                                    child: Text(
+                                      'Customer',
+                                      style: TextStyle(
+                                        fontSize: 8.8,
+                                        fontWeight: FontWeight.w900,
+                                      ),
+                                    ),
+                                  ),
+                                  Expanded(
+                                    flex: 2,
+                                    child: Text(
+                                      'Total',
+                                      textAlign: TextAlign.right,
+                                      style: TextStyle(
+                                        fontSize: 8.8,
+                                        fontWeight: FontWeight.w900,
+                                      ),
+                                    ),
+                                  ),
+                                  Expanded(
+                                    flex: 2,
+                                    child: Text(
+                                      'Due',
+                                      textAlign: TextAlign.right,
+                                      style: TextStyle(
+                                        fontSize: 8.8,
+                                        fontWeight: FontWeight.w900,
+                                      ),
+                                    ),
+                                  ),
+                                  Expanded(
+                                    flex: 2,
+                                    child: Text(
+                                      'Profit',
+                                      textAlign: TextAlign.right,
+                                      style: TextStyle(
+                                        fontSize: 8.8,
+                                        fontWeight: FontWeight.w900,
+                                      ),
+                                    ),
+                                  ),
+                                  SizedBox(width: 105),
+                                  SizedBox(width: 28),
+                                ],
+                              ),
+                            ),
+                            Expanded(
+                              child: RefreshIndicator(
+                                onRefresh: _refresh,
+                                child: ListView.builder(
+                                  physics:
+                                      const AlwaysScrollableScrollPhysics(),
+                                  padding: EdgeInsets.zero,
+                                  itemCount: sales.length,
+                                  itemBuilder: (context, index) {
+                                    final sale = sales[index];
+                                    return Material(
+                                      color: Colors.transparent,
+                                      child: InkWell(
+                                        onTap: () => _openSale(sale),
+                                        child: Container(
+                                          constraints: const BoxConstraints(
+                                            minHeight: 46,
+                                          ),
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 9,
+                                            vertical: 4,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            border: Border(
+                                              bottom: BorderSide(
+                                                color: scheme.outlineVariant,
+                                              ),
+                                            ),
+                                          ),
+                                          child: Row(
+                                            children: [
+                                              Expanded(
+                                                flex: 2,
+                                                child: Column(
+                                                  mainAxisSize:
+                                                      MainAxisSize.min,
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.start,
+                                                  children: [
+                                                    Text(
+                                                      sale.number,
+                                                      maxLines: 1,
+                                                      overflow:
+                                                          TextOverflow.ellipsis,
+                                                      style: const TextStyle(
+                                                        fontSize: 8.8,
+                                                        fontWeight:
+                                                            FontWeight.w800,
+                                                      ),
+                                                    ),
+                                                    Text(
+                                                      _date(sale.saleDate),
+                                                      style: TextStyle(
+                                                        fontSize: 7.2,
+                                                        color: scheme
+                                                            .onSurfaceVariant,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                              Expanded(
+                                                flex: 3,
+                                                child: Text(
+                                                  sale.customerName,
+                                                  maxLines: 1,
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
+                                                  style: const TextStyle(
+                                                    fontSize: 8.5,
+                                                    fontWeight: FontWeight.w700,
+                                                  ),
+                                                ),
+                                              ),
+                                              Expanded(
+                                                flex: 2,
+                                                child: Text(
+                                                  _money(sale.grandTotal),
+                                                  textAlign: TextAlign.right,
+                                                  maxLines: 1,
+                                                  style: const TextStyle(
+                                                    fontSize: 8.7,
+                                                    fontWeight: FontWeight.w900,
+                                                  ),
+                                                ),
+                                              ),
+                                              Expanded(
+                                                flex: 2,
+                                                child: Text(
+                                                  _money(sale.balanceDue),
+                                                  textAlign: TextAlign.right,
+                                                  maxLines: 1,
+                                                  style: const TextStyle(
+                                                    fontSize: 8.4,
+                                                  ),
+                                                ),
+                                              ),
+                                              Expanded(
+                                                flex: 2,
+                                                child: Text(
+                                                  _money(sale.grossProfit),
+                                                  textAlign: TextAlign.right,
+                                                  maxLines: 1,
+                                                  style: const TextStyle(
+                                                    fontSize: 8.4,
+                                                  ),
+                                                ),
+                                              ),
+                                              SizedBox(
+                                                width: 105,
+                                                child: Align(
+                                                  alignment:
+                                                      Alignment.centerRight,
+                                                  child: _SalePaymentBadge(
+                                                    status: sale.paymentStatus,
+                                                  ),
+                                                ),
+                                              ),
+                                              const SizedBox(
+                                                width: 28,
+                                                child: Icon(
+                                                  Icons.chevron_right,
+                                                  size: 15,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
                 );
               },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _salesMetric(String label, String value, IconData icon) {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      height: 54,
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      decoration: BoxDecoration(
+        color: scheme.surface,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: scheme.outlineVariant),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, size: 14, color: scheme.primary),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  value,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 9.5,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                Text(
+                  label,
+                  maxLines: 1,
+                  style: TextStyle(
+                    fontSize: 7.3,
+                    color: scheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
             ),
           ),
         ],
