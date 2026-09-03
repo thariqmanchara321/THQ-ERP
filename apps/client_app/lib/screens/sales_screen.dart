@@ -1210,7 +1210,7 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
                 ),
                 Text(
-                  'Fast entry â€¢ GST-aware â€¢ inventory linked',
+                  'Fast entry | GST-aware | inventory linked',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(fontSize: 10.5),
@@ -1273,14 +1273,14 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
                         (entry) => SearchableSelectOption<String>(
                           value: entry.id,
                           label: entry.isWalkIn
-                              ? '${entry.name} â€” Counter Sale'
+                              ? '${entry.name} - Counter Sale'
                               : entry.name,
                           subtitle:
                               [entry.publicId, entry.phone, entry.taxNumber]
                                   .where(
                                     (value) => value?.trim().isNotEmpty == true,
                                   )
-                                  .join(' â€¢ '),
+                                  .join(' | '),
                           searchText:
                               '${entry.name} ${entry.publicId} ${entry.phone ?? ''} '
                               '${entry.email ?? ''} ${entry.taxNumber ?? ''}',
@@ -1348,7 +1348,7 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
                       : Icons.account_circle_outlined,
                   label: 'Customer Type',
                   value: customer?.isWalkIn == true
-                      ? 'Walk-in â€¢ full payment required'
+                      ? 'Walk-in | full payment required'
                       : 'Named customer',
                   warning: customer?.isWalkIn == true,
                 ),
@@ -1509,7 +1509,7 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
                         ),
                         const SizedBox(height: 3),
                         Text(
-                          'Product rows stay inside this panel â€” the page itself does not scroll.',
+                          'Rows scroll vertically. All columns and remove stay visible.',
                           style: TextStyle(
                             fontSize: 10.5,
                             color: scheme.onSurfaceVariant,
@@ -1518,60 +1518,41 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
                       ],
                     ),
                   )
-                : LayoutBuilder(
-                    builder: (context, tableConstraints) {
-                      final tableWidth = tableConstraints.maxWidth < 920
-                          ? 920.0
-                          : tableConstraints.maxWidth;
-
-                      return SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        child: SizedBox(
-                          width: tableWidth,
-                          height: tableConstraints.maxHeight,
-                          child: Column(
-                            children: [
-                              Container(
-                                height: 36,
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 8,
-                                ),
-                                color: scheme.surfaceContainerHighest,
-                                child: Row(
-                                  children: [
-                                    _saleHeaderCell('#', 1),
-                                    _saleHeaderCell('SKU', 2),
-                                    _saleHeaderCell('Product', 4),
-                                    _saleHeaderCell('Qty', 2),
-                                    _saleHeaderCell('Rate', 2),
-                                    _saleHeaderCell('Disc.', 2),
-                                    _saleHeaderCell('GST', 1),
-                                    _saleHeaderCell('Amount', 2),
-                                    const SizedBox(width: 44),
-                                  ],
-                                ),
-                              ),
-                              Expanded(
-                                child: ListView.builder(
-                                  padding: EdgeInsets.zero,
-                                  itemCount: _lines.length,
-                                  itemBuilder: (context, index) => _SaleLineRow(
-                                    index: index + 1,
-                                    line: _lines[index],
-                                    money: _money,
-                                    onDelete: _saving
-                                        ? null
-                                        : () => setState(
-                                            () => _lines.removeAt(index),
-                                          ),
-                                  ),
-                                ),
-                              ),
-                            ],
+                : Column(
+                    children: [
+                      Container(
+                        height: 36,
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        color: scheme.surfaceContainerHighest,
+                        child: Row(
+                          children: [
+                            _saleHeaderCell('#', 1),
+                            _saleHeaderCell('SKU', 2),
+                            _saleHeaderCell('Product', 4),
+                            _saleHeaderCell('Qty', 2),
+                            _saleHeaderCell('Rate', 2),
+                            _saleHeaderCell('Disc.', 2),
+                            _saleHeaderCell('GST', 1),
+                            _saleHeaderCell('Amount', 2),
+                            const SizedBox(width: 42),
+                          ],
+                        ),
+                      ),
+                      Expanded(
+                        child: ListView.builder(
+                          padding: EdgeInsets.zero,
+                          itemCount: _lines.length,
+                          itemBuilder: (context, index) => _SaleLineRow(
+                            index: index + 1,
+                            line: _lines[index],
+                            money: _money,
+                            onDelete: _saving
+                                ? null
+                                : () => setState(() => _lines.removeAt(index)),
                           ),
                         ),
-                      );
-                    },
+                      ),
+                    ],
                   ),
           ),
         ],
@@ -1759,8 +1740,8 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
           Expanded(
             child: Text(
               _error ??
-                  '${_lines.length} item${_lines.length == 1 ? '' : 's'} â€¢ '
-                      '${_money(_grandTotal)} â€¢ '
+                  '${_lines.length} item${_lines.length == 1 ? '' : 's'} | '
+                      '${_money(_grandTotal)} | '
                       '${_balanceDue > 0.005 ? '${_money(_balanceDue)} receivable' : 'fully allocated'}',
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
@@ -2011,44 +1992,38 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
                 child: Text('Search or scan a product to start this invoice.'),
               ),
             )
-          : SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: SizedBox(
-                width: 1080,
-                child: Column(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 10,
-                      ),
-                      color: const Color(0xFFF1F4F8),
-                      child: Row(
-                        children: [
-                          _saleHeaderCell('#', 1),
-                          _saleHeaderCell('SKU', 2),
-                          _saleHeaderCell('Product', 4),
-                          _saleHeaderCell('Qty', 2),
-                          _saleHeaderCell('Rate', 2),
-                          _saleHeaderCell('Disc.', 2),
-                          _saleHeaderCell('GST', 1),
-                          _saleHeaderCell('Amount', 2),
-                          const SizedBox(width: 44),
-                        ],
-                      ),
-                    ),
-                    for (var i = 0; i < _lines.length; i++)
-                      _SaleLineRow(
-                        index: i + 1,
-                        line: _lines[i],
-                        money: _money,
-                        onDelete: _saving
-                            ? null
-                            : () => setState(() => _lines.removeAt(i)),
-                      ),
-                  ],
+          : Column(
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 10,
+                  ),
+                  color: const Color(0xFFF1F4F8),
+                  child: Row(
+                    children: [
+                      _saleHeaderCell('#', 1),
+                      _saleHeaderCell('SKU', 2),
+                      _saleHeaderCell('Product', 4),
+                      _saleHeaderCell('Qty', 2),
+                      _saleHeaderCell('Rate', 2),
+                      _saleHeaderCell('Disc.', 2),
+                      _saleHeaderCell('GST', 1),
+                      _saleHeaderCell('Amount', 2),
+                      const SizedBox(width: 42),
+                    ],
+                  ),
                 ),
-              ),
+                for (var i = 0; i < _lines.length; i++)
+                  _SaleLineRow(
+                    index: i + 1,
+                    line: _lines[i],
+                    money: _money,
+                    onDelete: _saving
+                        ? null
+                        : () => setState(() => _lines.removeAt(i)),
+                  ),
+              ],
             ),
     );
   }

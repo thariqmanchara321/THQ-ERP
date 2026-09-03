@@ -411,17 +411,14 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
                           },
                           decoration: const InputDecoration(
                             isDense: true,
-                            hintText: 'Find anythingâ€¦',
+                            hintText: 'Find anything...',
                             prefixIcon: Icon(Icons.search, size: 17),
                           ),
                         ),
                       ),
                     ),
                   Expanded(
-                    child: _navList(
-                      collapsed: _navCollapsed,
-                      profile: profile,
-                    ),
+                    child: _navList(collapsed: _navCollapsed, profile: profile),
                   ),
                   const Divider(height: 1),
                   _navAction(
@@ -430,8 +427,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
                         : Icons.keyboard_double_arrow_left,
                     label: _navCollapsed ? 'Expand' : 'Collapse',
                     collapsed: _navCollapsed,
-                    onTap: () =>
-                        setState(() => _navCollapsed = !_navCollapsed),
+                    onTap: () => setState(() => _navCollapsed = !_navCollapsed),
                   ),
                   _navAction(
                     icon: Icons.logout_rounded,
@@ -443,7 +439,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
                     Padding(
                       padding: const EdgeInsets.fromLTRB(12, 2, 12, 8),
                       child: Text(
-                        'v${ThqReleaseContract.appVersion}  â€¢  Build ${ThqReleaseContract.buildNumber}',
+                        'v${ThqReleaseContract.appVersion}  |  Build ${ThqReleaseContract.buildNumber}',
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           fontSize: 9.5,
@@ -551,7 +547,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
                   },
                   decoration: const InputDecoration(
                     isDense: true,
-                    hintText: 'Find menu or search THQâ€¦',
+                    hintText: 'Find menu or search THQ...',
                     prefixIcon: Icon(Icons.search),
                   ),
                 ),
@@ -643,8 +639,8 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
                   const SizedBox(height: 2),
                   Text(
                     device == null
-                        ? 'THQ Business â€¢ v${ThqReleaseContract.appVersion}'
-                        : '${device.locationCode} â€¢ ${device.deviceCode}',
+                        ? 'THQ Business | v${ThqReleaseContract.appVersion}'
+                        : '${device.locationCode} | ${device.deviceCode}',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
@@ -923,10 +919,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
 
     final tile = Material(
       color: active
-          ? Color.alphaBlend(
-              primary.withValues(alpha: .12),
-              scheme.surface,
-            )
+          ? Color.alphaBlend(primary.withValues(alpha: .12), scheme.surface)
           : Colors.transparent,
       borderRadius: BorderRadius.circular(8),
       clipBehavior: Clip.antiAlias,
@@ -948,8 +941,9 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
               Expanded(
                 flex: collapsed ? 1 : 0,
                 child: Align(
-                  alignment:
-                      collapsed ? Alignment.center : Alignment.centerLeft,
+                  alignment: collapsed
+                      ? Alignment.center
+                      : Alignment.centerLeft,
                   child: Icon(
                     _moduleIcon(module.key),
                     size: 17,
@@ -966,8 +960,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       fontSize: 11.5,
-                      fontWeight:
-                          active ? FontWeight.w700 : FontWeight.w500,
+                      fontWeight: active ? FontWeight.w700 : FontWeight.w500,
                       color: active ? scheme.onSurface : inactive,
                     ),
                   ),
@@ -983,10 +976,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
     return Tooltip(
       message: collapsed ? label : '',
       child: Padding(
-        padding: EdgeInsets.only(
-          bottom: 2,
-          left: nested && !collapsed ? 8 : 0,
-        ),
+        padding: EdgeInsets.only(bottom: 2, left: nested && !collapsed ? 8 : 0),
         child: tile,
       ),
     );
@@ -1069,7 +1059,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
                       device.locationCode,
                     if (device != null && device.deviceName.isNotEmpty)
                       device.deviceName,
-                  ].join('  â€¢  '),
+                  ].join('  |  '),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
@@ -1083,7 +1073,9 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
           _scopeSelector(width: 238),
           const SizedBox(width: 6),
           IconButton(
-            tooltip: _updatesAvailable ? 'Updates available â€” Refresh' : 'Refresh',
+            tooltip: _updatesAvailable
+                ? 'Updates available - Refresh'
+                : 'Refresh',
             visualDensity: VisualDensity.compact,
             onPressed: _refreshing ? null : _refreshAll,
             icon: _refreshing
@@ -1104,7 +1096,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
           ),
           const SizedBox(width: 4),
           Tooltip(
-            message: '${_session.username} â€¢ ${_session.roleLabel}',
+            message: '${_session.username} | ${_session.roleLabel}',
             child: Container(
               constraints: const BoxConstraints(maxWidth: 150),
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
@@ -1182,13 +1174,13 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
               if (_session.canViewAllLocations)
                 const DropdownMenuItem<String?>(
                   value: null,
-                  child: Text('All stores â€¢ merged'),
+                  child: Text('All stores | merged'),
                 ),
               ...LocationScopeService.orderedLocations(_session).map(
                 (location) => DropdownMenuItem<String?>(
                   value: location.id,
                   child: Text(
-                    '${location.code} â€¢ ${location.name} â€¢ ${location.roleLabel}',
+                    '${location.code} | ${location.name} | ${location.roleLabel}',
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
@@ -1236,7 +1228,7 @@ class _SubscriptionBanner extends StatelessWidget {
           const SizedBox(width: 8),
           Expanded(
             child: Text(
-              'Subscription ${status.replaceAll('_', ' ')}${blocked ? ' â€” contact your administrator to restore module access.' : '.'}',
+              'Subscription ${status.replaceAll('_', ' ')}${blocked ? ' - contact your administrator to restore module access.' : '.'}',
             ),
           ),
         ],
@@ -1347,7 +1339,7 @@ class _ComingSoon extends StatelessWidget {
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    '${session.currencyCode} â€¢ ${session.locale}',
+                    '${session.currencyCode} | ${session.locale}',
                     style: TextStyle(
                       color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),

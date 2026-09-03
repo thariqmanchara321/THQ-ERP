@@ -960,34 +960,45 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
         : _suppliers.isEmpty
         ? const Center(child: Text('No active suppliers available.'))
         : LayoutBuilder(
-            builder: (context, constraints) => SingleChildScrollView(
-              padding: EdgeInsets.fromLTRB(
-                constraints.maxWidth < 720 ? 10 : 18,
-                12,
-                constraints.maxWidth < 720 ? 10 : 18,
-                24,
-              ),
-              child: Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 1280),
-                  child: Column(
-                    children: [
-                      _documentHeader(),
-                      const SizedBox(height: 12),
-                      _headerCard(),
-                      const SizedBox(height: 12),
-                      _itemsCard(),
-                      const SizedBox(height: 12),
-                      _summaryCard(),
-                    ],
+            builder: (context, constraints) {
+              final desktopWorkspace =
+                  constraints.maxWidth >= 1080 && constraints.maxHeight >= 650;
+
+              if (desktopWorkspace) {
+                return _desktopPurchaseWorkspace(constraints);
+              }
+
+              return SingleChildScrollView(
+                padding: EdgeInsets.fromLTRB(
+                  constraints.maxWidth < 720 ? 10 : 18,
+                  12,
+                  constraints.maxWidth < 720 ? 10 : 18,
+                  24,
+                ),
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 1280),
+                    child: Column(
+                      children: [
+                        _documentHeader(),
+                        const SizedBox(height: 12),
+                        _headerCard(),
+                        const SizedBox(height: 12),
+                        _itemsCard(),
+                        const SizedBox(height: 12),
+                        _summaryCard(),
+                      ],
+                    ),
                   ),
                 ),
-              ),
-            ),
+              );
+            },
           );
+
     if (widget.embedded) {
       return ColoredBox(color: const Color(0xFFF5F7FA), child: content);
     }
+
     return Scaffold(
       backgroundColor: const Color(0xFFF5F7FA),
       appBar: AppBar(
@@ -997,6 +1008,765 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
         ),
       ),
       body: content,
+    );
+  }
+
+  Widget _desktopPurchaseWorkspace(BoxConstraints constraints) {
+    final summaryWidth = constraints.maxWidth >= 1320 ? 378.0 : 350.0;
+
+    return Padding(
+      padding: const EdgeInsets.all(10),
+      child: Column(
+        children: [
+          _desktopPurchaseDocumentBar(),
+          const SizedBox(height: 8),
+          Expanded(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Expanded(
+                  child: Column(
+                    children: [
+                      _desktopPurchaseHeaderPanel(),
+                      const SizedBox(height: 8),
+                      Expanded(child: _desktopPurchaseItemsPanel()),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                SizedBox(
+                  width: summaryWidth,
+                  child: _desktopPurchaseSettlementPanel(),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+          _desktopPurchaseActionBar(),
+        ],
+      ),
+    );
+  }
+
+  Widget _desktopPurchaseDocumentBar() {
+    final scheme = Theme.of(context).colorScheme;
+
+    return Container(
+      height: 54,
+      padding: const EdgeInsets.symmetric(horizontal: 10),
+      decoration: BoxDecoration(
+        color: scheme.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: scheme.outlineVariant),
+      ),
+      child: Row(
+        children: [
+          if (widget.embedded) ...[
+            IconButton(
+              tooltip: 'Back',
+              visualDensity: VisualDensity.compact,
+              onPressed: _saving ? null : () => widget.onFinished?.call(false),
+              icon: const Icon(Icons.arrow_back, size: 19),
+            ),
+            const SizedBox(width: 4),
+          ],
+          Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+              color: scheme.primary.withValues(alpha: .10),
+              borderRadius: BorderRadius.circular(9),
+            ),
+            child: Icon(
+              Icons.shopping_cart_checkout_outlined,
+              size: 19,
+              color: scheme.primary,
+            ),
+          ),
+          const SizedBox(width: 10),
+          const Expanded(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'New Purchase',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+                ),
+                Text(
+                  'Fast entry | GST-aware | stock linked',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: 10.5),
+                ),
+              ],
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: scheme.surfaceContainerHighest,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: const Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  'PURCHASE NO.',
+                  style: TextStyle(fontSize: 8.5, fontWeight: FontWeight.w700),
+                ),
+                Text(
+                  'AUTO ON CONFIRM',
+                  style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _desktopPurchaseHeaderPanel() {
+    final supplier = _selectedSupplier;
+    final scheme = Theme.of(context).colorScheme;
+
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: scheme.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: scheme.outlineVariant),
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Expanded(
+                flex: 5,
+                child: SearchableSelect<String>(
+                  value: _supplierId,
+                  labelText: 'Supplier',
+                  isRequired: true,
+                  enabled: !_saving,
+                  hintText: 'Search supplier name, ID, phone or GSTIN',
+                  prefixIcon: Icons.local_shipping_outlined,
+                  options: _suppliers
+                      .map(
+                        (entry) => SearchableSelectOption<String>(
+                          value: entry.id,
+                          label: entry.name,
+                          subtitle:
+                              [entry.publicId, entry.phone, entry.taxNumber]
+                                  .where(
+                                    (value) => value?.trim().isNotEmpty == true,
+                                  )
+                                  .join(' | '),
+                          searchText:
+                              '${entry.name} ${entry.publicId} ${entry.phone ?? ''} '
+                              '${entry.email ?? ''} ${entry.taxNumber ?? ''}',
+                        ),
+                      )
+                      .toList(),
+                  onChanged: _saving
+                      ? null
+                      : (value) => setState(() {
+                          _supplierId = value;
+                          _error = null;
+                        }),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                flex: 3,
+                child: TextField(
+                  controller: _invoiceController,
+                  enabled: !_saving,
+                  decoration: const InputDecoration(
+                    labelText: 'Supplier Invoice No.',
+                    prefixIcon: Icon(Icons.tag_outlined, size: 18),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                flex: 2,
+                child: _desktopPurchaseDateButton(
+                  icon: Icons.calendar_month_outlined,
+                  label: 'Invoice Date',
+                  value: _date(_purchaseDate),
+                  onPressed: _saving ? null : _choosePurchaseDate,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                flex: 2,
+                child: _desktopPurchaseDateButton(
+                  icon: Icons.event_outlined,
+                  label: 'Due Date',
+                  value: _dueDate == null ? 'Not set' : _date(_dueDate!),
+                  onPressed: _saving ? null : _chooseDueDate,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: _desktopPurchaseInfoPill(
+                  icon: Icons.receipt_long_outlined,
+                  label: 'GSTIN',
+                  value: supplier?.taxNumber?.trim().isNotEmpty == true
+                      ? supplier!.taxNumber!
+                      : 'Not registered',
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _desktopPurchaseInfoPill(
+                  icon: Icons.place_outlined,
+                  label: 'Place of Supply',
+                  value: _placeOfSupply,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _desktopPurchaseInfoPill(
+                  icon: Icons.sync_alt_outlined,
+                  label: 'Reverse Charge',
+                  value: 'Automatic from GST profile',
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _desktopPurchaseDateButton({
+    required IconData icon,
+    required String label,
+    required String value,
+    required VoidCallback? onPressed,
+  }) {
+    return OutlinedButton(
+      onPressed: onPressed,
+      style: OutlinedButton.styleFrom(
+        minimumSize: const Size.fromHeight(48),
+        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+        alignment: Alignment.centerLeft,
+      ),
+      child: Row(
+        children: [
+          Icon(icon, size: 16),
+          const SizedBox(width: 7),
+          Expanded(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label, style: const TextStyle(fontSize: 9)),
+                Text(
+                  value,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _desktopPurchaseInfoPill({
+    required IconData icon,
+    required String label,
+    required String value,
+  }) {
+    final scheme = Theme.of(context).colorScheme;
+
+    return Container(
+      height: 34,
+      padding: const EdgeInsets.symmetric(horizontal: 9),
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerHighest.withValues(alpha: .55),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, size: 14, color: scheme.onSurfaceVariant),
+          const SizedBox(width: 6),
+          Text(
+            '$label: ',
+            style: TextStyle(
+              fontSize: 9.5,
+              fontWeight: FontWeight.w600,
+              color: scheme.onSurfaceVariant,
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontSize: 10.5,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _desktopPurchaseItemsPanel() {
+    final scheme = Theme.of(context).colorScheme;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: scheme.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: scheme.outlineVariant),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        children: [
+          SizedBox(
+            height: 44,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+              child: Row(
+                children: [
+                  const Icon(Icons.inventory_2_outlined, size: 17),
+                  const SizedBox(width: 7),
+                  Text(
+                    'Items (${_lines.length})',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const Spacer(),
+                  OutlinedButton.icon(
+                    onPressed: _saving ? null : _addCharge,
+                    icon: const Icon(Icons.add_card_outlined, size: 16),
+                    label: const Text('Charge'),
+                  ),
+                  const SizedBox(width: 6),
+                  FilledButton.icon(
+                    onPressed: _saving ? null : _addLine,
+                    icon: const Icon(Icons.add, size: 16),
+                    label: const Text('Add Product'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          Divider(height: 1, color: scheme.outlineVariant),
+          Expanded(
+            child: _lines.isEmpty
+                ? Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.playlist_add_outlined,
+                          size: 34,
+                          color: scheme.onSurfaceVariant,
+                        ),
+                        const SizedBox(height: 7),
+                        const Text(
+                          'Add or scan a product to start the purchase.',
+                          style: TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          'Rows scroll vertically. Remove stays visible at the right.',
+                          style: TextStyle(
+                            fontSize: 10.5,
+                            color: scheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                : Column(
+                    children: [
+                      Container(
+                        height: 36,
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        color: scheme.surfaceContainerHighest,
+                        child: Row(
+                          children: [
+                            _purchaseHeaderCell('#', 1),
+                            _purchaseHeaderCell('Product', 4),
+                            _purchaseHeaderCell('HSN/SAC', 2),
+                            _purchaseHeaderCell('Qty', 2),
+                            _purchaseHeaderCell('Rate', 2),
+                            _purchaseHeaderCell('Disc.', 2),
+                            _purchaseHeaderCell('GST', 1),
+                            _purchaseHeaderCell('Amount', 2),
+                            const SizedBox(width: 42),
+                          ],
+                        ),
+                      ),
+                      Expanded(
+                        child: ListView.builder(
+                          padding: EdgeInsets.zero,
+                          itemCount: _lines.length,
+                          itemBuilder: (context, index) => _PurchaseLineRow(
+                            index: index + 1,
+                            line: _lines[index],
+                            hsnSac: _hsnFor(_lines[index].product.variantId),
+                            money: _money,
+                            onDelete: _saving
+                                ? null
+                                : () => setState(() => _lines.removeAt(index)),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _desktopPurchaseSettlementPanel() {
+    final scheme = Theme.of(context).colorScheme;
+    final payment = _number(_paymentController);
+    final balance = _grandTotal - payment;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: scheme.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: scheme.outlineVariant),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        children: [
+          Container(
+            height: 40,
+            padding: const EdgeInsets.symmetric(horizontal: 10),
+            color: scheme.surfaceContainerHighest.withValues(alpha: .55),
+            child: const Row(
+              children: [
+                Icon(Icons.payments_outlined, size: 17),
+                SizedBox(width: 7),
+                Text(
+                  'Totals & Payment',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(10, 8, 10, 6),
+            child: Column(
+              children: [
+                _desktopPurchaseTotalRow('Subtotal', _money(_subtotal)),
+                _desktopPurchaseTotalRow('Discount', '- ${_money(_discount)}'),
+                _desktopPurchaseTotalRow('Taxable', _money(_taxableAmount)),
+                if (_interstatePreview == false) ...[
+                  _desktopPurchaseTotalRow('CGST', _money(_cgstPreview)),
+                  _desktopPurchaseTotalRow('SGST', _money(_sgstPreview)),
+                ] else if (_interstatePreview == true)
+                  _desktopPurchaseTotalRow('IGST', _money(_igstPreview))
+                else
+                  _desktopPurchaseTotalRow('GST / Tax', _money(_tax)),
+                _desktopPurchaseTotalRow('Round Off', _money(_roundOff)),
+                const Divider(height: 12),
+                _desktopPurchaseTotalRow(
+                  'GRAND TOTAL',
+                  _money(_grandTotal),
+                  strong: true,
+                ),
+                _desktopPurchaseTotalRow('Payment', _money(payment)),
+                _desktopPurchaseTotalRow(
+                  'Balance Due',
+                  _money(balance),
+                  strong: balance.abs() > 0.005,
+                ),
+              ],
+            ),
+          ),
+          Divider(height: 1, color: scheme.outlineVariant),
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(10),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Payment Method',
+                    style: TextStyle(
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  _desktopPurchasePaymentMethods(),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: _paymentController,
+                          enabled: !_saving,
+                          keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true,
+                          ),
+                          onChanged: (_) => setState(() {}),
+                          decoration: const InputDecoration(
+                            labelText: 'Initial Payment',
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: TextField(
+                          controller: _invoiceDiscountController,
+                          enabled: !_saving,
+                          keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true,
+                          ),
+                          onChanged: (_) => setState(() {}),
+                          decoration: const InputDecoration(
+                            labelText: 'Invoice Discount',
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  _desktopPurchaseInfoPill(
+                    icon: Icons.exposure_zero,
+                    label: 'Round Off',
+                    value: _money(_roundOff),
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: _notesController,
+                    enabled: !_saving,
+                    minLines: 1,
+                    maxLines: 2,
+                    decoration: const InputDecoration(
+                      labelText: 'Notes',
+                      prefixIcon: Icon(Icons.notes_outlined, size: 18),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'GST figures shown here are a preview. Confirm uses the authoritative GST v5.2 quote and snapshot.',
+                    style: TextStyle(
+                      fontSize: 9.5,
+                      color: scheme.onSurfaceVariant,
+                    ),
+                  ),
+                  if (_error != null) ...[
+                    const SizedBox(height: 8),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(9),
+                      decoration: BoxDecoration(
+                        color: scheme.errorContainer,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        _error!,
+                        style: TextStyle(
+                          fontSize: 10.5,
+                          color: scheme.onErrorContainer,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _desktopPurchasePaymentMethods() {
+    const methods = <(String, String)>[
+      ('cash', 'Cash'),
+      ('bank', 'Bank'),
+      ('upi', 'UPI'),
+      ('card', 'Card'),
+      ('cheque', 'Cheque'),
+      ('other', 'Other'),
+    ];
+    final scheme = Theme.of(context).colorScheme;
+
+    return Row(
+      children: [
+        for (var index = 0; index < methods.length; index++) ...[
+          if (index > 0) const SizedBox(width: 4),
+          Expanded(
+            child: Tooltip(
+              message: methods[index].$2,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(7),
+                onTap: _saving
+                    ? null
+                    : () => setState(() => _paymentMethod = methods[index].$1),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 120),
+                  height: 32,
+                  alignment: Alignment.center,
+                  padding: const EdgeInsets.symmetric(horizontal: 2),
+                  decoration: BoxDecoration(
+                    color: _paymentMethod == methods[index].$1
+                        ? scheme.primaryContainer
+                        : scheme.surfaceContainerHighest.withValues(alpha: .55),
+                    borderRadius: BorderRadius.circular(7),
+                    border: Border.all(
+                      color: _paymentMethod == methods[index].$1
+                          ? scheme.primary
+                          : scheme.outlineVariant,
+                    ),
+                  ),
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      methods[index].$2,
+                      maxLines: 1,
+                      style: TextStyle(
+                        fontSize: 9.5,
+                        fontWeight: _paymentMethod == methods[index].$1
+                            ? FontWeight.w800
+                            : FontWeight.w600,
+                        color: _paymentMethod == methods[index].$1
+                            ? scheme.onPrimaryContainer
+                            : scheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _desktopPurchaseTotalRow(
+    String label,
+    String value, {
+    bool strong = false,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: strong ? 11 : 10,
+                fontWeight: strong ? FontWeight.w800 : FontWeight.w500,
+              ),
+            ),
+          ),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: strong ? 12 : 10.5,
+              fontWeight: strong ? FontWeight.w900 : FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _desktopPurchaseActionBar() {
+    final scheme = Theme.of(context).colorScheme;
+
+    return Container(
+      constraints: const BoxConstraints(minHeight: 56),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      decoration: BoxDecoration(
+        color: scheme.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: scheme.outlineVariant),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            _error == null
+                ? Icons.verified_outlined
+                : Icons.error_outline_rounded,
+            size: 17,
+            color: _error == null ? scheme.primary : scheme.error,
+          ),
+          const SizedBox(width: 7),
+          Expanded(
+            child: Text(
+              _error ??
+                  '${_lines.length} item${_lines.length == 1 ? '' : 's'} | '
+                      '${_money(_grandTotal)} | '
+                      '${_money(_grandTotal - _number(_paymentController))} balance',
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 10.5,
+                fontWeight: FontWeight.w600,
+                color: _error == null ? scheme.onSurfaceVariant : scheme.error,
+              ),
+            ),
+          ),
+          const SizedBox(width: 10),
+          OutlinedButton(
+            onPressed: _saving
+                ? null
+                : () {
+                    if (widget.embedded) {
+                      widget.onFinished?.call(false);
+                    } else {
+                      Navigator.of(context).pop();
+                    }
+                  },
+            child: const Text('Cancel'),
+          ),
+          const SizedBox(width: 6),
+          OutlinedButton.icon(
+            onPressed: _saving ? null : () => _post(printAfter: false),
+            icon: const Icon(Icons.check_circle_outline, size: 17),
+            label: const Text('Confirm'),
+          ),
+          const SizedBox(width: 6),
+          FilledButton.icon(
+            onPressed: _saving ? null : () => _post(printAfter: true),
+            icon: _saving
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.print_outlined, size: 17),
+            label: Text(_saving ? 'Confirming...' : 'Print & Confirm'),
+          ),
+        ],
+      ),
     );
   }
 
@@ -1210,45 +1980,39 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
                 child: Text('Search or scan a product to start this purchase.'),
               ),
             )
-          : SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: SizedBox(
-                width: 1120,
-                child: Column(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 10,
-                      ),
-                      color: const Color(0xFFF1F4F8),
-                      child: Row(
-                        children: [
-                          _purchaseHeaderCell('#', 1),
-                          _purchaseHeaderCell('Product', 4),
-                          _purchaseHeaderCell('HSN/SAC', 2),
-                          _purchaseHeaderCell('Qty', 2),
-                          _purchaseHeaderCell('Rate', 2),
-                          _purchaseHeaderCell('Disc.', 2),
-                          _purchaseHeaderCell('GST', 1),
-                          _purchaseHeaderCell('Amount', 2),
-                          const SizedBox(width: 44),
-                        ],
-                      ),
-                    ),
-                    for (var i = 0; i < _lines.length; i++)
-                      _PurchaseLineRow(
-                        index: i + 1,
-                        line: _lines[i],
-                        hsnSac: _hsnFor(_lines[i].product.variantId),
-                        money: _money,
-                        onDelete: _saving
-                            ? null
-                            : () => setState(() => _lines.removeAt(i)),
-                      ),
-                  ],
+          : Column(
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 10,
+                  ),
+                  color: const Color(0xFFF1F4F8),
+                  child: Row(
+                    children: [
+                      _purchaseHeaderCell('#', 1),
+                      _purchaseHeaderCell('Product', 4),
+                      _purchaseHeaderCell('HSN/SAC', 2),
+                      _purchaseHeaderCell('Qty', 2),
+                      _purchaseHeaderCell('Rate', 2),
+                      _purchaseHeaderCell('Disc.', 2),
+                      _purchaseHeaderCell('GST', 1),
+                      _purchaseHeaderCell('Amount', 2),
+                      const SizedBox(width: 42),
+                    ],
+                  ),
                 ),
-              ),
+                for (var i = 0; i < _lines.length; i++)
+                  _PurchaseLineRow(
+                    index: i + 1,
+                    line: _lines[i],
+                    hsnSac: _hsnFor(_lines[i].product.variantId),
+                    money: _money,
+                    onDelete: _saving
+                        ? null
+                        : () => setState(() => _lines.removeAt(i)),
+                  ),
+              ],
             ),
     );
   }
@@ -1272,27 +2036,58 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
           style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
         ),
         const SizedBox(height: 10),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            for (final entry in const [
-              ('cash', 'Cash', Icons.payments_outlined),
-              ('bank', 'Bank', Icons.account_balance_outlined),
-              ('upi', 'UPI', Icons.qr_code_2_outlined),
-              ('card', 'Card', Icons.credit_card_outlined),
-              ('cheque', 'Cheque', Icons.receipt_long_outlined),
-              ('other', 'Other', Icons.more_horiz),
-            ])
-              ChoiceChip(
-                avatar: Icon(entry.$3, size: 17),
-                label: Text(entry.$2),
-                selected: _paymentMethod == entry.$1,
-                onSelected: _saving
-                    ? null
-                    : (_) => setState(() => _paymentMethod = entry.$1),
-              ),
-          ],
+        LayoutBuilder(
+          builder: (context, constraints) {
+            const methods = <(String, String)>[
+              ('cash', 'Cash'),
+              ('bank', 'Bank'),
+              ('upi', 'UPI'),
+              ('card', 'Card'),
+              ('cheque', 'Cheque'),
+              ('other', 'Other'),
+            ];
+            if (constraints.maxWidth >= 520) {
+              return Row(
+                children: [
+                  for (var index = 0; index < methods.length; index++) ...[
+                    if (index > 0) const SizedBox(width: 5),
+                    Expanded(
+                      child: ChoiceChip(
+                        label: SizedBox(
+                          width: double.infinity,
+                          child: Text(
+                            methods[index].$2,
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                        selected: _paymentMethod == methods[index].$1,
+                        onSelected: _saving
+                            ? null
+                            : (_) => setState(
+                                () => _paymentMethod = methods[index].$1,
+                              ),
+                      ),
+                    ),
+                  ],
+                ],
+              );
+            }
+            return Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: methods
+                  .map(
+                    (entry) => ChoiceChip(
+                      label: Text(entry.$2),
+                      selected: _paymentMethod == entry.$1,
+                      onSelected: _saving
+                          ? null
+                          : (_) => setState(() => _paymentMethod = entry.$1),
+                    ),
+                  )
+                  .toList(),
+            );
+          },
         ),
         const SizedBox(height: 14),
         LayoutBuilder(
