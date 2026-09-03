@@ -80,11 +80,13 @@ class _OfflineQueueScreenState extends State<OfflineQueueScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        toolbarHeight: 58,
         title: const Text('Offline Sync'),
         actions: [
           IconButton(
+            tooltip: 'Sync all',
             onPressed: busy ? null : syncAll,
-            icon: const Icon(Icons.sync),
+            icon: const Icon(Icons.sync_rounded),
           ),
         ],
       ),
@@ -110,9 +112,9 @@ class _OfflineQueueScreenState extends State<OfflineQueueScreen> {
               await next;
             },
             child: ListView.separated(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(10),
               itemCount: rows.length,
-              separatorBuilder: (_, _) => const SizedBox(height: 8),
+              separatorBuilder: (_, _) => const SizedBox(height: 5),
               itemBuilder: (context, index) {
                 final invoice = rows[index];
                 final hasProblem =
@@ -120,13 +122,14 @@ class _OfflineQueueScreenState extends State<OfflineQueueScreen> {
 
                 return Card(
                   child: ListTile(
+                    dense: true,
                     leading: CircleAvatar(
                       child: Icon(
                         invoice.status == 'synced'
                             ? Icons.cloud_done
                             : hasProblem
-                                ? Icons.warning_amber
-                                : Icons.cloud_upload_outlined,
+                            ? Icons.warning_amber
+                            : Icons.cloud_upload_outlined,
                       ),
                     ),
                     title: Text(invoice.localNumber),
