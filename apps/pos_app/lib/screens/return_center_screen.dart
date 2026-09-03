@@ -136,76 +136,119 @@ class _ReturnCenterScreenState extends State<ReturnCenterScreen>
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
     return Padding(
-      padding: const EdgeInsets.all(10),
+      padding: const EdgeInsets.all(6),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              const Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Returns',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w900,
+          Container(
+            height: 46,
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            decoration: BoxDecoration(
+              color: scheme.surface,
+              borderRadius: BorderRadius.circular(9),
+              border: Border.all(color: scheme.outlineVariant),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 4,
+                  height: 25,
+                  decoration: BoxDecoration(
+                    color: scheme.primary,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Returns',
+                        style: TextStyle(
+                          fontSize: 14.5,
+                          fontWeight: FontWeight.w900,
+                        ),
                       ),
-                    ),
-                    Text(
-                      "Today's invoices on this POS only. Historical invoices are available in Terminal Daily.",
-                      style: TextStyle(fontSize: 10.5),
-                    ),
-                  ],
+                      Text(
+                        "Today's invoices on this POS",
+                        style: TextStyle(
+                          fontSize: 8.3,
+                          color: scheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              IconButton(
-                tooltip: 'Reload',
-                onPressed: _load,
-                icon: const Icon(Icons.refresh, size: 19),
-              ),
-            ],
+                Text(
+                  'Sales ${_sales.length} | Purchases ${_purchases.length}',
+                  style: TextStyle(fontSize: 8, color: scheme.onSurfaceVariant),
+                ),
+                const SizedBox(width: 6),
+                IconButton(
+                  tooltip: 'Refresh',
+                  visualDensity: VisualDensity.compact,
+                  onPressed: _load,
+                  icon: const Icon(Icons.refresh_rounded, size: 17),
+                ),
+              ],
+            ),
           ),
-          const SizedBox(height: 7),
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final narrow = constraints.maxWidth < 620;
-              final search = TextField(
-                controller: _search,
-                autofocus: false,
-                onChanged: _searchChanged,
-                onSubmitted: (_) => _load(),
-                decoration: const InputDecoration(
-                  isDense: true,
-                  prefixIcon: Icon(Icons.search, size: 18),
-                  hintText:
-                      'Invoice / customer / supplier / product / barcode…',
-                ),
-              );
-              final tabs = TabBar(
-                controller: _tabs,
-                tabs: const [
-                  Tab(text: 'Sales Return'),
-                  Tab(text: 'Purchase Return'),
-                ],
-              );
-              if (narrow) {
-                return Column(
-                  children: [search, const SizedBox(height: 6), tabs],
+          const SizedBox(height: 5),
+          Container(
+            constraints: const BoxConstraints(minHeight: 40),
+            padding: const EdgeInsets.all(4),
+            decoration: BoxDecoration(
+              color: scheme.surface,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: scheme.outlineVariant),
+            ),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final narrow = constraints.maxWidth < 620;
+
+                final search = TextField(
+                  controller: _search,
+                  onChanged: _searchChanged,
+                  onSubmitted: (_) => _load(),
+                  decoration: const InputDecoration(
+                    prefixIcon: Icon(Icons.search, size: 16),
+                    hintText: 'Invoice, party, product, SKU or barcode...',
+                  ),
                 );
-              }
-              return Row(
-                children: [
-                  Expanded(child: search),
-                  const SizedBox(width: 8),
-                  SizedBox(width: 270, child: tabs),
-                ],
-              );
-            },
+
+                final tabs = TabBar(
+                  controller: _tabs,
+                  labelStyle: const TextStyle(
+                    fontSize: 9,
+                    fontWeight: FontWeight.w800,
+                  ),
+                  tabs: const [
+                    Tab(text: 'Sales Return'),
+                    Tab(text: 'Purchase Return'),
+                  ],
+                );
+
+                if (narrow) {
+                  return Column(
+                    children: [search, const SizedBox(height: 4), tabs],
+                  );
+                }
+
+                return Row(
+                  children: [
+                    Expanded(child: search),
+                    const SizedBox(width: 5),
+                    SizedBox(width: 250, child: tabs),
+                  ],
+                );
+              },
+            ),
           ),
-          const SizedBox(height: 7),
+          const SizedBox(height: 5),
           Expanded(
             child: _loading
                 ? const Center(child: CircularProgressIndicator())
@@ -248,59 +291,186 @@ class _ReturnCenterScreenState extends State<ReturnCenterScreen>
         child: Text('No matching invoices from today on this POS.'),
       );
     }
-    return ListView.separated(
-      itemCount: rows.length,
-      separatorBuilder: (_, _) => const SizedBox(height: 4),
-      itemBuilder: (context, index) {
-        final row = rows[index];
-        final returnStatus = (row['return_status'] ?? 'not_returned')
-            .toString()
-            .replaceAll('_', ' ')
-            .toUpperCase();
-        final product = row['matched_product']?.toString().trim() ?? '';
-        return Card(
-          margin: EdgeInsets.zero,
-          child: ListTile(
-            dense: true,
-            visualDensity: VisualDensity.compact,
-            leading: Icon(icon, size: 19),
-            title: Text(
-              '${row['document_number'] ?? ''} • ${row['party'] ?? ''}',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                fontSize: 11.5,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-            subtitle: Text(
-              [
-                '${row['document_date'] ?? ''}',
-                returnStatus,
-                if (product.isNotEmpty) product,
-              ].join(' • '),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 9.5),
-            ),
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
+
+    final scheme = Theme.of(context).colorScheme;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: scheme.surface,
+        borderRadius: BorderRadius.circular(9),
+        border: Border.all(color: scheme.outlineVariant),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        children: [
+          Container(
+            height: 34,
+            padding: const EdgeInsets.symmetric(horizontal: 9),
+            color: scheme.surfaceContainerHighest.withValues(alpha: .45),
+            child: const Row(
               children: [
-                Text(
-                  _money(row['grand_total']),
-                  style: const TextStyle(fontWeight: FontWeight.w800),
+                Expanded(
+                  flex: 3,
+                  child: Text(
+                    'Document',
+                    style: TextStyle(
+                      fontSize: 8.8,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
                 ),
-                const SizedBox(width: 8),
-                FilledButton.tonal(
-                  onPressed: () => _open(row),
-                  child: const Text('Open'),
+                Expanded(
+                  flex: 4,
+                  child: Text(
+                    'Party / Product',
+                    style: TextStyle(
+                      fontSize: 8.8,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
                 ),
+                Expanded(
+                  flex: 2,
+                  child: Text(
+                    'Status',
+                    style: TextStyle(
+                      fontSize: 8.8,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+                Expanded(
+                  flex: 2,
+                  child: Text(
+                    'Amount',
+                    textAlign: TextAlign.right,
+                    style: TextStyle(
+                      fontSize: 8.8,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+                SizedBox(width: 54),
               ],
             ),
-            onTap: () => _open(row),
           ),
-        );
-      },
+          Expanded(
+            child: ListView.builder(
+              padding: EdgeInsets.zero,
+              itemCount: rows.length,
+              itemBuilder: (context, index) {
+                final row = rows[index];
+                final returnStatus = (row['return_status'] ?? 'not_returned')
+                    .toString()
+                    .replaceAll('_', ' ')
+                    .toUpperCase();
+                final product = row['matched_product']?.toString().trim() ?? '';
+
+                return Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: () => _open(row),
+                    child: Container(
+                      constraints: const BoxConstraints(minHeight: 46),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 9,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        border: Border(
+                          bottom: BorderSide(color: scheme.outlineVariant),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            flex: 3,
+                            child: Row(
+                              children: [
+                                Icon(icon, size: 14),
+                                const SizedBox(width: 6),
+                                Expanded(
+                                  child: Text(
+                                    '${row['document_number'] ?? ''}',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      fontSize: 8.8,
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Expanded(
+                            flex: 4,
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  '${row['party'] ?? ''}',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(fontSize: 8.5),
+                                ),
+                                if (product.isNotEmpty)
+                                  Text(
+                                    product,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontSize: 7.4,
+                                      color: scheme.onSurfaceVariant,
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                          Expanded(
+                            flex: 2,
+                            child: Text(
+                              returnStatus,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 7.5,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ),
+                          Expanded(
+                            flex: 2,
+                            child: Text(
+                              _money(row['grand_total']),
+                              maxLines: 1,
+                              textAlign: TextAlign.right,
+                              style: const TextStyle(
+                                fontSize: 8.8,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                          ),
+                          SizedBox(
+                            width: 54,
+                            child: IconButton(
+                              tooltip: 'Open',
+                              visualDensity: VisualDensity.compact,
+                              onPressed: () => _open(row),
+                              icon: const Icon(Icons.open_in_new, size: 14),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

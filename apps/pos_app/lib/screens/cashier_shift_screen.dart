@@ -614,306 +614,499 @@ class _CashierShiftScreenState extends State<CashierShiftScreen> {
   @override
   Widget build(BuildContext context) {
     if (_loading) return const Center(child: CircularProgressIndicator());
-    return Scaffold(
-      backgroundColor: Theme.of(context).colorScheme.surfaceContainerLowest,
-      body: SafeArea(
-        child: RefreshIndicator(
-          onRefresh: _load,
-          child: ListView(
-            padding: const EdgeInsets.all(20),
-            children: [
-              Row(
-                children: [
-                  const Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Cashier Shift',
-                          style: TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.w900,
-                          ),
-                        ),
-                        SizedBox(height: 3),
-                        Text(
-                          'Cashier time and drawer accountability. Independent from Terminal Daily.',
-                        ),
-                      ],
-                    ),
-                  ),
-                  IconButton(
-                    onPressed: _load,
-                    icon: const Icon(Icons.refresh),
-                    tooltip: 'Refresh',
-                  ),
-                ],
-              ),
-              const SizedBox(height: 6),
-              Text(
-                '${widget.session.device?.locationCode ?? ''} • ${widget.session.device?.deviceCode ?? ''} • ${widget.session.username}',
-                style: TextStyle(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
-              ),
-              const SizedBox(height: 16),
-              if (_error != null)
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Text(_error!),
+
+    final scheme = Theme.of(context).colorScheme;
+
+    return Padding(
+      padding: const EdgeInsets.all(6),
+      child: Column(
+        children: [
+          Container(
+            height: 46,
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            decoration: BoxDecoration(
+              color: scheme.surface,
+              borderRadius: BorderRadius.circular(9),
+              border: Border.all(color: scheme.outlineVariant),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 4,
+                  height: 25,
+                  decoration: BoxDecoration(
+                    color: scheme.primary,
+                    borderRadius: BorderRadius.circular(999),
                   ),
                 ),
-              if (_shift == null)
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(26),
-                    child: Column(
-                      children: [
-                        const Icon(Icons.badge_outlined, size: 52),
-                        const SizedBox(height: 12),
-                        const Text(
-                          'No active cashier shift',
-                          style: TextStyle(
-                            fontSize: 21,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                        const SizedBox(height: 7),
-                        const Text(
-                          'Start time is automatic and opening cash is recorded. Both can be corrected with an audit trail.',
-                        ),
-                        const SizedBox(height: 18),
-                        FilledButton.icon(
-                          onPressed: _openShift,
-                          icon: const Icon(Icons.play_arrow),
-                          label: const Text('Start Shift'),
-                        ),
-                      ],
-                    ),
-                  ),
-                )
-              else ...[
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(18),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    _shift!['shift_number']?.toString() ??
-                                        'Current Shift',
-                                    style: const TextStyle(
-                                      fontSize: 20,
-                                      fontWeight: FontWeight.w900,
-                                    ),
-                                  ),
-                                  Text(
-                                    'Started ${_dateTime(_shift!['opened_at'])} • ${_duration(_shift!)}',
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const Chip(label: Text('OPEN')),
-                            const SizedBox(width: 8),
-                            IconButton(
-                              onPressed: () => _editShift(_shift!),
-                              icon: const Icon(Icons.edit_outlined),
-                              tooltip: 'Edit start time / opening cash',
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 14),
-                        Wrap(
-                          spacing: 10,
-                          runSpacing: 10,
-                          children: [
-                            _metric(
-                              'Started With',
-                              _money(_shift!['opening_cash']),
-                              Icons.account_balance_wallet_outlined,
-                            ),
-                            _metric(
-                              'Expected Now',
-                              _money(
-                                _shift!['expected_cash_now'] ??
-                                    _shift!['expected_cash'],
-                              ),
-                              Icons.calculate_outlined,
-                            ),
-                            _metric(
-                              'Cash Sales',
-                              _money(_shift!['cash_sales']),
-                              Icons.receipt_long_outlined,
-                            ),
-                            _metric(
-                              'Customer Receipts',
-                              _money(_shift!['customer_receipts']),
-                              Icons.payments_outlined,
-                            ),
-                            _metric(
-                              'Cash In',
-                              _money(_shift!['cash_in']),
-                              Icons.add_circle_outline,
-                            ),
-                            _metric(
-                              'Cash Out',
-                              _money(_shift!['cash_out']),
-                              Icons.remove_circle_outline,
-                            ),
-                            _metric(
-                              'Expenses',
-                              _money(_shift!['cash_expenses']),
-                              Icons.money_off_outlined,
-                            ),
-                            _metric(
-                              'Refunds',
-                              _money(_shift!['refunds']),
-                              Icons.keyboard_return_outlined,
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 16),
-                        Wrap(
-                          spacing: 10,
-                          runSpacing: 10,
-                          children: [
-                            FilledButton.tonalIcon(
-                              onPressed: () => _cashMove('cash_in'),
-                              icon: const Icon(Icons.add),
-                              label: const Text('Cash In'),
-                            ),
-                            FilledButton.tonalIcon(
-                              onPressed: () => _cashMove('cash_out'),
-                              icon: const Icon(Icons.remove),
-                              label: const Text('Cash Out'),
-                            ),
-                            FilledButton.icon(
-                              onPressed: _closeShift,
-                              icon: const Icon(Icons.stop_circle_outlined),
-                              label: const Text('End Shift'),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-              const SizedBox(height: 18),
-              const Text(
-                "Today's Shifts",
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
-              ),
-              const SizedBox(height: 8),
-              if (_history.isEmpty)
-                const Card(
-                  child: Padding(
-                    padding: EdgeInsets.all(18),
-                    child: Text(
-                      "No shifts recorded today. Historical shifts are available in Terminal Daily.",
-                    ),
-                  ),
-                )
-              else
-                Card(
-                  clipBehavior: Clip.antiAlias,
+                const SizedBox(width: 8),
+                Expanded(
                   child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      for (var i = 0; i < _history.length; i++) ...[
-                        _shiftTile(_history[i]),
-                        if (i != _history.length - 1) const Divider(height: 1),
-                      ],
+                      const Text(
+                        'Cashier Shift',
+                        style: TextStyle(
+                          fontSize: 14.5,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      Text(
+                        '${widget.session.device?.locationCode ?? ''} | '
+                        '${widget.session.device?.deviceCode ?? ''} | '
+                        '${widget.session.username}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 8.3,
+                          color: scheme.onSurfaceVariant,
+                        ),
+                      ),
                     ],
                   ),
                 ),
+                if (_shift == null)
+                  FilledButton.icon(
+                    onPressed: _openShift,
+                    icon: const Icon(Icons.play_arrow, size: 15),
+                    label: const Text('Start Shift'),
+                  )
+                else ...[
+                  OutlinedButton.icon(
+                    onPressed: () => _cashMove('cash_in'),
+                    icon: const Icon(Icons.add, size: 15),
+                    label: const Text('Cash In'),
+                  ),
+                  const SizedBox(width: 4),
+                  OutlinedButton.icon(
+                    onPressed: () => _cashMove('cash_out'),
+                    icon: const Icon(Icons.remove, size: 15),
+                    label: const Text('Cash Out'),
+                  ),
+                  const SizedBox(width: 4),
+                  FilledButton.icon(
+                    onPressed: _closeShift,
+                    icon: const Icon(Icons.stop_circle_outlined, size: 15),
+                    label: const Text('End Shift'),
+                  ),
+                ],
+                const SizedBox(width: 3),
+                IconButton(
+                  tooltip: 'Refresh',
+                  visualDensity: VisualDensity.compact,
+                  onPressed: _load,
+                  icon: const Icon(Icons.refresh_rounded, size: 17),
+                ),
+              ],
+            ),
+          ),
+          if (_error != null) ...[
+            const SizedBox(height: 5),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+              decoration: BoxDecoration(
+                color: scheme.errorContainer,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                _error!,
+                style: TextStyle(fontSize: 9, color: scheme.onErrorContainer),
+              ),
+            ),
+          ],
+          const SizedBox(height: 5),
+          Expanded(
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final stacked = constraints.maxWidth < 900;
+
+                final current = _currentShiftPanel();
+                final history = _historyPanel();
+
+                if (stacked) {
+                  return Column(
+                    children: [
+                      Expanded(child: current),
+                      const SizedBox(height: 5),
+                      Expanded(child: history),
+                    ],
+                  );
+                }
+
+                return Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Expanded(flex: 6, child: current),
+                    const SizedBox(width: 5),
+                    Expanded(flex: 5, child: history),
+                  ],
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _currentShiftPanel() {
+    final scheme = Theme.of(context).colorScheme;
+
+    if (_shift == null) {
+      return Container(
+        decoration: BoxDecoration(
+          color: scheme.surface,
+          borderRadius: BorderRadius.circular(9),
+          border: Border.all(color: scheme.outlineVariant),
+        ),
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.badge_outlined, size: 34, color: scheme.outline),
+              const SizedBox(height: 7),
+              const Text(
+                'No active cashier shift',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w900),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Record opening cash before billing.',
+                style: TextStyle(fontSize: 8.5, color: scheme.onSurfaceVariant),
+              ),
+              const SizedBox(height: 10),
+              FilledButton.icon(
+                onPressed: _openShift,
+                icon: const Icon(Icons.play_arrow, size: 15),
+                label: const Text('Start Shift'),
+              ),
             ],
           ),
         ),
+      );
+    }
+
+    final metrics = <Widget>[
+      _metric(
+        'Started With',
+        _money(_shift!['opening_cash']),
+        Icons.account_balance_wallet_outlined,
+      ),
+      _metric(
+        'Expected Now',
+        _money(_shift!['expected_cash_now'] ?? _shift!['expected_cash']),
+        Icons.calculate_outlined,
+      ),
+      _metric(
+        'Cash Sales',
+        _money(_shift!['cash_sales']),
+        Icons.receipt_long_outlined,
+      ),
+      _metric(
+        'Customer Receipts',
+        _money(_shift!['customer_receipts']),
+        Icons.payments_outlined,
+      ),
+      _metric('Cash In', _money(_shift!['cash_in']), Icons.add_circle_outline),
+      _metric(
+        'Cash Out',
+        _money(_shift!['cash_out']),
+        Icons.remove_circle_outline,
+      ),
+      _metric(
+        'Expenses',
+        _money(_shift!['cash_expenses']),
+        Icons.money_off_outlined,
+      ),
+      _metric(
+        'Refunds',
+        _money(_shift!['refunds']),
+        Icons.keyboard_return_outlined,
+      ),
+    ];
+
+    return Container(
+      decoration: BoxDecoration(
+        color: scheme.surface,
+        borderRadius: BorderRadius.circular(9),
+        border: Border.all(color: scheme.outlineVariant),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        children: [
+          Container(
+            height: 48,
+            padding: const EdgeInsets.symmetric(horizontal: 9),
+            color: scheme.surfaceContainerHighest.withValues(alpha: .42),
+            child: Row(
+              children: [
+                const Icon(Icons.badge_outlined, size: 16),
+                const SizedBox(width: 7),
+                Expanded(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        _shift!['shift_number']?.toString() ?? 'Current Shift',
+                        maxLines: 1,
+                        style: const TextStyle(
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      Text(
+                        'Started ${_dateTime(_shift!['opened_at'])} | '
+                        '${_duration(_shift!)}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 7.8,
+                          color: scheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  height: 23,
+                  padding: const EdgeInsets.symmetric(horizontal: 7),
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: scheme.primaryContainer,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Text(
+                    'OPEN',
+                    style: TextStyle(
+                      fontSize: 7.5,
+                      fontWeight: FontWeight.w900,
+                      color: scheme.onPrimaryContainer,
+                    ),
+                  ),
+                ),
+                IconButton(
+                  tooltip: 'Edit shift',
+                  visualDensity: VisualDensity.compact,
+                  onPressed: () => _editShift(_shift!),
+                  icon: const Icon(Icons.edit_outlined, size: 15),
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(7),
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final columns = constraints.maxWidth >= 650 ? 4 : 2;
+                  const gap = 5.0;
+                  final width =
+                      (constraints.maxWidth - ((columns - 1) * gap)) / columns;
+                  return Wrap(
+                    spacing: gap,
+                    runSpacing: gap,
+                    children: metrics
+                        .map((widget) => SizedBox(width: width, child: widget))
+                        .toList(),
+                  );
+                },
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _historyPanel() {
+    final scheme = Theme.of(context).colorScheme;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: scheme.surface,
+        borderRadius: BorderRadius.circular(9),
+        border: Border.all(color: scheme.outlineVariant),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        children: [
+          Container(
+            height: 38,
+            padding: const EdgeInsets.symmetric(horizontal: 9),
+            color: scheme.surfaceContainerHighest.withValues(alpha: .42),
+            child: Row(
+              children: [
+                const Icon(Icons.history, size: 15),
+                const SizedBox(width: 6),
+                const Expanded(
+                  child: Text(
+                    "TODAY'S SHIFTS",
+                    style: TextStyle(
+                      fontSize: 8.8,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: .35,
+                    ),
+                  ),
+                ),
+                Text(
+                  '${_history.length}',
+                  style: TextStyle(
+                    fontSize: 8.5,
+                    color: scheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: _history.isEmpty
+                ? Center(
+                    child: Text(
+                      'No shifts recorded today.',
+                      style: TextStyle(
+                        fontSize: 9,
+                        color: scheme.onSurfaceVariant,
+                      ),
+                    ),
+                  )
+                : ListView.builder(
+                    padding: EdgeInsets.zero,
+                    itemCount: _history.length,
+                    itemBuilder: (context, index) =>
+                        _shiftTile(_history[index]),
+                  ),
+          ),
+        ],
       ),
     );
   }
 
   Widget _shiftTile(Map<String, dynamic> row) {
+    final scheme = Theme.of(context).colorScheme;
     final open = row['status']?.toString() == 'open';
     final canEdit =
         (open && row['user_id']?.toString() == widget.session.userId) ||
         _canManageClosed;
-    return ListTile(
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
-      leading: CircleAvatar(
-        child: Icon(open ? Icons.play_arrow : Icons.check, size: 19),
+
+    return Container(
+      constraints: const BoxConstraints(minHeight: 58),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+      decoration: BoxDecoration(
+        border: Border(bottom: BorderSide(color: scheme.outlineVariant)),
       ),
-      title: Row(
+      child: Row(
         children: [
+          Container(
+            width: 27,
+            height: 27,
+            decoration: BoxDecoration(
+              color: open
+                  ? scheme.primaryContainer
+                  : scheme.surfaceContainerHighest,
+              borderRadius: BorderRadius.circular(7),
+            ),
+            child: Icon(open ? Icons.play_arrow : Icons.check, size: 15),
+          ),
+          const SizedBox(width: 7),
           Expanded(
-            child: Text(
-              '${row['shift_number'] ?? 'Shift'} • ${row['cashier_name']?.toString().isNotEmpty == true ? row['cashier_name'] : 'Cashier'}',
-              style: const TextStyle(fontWeight: FontWeight.w800),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  '${row['shift_number'] ?? 'Shift'} | '
+                  '${row['cashier_name']?.toString().isNotEmpty == true ? row['cashier_name'] : 'Cashier'}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 9,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                Text(
+                  open
+                      ? '${_dateTime(row['opened_at'])} | '
+                            'Expected ${_money(row['expected_cash'])}'
+                      : '${_dateTime(row['opened_at'])} - '
+                            '${_dateTime(row['closed_at'])} | '
+                            'Diff ${_money(row['difference'])}',
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 7.6,
+                    color: scheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
             ),
           ),
+          const SizedBox(width: 5),
           Text(
             open ? 'OPEN' : 'CLOSED',
-            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w900),
+            style: TextStyle(
+              fontSize: 7.5,
+              fontWeight: FontWeight.w900,
+              color: open ? scheme.primary : scheme.onSurfaceVariant,
+            ),
           ),
+          if (canEdit)
+            IconButton(
+              tooltip: 'Edit shift',
+              visualDensity: VisualDensity.compact,
+              onPressed: () => _editShift(row),
+              icon: const Icon(Icons.edit_outlined, size: 14),
+            ),
         ],
       ),
-      subtitle: Padding(
-        padding: const EdgeInsets.only(top: 5),
-        child: Text(
-          'Start ${_dateTime(row['opened_at'])}\n'
-          '${open ? 'Running' : 'End ${_dateTime(row['closed_at'])}'} • ${_duration(row)}\n'
-          'Start ${_money(row['opening_cash'])}'
-          '${open ? ' • Expected ${_money(row['expected_cash'])}' : ' • End ${_money(row['declared_cash'])} • Difference ${_money(row['difference'])}'}'
-          '${_number(row['edit_count']) > 0 ? ' • Edited ${_number(row['edit_count']).toInt()}×' : ''}',
-        ),
-      ),
-      isThreeLine: true,
-      trailing: canEdit
-          ? IconButton(
-              onPressed: () => _editShift(row),
-              icon: const Icon(Icons.edit_outlined),
-              tooltip: 'Edit shift',
-            )
-          : null,
     );
   }
 
-  Widget _metric(String label, String value, IconData icon) => SizedBox(
-    width: 190,
-    child: DecoratedBox(
+  Widget _metric(String label, String value, IconData icon) {
+    final scheme = Theme.of(context).colorScheme;
+
+    return Container(
+      height: 57,
+      padding: const EdgeInsets.symmetric(horizontal: 8),
       decoration: BoxDecoration(
-        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
-        borderRadius: BorderRadius.circular(12),
+        color: scheme.surface,
+        border: Border.all(color: scheme.outlineVariant),
+        borderRadius: BorderRadius.circular(8),
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(icon, size: 19),
-            const SizedBox(height: 10),
-            Text(
-              value,
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
+      child: Row(
+        children: [
+          Icon(icon, size: 14, color: scheme.primary),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  value,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 9.5,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 7.5,
+                    color: scheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 2),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 12,
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
-    ),
-  );
+    );
+  }
 }

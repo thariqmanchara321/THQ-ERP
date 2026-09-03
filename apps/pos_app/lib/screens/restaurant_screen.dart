@@ -881,127 +881,167 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
   }
 
   Widget _orderCard(Map<String, dynamic> order, {bool compact = false}) {
+    final scheme = Theme.of(context).colorScheme;
     final status = (order['status'] ?? 'open').toString();
     final title =
-        '${order['order_number']} • ${order['table_name'] ?? order['order_type']}';
-    return Card(
-      margin: compact
-          ? const EdgeInsets.only(bottom: 8)
-          : const EdgeInsets.symmetric(vertical: 5),
-      child: Padding(
-        padding: EdgeInsets.all(compact ? 10 : 14),
-        child: Row(
-          children: [
-            CircleAvatar(
-              child: Icon(
-                order['order_type'] == 'dine_in'
-                    ? Icons.table_restaurant
-                    : order['order_type'] == 'delivery'
-                    ? Icons.delivery_dining
-                    : Icons.takeout_dining,
-              ),
+        '${order['order_number']} | ${order['table_name'] ?? order['order_type']}';
+
+    return Container(
+      constraints: BoxConstraints(minHeight: compact ? 54 : 60),
+      margin: EdgeInsets.only(bottom: compact ? 4 : 5),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+      decoration: BoxDecoration(
+        color: scheme.surface,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: scheme.outlineVariant),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 28,
+            height: 28,
+            decoration: BoxDecoration(
+              color: scheme.primary.withValues(alpha: .08),
+              borderRadius: BorderRadius.circular(7),
             ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontWeight: FontWeight.w800),
-                  ),
-                  Text(
-                    '${order['customer_name'] ?? 'Walk-in'} • Prep ${order['preparation_minutes'] ?? 0} min',
-                  ),
-                  if ((order['chef_note'] ?? '').toString().trim().isNotEmpty)
-                    Text(
-                      'Kitchen: ${order['chef_note']}',
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                ],
-              ),
+            child: Icon(
+              order['order_type'] == 'dine_in'
+                  ? Icons.table_restaurant
+                  : order['order_type'] == 'delivery'
+                  ? Icons.delivery_dining
+                  : Icons.takeout_dining,
+              size: 15,
+              color: scheme.primary,
             ),
-            const SizedBox(width: 8),
-            Chip(label: Text(status.replaceAll('_', ' ').toUpperCase())),
-            const SizedBox(width: 8),
-            Text(
-              _money(order['total']),
-              style: const TextStyle(fontWeight: FontWeight.w800),
-            ),
-            PopupMenuButton<String>(
-              tooltip: 'Order actions',
-              onSelected: (value) {
-                if (value == 'bill') {
-                  _bill(order);
-                } else {
-                  _setStatus(order, value);
-                }
-              },
-              itemBuilder: (_) => [
-                if (status == 'open' || status == 'sent_to_kitchen')
-                  const PopupMenuItem(
-                    value: 'preparing',
-                    child: Text('Start Preparing'),
+          ),
+          const SizedBox(width: 7),
+          Expanded(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 9,
+                    fontWeight: FontWeight.w800,
                   ),
-                if (status == 'preparing' || status == 'sent_to_kitchen')
-                  const PopupMenuItem(
-                    value: 'ready',
-                    child: Text('Mark Ready'),
+                ),
+                Text(
+                  '${order['customer_name'] ?? 'Walk-in'} | '
+                  'Prep ${order['preparation_minutes'] ?? 0} min',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 7.5,
+                    color: scheme.onSurfaceVariant,
                   ),
-                if (status == 'ready')
-                  const PopupMenuItem(
-                    value: 'served',
-                    child: Text('Mark Served'),
-                  ),
-                if (status != 'billed' && status != 'cancelled')
-                  const PopupMenuItem(
-                    value: 'bill',
-                    child: Text('Finalize / Bill'),
-                  ),
-                if (status != 'billed' && status != 'cancelled')
-                  const PopupMenuItem(
-                    value: 'cancelled',
-                    child: Text('Cancel Order'),
-                  ),
+                ),
               ],
             ),
-          ],
-        ),
+          ),
+          const SizedBox(width: 6),
+          Container(
+            height: 22,
+            padding: const EdgeInsets.symmetric(horizontal: 6),
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: scheme.surfaceContainerHighest,
+              borderRadius: BorderRadius.circular(999),
+            ),
+            child: Text(
+              status.replaceAll('_', ' ').toUpperCase(),
+              style: const TextStyle(
+                fontSize: 6.8,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ),
+          const SizedBox(width: 7),
+          Text(
+            _money(order['total']),
+            style: const TextStyle(fontSize: 8.8, fontWeight: FontWeight.w900),
+          ),
+          PopupMenuButton<String>(
+            tooltip: 'Order actions',
+            onSelected: (value) {
+              if (value == 'bill') {
+                _bill(order);
+              } else {
+                _setStatus(order, value);
+              }
+            },
+            itemBuilder: (_) => [
+              if (status == 'open' || status == 'sent_to_kitchen')
+                const PopupMenuItem(
+                  value: 'preparing',
+                  child: Text('Start Preparing'),
+                ),
+              if (status == 'preparing' || status == 'sent_to_kitchen')
+                const PopupMenuItem(value: 'ready', child: Text('Mark Ready')),
+              if (status == 'ready')
+                const PopupMenuItem(
+                  value: 'served',
+                  child: Text('Mark Served'),
+                ),
+              if (status != 'billed' && status != 'cancelled')
+                const PopupMenuItem(
+                  value: 'bill',
+                  child: Text('Finalize / Bill'),
+                ),
+              if (status != 'billed' && status != 'cancelled')
+                const PopupMenuItem(
+                  value: 'cancelled',
+                  child: Text('Cancel Order'),
+                ),
+            ],
+            icon: const Icon(Icons.more_vert, size: 15),
+          ),
+        ],
       ),
     );
   }
 
   Widget _floorView() {
     final active = _tables.where((table) => table['active'] != false).toList();
+    final scheme = Theme.of(context).colorScheme;
+
     if (active.isEmpty) {
       return Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.table_restaurant_outlined, size: 54),
-            const SizedBox(height: 10),
-            const Text('No restaurant tables configured.'),
-            const SizedBox(height: 10),
+            Icon(
+              Icons.table_restaurant_outlined,
+              size: 36,
+              color: scheme.outline,
+            ),
+            const SizedBox(height: 7),
+            const Text(
+              'No restaurant tables configured.',
+              style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800),
+            ),
+            const SizedBox(height: 8),
             if (widget.session.hasPermission('restaurant.manage'))
               FilledButton.icon(
                 onPressed: _addTable,
-                icon: const Icon(Icons.add),
-                label: const Text('Add first table'),
+                icon: const Icon(Icons.add, size: 15),
+                label: const Text('Add First Table'),
               ),
           ],
         ),
       );
     }
+
     return GridView.builder(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(5),
       gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-        maxCrossAxisExtent: 260,
-        mainAxisExtent: 180,
-        crossAxisSpacing: 12,
-        mainAxisSpacing: 12,
+        maxCrossAxisExtent: 220,
+        mainAxisExtent: 136,
+        crossAxisSpacing: 5,
+        mainAxisSpacing: 5,
       ),
       itemCount: active.length,
       itemBuilder: (context, index) {
@@ -1009,52 +1049,79 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
         final id = table['id']?.toString() ?? '';
         final order = _tableOrder(id);
         final occupied = order != null;
-        return Card(
-          clipBehavior: Clip.antiAlias,
+
+        return Material(
+          color: scheme.surface,
+          borderRadius: BorderRadius.circular(8),
           child: InkWell(
             onTap: occupied ? () => _bill(order) : _newOrder,
-            child: Padding(
-              padding: const EdgeInsets.all(16),
+            borderRadius: BorderRadius.circular(8),
+            child: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                border: Border.all(color: scheme.outlineVariant),
+                borderRadius: BorderRadius.circular(8),
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
                     children: [
-                      CircleAvatar(
-                        child: Icon(
-                          occupied
-                              ? Icons.restaurant
-                              : Icons.table_restaurant_outlined,
-                        ),
+                      Icon(
+                        occupied
+                            ? Icons.restaurant
+                            : Icons.table_restaurant_outlined,
+                        size: 17,
+                        color: scheme.primary,
                       ),
                       const Spacer(),
-                      Chip(label: Text(occupied ? 'OCCUPIED' : 'AVAILABLE')),
+                      Text(
+                        occupied ? 'OCCUPIED' : 'AVAILABLE',
+                        style: TextStyle(
+                          fontSize: 6.8,
+                          fontWeight: FontWeight.w900,
+                          color: occupied ? scheme.error : scheme.primary,
+                        ),
+                      ),
                     ],
                   ),
                   const Spacer(),
                   Text(
-                    '${table['table_code']} • ${table['name']}',
+                    '${table['table_code']} | ${table['name']}',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
-                      fontSize: 18,
+                      fontSize: 10,
                       fontWeight: FontWeight.w900,
                     ),
                   ),
                   Text(
-                    '${table['area'] ?? 'Main floor'} • ${table['capacity'] ?? 0} seats',
+                    '${table['area'] ?? 'Main floor'} | '
+                    '${table['capacity'] ?? 0} seats',
+                    maxLines: 1,
+                    style: TextStyle(
+                      fontSize: 7.5,
+                      color: scheme.onSurfaceVariant,
+                    ),
                   ),
                   if (occupied) ...[
-                    const SizedBox(height: 5),
+                    const SizedBox(height: 4),
                     Text(
-                      '${order['order_number']} • ${_money(order['total'])}',
-                      style: const TextStyle(fontWeight: FontWeight.w700),
+                      '${order['order_number']} | ${_money(order['total'])}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 8,
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
                     Text(
                       (order['status'] ?? '')
                           .toString()
                           .replaceAll('_', ' ')
                           .toUpperCase(),
+                      maxLines: 1,
+                      style: const TextStyle(fontSize: 7),
                     ),
                   ],
                 ],
@@ -1068,12 +1135,18 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
 
   Widget _ordersView() {
     if (_orders.isEmpty) {
-      return const Center(child: Text('No live restaurant orders.'));
+      return const Center(
+        child: Text(
+          'No live restaurant orders.',
+          style: TextStyle(fontSize: 9),
+        ),
+      );
     }
+
     return RefreshIndicator(
       onRefresh: _load,
       child: ListView.builder(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(5),
         itemCount: _orders.length,
         itemBuilder: (context, index) => _orderCard(_orders[index]),
       ),
@@ -1097,64 +1170,98 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
           .where((o) => o['status']?.toString() == 'ready')
           .toList(),
     };
+
+    final scheme = Theme.of(context).colorScheme;
+
     return LayoutBuilder(
       builder: (context, constraints) {
-        final columns = groups.entries
-            .map(
-              (entry) => Card(
-                margin: const EdgeInsets.all(6),
-                child: Padding(
-                  padding: const EdgeInsets.all(10),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+        Widget column(String label, List<Map<String, dynamic>> rows) {
+          return Container(
+            decoration: BoxDecoration(
+              color: scheme.surface,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: scheme.outlineVariant),
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: Column(
+              children: [
+                Container(
+                  height: 34,
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  color: scheme.surfaceContainerHighest.withValues(alpha: .45),
+                  child: Row(
                     children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              entry.key,
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w900,
-                              ),
-                            ),
-                          ),
-                          Chip(label: Text('${entry.value.length}')),
-                        ],
-                      ),
-                      const Divider(),
                       Expanded(
-                        child: entry.value.isEmpty
-                            ? Center(
-                                child: Text(
-                                  'No ${entry.key.toLowerCase()} orders',
-                                ),
-                              )
-                            : ListView(
-                                children: entry.value
-                                    .map((o) => _orderCard(o, compact: true))
-                                    .toList(),
-                              ),
+                        child: Text(
+                          label,
+                          style: const TextStyle(
+                            fontSize: 8.5,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ),
+                      Text(
+                        '${rows.length}',
+                        style: TextStyle(
+                          fontSize: 8,
+                          color: scheme.onSurfaceVariant,
+                        ),
                       ),
                     ],
                   ),
                 ),
-              ),
-            )
-            .toList();
-        if (constraints.maxWidth < 900) {
-          return ListView(
-            padding: const EdgeInsets.all(8),
-            children: groups.entries
-                .map(
-                  (entry) => SizedBox(
-                    height: 330,
-                    child: columns[groups.keys.toList().indexOf(entry.key)],
-                  ),
-                )
-                .toList(),
+                Expanded(
+                  child: rows.isEmpty
+                      ? Center(
+                          child: Text(
+                            'No ${label.toLowerCase()} orders',
+                            style: TextStyle(
+                              fontSize: 8,
+                              color: scheme.onSurfaceVariant,
+                            ),
+                          ),
+                        )
+                      : ListView.builder(
+                          padding: const EdgeInsets.all(4),
+                          itemCount: rows.length,
+                          itemBuilder: (context, index) =>
+                              _orderCard(rows[index], compact: true),
+                        ),
+                ),
+              ],
+            ),
           );
         }
-        return Row(children: columns.map((c) => Expanded(child: c)).toList());
+
+        if (constraints.maxWidth < 820) {
+          return ListView(
+            padding: const EdgeInsets.all(5),
+            children: [
+              SizedBox(height: 260, child: column('QUEUE', groups['QUEUE']!)),
+              const SizedBox(height: 5),
+              SizedBox(
+                height: 260,
+                child: column('PREPARING', groups['PREPARING']!),
+              ),
+              const SizedBox(height: 5),
+              SizedBox(height: 260, child: column('READY', groups['READY']!)),
+            ],
+          );
+        }
+
+        return Padding(
+          padding: const EdgeInsets.all(5),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(child: column('QUEUE', groups['QUEUE']!)),
+              const SizedBox(width: 5),
+              Expanded(child: column('PREPARING', groups['PREPARING']!)),
+              const SizedBox(width: 5),
+              Expanded(child: column('READY', groups['READY']!)),
+            ],
+          ),
+        );
       },
     );
   }
@@ -1163,6 +1270,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
   Widget build(BuildContext context) {
     if (_loading) return const Center(child: CircularProgressIndicator());
 
+    final scheme = Theme.of(context).colorScheme;
     final occupied = _tables
         .where(
           (t) =>
@@ -1176,71 +1284,134 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
 
     return DefaultTabController(
       length: 3,
-      child: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(18, 14, 18, 8),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Restaurant Operations',
-                        style: TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.w900,
+      child: Padding(
+        padding: const EdgeInsets.all(6),
+        child: Column(
+          children: [
+            Container(
+              height: 46,
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              decoration: BoxDecoration(
+                color: scheme.surface,
+                borderRadius: BorderRadius.circular(9),
+                border: Border.all(color: scheme.outlineVariant),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    width: 4,
+                    height: 25,
+                    decoration: BoxDecoration(
+                      color: scheme.primary,
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Restaurant Operations',
+                          style: TextStyle(
+                            fontSize: 14.5,
+                            fontWeight: FontWeight.w900,
+                          ),
                         ),
-                      ),
-                      Text(
-                        '${widget.session.device?.locationName ?? ''} • ${_orders.length} live orders • $occupied occupied tables • $ready ready',
-                      ),
-                    ],
+                        Text(
+                          '${_orders.length} live | '
+                          '$occupied occupied | $ready ready',
+                          maxLines: 1,
+                          style: TextStyle(
+                            fontSize: 8.2,
+                            color: scheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-                if (widget.session.hasPermission('restaurant.manage'))
-                  OutlinedButton.icon(
-                    onPressed: _addTable,
-                    icon: const Icon(Icons.table_restaurant_outlined),
-                    label: const Text('Tables'),
+                  if (widget.session.hasPermission('restaurant.manage'))
+                    OutlinedButton.icon(
+                      onPressed: _addTable,
+                      icon: const Icon(
+                        Icons.table_restaurant_outlined,
+                        size: 15,
+                      ),
+                      label: const Text('Tables'),
+                    ),
+                  const SizedBox(width: 4),
+                  FilledButton.icon(
+                    onPressed: _newOrder,
+                    icon: const Icon(Icons.add, size: 15),
+                    label: const Text('New Order'),
                   ),
-                const SizedBox(width: 8),
-                FilledButton.icon(
-                  onPressed: _newOrder,
-                  icon: const Icon(Icons.add),
-                  label: const Text('New Order'),
-                ),
-                const SizedBox(width: 8),
-                IconButton.filledTonal(
-                  onPressed: _load,
-                  icon: const Icon(Icons.refresh),
-                  tooltip: 'Refresh',
-                ),
-              ],
-            ),
-          ),
-          if (_error != null)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 18),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: Text(_error!, style: const TextStyle(color: Colors.red)),
+                  const SizedBox(width: 2),
+                  IconButton(
+                    tooltip: 'Refresh',
+                    visualDensity: VisualDensity.compact,
+                    onPressed: _load,
+                    icon: const Icon(Icons.refresh_rounded, size: 17),
+                  ),
+                ],
               ),
             ),
-          const TabBar(
-            tabs: [
-              Tab(icon: Icon(Icons.table_restaurant_outlined), text: 'Floor'),
-              Tab(icon: Icon(Icons.receipt_long_outlined), text: 'Orders'),
-              Tab(icon: Icon(Icons.soup_kitchen_outlined), text: 'Kitchen'),
+            if (_error != null) ...[
+              const SizedBox(height: 5),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                decoration: BoxDecoration(
+                  color: scheme.errorContainer,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  _error!,
+                  maxLines: 2,
+                  style: TextStyle(
+                    fontSize: 8.5,
+                    color: scheme.onErrorContainer,
+                  ),
+                ),
+              ),
             ],
-          ),
-          Expanded(
-            child: TabBarView(
-              children: [_floorView(), _ordersView(), _kitchenView()],
+            const SizedBox(height: 5),
+            Container(
+              height: 36,
+              decoration: BoxDecoration(
+                color: scheme.surface,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: scheme.outlineVariant),
+              ),
+              child: const TabBar(
+                labelStyle: TextStyle(
+                  fontSize: 8.8,
+                  fontWeight: FontWeight.w800,
+                ),
+                tabs: [
+                  Tab(
+                    icon: Icon(Icons.table_restaurant_outlined, size: 15),
+                    text: 'Floor',
+                  ),
+                  Tab(
+                    icon: Icon(Icons.receipt_long_outlined, size: 15),
+                    text: 'Orders',
+                  ),
+                  Tab(
+                    icon: Icon(Icons.soup_kitchen_outlined, size: 15),
+                    text: 'Kitchen',
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
+            const SizedBox(height: 5),
+            Expanded(
+              child: TabBarView(
+                children: [_floorView(), _ordersView(), _kitchenView()],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
