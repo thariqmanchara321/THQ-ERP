@@ -78,40 +78,62 @@ class _ReportsScreenState extends State<ReportsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
     return Padding(
-      padding: const EdgeInsets.all(28),
+      padding: const EdgeInsets.all(6),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Reports',
-            style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+          Container(
+            height: 46,
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            decoration: BoxDecoration(
+              color: scheme.surface,
+              borderRadius: BorderRadius.circular(9),
+              border: Border.all(color: scheme.outlineVariant),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 4,
+                  height: 25,
+                  decoration: BoxDecoration(
+                    color: scheme.primary,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                const Expanded(
+                  child: Text(
+                    'Reports',
+                    style: TextStyle(
+                      fontSize: 14.5,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+                OutlinedButton.icon(
+                  onPressed: () => _pick(true),
+                  icon: const Icon(Icons.date_range, size: 14),
+                  label: Text('From ${_date(_from)}'),
+                ),
+                const SizedBox(width: 4),
+                OutlinedButton.icon(
+                  onPressed: () => _pick(false),
+                  icon: const Icon(Icons.date_range, size: 14),
+                  label: Text('To ${_date(_to)}'),
+                ),
+                const SizedBox(width: 4),
+                IconButton(
+                  tooltip: 'Refresh',
+                  visualDensity: VisualDensity.compact,
+                  onPressed: _reload,
+                  icon: const Icon(Icons.refresh_rounded, size: 17),
+                ),
+              ],
+            ),
           ),
           const SizedBox(height: 5),
-          const Text('Sales, purchase, tax, profit and stock summary'),
-          const SizedBox(height: 20),
-          Wrap(
-            spacing: 10,
-            runSpacing: 10,
-            children: [
-              OutlinedButton.icon(
-                onPressed: () => _pick(true),
-                icon: const Icon(Icons.date_range),
-                label: Text('From ${_date(_from)}'),
-              ),
-              OutlinedButton.icon(
-                onPressed: () => _pick(false),
-                icon: const Icon(Icons.date_range),
-                label: Text('To ${_date(_to)}'),
-              ),
-              FilledButton.icon(
-                onPressed: _reload,
-                icon: const Icon(Icons.refresh),
-                label: const Text('Refresh'),
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
           Expanded(
             child: FutureBuilder<ReportSummary>(
               future: _future,
@@ -182,51 +204,80 @@ class _ReportsScreenState extends State<ReportsScreen> {
                   ),
                 ];
 
-                return GridView.extent(
-                  maxCrossAxisExtent: 340,
-                  mainAxisSpacing: 12,
-                  crossAxisSpacing: 12,
-                  childAspectRatio: 2.0,
-                  children: rows
-                      .map(
-                        (row) => Container(
-                          padding: const EdgeInsets.all(18),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(14),
-                            border: Border.all(color: Colors.grey.shade200),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Text(
-                                row.label,
-                                style: TextStyle(color: Colors.grey.shade600),
+                return LayoutBuilder(
+                  builder: (context, constraints) {
+                    final columns = constraints.maxWidth >= 1050
+                        ? 5
+                        : constraints.maxWidth >= 780
+                        ? 4
+                        : constraints.maxWidth >= 560
+                        ? 3
+                        : 2;
+                    const gap = 5.0;
+                    final width =
+                        (constraints.maxWidth - ((columns - 1) * gap)) /
+                        columns;
+
+                    return Align(
+                      alignment: Alignment.topLeft,
+                      child: Wrap(
+                        spacing: gap,
+                        runSpacing: gap,
+                        children: rows
+                            .map(
+                              (row) => SizedBox(
+                                width: width,
+                                child: _reportMetric(row),
                               ),
-                              const SizedBox(height: 4),
-                              Text(
-                                row.value,
-                                style: const TextStyle(
-                                  fontSize: 21,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              Text(
-                                row.caption,
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  color: Colors.grey.shade500,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      )
-                      .toList(),
+                            )
+                            .toList(),
+                      ),
+                    );
+                  },
                 );
               },
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _reportMetric(_ReportCardData row) {
+    final scheme = Theme.of(context).colorScheme;
+
+    return Container(
+      height: 68,
+      padding: const EdgeInsets.symmetric(horizontal: 9),
+      decoration: BoxDecoration(
+        color: scheme.surface,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: scheme.outlineVariant),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            row.label,
+            maxLines: 1,
+            style: TextStyle(
+              fontSize: 7.5,
+              fontWeight: FontWeight.w700,
+              color: scheme.onSurfaceVariant,
+            ),
+          ),
+          Text(
+            row.value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w900),
+          ),
+          Text(
+            row.caption,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(fontSize: 7, color: scheme.onSurfaceVariant),
           ),
         ],
       ),

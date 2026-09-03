@@ -60,116 +60,163 @@ class _PaymentCenterScreenState extends State<PaymentCenterScreen> {
   }
 
   @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.all(28),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            const Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Pending Payments',
-                    style: TextStyle(fontSize: 30, fontWeight: FontWeight.bold),
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
+    return Padding(
+      padding: const EdgeInsets.all(6),
+      child: Column(
+        children: [
+          Container(
+            height: 46,
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            decoration: BoxDecoration(
+              color: scheme.surface,
+              borderRadius: BorderRadius.circular(9),
+              border: Border.all(color: scheme.outlineVariant),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 4,
+                  height: 25,
+                  decoration: BoxDecoration(
+                    color: scheme.primary,
+                    borderRadius: BorderRadius.circular(999),
                   ),
-                  SizedBox(height: 4),
-                  Text(
-                    'Customer receivables and supplier payables grouped by party',
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Pending Payments',
+                        style: TextStyle(
+                          fontSize: 14.5,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      Text(
+                        'Customer receivables and supplier payables',
+                        style: TextStyle(
+                          fontSize: 8.3,
+                          color: scheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
                   ),
-                ],
+                ),
+                IconButton(
+                  tooltip: 'Refresh balances',
+                  visualDensity: VisualDensity.compact,
+                  onPressed: _refresh,
+                  icon: const Icon(Icons.refresh_rounded, size: 17),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 5),
+          Container(
+            height: 40,
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            decoration: BoxDecoration(
+              color: scheme.surface,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: scheme.outlineVariant),
+            ),
+            child: TextField(
+              controller: _query,
+              onChanged: (_) => setState(() {}),
+              onSubmitted: (_) => setState(_load),
+              decoration: InputDecoration(
+                hintText:
+                    'Search customer, supplier, phone, email or tracking ID...',
+                prefixIcon: const Icon(Icons.search, size: 16),
+                suffixIcon: _query.text.isEmpty
+                    ? null
+                    : IconButton(
+                        tooltip: 'Clear',
+                        visualDensity: VisualDensity.compact,
+                        onPressed: () {
+                          _query.clear();
+                          setState(_load);
+                        },
+                        icon: const Icon(Icons.close, size: 15),
+                      ),
+                border: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
               ),
             ),
-            IconButton(
-              tooltip: 'Refresh balances',
-              onPressed: _refresh,
-              icon: const Icon(Icons.refresh),
-            ),
-          ],
-        ),
-        const SizedBox(height: 16),
-        TextField(
-          controller: _query,
-          decoration: InputDecoration(
-            hintText: 'Search customer, supplier, phone, email or tracking ID',
-            prefixIcon: const Icon(Icons.search),
-            suffixIcon: _query.text.isEmpty
-                ? null
-                : IconButton(
-                    tooltip: 'Clear',
-                    onPressed: () {
-                      _query.clear();
-                      setState(_load);
-                    },
-                    icon: const Icon(Icons.close),
-                  ),
           ),
-          onChanged: (_) => setState(() {}),
-          onSubmitted: (_) => setState(_load),
-        ),
-        const SizedBox(height: 16),
-        Expanded(
-          child: FutureBuilder<PendingPaymentsData>(
-            future: _future,
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator());
-              }
-              if (snapshot.hasError) {
-                return Center(
-                  child: SelectableText(
-                    snapshot.error.toString(),
-                    textAlign: TextAlign.center,
-                  ),
+          const SizedBox(height: 5),
+          Expanded(
+            child: FutureBuilder<PendingPaymentsData>(
+              future: _future,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (snapshot.hasError) {
+                  return Center(
+                    child: SelectableText(
+                      snapshot.error.toString(),
+                      textAlign: TextAlign.center,
+                    ),
+                  );
+                }
+
+                final data = snapshot.data!;
+                final receive = _PartyPane(
+                  title: 'Customers | To Receive',
+                  subtitle: '${data.receivables.length} account(s)',
+                  icon: Icons.south_west_rounded,
+                  amount: data.totalReceivable,
+                  money: _m,
+                  rows: data.receivables,
+                  onOpen: _openParty,
                 );
-              }
-              final data = snapshot.data!;
-              return LayoutBuilder(
-                builder: (context, constraints) {
-                  final receive = _PartyPane(
-                    title: 'Customers • To Receive',
-                    subtitle: '${data.receivables.length} customer account(s)',
-                    icon: Icons.south_west_rounded,
-                    amount: data.totalReceivable,
-                    money: _m,
-                    rows: data.receivables,
-                    onOpen: _openParty,
-                  );
-                  final pay = _PartyPane(
-                    title: 'Suppliers • To Pay',
-                    subtitle: '${data.payables.length} supplier account(s)',
-                    icon: Icons.north_east_rounded,
-                    amount: data.totalPayable,
-                    money: _m,
-                    rows: data.payables,
-                    onOpen: _openParty,
-                  );
-                  if (constraints.maxWidth < 980) {
-                    return Column(
+                final pay = _PartyPane(
+                  title: 'Suppliers | To Pay',
+                  subtitle: '${data.payables.length} account(s)',
+                  icon: Icons.north_east_rounded,
+                  amount: data.totalPayable,
+                  money: _m,
+                  rows: data.payables,
+                  onOpen: _openParty,
+                );
+
+                return LayoutBuilder(
+                  builder: (context, constraints) {
+                    if (constraints.maxWidth < 850) {
+                      return Column(
+                        children: [
+                          Expanded(child: receive),
+                          const SizedBox(height: 5),
+                          Expanded(child: pay),
+                        ],
+                      );
+                    }
+
+                    return Row(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         Expanded(child: receive),
-                        const SizedBox(height: 14),
+                        const SizedBox(width: 5),
                         Expanded(child: pay),
                       ],
                     );
-                  }
-                  return Row(
-                    children: [
-                      Expanded(child: receive),
-                      const SizedBox(width: 14),
-                      Expanded(child: pay),
-                    ],
-                  );
-                },
-              );
-            },
+                  },
+                );
+              },
+            ),
           ),
-        ),
-      ],
-    ),
-  );
+        ],
+      ),
+    );
+  }
 }
 
 class _PartyPane extends StatelessWidget {
@@ -197,117 +244,182 @@ class _PartyPane extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) => Card(
-    child: Padding(
-      padding: const EdgeInsets.all(18),
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: scheme.surface,
+        borderRadius: BorderRadius.circular(9),
+        border: Border.all(color: scheme.outlineVariant),
+      ),
+      clipBehavior: Clip.antiAlias,
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Icon(icon),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: const TextStyle(
-                        fontSize: 19,
-                        fontWeight: FontWeight.bold,
+          Container(
+            height: 48,
+            padding: const EdgeInsets.symmetric(horizontal: 9),
+            color: scheme.surfaceContainerHighest.withValues(alpha: .42),
+            child: Row(
+              children: [
+                Icon(icon, size: 15, color: scheme.primary),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        maxLines: 1,
+                        style: const TextStyle(
+                          fontSize: 9.5,
+                          fontWeight: FontWeight.w900,
+                        ),
                       ),
-                    ),
-                    Text(
-                      subtitle,
-                      style: TextStyle(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      Text(
+                        subtitle,
+                        maxLines: 1,
+                        style: TextStyle(
+                          fontSize: 7.3,
+                          color: scheme.onSurfaceVariant,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-              Text(
-                money(amount),
-                style: const TextStyle(
-                  fontSize: 21,
-                  fontWeight: FontWeight.bold,
+                Text(
+                  money(amount),
+                  maxLines: 1,
+                  style: const TextStyle(
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w900,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-          const Divider(height: 28),
           Expanded(
             child: rows.isEmpty
-                ? const Center(child: Text('Nothing pending.'))
-                : ListView.separated(
+                ? const Center(
+                    child: Text(
+                      'Nothing pending.',
+                      style: TextStyle(fontSize: 9),
+                    ),
+                  )
+                : ListView.builder(
+                    padding: EdgeInsets.zero,
                     itemCount: rows.length,
-                    separatorBuilder: (_, _) => const Divider(height: 1),
                     itemBuilder: (context, index) {
                       final row = rows[index];
                       final isCustomer = row.partyType == 'customer';
                       final breakdown = isCustomer
-                          ? 'Sales ${money(row.salesOutstanding)} • Loans ${money(row.loanOutstanding)}'
-                          : 'Purchases ${money(row.purchaseOutstanding)} • Purchase invoices ${money(row.invoiceOutstanding)}'
-                                '${row.creditBalance > .005 ? ' • Credit ${money(row.creditBalance)}' : ''}';
-                      return ListTile(
-                        contentPadding: const EdgeInsets.symmetric(vertical: 6),
-                        leading: CircleAvatar(
-                          child: Icon(
-                            isCustomer
-                                ? Icons.person_outline
-                                : Icons.local_shipping_outlined,
-                          ),
-                        ),
-                        title: Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                row.partyName,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w700,
+                          ? 'Sales ${money(row.salesOutstanding)} | '
+                                'Loans ${money(row.loanOutstanding)}'
+                          : 'Purchases ${money(row.purchaseOutstanding)} | '
+                                'Invoices ${money(row.invoiceOutstanding)}'
+                                '${row.creditBalance > .005 ? ' | Credit ${money(row.creditBalance)}' : ''}';
+
+                      return Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          onTap: () => onOpen(row),
+                          child: Container(
+                            constraints: const BoxConstraints(minHeight: 52),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 9,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              border: Border(
+                                bottom: BorderSide(
+                                  color: scheme.outlineVariant,
                                 ),
                               ),
                             ),
-                            Text(
-                              money(row.balance),
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                          ],
-                        ),
-                        subtitle: Padding(
-                          padding: const EdgeInsets.only(top: 4),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(breakdown),
-                              const SizedBox(height: 2),
-                              Text(
-                                '${row.documentCount} open item(s) • Next due ${_d(row.nextDueDate)}'
-                                '${row.overdue > .005 ? ' • Overdue ${money(row.overdue)}' : ''}',
-                                style: TextStyle(
-                                  color: row.overdue > .005
-                                      ? Theme.of(context).colorScheme.error
-                                      : Theme.of(
-                                          context,
-                                        ).colorScheme.onSurfaceVariant,
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 27,
+                                  height: 27,
+                                  decoration: BoxDecoration(
+                                    color: scheme.primary.withValues(
+                                      alpha: .08,
+                                    ),
+                                    borderRadius: BorderRadius.circular(7),
+                                  ),
+                                  child: Icon(
+                                    isCustomer
+                                        ? Icons.person_outline
+                                        : Icons.local_shipping_outlined,
+                                    size: 14,
+                                    color: scheme.primary,
+                                  ),
                                 ),
-                              ),
-                            ],
+                                const SizedBox(width: 7),
+                                Expanded(
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        row.partyName,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                          fontSize: 8.8,
+                                          fontWeight: FontWeight.w800,
+                                        ),
+                                      ),
+                                      Text(
+                                        breakdown,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          fontSize: 7.2,
+                                          color: scheme.onSurfaceVariant,
+                                        ),
+                                      ),
+                                      Text(
+                                        '${row.documentCount} open | '
+                                        'Due ${_d(row.nextDueDate)}'
+                                        '${row.overdue > .005 ? ' | Overdue ${money(row.overdue)}' : ''}',
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          fontSize: 7,
+                                          color: row.overdue > .005
+                                              ? scheme.error
+                                              : scheme.onSurfaceVariant,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  money(row.balance),
+                                  maxLines: 1,
+                                  style: const TextStyle(
+                                    fontSize: 8.8,
+                                    fontWeight: FontWeight.w900,
+                                  ),
+                                ),
+                                const SizedBox(width: 3),
+                                const Icon(Icons.chevron_right, size: 15),
+                              ],
+                            ),
                           ),
                         ),
-                        trailing: const Icon(Icons.chevron_right),
-                        onTap: () => onOpen(row),
                       );
                     },
                   ),
           ),
         ],
       ),
-    ),
-  );
+    );
+  }
 }
 
 class _PartyPaymentDetailScreen extends StatefulWidget {

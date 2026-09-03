@@ -76,146 +76,435 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
   }
 
   @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.all(28),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            const Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Expenses',
-                    style: TextStyle(fontSize: 30, fontWeight: FontWeight.bold),
-                  ),
-                  SizedBox(height: 5),
-                  Text('Operating expenses and cash payments'),
-                ],
-              ),
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
+    return Padding(
+      padding: const EdgeInsets.all(6),
+      child: Column(
+        children: [
+          Container(
+            height: 46,
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            decoration: BoxDecoration(
+              color: scheme.surface,
+              borderRadius: BorderRadius.circular(9),
+              border: Border.all(color: scheme.outlineVariant),
             ),
-            if (_canManage)
-              FilledButton.icon(
-                onPressed: _newExpense,
-                icon: const Icon(Icons.add),
-                label: const Text('New Expense'),
-              ),
-          ],
-        ),
-        const SizedBox(height: 22),
-        Expanded(
-          child: FutureBuilder<List<Expense>>(
-            future: _future,
-            builder: (context, s) {
-              if (s.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator());
-              }
-              if (s.hasError) {
-                return Center(
-                  child: Text(s.error.toString(), textAlign: TextAlign.center),
-                );
-              }
-              final rows = s.data ?? [];
-              if (rows.isEmpty) {
-                return const Center(child: Text('No expenses recorded yet.'));
-              }
-              return RefreshIndicator(
-                onRefresh: _refresh,
-                child: ListView.separated(
-                  itemCount: rows.length,
-                  separatorBuilder: (_, _) => const SizedBox(height: 10),
-                  itemBuilder: (context, i) {
-                    final e = rows[i];
-                    return InkWell(
-                      onTap: _canEdit ? () => _editExpense(e) : null,
-                      borderRadius: BorderRadius.circular(16),
-                      child: Container(
-                        padding: const EdgeInsets.all(18),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: Colors.grey.shade200),
+            child: Row(
+              children: [
+                Container(
+                  width: 4,
+                  height: 25,
+                  decoration: BoxDecoration(
+                    color: scheme.primary,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Expenses',
+                        style: TextStyle(
+                          fontSize: 14.5,
+                          fontWeight: FontWeight.w900,
                         ),
-                        child: Row(
+                      ),
+                      Text(
+                        'Today | Operating expenses and cash payments',
+                        style: TextStyle(
+                          fontSize: 8.3,
+                          color: scheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  tooltip: 'Refresh',
+                  visualDensity: VisualDensity.compact,
+                  onPressed: _refresh,
+                  icon: const Icon(Icons.refresh_rounded, size: 17),
+                ),
+                if (_canManage) ...[
+                  const SizedBox(width: 3),
+                  FilledButton.icon(
+                    onPressed: _newExpense,
+                    icon: const Icon(Icons.add, size: 15),
+                    label: const Text('New Expense'),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(height: 5),
+          Expanded(
+            child: FutureBuilder<List<Expense>>(
+              future: _future,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (snapshot.hasError) {
+                  return Center(
+                    child: Text(
+                      snapshot.error.toString(),
+                      textAlign: TextAlign.center,
+                    ),
+                  );
+                }
+
+                final rows = snapshot.data ?? [];
+                if (rows.isEmpty) {
+                  return const Center(
+                    child: Text('No expenses recorded today.'),
+                  );
+                }
+
+                final total = rows.fold<double>(
+                  0,
+                  (sum, row) => sum + row.totalAmount,
+                );
+                final tax = rows.fold<double>(
+                  0,
+                  (sum, row) => sum + row.taxAmount,
+                );
+                final beforeTax = rows.fold<double>(
+                  0,
+                  (sum, row) => sum + row.amount,
+                );
+
+                return Column(
+                  children: [
+                    SizedBox(
+                      height: 54,
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: _expenseMetric(
+                              'Expenses',
+                              '${rows.length}',
+                              Icons.receipt_long_outlined,
+                            ),
+                          ),
+                          const SizedBox(width: 5),
+                          Expanded(
+                            child: _expenseMetric(
+                              'Before Tax',
+                              _m(beforeTax),
+                              Icons.payments_outlined,
+                            ),
+                          ),
+                          const SizedBox(width: 5),
+                          Expanded(
+                            child: _expenseMetric(
+                              'Tax',
+                              _m(tax),
+                              Icons.percent_outlined,
+                            ),
+                          ),
+                          const SizedBox(width: 5),
+                          Expanded(
+                            child: _expenseMetric(
+                              'Total',
+                              _m(total),
+                              Icons.account_balance_wallet_outlined,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 5),
+                    Expanded(
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: scheme.surface,
+                          borderRadius: BorderRadius.circular(9),
+                          border: Border.all(color: scheme.outlineVariant),
+                        ),
+                        clipBehavior: Clip.antiAlias,
+                        child: Column(
                           children: [
-                            Expanded(
-                              flex: 2,
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
+                            Container(
+                              height: 34,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 9,
+                              ),
+                              color: scheme.surfaceContainerHighest.withValues(
+                                alpha: .45,
+                              ),
+                              child: const Row(
                                 children: [
-                                  Text(
-                                    e.number,
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
+                                  Expanded(
+                                    flex: 2,
+                                    child: Text(
+                                      'Expense',
+                                      style: TextStyle(
+                                        fontSize: 8.8,
+                                        fontWeight: FontWeight.w900,
+                                      ),
                                     ),
                                   ),
-                                  Text(
-                                    _d(e.expenseDate),
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.grey.shade600,
+                                  Expanded(
+                                    flex: 3,
+                                    child: Text(
+                                      'Category / Payee',
+                                      style: TextStyle(
+                                        fontSize: 8.8,
+                                        fontWeight: FontWeight.w900,
+                                      ),
                                     ),
                                   ),
+                                  Expanded(
+                                    flex: 2,
+                                    child: Text(
+                                      'Payment',
+                                      style: TextStyle(
+                                        fontSize: 8.8,
+                                        fontWeight: FontWeight.w900,
+                                      ),
+                                    ),
+                                  ),
+                                  Expanded(
+                                    flex: 2,
+                                    child: Text(
+                                      'Amount',
+                                      textAlign: TextAlign.right,
+                                      style: TextStyle(
+                                        fontSize: 8.8,
+                                        fontWeight: FontWeight.w900,
+                                      ),
+                                    ),
+                                  ),
+                                  SizedBox(
+                                    width: 76,
+                                    child: Text(
+                                      'Status',
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(
+                                        fontSize: 8.8,
+                                        fontWeight: FontWeight.w900,
+                                      ),
+                                    ),
+                                  ),
+                                  SizedBox(width: 32),
                                 ],
                               ),
                             ),
                             Expanded(
-                              flex: 3,
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    e.categoryName,
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                  Text(
-                                    e.payee.isEmpty ? e.description : e.payee,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.grey.shade600,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            Expanded(
-                              flex: 2,
-                              child: Text(e.paymentMethod.toUpperCase()),
-                            ),
-                            Expanded(
-                              flex: 2,
-                              child: Text(
-                                _m(e.totalAmount),
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
+                              child: RefreshIndicator(
+                                onRefresh: _refresh,
+                                child: ListView.builder(
+                                  physics:
+                                      const AlwaysScrollableScrollPhysics(),
+                                  padding: EdgeInsets.zero,
+                                  itemCount: rows.length,
+                                  itemBuilder: (context, index) {
+                                    final expense = rows[index];
+
+                                    return Material(
+                                      color: Colors.transparent,
+                                      child: InkWell(
+                                        onTap: _canEdit
+                                            ? () => _editExpense(expense)
+                                            : null,
+                                        child: Container(
+                                          constraints: const BoxConstraints(
+                                            minHeight: 46,
+                                          ),
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 9,
+                                            vertical: 4,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            border: Border(
+                                              bottom: BorderSide(
+                                                color: scheme.outlineVariant,
+                                              ),
+                                            ),
+                                          ),
+                                          child: Row(
+                                            children: [
+                                              Expanded(
+                                                flex: 2,
+                                                child: Column(
+                                                  mainAxisSize:
+                                                      MainAxisSize.min,
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.start,
+                                                  children: [
+                                                    Text(
+                                                      expense.number,
+                                                      maxLines: 1,
+                                                      style: const TextStyle(
+                                                        fontSize: 8.8,
+                                                        fontWeight:
+                                                            FontWeight.w800,
+                                                      ),
+                                                    ),
+                                                    Text(
+                                                      _d(expense.expenseDate),
+                                                      style: TextStyle(
+                                                        fontSize: 7.3,
+                                                        color: scheme
+                                                            .onSurfaceVariant,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                              Expanded(
+                                                flex: 3,
+                                                child: Column(
+                                                  mainAxisSize:
+                                                      MainAxisSize.min,
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.start,
+                                                  children: [
+                                                    Text(
+                                                      expense.categoryName,
+                                                      maxLines: 1,
+                                                      overflow:
+                                                          TextOverflow.ellipsis,
+                                                      style: const TextStyle(
+                                                        fontSize: 8.5,
+                                                        fontWeight:
+                                                            FontWeight.w700,
+                                                      ),
+                                                    ),
+                                                    Text(
+                                                      expense.payee.isEmpty
+                                                          ? expense.description
+                                                          : expense.payee,
+                                                      maxLines: 1,
+                                                      overflow:
+                                                          TextOverflow.ellipsis,
+                                                      style: TextStyle(
+                                                        fontSize: 7.3,
+                                                        color: scheme
+                                                            .onSurfaceVariant,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                              Expanded(
+                                                flex: 2,
+                                                child: Text(
+                                                  expense.paymentMethod
+                                                      .replaceAll('_', ' ')
+                                                      .toUpperCase(),
+                                                  maxLines: 1,
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
+                                                  style: const TextStyle(
+                                                    fontSize: 7.8,
+                                                  ),
+                                                ),
+                                              ),
+                                              Expanded(
+                                                flex: 2,
+                                                child: Text(
+                                                  _m(expense.totalAmount),
+                                                  textAlign: TextAlign.right,
+                                                  maxLines: 1,
+                                                  style: const TextStyle(
+                                                    fontSize: 8.8,
+                                                    fontWeight: FontWeight.w900,
+                                                  ),
+                                                ),
+                                              ),
+                                              SizedBox(
+                                                width: 76,
+                                                child: Text(
+                                                  expense.status.toUpperCase(),
+                                                  textAlign: TextAlign.center,
+                                                  style: const TextStyle(
+                                                    fontSize: 7,
+                                                    fontWeight: FontWeight.w900,
+                                                  ),
+                                                ),
+                                              ),
+                                              SizedBox(
+                                                width: 32,
+                                                child: _canEdit
+                                                    ? const Icon(
+                                                        Icons.edit_outlined,
+                                                        size: 14,
+                                                      )
+                                                    : null,
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    );
+                                  },
                                 ),
                               ),
                             ),
-                            Chip(label: Text(e.status.toUpperCase())),
-                            if (_canEdit)
-                              const Padding(
-                                padding: EdgeInsets.only(left: 8),
-                                child: Icon(Icons.edit_outlined, size: 18),
-                              ),
                           ],
                         ),
                       ),
-                    );
-                  },
-                ),
-              );
-            },
+                    ),
+                  ],
+                );
+              },
+            ),
           ),
-        ),
-      ],
-    ),
-  );
+        ],
+      ),
+    );
+  }
+
+  Widget _expenseMetric(String label, String value, IconData icon) {
+    final scheme = Theme.of(context).colorScheme;
+
+    return Container(
+      height: 54,
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      decoration: BoxDecoration(
+        color: scheme.surface,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: scheme.outlineVariant),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, size: 14, color: scheme.primary),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  value,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 9.5,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                Text(
+                  label,
+                  maxLines: 1,
+                  style: TextStyle(
+                    fontSize: 7.3,
+                    color: scheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _ExpenseDialog extends StatefulWidget {

@@ -127,83 +127,110 @@ class _InventoryProductsScreenState extends State<InventoryProductsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
     return Padding(
-      padding: const EdgeInsets.all(28),
-
+      padding: const EdgeInsets.all(6),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              const Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Inventory',
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
+          Container(
+            height: 46,
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            decoration: BoxDecoration(
+              color: scheme.surface,
+              borderRadius: BorderRadius.circular(9),
+              border: Border.all(color: scheme.outlineVariant),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 4,
+                  height: 25,
+                  decoration: BoxDecoration(
+                    color: scheme.primary,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Inventory',
+                        style: TextStyle(
+                          fontSize: 14.5,
+                          fontWeight: FontWeight.w900,
+                        ),
                       ),
-                    ),
-
-                    SizedBox(height: 5),
-
-                    Text('Products, stock and pricing'),
-                  ],
+                      Text(
+                        'Products, stock and pricing',
+                        style: TextStyle(
+                          fontSize: 8.3,
+                          color: scheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-
-              if (_canManage)
-                FilledButton.icon(
-                  onPressed: _addProduct,
-                  icon: const Icon(Icons.add),
-                  label: const Text('Add Product'),
+                IconButton(
+                  tooltip: 'Refresh',
+                  visualDensity: VisualDensity.compact,
+                  onPressed: _refresh,
+                  icon: const Icon(Icons.refresh_rounded, size: 17),
                 ),
-            ],
-          ),
-
-          const SizedBox(height: 24),
-
-          TextField(
-            controller: _searchController,
-            onChanged: (value) {
-              setState(() {
-                _search = value;
-              });
-            },
-            decoration: InputDecoration(
-              hintText: 'Search name, SKU, barcode, part number, brand...',
-              prefixIcon: const Icon(Icons.search),
-              suffixIcon: _search.isEmpty
-                  ? null
-                  : IconButton(
-                      onPressed: () {
-                        _searchController.clear();
-
-                        setState(() {
-                          _search = '';
-                        });
-                      },
-                      icon: const Icon(Icons.close),
-                    ),
-              border: const OutlineInputBorder(),
-              filled: true,
-              fillColor: Colors.white,
+                if (_canManage) ...[
+                  const SizedBox(width: 3),
+                  FilledButton.icon(
+                    onPressed: _addProduct,
+                    icon: const Icon(Icons.add, size: 15),
+                    label: const Text('Add Product'),
+                  ),
+                ],
+              ],
             ),
           ),
-
-          const SizedBox(height: 20),
-
+          const SizedBox(height: 5),
+          Container(
+            height: 40,
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            decoration: BoxDecoration(
+              color: scheme.surface,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: scheme.outlineVariant),
+            ),
+            child: TextField(
+              controller: _searchController,
+              onChanged: (value) => setState(() => _search = value),
+              decoration: InputDecoration(
+                hintText: 'Search name, SKU, barcode, part, brand...',
+                prefixIcon: const Icon(Icons.search, size: 16),
+                suffixIcon: _search.isEmpty
+                    ? null
+                    : IconButton(
+                        tooltip: 'Clear',
+                        visualDensity: VisualDensity.compact,
+                        onPressed: () {
+                          _searchController.clear();
+                          setState(() => _search = '');
+                        },
+                        icon: const Icon(Icons.close, size: 15),
+                      ),
+                border: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
+              ),
+            ),
+          ),
+          const SizedBox(height: 5),
           Expanded(
             child: FutureBuilder<List<InventoryProduct>>(
               future: _productsFuture,
-
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
                 }
-
                 if (snapshot.hasError) {
                   return _ErrorView(
                     message: snapshot.error.toString(),
@@ -212,7 +239,6 @@ class _InventoryProductsScreenState extends State<InventoryProductsScreen> {
                 }
 
                 final allProducts = snapshot.data ?? [];
-
                 final products = _filter(allProducts);
 
                 if (allProducts.isEmpty) {
@@ -221,35 +247,96 @@ class _InventoryProductsScreenState extends State<InventoryProductsScreen> {
                     onAdd: _addProduct,
                   );
                 }
-
                 if (products.isEmpty) {
                   return const Center(
                     child: Text('No products match your search.'),
                   );
                 }
 
-                return RefreshIndicator(
-                  onRefresh: _refresh,
-
-                  child: ListView.separated(
-                    itemCount: products.length,
-
-                    separatorBuilder: (_, _) => const SizedBox(height: 10),
-
-                    itemBuilder: (context, index) {
-                      final product = products[index];
-
-                      return InkWell(
-                        borderRadius: BorderRadius.circular(16),
-
-                        onTap: () => _openProduct(product),
-
-                        child: _ProductCard(
-                          product: product,
-                          currencyCode: widget.session.currencyCode,
+                return Container(
+                  decoration: BoxDecoration(
+                    color: scheme.surface,
+                    borderRadius: BorderRadius.circular(9),
+                    border: Border.all(color: scheme.outlineVariant),
+                  ),
+                  clipBehavior: Clip.antiAlias,
+                  child: Column(
+                    children: [
+                      Container(
+                        height: 34,
+                        padding: const EdgeInsets.symmetric(horizontal: 9),
+                        color: scheme.surfaceContainerHighest.withValues(
+                          alpha: .45,
                         ),
-                      );
-                    },
+                        child: const Row(
+                          children: [
+                            Expanded(
+                              flex: 4,
+                              child: Text(
+                                'Product',
+                                style: TextStyle(
+                                  fontSize: 8.8,
+                                  fontWeight: FontWeight.w900,
+                                ),
+                              ),
+                            ),
+                            Expanded(
+                              flex: 2,
+                              child: Text(
+                                'SKU / Part',
+                                style: TextStyle(
+                                  fontSize: 8.8,
+                                  fontWeight: FontWeight.w900,
+                                ),
+                              ),
+                            ),
+                            Expanded(
+                              flex: 2,
+                              child: Text(
+                                'Price',
+                                textAlign: TextAlign.right,
+                                style: TextStyle(
+                                  fontSize: 8.8,
+                                  fontWeight: FontWeight.w900,
+                                ),
+                              ),
+                            ),
+                            SizedBox(
+                              width: 115,
+                              child: Text(
+                                'Stock',
+                                textAlign: TextAlign.right,
+                                style: TextStyle(
+                                  fontSize: 8.8,
+                                  fontWeight: FontWeight.w900,
+                                ),
+                              ),
+                            ),
+                            SizedBox(width: 30),
+                          ],
+                        ),
+                      ),
+                      Expanded(
+                        child: RefreshIndicator(
+                          onRefresh: _refresh,
+                          child: ListView.builder(
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            padding: EdgeInsets.zero,
+                            itemCount: products.length,
+                            itemBuilder: (context, index) {
+                              final product = products[index];
+                              return InkWell(
+                                onTap: () => _openProduct(product),
+                                child: _ProductCard(
+                                  product: product,
+                                  currencyCode: widget.session.currencyCode,
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 );
               },
@@ -277,135 +364,150 @@ class _ProductCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
     final lowStock =
         product.itemType == 'stock' &&
         product.reorderLevel > 0 &&
         product.stockQuantity <= product.reorderLevel;
 
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: lowStock ? Colors.orange.shade200 : Colors.grey.shade200,
-        ),
-      ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compact = constraints.maxWidth < 760;
 
-      child: Row(
-        children: [
-          Container(
-            width: 54,
-            height: 54,
-            decoration: BoxDecoration(
-              color: Colors.indigo.shade50,
-              borderRadius: BorderRadius.circular(13),
-            ),
-            child: const Icon(Icons.inventory_2_outlined),
+        return Container(
+          constraints: const BoxConstraints(minHeight: 48),
+          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+          decoration: BoxDecoration(
+            color: lowStock
+                ? scheme.errorContainer.withValues(alpha: .08)
+                : Colors.transparent,
+            border: Border(bottom: BorderSide(color: scheme.outlineVariant)),
           ),
-
-          const SizedBox(width: 16),
-
-          Expanded(
-            flex: 3,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  product.productName,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-
-                const SizedBox(height: 4),
-
-                Text(
-                  [product.brandName, product.categoryName]
-                      .where((value) => value != null && value.isNotEmpty)
-                      .join(' • '),
-                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-                ),
-              ],
-            ),
-          ),
-
-          Expanded(
-            flex: 2,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('SKU', style: TextStyle(fontSize: 11)),
-
-                Text(
-                  product.sku,
-                  style: const TextStyle(fontWeight: FontWeight.w500),
-                ),
-
-                if (product.partNumber != null)
-                  Text(
-                    product.partNumber!,
-                    style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
-                  ),
-              ],
-            ),
-          ),
-
-          Expanded(
-            flex: 2,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Cost ${_money(product.costPrice)}',
-                  style: TextStyle(color: Colors.grey.shade600),
-                ),
-
-                const SizedBox(height: 3),
-
-                Text(
-                  _money(product.sellingPrice),
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          SizedBox(
-            width: 130,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(
-                  product.itemType == 'stock'
-                      ? '${product.stockQuantity.toStringAsFixed(product.stockQuantity % 1 == 0 ? 0 : 2)} ${product.unitCode ?? ''}'
-                      : product.itemType == 'service'
-                      ? 'SERVICE'
-                      : 'NON-STOCK',
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                ),
-
-                if (lowStock) ...[
-                  const SizedBox(height: 5),
-
-                  Text(
-                    'LOW STOCK',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.orange.shade800,
+          child: Row(
+            children: [
+              Expanded(
+                flex: 4,
+                child: Row(
+                  children: [
+                    Container(
+                      width: 27,
+                      height: 27,
+                      decoration: BoxDecoration(
+                        color: scheme.primary.withValues(alpha: .08),
+                        borderRadius: BorderRadius.circular(7),
+                      ),
+                      child: Icon(
+                        Icons.inventory_2_outlined,
+                        size: 14,
+                        color: scheme.primary,
+                      ),
                     ),
-                  ),
-                ],
-              ],
-            ),
+                    const SizedBox(width: 7),
+                    Expanded(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            product.productName,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 9,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                          Text(
+                            [
+                              product.brandName ?? '',
+                              product.categoryName ?? '',
+                            ].where((e) => e.isNotEmpty).join(' | '),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 7.4,
+                              color: scheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                flex: 2,
+                child: Text(
+                  compact
+                      ? product.sku
+                      : '${product.sku}${(product.partNumber ?? '').isEmpty ? '' : ' | ${product.partNumber}'}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 8.2),
+                ),
+              ),
+              Expanded(
+                flex: 2,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      _money(product.sellingPrice),
+                      maxLines: 1,
+                      style: const TextStyle(
+                        fontSize: 8.8,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    if (!compact)
+                      Text(
+                        'Cost ${_money(product.costPrice)}',
+                        maxLines: 1,
+                        style: TextStyle(
+                          fontSize: 7.2,
+                          color: scheme.onSurfaceVariant,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              SizedBox(
+                width: 115,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      product.itemType == 'stock'
+                          ? '${product.stockQuantity.toStringAsFixed(product.stockQuantity % 1 == 0 ? 0 : 2)} ${product.unitCode ?? ''}'
+                          : product.itemType.toUpperCase(),
+                      maxLines: 1,
+                      style: const TextStyle(
+                        fontSize: 8.5,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    if (lowStock)
+                      Text(
+                        'LOW STOCK',
+                        style: TextStyle(
+                          fontSize: 6.8,
+                          fontWeight: FontWeight.w900,
+                          color: scheme.error,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              const SizedBox(
+                width: 30,
+                child: Icon(Icons.chevron_right, size: 15),
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 }

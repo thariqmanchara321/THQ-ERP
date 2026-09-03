@@ -141,108 +141,123 @@ class _CustomersScreenState extends State<CustomersScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
     return Padding(
-      padding: const EdgeInsets.all(28),
-
+      padding: const EdgeInsets.all(6),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              const Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Customers',
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
+          Container(
+            height: 46,
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            decoration: BoxDecoration(
+              color: scheme.surface,
+              borderRadius: BorderRadius.circular(9),
+              border: Border.all(color: scheme.outlineVariant),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 4,
+                  height: 25,
+                  decoration: BoxDecoration(
+                    color: scheme.primary,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Customers',
+                        style: TextStyle(
+                          fontSize: 14.5,
+                          fontWeight: FontWeight.w900,
+                        ),
                       ),
-                    ),
-
-                    SizedBox(height: 5),
-
-                    Text('Manage customers and sales accounts'),
-                  ],
+                      Text(
+                        'Customer master and statements',
+                        style: TextStyle(
+                          fontSize: 8.3,
+                          color: scheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-
-              if (_canManage)
-                FilledButton.icon(
-                  onPressed: _addCustomer,
-                  icon: const Icon(Icons.add),
-                  label: const Text('Add Customer'),
+                IconButton(
+                  tooltip: 'Refresh',
+                  visualDensity: VisualDensity.compact,
+                  onPressed: _refresh,
+                  icon: const Icon(Icons.refresh_rounded, size: 17),
                 ),
-            ],
-          ),
-
-          const SizedBox(height: 24),
-
-          TextField(
-            controller: _searchController,
-
-            onChanged: (value) {
-              setState(() {
-                _search = value;
-              });
-            },
-
-            decoration: InputDecoration(
-              hintText: 'Search ID, name, phone, GSTIN, city...',
-
-              prefixIcon: const Icon(Icons.search),
-
-              suffixIcon: _search.isEmpty
-                  ? null
-                  : IconButton(
-                      onPressed: () {
-                        _searchController.clear();
-
-                        setState(() {
-                          _search = '';
-                        });
-                      },
-                      icon: const Icon(Icons.close),
-                    ),
-
-              filled: true,
-              fillColor: Colors.white,
-
-              border: const OutlineInputBorder(),
+                if (_canManage) ...[
+                  const SizedBox(width: 3),
+                  FilledButton.icon(
+                    onPressed: _addCustomer,
+                    icon: const Icon(Icons.add, size: 15),
+                    label: const Text('Add Customer'),
+                  ),
+                ],
+              ],
             ),
           ),
-
-          const SizedBox(height: 20),
-
+          const SizedBox(height: 5),
+          Container(
+            height: 40,
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            decoration: BoxDecoration(
+              color: scheme.surface,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: scheme.outlineVariant),
+            ),
+            child: TextField(
+              controller: _searchController,
+              onChanged: (value) => setState(() => _search = value),
+              decoration: InputDecoration(
+                hintText: 'Search ID, name, phone, GSTIN, city...',
+                prefixIcon: const Icon(Icons.search, size: 16),
+                suffixIcon: _search.isEmpty
+                    ? null
+                    : IconButton(
+                        tooltip: 'Clear',
+                        visualDensity: VisualDensity.compact,
+                        onPressed: () {
+                          _searchController.clear();
+                          setState(() => _search = '');
+                        },
+                        icon: const Icon(Icons.close, size: 15),
+                      ),
+                border: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
+              ),
+            ),
+          ),
+          const SizedBox(height: 5),
           Expanded(
             child: FutureBuilder<List<Customer>>(
               future: _customersFuture,
-
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
                 }
-
                 if (snapshot.hasError) {
                   return Center(
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.error_outline, size: 56),
-
-                        const SizedBox(height: 16),
-
                         Text(
                           snapshot.error.toString(),
                           textAlign: TextAlign.center,
                         ),
-
-                        const SizedBox(height: 18),
-
+                        const SizedBox(height: 8),
                         OutlinedButton.icon(
                           onPressed: _refresh,
-                          icon: const Icon(Icons.refresh),
+                          icon: const Icon(Icons.refresh, size: 15),
                           label: const Text('Retry'),
                         ),
                       ],
@@ -250,36 +265,95 @@ class _CustomersScreenState extends State<CustomersScreen> {
                   );
                 }
 
-                final all = snapshot.data ?? [];
-
-                final customers = _filter(all);
-
+                final customers = _filter(snapshot.data ?? []);
                 if (customers.isEmpty) {
                   return const Center(child: Text('No customers found.'));
                 }
 
-                return RefreshIndicator(
-                  onRefresh: _refresh,
-
-                  child: ListView.separated(
-                    itemCount: customers.length,
-
-                    separatorBuilder: (_, _) => const SizedBox(height: 10),
-
-                    itemBuilder: (context, index) {
-                      final customer = customers[index];
-
-                      return _CustomerCard(
-                        customer: customer,
-
-                        currency: _money,
-
-                        canEdit: _canManage && !customer.isWalkIn,
-
-                        onEdit: () => _editCustomer(customer),
-                        onStatement: () => _openStatement(customer),
-                      );
-                    },
+                return Container(
+                  decoration: BoxDecoration(
+                    color: scheme.surface,
+                    borderRadius: BorderRadius.circular(9),
+                    border: Border.all(color: scheme.outlineVariant),
+                  ),
+                  clipBehavior: Clip.antiAlias,
+                  child: Column(
+                    children: [
+                      Container(
+                        height: 34,
+                        padding: const EdgeInsets.symmetric(horizontal: 9),
+                        color: scheme.surfaceContainerHighest.withValues(
+                          alpha: .45,
+                        ),
+                        child: const Row(
+                          children: [
+                            Expanded(
+                              flex: 4,
+                              child: Text(
+                                'Customer',
+                                style: TextStyle(
+                                  fontSize: 8.8,
+                                  fontWeight: FontWeight.w900,
+                                ),
+                              ),
+                            ),
+                            Expanded(
+                              flex: 3,
+                              child: Text(
+                                'Contact',
+                                style: TextStyle(
+                                  fontSize: 8.8,
+                                  fontWeight: FontWeight.w900,
+                                ),
+                              ),
+                            ),
+                            Expanded(
+                              flex: 2,
+                              child: Text(
+                                'Credit Limit',
+                                textAlign: TextAlign.right,
+                                style: TextStyle(
+                                  fontSize: 8.8,
+                                  fontWeight: FontWeight.w900,
+                                ),
+                              ),
+                            ),
+                            SizedBox(
+                              width: 72,
+                              child: Text(
+                                'Status',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: 8.8,
+                                  fontWeight: FontWeight.w900,
+                                ),
+                              ),
+                            ),
+                            SizedBox(width: 72),
+                          ],
+                        ),
+                      ),
+                      Expanded(
+                        child: RefreshIndicator(
+                          onRefresh: _refresh,
+                          child: ListView.builder(
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            padding: EdgeInsets.zero,
+                            itemCount: customers.length,
+                            itemBuilder: (context, index) {
+                              final customer = customers[index];
+                              return _CustomerCard(
+                                customer: customer,
+                                currency: _money,
+                                canEdit: _canManage && !customer.isWalkIn,
+                                onEdit: () => _editCustomer(customer),
+                                onStatement: () => _openStatement(customer),
+                              );
+                            },
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 );
               },
@@ -311,233 +385,148 @@ class _CustomerCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final location = [
+      customer.city,
+      customer.state,
+    ].where((value) => value != null && value.isNotEmpty).join(', ');
+
     return Container(
-      padding: const EdgeInsets.all(18),
-
+      constraints: const BoxConstraints(minHeight: 48),
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
       decoration: BoxDecoration(
-        color: customer.isWalkIn ? Colors.indigo.shade50 : Colors.white,
-
-        borderRadius: BorderRadius.circular(16),
-
-        border: Border.all(
-          color: customer.isWalkIn
-              ? Colors.indigo.shade100
-              : Colors.grey.shade200,
-        ),
+        color: customer.isWalkIn
+            ? scheme.primaryContainer.withValues(alpha: .12)
+            : Colors.transparent,
+        border: Border(bottom: BorderSide(color: scheme.outlineVariant)),
       ),
-
       child: Row(
         children: [
-          Container(
-            width: 54,
-            height: 54,
-
-            decoration: BoxDecoration(
-              color: customer.isWalkIn ? Colors.white : Colors.blue.shade50,
-
-              borderRadius: BorderRadius.circular(13),
-            ),
-
-            child: Icon(
-              customer.isWalkIn
-                  ? Icons.storefront_outlined
-                  : Icons.person_outline,
-
-              color: customer.isWalkIn ? Colors.indigo : null,
-            ),
-          ),
-
-          const SizedBox(width: 16),
-
           Expanded(
-            flex: 3,
-
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-
+            flex: 4,
+            child: Row(
               children: [
-                Row(
-                  children: [
-                    Flexible(
-                      child: Text(
+                Container(
+                  width: 27,
+                  height: 27,
+                  decoration: BoxDecoration(
+                    color: scheme.primary.withValues(alpha: .08),
+                    borderRadius: BorderRadius.circular(7),
+                  ),
+                  child: Icon(
+                    customer.isWalkIn
+                        ? Icons.storefront_outlined
+                        : Icons.person_outline,
+                    size: 14,
+                    color: scheme.primary,
+                  ),
+                ),
+                const SizedBox(width: 7),
+                Expanded(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
                         customer.name,
-
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
-                          fontSize: 16,
-
-                          fontWeight: FontWeight.w600,
+                          fontSize: 9,
+                          fontWeight: FontWeight.w800,
                         ),
                       ),
-                    ),
-
-                    if (customer.isWalkIn) ...[
-                      const SizedBox(width: 8),
-
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 3,
-                        ),
-
-                        decoration: BoxDecoration(
-                          color: Colors.indigo.shade100,
-
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-
-                        child: const Text(
-                          'DEFAULT',
-
-                          style: TextStyle(
-                            fontSize: 9,
-
-                            fontWeight: FontWeight.bold,
-                          ),
+                      Text(
+                        [
+                          customer.publicId,
+                          customer.contactPerson ?? '',
+                          location,
+                        ].where((e) => e.isNotEmpty).join(' | '),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 7.4,
+                          color: scheme.onSurfaceVariant,
                         ),
                       ),
                     ],
-                  ],
-                ),
-
-                const SizedBox(height: 3),
-                if (customer.publicId.isNotEmpty)
-                  Text(
-                    'Customer ID: ${customer.publicId}',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.indigo.shade600,
-                    ),
                   ),
-                const SizedBox(height: 3),
-
-                Text(
-                  customer.contactPerson ??
-                      (customer.isWalkIn
-                          ? 'Counter sales customer'
-                          : 'No contact person'),
-
-                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
                 ),
               ],
             ),
           ),
-
           Expanded(
-            flex: 2,
-
+            flex: 3,
             child: Column(
+              mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
-
               children: [
                 Text(
                   customer.phone ?? 'No phone',
-
-                  style: const TextStyle(fontWeight: FontWeight.w500),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 8.3),
                 ),
-
-                if (customer.email != null)
-                  Text(
-                    customer.email!,
-
-                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                Text(
+                  customer.email ?? customer.taxNumber ?? '',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 7.2,
+                    color: scheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            flex: 2,
+            child: Text(
+              currency(customer.creditLimit),
+              textAlign: TextAlign.right,
+              maxLines: 1,
+              style: const TextStyle(
+                fontSize: 8.6,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ),
+          SizedBox(
+            width: 72,
+            child: Text(
+              customer.isWalkIn ? 'DEFAULT' : customer.status.toUpperCase(),
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              style: TextStyle(
+                fontSize: 7,
+                fontWeight: FontWeight.w900,
+                color: customer.isActive
+                    ? scheme.primary
+                    : scheme.onSurfaceVariant,
+              ),
+            ),
+          ),
+          SizedBox(
+            width: 72,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                IconButton(
+                  tooltip: 'Statement',
+                  visualDensity: VisualDensity.compact,
+                  onPressed: onStatement,
+                  icon: const Icon(Icons.receipt_long_outlined, size: 14),
+                ),
+                if (canEdit)
+                  IconButton(
+                    tooltip: 'Edit',
+                    visualDensity: VisualDensity.compact,
+                    onPressed: onEdit,
+                    icon: const Icon(Icons.edit_outlined, size: 14),
                   ),
               ],
             ),
           ),
-
-          Expanded(
-            flex: 2,
-
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-
-              children: [
-                Text(
-                  customer.taxNumber ?? 'No Tax ID',
-
-                  style: const TextStyle(fontWeight: FontWeight.w500),
-                ),
-
-                Text(
-                  [customer.city, customer.state]
-                      .where((value) => value != null && value.isNotEmpty)
-                      .join(', '),
-
-                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-                ),
-              ],
-            ),
-          ),
-
-          Expanded(
-            flex: 2,
-
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-
-              children: [
-                Text(
-                  'Credit Limit',
-
-                  style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
-                ),
-
-                const SizedBox(height: 3),
-
-                Text(
-                  currency(customer.creditLimit),
-
-                  style: const TextStyle(fontWeight: FontWeight.w600),
-                ),
-              ],
-            ),
-          ),
-
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
-
-            decoration: BoxDecoration(
-              color: customer.isActive
-                  ? Colors.green.shade50
-                  : Colors.grey.shade100,
-
-              borderRadius: BorderRadius.circular(20),
-            ),
-
-            child: Text(
-              customer.status.toUpperCase(),
-
-              style: TextStyle(
-                fontSize: 10,
-
-                fontWeight: FontWeight.bold,
-
-                color: customer.isActive
-                    ? Colors.green.shade700
-                    : Colors.grey.shade700,
-              ),
-            ),
-          ),
-
-          const SizedBox(width: 8),
-          IconButton(
-            tooltip: 'Customer Statement',
-            onPressed: onStatement,
-            icon: const Icon(Icons.receipt_long_outlined),
-          ),
-
-          if (canEdit) ...[
-            const SizedBox(width: 10),
-
-            IconButton(
-              tooltip: 'Edit Customer',
-
-              onPressed: onEdit,
-
-              icon: const Icon(Icons.edit_outlined),
-            ),
-          ],
         ],
       ),
     );
