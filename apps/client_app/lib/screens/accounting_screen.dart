@@ -350,11 +350,26 @@ class _AccountingScreenState extends State<AccountingScreen> {
       ('purchase_expense', 'Direct purchase expense'),
       ('rounding', 'Rounding / variance'),
     ];
+    final mappingByKey = <String, Map<String, dynamic>>{
+      for (final mapping in _mappings)
+        if ((mapping['mapping_key']?.toString() ?? '').isNotEmpty)
+          mapping['mapping_key'].toString(): mapping,
+    };
+    final activeAccountOptions = _accounts
+        .where((account) => account['active'] != false)
+        .map(
+          (account) => SearchableSelectOption<String>(
+            value: account['id'].toString(),
+            label: '${account['code']} \u2022 ${account['name']}',
+            subtitle: account['account_type']?.toString(),
+            searchText:
+                '${account['code']} ${account['name']} ${account['account_type'] ?? ''}',
+          ),
+        )
+        .toList(growable: false);
     final selected = <String, String>{};
     for (final key in keys) {
-      final row = _mappings
-          .where((m) => m['mapping_key']?.toString() == key.$1)
-          .firstOrNull;
+      final row = mappingByKey[key.$1];
       selected[key.$1] =
           row?['account_id']?.toString() ?? _accounts.first['id'].toString();
     }
@@ -379,18 +394,7 @@ class _AccountingScreenState extends State<AccountingScreen> {
                     isRequired: true,
                     hintText: 'Search account code, name or type',
                     prefixIcon: Icons.account_balance_outlined,
-                    options: _accounts
-                        .where((account) => account['active'] != false)
-                        .map(
-                          (account) => SearchableSelectOption<String>(
-                            value: account['id'].toString(),
-                            label: '${account['code']} • ${account['name']}',
-                            subtitle: account['account_type']?.toString(),
-                            searchText:
-                                '${account['code']} ${account['name']} ${account['account_type'] ?? ''}',
-                          ),
-                        )
-                        .toList(),
+                    options: activeAccountOptions,
                     onChanged: (value) {
                       if (value != null) {
                         setDialogState(() => selected[entry.$1] = value);

@@ -40,6 +40,13 @@ class _Method {
   );
 }
 
+class _MethodCacheEntry {
+  const _MethodCacheEntry({required this.loadedAt, required this.methods});
+
+  final DateTime loadedAt;
+  final List<_Method> methods;
+}
+
 class _Row {
   _Row({required this.method, double amount = 0, String reference = ''})
     : amount = TextEditingController(
@@ -58,6 +65,10 @@ class _Row {
 }
 
 class _MultiPaymentEditorState extends State<MultiPaymentEditor> {
+  static const Duration _methodCacheTtl = Duration(minutes: 2);
+  static final Map<String, _MethodCacheEntry> _methodCache =
+      <String, _MethodCacheEntry>{};
+
   bool _loading = true;
   String? _error;
   List<_Method> _methods = const [];
@@ -77,16 +88,32 @@ class _MultiPaymentEditorState extends State<MultiPaymentEditor> {
     super.dispose();
   }
 
+  Future<List<_Method>> _methodsForTenant() async {
+    final now = DateTime.now();
+    final cached = _methodCache[widget.tenantId];
+    if (cached != null && now.difference(cached.loadedAt) < _methodCacheTtl) {
+      return cached.methods;
+    }
+
+    final raw = await Supabase.instance.client.rpc(
+      'payment_methods_list_v522',
+      params: {'p_tenant_id': widget.tenantId},
+    );
+    final methods = List<_Method>.unmodifiable(
+      (raw as List? ?? const []).whereType<Map>().map(
+        (row) => _Method.fromMap(Map<String, dynamic>.from(row)),
+      ),
+    );
+    _methodCache[widget.tenantId] = _MethodCacheEntry(
+      loadedAt: now,
+      methods: methods,
+    );
+    return methods;
+  }
+
   Future<void> _load() async {
     try {
-      final raw = await Supabase.instance.client.rpc(
-        'payment_methods_list_v522',
-        params: {'p_tenant_id': widget.tenantId},
-      );
-      final methods = (raw as List? ?? const [])
-          .whereType<Map>()
-          .map((row) => _Method.fromMap(Map<String, dynamic>.from(row)))
-          .toList();
+      final methods = await _methodsForTenant();
 
       if (!mounted) return;
       setState(() {

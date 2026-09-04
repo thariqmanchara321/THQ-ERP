@@ -557,6 +557,8 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
   List<Customer> _customers = [];
 
   List<InventoryProduct> _products = [];
+  Map<String, Customer> _customerById = const {};
+  List<SearchableSelectOption<String>> _customerOptions = const [];
 
   String? _customerId;
 
@@ -570,18 +572,7 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
 
   Customer? get _selectedCustomer {
     final id = _customerId;
-
-    if (id == null) {
-      return null;
-    }
-
-    for (final customer in _customers) {
-      if (customer.id == id) {
-        return customer;
-      }
-    }
-
-    return null;
+    return id == null ? null : _customerById[id];
   }
 
   @override
@@ -622,6 +613,26 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
           )
           .toList();
 
+      final customerById = <String, Customer>{
+        for (final customer in activeCustomers) customer.id: customer,
+      };
+      final customerOptions = activeCustomers
+          .map(
+            (entry) => SearchableSelectOption<String>(
+              value: entry.id,
+              label: entry.isWalkIn
+                  ? '${entry.name} \u2014 Counter Sale'
+                  : entry.name,
+              subtitle: [entry.publicId, entry.phone, entry.taxNumber]
+                  .where((value) => value?.trim().isNotEmpty == true)
+                  .join(' \u2022 '),
+              searchText:
+                  '${entry.name} ${entry.publicId} ${entry.phone ?? ''} '
+                  '${entry.email ?? ''} ${entry.taxNumber ?? ''}',
+            ),
+          )
+          .toList(growable: false);
+
       String? initialCustomer;
 
       for (final customer in activeCustomers) {
@@ -640,6 +651,10 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
         _customers = activeCustomers;
 
         _products = activeProducts;
+        _customerById = Map<String, Customer>.unmodifiable(customerById);
+        _customerOptions = List<SearchableSelectOption<String>>.unmodifiable(
+          customerOptions,
+        );
 
         _customerId = initialCustomer;
 
@@ -834,9 +849,10 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
   }
 
   Future<void> _addLine() async {
-    final available = _products.where((product) {
-      return !_lines.any((line) => line.product.variantId == product.variantId);
-    }).toList();
+    final usedVariants = _lines.map((line) => line.product.variantId).toSet();
+    final available = _products
+        .where((product) => !usedVariants.contains(product.variantId))
+        .toList();
 
     if (available.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -875,13 +891,14 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
   }
 
   Future<void> _addCharge() async {
-    final available = _products.where((product) {
-      final isService = product.itemType != 'stock';
-      final alreadyAdded = _lines.any(
-        (line) => line.product.variantId == product.variantId,
-      );
-      return isService && !alreadyAdded;
-    }).toList();
+    final usedVariants = _lines.map((line) => line.product.variantId).toSet();
+    final available = _products
+        .where(
+          (product) =>
+              product.itemType != 'stock' &&
+              !usedVariants.contains(product.variantId),
+        )
+        .toList();
 
     if (available.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -1298,25 +1315,7 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
                   enabled: !_saving,
                   hintText: 'Search name, ID, phone or GSTIN',
                   prefixIcon: Icons.person_search_outlined,
-                  options: _customers
-                      .map(
-                        (entry) => SearchableSelectOption<String>(
-                          value: entry.id,
-                          label: entry.isWalkIn
-                              ? '${entry.name} - Counter Sale'
-                              : entry.name,
-                          subtitle:
-                              [entry.publicId, entry.phone, entry.taxNumber]
-                                  .where(
-                                    (value) => value?.trim().isNotEmpty == true,
-                                  )
-                                  .join(' | '),
-                          searchText:
-                              '${entry.name} ${entry.publicId} ${entry.phone ?? ''} '
-                              '${entry.email ?? ''} ${entry.taxNumber ?? ''}',
-                        ),
-                      )
-                      .toList(),
+                  options: _customerOptions,
                   onChanged: _saving
                       ? null
                       : (value) {
@@ -1891,25 +1890,7 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
                   enabled: !_saving,
                   hintText: 'Search customer name, ID, phone or email',
                   prefixIcon: Icons.person_search_outlined,
-                  options: _customers
-                      .map(
-                        (entry) => SearchableSelectOption<String>(
-                          value: entry.id,
-                          label: entry.isWalkIn
-                              ? '${entry.name} — Counter Sale'
-                              : entry.name,
-                          subtitle:
-                              [entry.publicId, entry.phone, entry.taxNumber]
-                                  .where(
-                                    (value) => value?.trim().isNotEmpty == true,
-                                  )
-                                  .join(' • '),
-                          searchText:
-                              '${entry.name} ${entry.publicId} ${entry.phone ?? ''} '
-                              '${entry.email ?? ''} ${entry.taxNumber ?? ''}',
-                        ),
-                      )
-                      .toList(),
+                  options: _customerOptions,
                   onChanged: _saving
                       ? null
                       : (value) {
@@ -2314,6 +2295,65 @@ class _AddSaleItemDialogState extends State<_AddSaleItemDialog> {
   bool _loadingSerials = false;
 
   String? _error;
+  late final Map<String, InventoryProduct> _productByVariantId;
+  late final Map<String, String> _productSearchText;
+  late final Map<String, List<String>> _productPrefixTokens;
+
+  @override
+  void initState() {
+    super.initState();
+    final byVariant = <String, InventoryProduct>{};
+    final searchText = <String, String>{};
+    final prefixTokens = <String, List<String>>{};
+
+    for (final product in widget.products) {
+      final name = product.productName.toLowerCase();
+      final sku = product.sku.toLowerCase();
+      final part = (product.partNumber ?? '').toLowerCase();
+      final barcode = (product.barcode ?? '').toLowerCase();
+      final codes = product.searchCodes.toLowerCase();
+
+      byVariant[product.variantId] = product;
+      searchText[product.variantId] = [
+        name,
+        sku,
+        part,
+        barcode,
+        codes,
+      ].join('\u0001');
+      prefixTokens[product.variantId] = <String>[
+        name,
+        sku,
+        part,
+        barcode,
+        ...codes.split(RegExp(r'\s+')).where((value) => value.isNotEmpty),
+      ];
+    }
+
+    _productByVariantId = Map<String, InventoryProduct>.unmodifiable(byVariant);
+    _productSearchText = Map<String, String>.unmodifiable(searchText);
+    _productPrefixTokens = Map<String, List<String>>.unmodifiable(prefixTokens);
+  }
+
+  Iterable<InventoryProduct> _searchProducts(String query, int limit) {
+    if (query.isEmpty) return widget.products.take(limit);
+
+    final starts = <InventoryProduct>[];
+    final contains = <InventoryProduct>[];
+    for (final product in widget.products) {
+      final tokens =
+          _productPrefixTokens[product.variantId] ?? const <String>[];
+      if (tokens.any((token) => token.startsWith(query))) {
+        if (starts.length < limit) starts.add(product);
+      } else if ((_productSearchText[product.variantId] ?? '').contains(
+        query,
+      )) {
+        if (contains.length < limit) contains.add(product);
+      }
+    }
+
+    return <InventoryProduct>[...starts, ...contains].take(limit);
+  }
 
   InventoryProduct? get _product {
     final id = _variantId;
@@ -2322,13 +2362,7 @@ class _AddSaleItemDialogState extends State<_AddSaleItemDialog> {
       return null;
     }
 
-    for (final product in widget.products) {
-      if (product.variantId == id) {
-        return product;
-      }
-    }
-
-    return null;
+    return _productByVariantId[id];
   }
 
   ProductUnitOption? get _selectedUnit {
@@ -2558,27 +2592,7 @@ class _AddSaleItemDialogState extends State<_AddSaleItemDialog> {
               displayStringForOption: (p) => '${p.productName} — ${p.sku}',
               optionsBuilder: (value) {
                 final q = value.text.trim().toLowerCase();
-                if (q.isEmpty) return widget.products.take(12);
-                bool starts(InventoryProduct p) =>
-                    p.productName.toLowerCase().startsWith(q) ||
-                    p.sku.toLowerCase().startsWith(q) ||
-                    (p.partNumber ?? '').toLowerCase().startsWith(q) ||
-                    (p.barcode ?? '').toLowerCase().startsWith(q) ||
-                    p.searchCodes
-                        .toLowerCase()
-                        .split(RegExp(r'\s+'))
-                        .any((v) => v.startsWith(q));
-                bool contains(InventoryProduct p) =>
-                    p.productName.toLowerCase().contains(q) ||
-                    p.sku.toLowerCase().contains(q) ||
-                    (p.partNumber ?? '').toLowerCase().contains(q) ||
-                    (p.barcode ?? '').toLowerCase().contains(q) ||
-                    p.searchCodes.toLowerCase().contains(q);
-                final first = widget.products.where(starts);
-                final rest = widget.products.where(
-                  (p) => !starts(p) && contains(p),
-                );
-                return [...first, ...rest].take(30);
+                return _searchProducts(q, 30);
               },
               onSelected: (p) => unawaited(_selectProduct(p.variantId)),
               fieldViewBuilder: (context, controller, focusNode, onSubmitted) =>

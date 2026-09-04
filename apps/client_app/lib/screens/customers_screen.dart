@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../models/client_session.dart';
@@ -26,6 +28,8 @@ class _CustomersScreenState extends State<CustomersScreen> {
   late Future<List<Customer>> _customersFuture;
 
   String _search = '';
+  Timer? _searchDebounce;
+  Map<String, String> _customerSearchIndex = const {};
 
   bool get _canManage => widget.session.hasPermission('customers.manage');
 
@@ -37,9 +41,31 @@ class _CustomersScreenState extends State<CustomersScreen> {
   }
 
   void _loadCustomers() {
-    _customersFuture = _service.getCustomers(
-      tenantId: widget.session.business.id,
-    );
+    _customersFuture = _service
+        .getCustomers(tenantId: widget.session.business.id)
+        .then((customers) {
+          _customerSearchIndex = Map<String, String>.unmodifiable({
+            for (final customer in customers)
+              customer.id: [
+                customer.name,
+                customer.publicId,
+                customer.contactPerson ?? '',
+                customer.phone ?? '',
+                customer.email ?? '',
+                customer.taxNumber ?? '',
+                customer.city ?? '',
+                customer.state ?? '',
+              ].join('\u0001').toLowerCase(),
+          });
+          return customers;
+        });
+  }
+
+  void _searchChanged(String value) {
+    _searchDebounce?.cancel();
+    _searchDebounce = Timer(const Duration(milliseconds: 140), () {
+      if (mounted) setState(() => _search = value);
+    });
   }
 
   Future<void> _refresh() async {
@@ -57,20 +83,12 @@ class _CustomersScreenState extends State<CustomersScreen> {
       return customers;
     }
 
-    return customers.where((customer) {
-      final values = [
-        customer.name,
-        customer.publicId,
-        customer.contactPerson ?? '',
-        customer.phone ?? '',
-        customer.email ?? '',
-        customer.taxNumber ?? '',
-        customer.city ?? '',
-        customer.state ?? '',
-      ];
-
-      return values.any((value) => value.toLowerCase().contains(query));
-    }).toList();
+    return customers
+        .where(
+          (customer) =>
+              (_customerSearchIndex[customer.id] ?? '').contains(query),
+        )
+        .toList();
   }
 
   Future<void> _openReceivables() async {
@@ -176,6 +194,7 @@ class _CustomersScreenState extends State<CustomersScreen> {
 
   @override
   void dispose() {
+    _searchDebounce?.cancel();
     _searchController.dispose();
 
     super.dispose();
@@ -262,11 +281,7 @@ class _CustomersScreenState extends State<CustomersScreen> {
             ),
             child: TextField(
               controller: _searchController,
-              onChanged: (value) {
-                setState(() {
-                  _search = value;
-                });
-              },
+              onChanged: _searchChanged,
               decoration: InputDecoration(
                 hintText: 'Search ID, name, phone, GSTIN, city...',
                 prefixIcon: const Icon(Icons.search, size: 17),
@@ -276,6 +291,7 @@ class _CustomersScreenState extends State<CustomersScreen> {
                         tooltip: 'Clear',
                         visualDensity: VisualDensity.compact,
                         onPressed: () {
+                          _searchDebounce?.cancel();
                           _searchController.clear();
                           setState(() {
                             _search = '';

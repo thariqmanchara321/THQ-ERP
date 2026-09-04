@@ -561,6 +561,7 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
 
   List<Supplier> _suppliers = [];
   List<InventoryProduct> _products = [];
+  Map<String, Supplier> _supplierById = const {};
   Map<String, Map<String, dynamic>> _gstProfiles = const {};
 
   String? _supplierId;
@@ -575,11 +576,7 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
 
   Supplier? get _selectedSupplier {
     final id = _supplierId;
-    if (id == null) return null;
-    for (final supplier in _suppliers) {
-      if (supplier.id == id) return supplier;
-    }
-    return null;
+    return id == null ? null : _supplierById[id];
   }
 
   @override
@@ -633,16 +630,23 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
       final products = results[1] as List<InventoryProduct>;
       final gstProfiles = results[2] as Map<String, Map<String, dynamic>>;
 
+      final activeSuppliers = suppliers
+          .where((supplier) => supplier.isActive)
+          .toList(growable: false);
+      final activeProducts = products
+          .where(
+            (product) =>
+                product.productStatus == 'active' &&
+                product.variantStatus == 'active',
+          )
+          .toList(growable: false);
+      final supplierById = <String, Supplier>{
+        for (final supplier in activeSuppliers) supplier.id: supplier,
+      };
       setState(() {
-        _suppliers = suppliers.where((supplier) => supplier.isActive).toList();
-
-        _products = products
-            .where(
-              (product) =>
-                  product.productStatus == 'active' &&
-                  product.variantStatus == 'active',
-            )
-            .toList();
+        _suppliers = activeSuppliers;
+        _products = activeProducts;
+        _supplierById = Map<String, Supplier>.unmodifiable(supplierById);
         _gstProfiles = gstProfiles;
 
         if (_suppliers.isNotEmpty) {
@@ -744,13 +748,12 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
   }
 
   Future<void> _addLine() async {
+    final usedVariants = _lines.map((line) => line.product.variantId).toSet();
     final available = _products
         .where(
           (product) =>
               product.itemType == 'stock' &&
-              !_lines.any(
-                (line) => line.product.variantId == product.variantId,
-              ),
+              !usedVariants.contains(product.variantId),
         )
         .toList();
 
@@ -776,13 +779,12 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
   }
 
   Future<void> _addCharge() async {
+    final usedVariants = _lines.map((line) => line.product.variantId).toSet();
     final available = _products
         .where(
           (product) =>
               product.itemType != 'stock' &&
-              !_lines.any(
-                (line) => line.product.variantId == product.variantId,
-              ),
+              !usedVariants.contains(product.variantId),
         )
         .toList();
 
@@ -2432,19 +2434,79 @@ class _AddPurchaseItemDialogState extends State<_AddPurchaseItemDialog> {
   bool _autoSerials = true;
 
   String? _error;
+  late final Map<String, InventoryProduct> _productByVariantId;
+  late final Map<String, InventoryProduct> _exactProductIndex;
+  late final Map<String, String> _productSearchText;
+  late final Map<String, List<String>> _productPrefixTokens;
+
+  @override
+  void initState() {
+    super.initState();
+    final byVariant = <String, InventoryProduct>{};
+    final exact = <String, InventoryProduct>{};
+    final searchText = <String, String>{};
+    final prefixTokens = <String, List<String>>{};
+
+    for (final product in widget.products) {
+      final name = product.productName.toLowerCase();
+      final sku = product.sku.toLowerCase();
+      final part = (product.partNumber ?? '').toLowerCase();
+      final barcode = (product.barcode ?? '').toLowerCase();
+      final codes = product.searchCodes.toLowerCase();
+
+      byVariant[product.variantId] = product;
+      if (sku.isNotEmpty) exact.putIfAbsent(sku, () => product);
+      if (barcode.isNotEmpty) exact.putIfAbsent(barcode, () => product);
+      if (part.isNotEmpty) exact.putIfAbsent(part, () => product);
+
+      searchText[product.variantId] = [
+        name,
+        sku,
+        part,
+        barcode,
+        codes,
+      ].join('\u0001');
+      prefixTokens[product.variantId] = <String>[
+        name,
+        sku,
+        part,
+        barcode,
+        ...codes.split(RegExp(r'\s+')).where((value) => value.isNotEmpty),
+      ];
+    }
+
+    _productByVariantId = Map<String, InventoryProduct>.unmodifiable(byVariant);
+    _exactProductIndex = Map<String, InventoryProduct>.unmodifiable(exact);
+    _productSearchText = Map<String, String>.unmodifiable(searchText);
+    _productPrefixTokens = Map<String, List<String>>.unmodifiable(prefixTokens);
+  }
+
+  Iterable<InventoryProduct> _searchProducts(String query, int limit) {
+    if (query.isEmpty) return widget.products.take(limit);
+
+    final starts = <InventoryProduct>[];
+    final contains = <InventoryProduct>[];
+    for (final product in widget.products) {
+      final tokens =
+          _productPrefixTokens[product.variantId] ?? const <String>[];
+      if (tokens.any((token) => token.startsWith(query))) {
+        if (starts.length < limit) starts.add(product);
+      } else if ((_productSearchText[product.variantId] ?? '').contains(
+        query,
+      )) {
+        if (contains.length < limit) contains.add(product);
+      }
+    }
+
+    return <InventoryProduct>[...starts, ...contains].take(limit);
+  }
 
   InventoryProduct? get _product {
     if (_variantId == null) {
       return null;
     }
 
-    for (final product in widget.products) {
-      if (product.variantId == _variantId) {
-        return product;
-      }
-    }
-
-    return null;
+    return _productByVariantId[_variantId];
   }
 
   ProductUnitOption? get _selectedUnit {
@@ -2708,27 +2770,7 @@ class _AddPurchaseItemDialogState extends State<_AddPurchaseItemDialog> {
                   '${product.productName} — ${product.sku}',
               optionsBuilder: (value) {
                 final q = value.text.trim().toLowerCase();
-                if (q.isEmpty) return widget.products.take(20);
-                bool starts(InventoryProduct product) =>
-                    product.productName.toLowerCase().startsWith(q) ||
-                    product.sku.toLowerCase().startsWith(q) ||
-                    (product.partNumber ?? '').toLowerCase().startsWith(q) ||
-                    (product.barcode ?? '').toLowerCase().startsWith(q) ||
-                    product.searchCodes
-                        .toLowerCase()
-                        .split(RegExp(r'\s+'))
-                        .any((v) => v.startsWith(q));
-                bool contains(InventoryProduct product) =>
-                    product.productName.toLowerCase().contains(q) ||
-                    product.sku.toLowerCase().contains(q) ||
-                    (product.partNumber ?? '').toLowerCase().contains(q) ||
-                    (product.barcode ?? '').toLowerCase().contains(q) ||
-                    product.searchCodes.toLowerCase().contains(q);
-                final first = widget.products.where(starts);
-                final rest = widget.products.where(
-                  (p) => !starts(p) && contains(p),
-                );
-                return [...first, ...rest].take(40);
+                return _searchProducts(q, 40);
               },
               onSelected: (product) => _selectProduct(product.variantId),
               fieldViewBuilder: (context, controller, focusNode, onSubmitted) {
@@ -2744,15 +2786,7 @@ class _AddPurchaseItemDialogState extends State<_AddPurchaseItemDialog> {
                   ),
                   onSubmitted: (value) {
                     final q = value.trim().toLowerCase();
-                    InventoryProduct? exact;
-                    for (final product in widget.products) {
-                      if (product.sku.toLowerCase() == q ||
-                          (product.barcode ?? '').toLowerCase() == q ||
-                          (product.partNumber ?? '').toLowerCase() == q) {
-                        exact = product;
-                        break;
-                      }
-                    }
+                    final exact = _exactProductIndex[q];
                     if (exact != null) {
                       controller.text = '${exact.productName} — ${exact.sku}';
                       _selectProduct(exact.variantId);

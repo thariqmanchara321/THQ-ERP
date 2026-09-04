@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../models/client_session.dart';
@@ -27,6 +29,12 @@ class _InventoryProductsScreenState extends State<InventoryProductsScreen> {
   late Future<List<InventoryProduct>> _productsFuture;
 
   String _search = '';
+  Timer? _searchDebounce;
+  Map<String, String> _productSearchIndex = const {};
+  int _lowStockCount = 0;
+  int _outOfStockCount = 0;
+  double _inventoryValue = 0;
+  double _stockUnits = 0;
 
   bool get _canManage => widget.session.hasPermission('inventory.manage');
 
@@ -46,10 +54,58 @@ class _InventoryProductsScreenState extends State<InventoryProductsScreen> {
   }
 
   void _loadProducts() {
-    _productsFuture = _service.getProducts(
-      tenantId: widget.session.business.id,
-      locationId: LocationScopeService.currentForRead(widget.session),
-    );
+    _productsFuture = _service
+        .getProducts(
+          tenantId: widget.session.business.id,
+          locationId: LocationScopeService.currentForRead(widget.session),
+        )
+        .then((products) {
+          _rebuildProductCaches(products);
+          return products;
+        });
+  }
+
+  void _rebuildProductCaches(List<InventoryProduct> products) {
+    final searchIndex = <String, String>{};
+    var low = 0;
+    var out = 0;
+    var value = 0.0;
+    var units = 0.0;
+
+    for (final product in products) {
+      searchIndex[product.variantId] = [
+        product.productName,
+        product.sku,
+        product.barcode ?? '',
+        product.partNumber ?? '',
+        product.brandName ?? '',
+        product.categoryName ?? '',
+      ].join('\u0001').toLowerCase();
+
+      if (product.itemType == 'stock') {
+        units += product.stockQuantity;
+        value += product.costPrice * product.stockQuantity;
+        if (product.stockQuantity <= 0) {
+          out++;
+        } else if (product.reorderLevel > 0 &&
+            product.stockQuantity <= product.reorderLevel) {
+          low++;
+        }
+      }
+    }
+
+    _productSearchIndex = Map<String, String>.unmodifiable(searchIndex);
+    _lowStockCount = low;
+    _outOfStockCount = out;
+    _inventoryValue = value;
+    _stockUnits = units;
+  }
+
+  void _searchChanged(String value) {
+    _searchDebounce?.cancel();
+    _searchDebounce = Timer(const Duration(milliseconds: 140), () {
+      if (mounted) setState(() => _search = value);
+    });
   }
 
   Future<void> _refresh() async {
@@ -159,18 +215,12 @@ class _InventoryProductsScreenState extends State<InventoryProductsScreen> {
       return products;
     }
 
-    return products.where((product) {
-      final values = [
-        product.productName,
-        product.sku,
-        product.barcode ?? '',
-        product.partNumber ?? '',
-        product.brandName ?? '',
-        product.categoryName ?? '',
-      ];
-
-      return values.any((value) => value.toLowerCase().contains(query));
-    }).toList();
+    return products
+        .where(
+          (product) =>
+              (_productSearchIndex[product.variantId] ?? '').contains(query),
+        )
+        .toList();
   }
 
   @override
@@ -178,6 +228,7 @@ class _InventoryProductsScreenState extends State<InventoryProductsScreen> {
     LocationScopeService.selectedLocationId.removeListener(
       _handleLocationChange,
     );
+    _searchDebounce?.cancel();
     _searchController.dispose();
 
     super.dispose();
@@ -285,28 +336,10 @@ class _InventoryProductsScreenState extends State<InventoryProductsScreen> {
                   }
 
                   final products = _filter(allProducts);
-                  final low = allProducts
-                      .where(
-                        (p) =>
-                            p.itemType == 'stock' &&
-                            p.reorderLevel > 0 &&
-                            p.stockQuantity <= p.reorderLevel &&
-                            p.stockQuantity > 0,
-                      )
-                      .length;
-                  final out = allProducts
-                      .where(
-                        (p) => p.itemType == 'stock' && p.stockQuantity <= 0,
-                      )
-                      .length;
-                  final value = allProducts.fold<double>(
-                    0,
-                    (sum, p) => sum + (p.costPrice * p.stockQuantity),
-                  );
-                  final units = allProducts.fold<double>(
-                    0,
-                    (sum, p) => sum + p.stockQuantity,
-                  );
+                  final low = _lowStockCount;
+                  final out = _outOfStockCount;
+                  final value = _inventoryValue;
+                  final units = _stockUnits;
 
                   return LayoutBuilder(
                     builder: (context, constraints) {
@@ -422,8 +455,7 @@ class _InventoryProductsScreenState extends State<InventoryProductsScreen> {
                                 Expanded(
                                   child: TextField(
                                     controller: _searchController,
-                                    onChanged: (value) =>
-                                        setState(() => _search = value),
+                                    onChanged: _searchChanged,
                                     decoration: InputDecoration(
                                       hintText:
                                           'Search product, SKU, barcode, part number or brand...',
@@ -435,6 +467,7 @@ class _InventoryProductsScreenState extends State<InventoryProductsScreen> {
                                           ? null
                                           : IconButton(
                                               onPressed: () {
+                                                _searchDebounce?.cancel();
                                                 _searchController.clear();
                                                 setState(() => _search = '');
                                               },
