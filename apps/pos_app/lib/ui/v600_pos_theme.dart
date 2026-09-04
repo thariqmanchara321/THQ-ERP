@@ -143,17 +143,6 @@ abstract final class PosV600Theme {
           side: BorderSide(color: profile.border),
         ),
       ),
-      snackBarTheme: base.snackBarTheme.copyWith(
-        behavior: SnackBarBehavior.floating,
-        width: 360,
-        elevation: 2,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(9)),
-        contentTextStyle: TextStyle(
-          color: scheme.onInverseSurface,
-          fontSize: 12,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
       dialogTheme: base.dialogTheme.copyWith(
         surfaceTintColor: Colors.transparent,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(11)),

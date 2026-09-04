@@ -164,7 +164,9 @@ class _BusinessLocationsDevicesScreenState
                     : 'Edit Store / Location',
               ),
               content: SizedBox(
-                width: 760,
+                width: (MediaQuery.sizeOf(dialogContext).width - 64)
+                    .clamp(320.0, 760.0)
+                    .toDouble(),
                 child: SingleChildScrollView(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,

@@ -185,13 +185,17 @@ class _TemplateDialogState extends State<_TemplateDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final viewport = MediaQuery.sizeOf(context);
+    final dialogWidth = (viewport.width - 64).clamp(320.0, 720.0).toDouble();
+    final dialogHeight = (viewport.height - 120).clamp(360.0, 650.0).toDouble();
+
     return AlertDialog(
       title: Text(
         widget.template == null ? 'Create Template' : 'Edit Template',
       ),
       content: SizedBox(
-        width: 720,
-        height: 650,
+        width: dialogWidth,
+        height: dialogHeight,
         child: Column(
           children: [
             Row(

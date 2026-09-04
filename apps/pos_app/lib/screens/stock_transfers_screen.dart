@@ -954,7 +954,13 @@ class _StockTransfersScreenState extends State<StockTransfersScreen> {
         return const Center(child: CircularProgressIndicator());
       }
       if (snapshot.hasError) {
-        return Center(child: Text(snapshot.error.toString()));
+        return ThqErrorState(
+          title: 'Could not load transfers',
+          message: _cleanError(snapshot.error!),
+          onRetry: () {
+            _refresh();
+          },
+        );
       }
       final rows = snapshot.data ?? const [];
       if (rows.isEmpty) {
@@ -1040,7 +1046,13 @@ class _StockTransfersScreenState extends State<StockTransfersScreen> {
         return const Center(child: CircularProgressIndicator());
       }
       if (snapshot.hasError) {
-        return Center(child: Text(snapshot.error.toString()));
+        return ThqErrorState(
+          title: 'Could not load warehouses',
+          message: _cleanError(snapshot.error!),
+          onRetry: () {
+            _refresh();
+          },
+        );
       }
       final rows = snapshot.data ?? const [];
       if (rows.isEmpty) {
@@ -1116,7 +1128,13 @@ class _StockTransfersScreenState extends State<StockTransfersScreen> {
         return const Center(child: CircularProgressIndicator());
       }
       if (snapshot.hasError) {
-        return Center(child: Text(snapshot.error.toString()));
+        return ThqErrorState(
+          title: 'Could not load stock counts',
+          message: _cleanError(snapshot.error!),
+          onRetry: () {
+            _refresh();
+          },
+        );
       }
       final rows = snapshot.data ?? const [];
       if (rows.isEmpty) {
@@ -1186,7 +1204,13 @@ class _StockTransfersScreenState extends State<StockTransfersScreen> {
               return const Center(child: CircularProgressIndicator());
             }
             if (snapshot.hasError) {
-              return Center(child: Text(snapshot.error.toString()));
+              return ThqErrorState(
+                title: 'Could not load reconciliation',
+                message: _cleanError(snapshot.error!),
+                onRetry: () {
+                  _refresh();
+                },
+              );
             }
             final rows = snapshot.data ?? const [];
             if (rows.isEmpty) {

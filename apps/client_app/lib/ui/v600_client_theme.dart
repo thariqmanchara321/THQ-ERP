@@ -76,10 +76,7 @@ abstract final class ClientV600Theme {
         isDense: true,
         filled: true,
         fillColor: profile.surface,
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 10,
-          vertical: 8,
-        ),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
           borderSide: BorderSide(color: profile.border),
@@ -97,9 +94,7 @@ abstract final class ClientV600Theme {
         style: FilledButton.styleFrom(
           minimumSize: const Size(0, 34),
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
-          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
           textStyle: const TextStyle(
             fontSize: 11.5,
             fontWeight: FontWeight.w700,
@@ -111,9 +106,7 @@ abstract final class ClientV600Theme {
           minimumSize: const Size(0, 34),
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
           side: BorderSide(color: profile.border),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
-          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
           textStyle: const TextStyle(
             fontSize: 11.5,
             fontWeight: FontWeight.w600,
@@ -124,10 +117,7 @@ abstract final class ClientV600Theme {
         style: TextButton.styleFrom(
           minimumSize: const Size(0, 32),
           padding: const EdgeInsets.symmetric(horizontal: 9),
-          textStyle: const TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.w600,
-          ),
+          textStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
         ),
       ),
       listTileTheme: base.listTileTheme.copyWith(
@@ -146,19 +136,9 @@ abstract final class ClientV600Theme {
           side: BorderSide(color: profile.border),
         ),
       ),
-      snackBarTheme: base.snackBarTheme.copyWith(
-        behavior: SnackBarBehavior.floating,
-        width: 380,
-        insetPadding: const EdgeInsets.all(12),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(9),
-        ),
-      ),
       dialogTheme: base.dialogTheme.copyWith(
         surfaceTintColor: Colors.transparent,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
       scrollbarTheme: base.scrollbarTheme.copyWith(
         thickness: const WidgetStatePropertyAll(5),

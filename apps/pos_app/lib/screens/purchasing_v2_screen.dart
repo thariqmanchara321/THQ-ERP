@@ -303,25 +303,28 @@ class _PurchasingV2ScreenState extends State<PurchasingV2Screen>
   }
 
   Widget _header() {
-    return Row(
-      children: [
-        const Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Purchase Details',
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800),
-              ),
-              SizedBox(height: 3),
-              Text(
-                'PR → PO approval → GRN → Purchase Invoice → Supplier Payment',
-              ),
-            ],
-          ),
-        ),
-        SizedBox(
-          width: 270,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compact = constraints.maxWidth < 760;
+
+        final title = const Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Purchase Details',
+              style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800),
+            ),
+            SizedBox(height: 3),
+            Text(
+              'PR â†’ PO approval â†’ GRN â†’ Purchase Invoice â†’ Supplier Payment',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        );
+
+        final searchBox = SizedBox(
+          width: compact ? double.infinity : 270,
           child: TextField(
             controller: _search,
             onSubmitted: (_) => _load(),
@@ -334,10 +337,40 @@ class _PurchasingV2ScreenState extends State<PurchasingV2Screen>
               ),
             ),
           ),
-        ),
-        const SizedBox(width: 8),
-        IconButton(onPressed: _load, icon: const Icon(Icons.refresh)),
-      ],
+        );
+
+        final refresh = IconButton(
+          tooltip: 'Refresh purchase details',
+          onPressed: _load,
+          icon: const Icon(Icons.refresh),
+        );
+
+        if (compact) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              title,
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(child: searchBox),
+                  const SizedBox(width: 6),
+                  refresh,
+                ],
+              ),
+            ],
+          );
+        }
+
+        return Row(
+          children: [
+            Expanded(child: title),
+            searchBox,
+            const SizedBox(width: 8),
+            refresh,
+          ],
+        );
+      },
     );
   }
 
@@ -414,19 +447,11 @@ class _PurchasingV2ScreenState extends State<PurchasingV2Screen>
     );
   }
 
-  Widget _errorView() => Center(
-    child: Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        const Icon(Icons.error_outline, size: 48),
-        const SizedBox(height: 10),
-        Text(_error ?? 'Unknown error'),
-        const SizedBox(height: 10),
-        FilledButton(onPressed: _load, child: const Text('Retry')),
-      ],
-    ),
+  Widget _errorView() => ThqErrorState(
+    title: 'Could not load purchase details',
+    message: _error,
+    onRetry: _load,
   );
-
   Widget _requestsTab() {
     return Column(
       children: [
