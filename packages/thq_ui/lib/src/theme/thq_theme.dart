@@ -36,11 +36,7 @@ abstract final class ThqTheme {
       seedColor: accent,
       brightness: brightness,
       surface: surface,
-    ).copyWith(
-      primary: accent,
-      surface: surface,
-      error: semantic.critical,
-    );
+    ).copyWith(primary: accent, surface: surface, error: semantic.critical);
 
     final inputBorder = OutlineInputBorder(
       borderRadius: BorderRadius.circular(ThqTokens.radiusSmall),
@@ -74,15 +70,29 @@ abstract final class ThqTheme {
           horizontal: ThqTokens.space12,
           vertical: ThqTokens.space10,
         ),
+        errorStyle: TextStyle(
+          color: semantic.critical,
+          fontSize: 10.5,
+          fontWeight: FontWeight.w600,
+        ),
         border: inputBorder,
         enabledBorder: inputBorder,
+        disabledBorder: inputBorder.copyWith(
+          borderSide: BorderSide(color: border.withValues(alpha: 0.72)),
+        ),
         focusedBorder: inputBorder.copyWith(
           borderSide: BorderSide(color: accent, width: 1.5),
+        ),
+        errorBorder: inputBorder.copyWith(
+          borderSide: BorderSide(color: semantic.critical),
+        ),
+        focusedErrorBorder: inputBorder.copyWith(
+          borderSide: BorderSide(color: semantic.critical, width: 1.5),
         ),
       ),
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
-          minimumSize: const Size(0, ThqTokens.controlStandard),
+          minimumSize: const Size(0, 38),
           padding: const EdgeInsets.symmetric(horizontal: ThqTokens.space16),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(ThqTokens.radiusSmall),
@@ -92,7 +102,7 @@ abstract final class ThqTheme {
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          minimumSize: const Size(0, ThqTokens.controlStandard),
+          minimumSize: const Size(0, 38),
           padding: const EdgeInsets.symmetric(horizontal: ThqTokens.space16),
           side: BorderSide(color: border),
           shape: RoundedRectangleBorder(
@@ -103,10 +113,80 @@ abstract final class ThqTheme {
       ),
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
-          minimumSize: const Size(0, ThqTokens.controlStandard),
+          minimumSize: const Size(0, 34),
           padding: const EdgeInsets.symmetric(horizontal: ThqTokens.space12),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(ThqTokens.radiusSmall),
+          ),
           textStyle: textTheme.labelLarge,
         ),
+      ),
+      iconButtonTheme: IconButtonThemeData(
+        style: IconButton.styleFrom(
+          minimumSize: const Size.square(34),
+          padding: const EdgeInsets.all(7),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(ThqTokens.radiusSmall),
+          ),
+        ),
+      ),
+      checkboxTheme: CheckboxThemeData(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+        side: BorderSide(color: border, width: 1.2),
+        fillColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.disabled)) {
+            return border.withValues(alpha: 0.55);
+          }
+          if (states.contains(WidgetState.selected)) return accent;
+          return Colors.transparent;
+        }),
+        checkColor: WidgetStatePropertyAll(scheme.onPrimary),
+      ),
+      radioTheme: RadioThemeData(
+        fillColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.disabled)) {
+            return scheme.onSurfaceVariant.withValues(alpha: 0.45);
+          }
+          if (states.contains(WidgetState.selected)) return accent;
+          return scheme.onSurfaceVariant;
+        }),
+      ),
+      switchTheme: SwitchThemeData(
+        thumbColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.disabled)) {
+            return scheme.onSurfaceVariant.withValues(alpha: 0.38);
+          }
+          if (states.contains(WidgetState.selected)) return scheme.onPrimary;
+          return surface;
+        }),
+        trackColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.disabled)) {
+            return border.withValues(alpha: 0.55);
+          }
+          if (states.contains(WidgetState.selected)) {
+            return accent.withValues(alpha: 0.92);
+          }
+          return border;
+        }),
+      ),
+      popupMenuTheme: PopupMenuThemeData(
+        color: surface,
+        surfaceTintColor: Colors.transparent,
+        elevation: 3,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(ThqTokens.radiusSmall),
+          side: BorderSide(color: border),
+        ),
+      ),
+      scrollbarTheme: ScrollbarThemeData(
+        radius: const Radius.circular(999),
+        thickness: const WidgetStatePropertyAll(6),
+        thumbColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.hovered)) {
+            return scheme.onSurfaceVariant.withValues(alpha: 0.70);
+          }
+          return scheme.onSurfaceVariant.withValues(alpha: 0.38);
+        }),
       ),
       dataTableTheme: DataTableThemeData(
         headingRowHeight: ThqTokens.tableHeader,
@@ -118,9 +198,23 @@ abstract final class ThqTheme {
         headingTextStyle: textTheme.labelMedium?.copyWith(
           fontWeight: FontWeight.w700,
         ),
+        headingRowColor: WidgetStatePropertyAll(
+          Color.alphaBlend(accent.withValues(alpha: 0.035), surface),
+        ),
+        dataRowColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return Color.alphaBlend(accent.withValues(alpha: 0.10), surface);
+          }
+          if (states.contains(WidgetState.hovered)) {
+            return Color.alphaBlend(accent.withValues(alpha: 0.035), surface);
+          }
+          return null;
+        }),
       ),
       dialogTheme: DialogThemeData(
         backgroundColor: surface,
+        elevation: 2,
+        shadowColor: scheme.onSurface.withValues(alpha: 0.14),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(ThqTokens.radiusLarge),
           side: BorderSide(color: border),

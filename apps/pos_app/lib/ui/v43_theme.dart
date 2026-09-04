@@ -218,15 +218,23 @@ class UiDesignProfile {
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         labelStyle: TextStyle(color: textSecondary),
-        floatingLabelStyle: TextStyle(color: primary),
+        floatingLabelStyle: TextStyle(
+          color: primary,
+          fontWeight: FontWeight.w600,
+        ),
         hintStyle: TextStyle(color: textSecondary),
+        errorStyle: TextStyle(
+          color: danger,
+          fontSize: 10.5,
+          fontWeight: FontWeight.w600,
+        ),
         prefixIconColor: textSecondary,
         suffixIconColor: textSecondary,
         fillColor: surface,
         isDense: compact,
         contentPadding: EdgeInsets.symmetric(
           horizontal: 14,
-          vertical: compact ? 10 : 13,
+          vertical: compact ? 10 : 12,
         ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(r * 0.72),
@@ -236,36 +244,54 @@ class UiDesignProfile {
           borderRadius: BorderRadius.circular(r * 0.72),
           borderSide: BorderSide(color: border),
         ),
+        disabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(r * 0.72),
+          borderSide: BorderSide(color: border.withValues(alpha: 0.72)),
+        ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(r * 0.72),
           borderSide: BorderSide(color: primary, width: 1.5),
         ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(r * 0.72),
+          borderSide: BorderSide(color: danger),
+        ),
+        focusedErrorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(r * 0.72),
+          borderSide: BorderSide(color: danger, width: 1.5),
+        ),
       ),
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
-          minimumSize: Size(0, compact ? 40 : 44),
-          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+          minimumSize: Size(0, compact ? 38 : 42),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(r * 0.72),
           ),
-          textStyle: const TextStyle(fontWeight: FontWeight.w700),
+          textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
           foregroundColor: primary,
           minimumSize: Size(0, compact ? 38 : 42),
+          padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 9),
           side: BorderSide(color: border),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(r * 0.72),
           ),
-          textStyle: const TextStyle(fontWeight: FontWeight.w600),
+          textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
         ),
       ),
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
           foregroundColor: primary,
-          textStyle: const TextStyle(fontWeight: FontWeight.w600),
+          minimumSize: Size(0, compact ? 34 : 38),
+          padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(r * 0.60),
+          ),
+          textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
         ),
       ),
       chipTheme: ChipThemeData(
@@ -285,25 +311,115 @@ class UiDesignProfile {
         ),
         iconTheme: IconThemeData(color: textSecondary),
       ),
+      checkboxTheme: CheckboxThemeData(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+        side: BorderSide(color: border, width: 1.2),
+        fillColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.disabled)) {
+            return border.withValues(alpha: 0.55);
+          }
+          if (states.contains(WidgetState.selected)) return primary;
+          return Colors.transparent;
+        }),
+        checkColor: WidgetStatePropertyAll(scheme.onPrimary),
+      ),
+      radioTheme: RadioThemeData(
+        fillColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.disabled)) {
+            return textSecondary.withValues(alpha: 0.45);
+          }
+          if (states.contains(WidgetState.selected)) return primary;
+          return textSecondary;
+        }),
+      ),
+      switchTheme: SwitchThemeData(
+        thumbColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.disabled)) {
+            return textSecondary.withValues(alpha: 0.38);
+          }
+          if (states.contains(WidgetState.selected)) return scheme.onPrimary;
+          return surface;
+        }),
+        trackColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.disabled)) {
+            return border.withValues(alpha: 0.55);
+          }
+          if (states.contains(WidgetState.selected)) {
+            return primary.withValues(alpha: 0.92);
+          }
+          return border;
+        }),
+      ),
+      popupMenuTheme: PopupMenuThemeData(
+        color: surface,
+        surfaceTintColor: Colors.transparent,
+        elevation: 3,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(r * 0.72),
+          side: BorderSide(color: border),
+        ),
+      ),
+      scrollbarTheme: ScrollbarThemeData(
+        radius: const Radius.circular(999),
+        thickness: const WidgetStatePropertyAll(6),
+        thumbColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.hovered)) {
+            return textSecondary.withValues(alpha: 0.70);
+          }
+          return textSecondary.withValues(alpha: 0.38);
+        }),
+      ),
       navigationRailTheme: NavigationRailThemeData(
         backgroundColor: sidebar,
         indicatorColor: Color.alphaBlend(
           primary.withValues(alpha: 0.14),
           surface,
         ),
-      ),
-      snackBarTheme: SnackBarThemeData(
-        behavior: SnackBarBehavior.floating,
-        showCloseIcon: true,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(r * 0.72),
+        selectedIconTheme: IconThemeData(color: primary, size: 21),
+        unselectedIconTheme: IconThemeData(color: textSecondary, size: 20),
+        selectedLabelTextStyle: TextStyle(
+          color: primary,
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
         ),
+        unselectedLabelTextStyle: TextStyle(
+          color: textSecondary,
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+      iconButtonTheme: IconButtonThemeData(
+        style: IconButton.styleFrom(
+          foregroundColor: textSecondary,
+          minimumSize: Size.square(compact ? 34 : 38),
+          padding: const EdgeInsets.all(7),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(r * 0.58),
+          ),
+        ),
+      ),
+      tooltipTheme: TooltipThemeData(
+        waitDuration: const Duration(milliseconds: 450),
+        showDuration: const Duration(seconds: 3),
+        decoration: BoxDecoration(
+          color: textPrimary,
+          borderRadius: BorderRadius.circular(r * 0.50),
+        ),
+        textStyle: TextStyle(
+          color: surface,
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
       ),
       dialogTheme: DialogThemeData(
         backgroundColor: surface,
         surfaceTintColor: Colors.transparent,
+        elevation: 2,
+        shadowColor: textPrimary.withValues(alpha: 0.14),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(r + 4),
+          borderRadius: BorderRadius.circular(r + 2),
+          side: BorderSide(color: border),
         ),
       ),
       dataTableTheme: DataTableThemeData(
@@ -315,6 +431,15 @@ class UiDesignProfile {
         headingRowColor: WidgetStatePropertyAll(
           Color.alphaBlend(primary.withValues(alpha: 0.035), surface),
         ),
+        dataRowColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return Color.alphaBlend(primary.withValues(alpha: 0.10), surface);
+          }
+          if (states.contains(WidgetState.hovered)) {
+            return Color.alphaBlend(primary.withValues(alpha: 0.035), surface);
+          }
+          return null;
+        }),
         dividerThickness: 0.8,
         headingRowHeight: compact ? 38 : 44,
         dataRowMinHeight: compact ? 38 : 44,
@@ -326,9 +451,17 @@ class UiDesignProfile {
         dense: compact,
         textColor: textPrimary,
         iconColor: textSecondary,
+        selectedColor: primary,
+        selectedTileColor: Color.alphaBlend(
+          primary.withValues(alpha: 0.075),
+          surface,
+        ),
         minVerticalPadding: compact ? 3 : 6,
         horizontalTitleGap: compact ? 8 : 12,
         contentPadding: EdgeInsets.symmetric(horizontal: compact ? 10 : 14),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(r * 0.60),
+        ),
       ),
     );
   }

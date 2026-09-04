@@ -57,6 +57,7 @@ class _MobileHomeScreenState extends State<MobileHomeScreen> {
           setState(() => _locationId = v);
           _refresh();
         },
+        onOpen: _open,
       ),
       _BusinessTab(open: _open),
       _ApprovalsTab(session: widget.session, service: _service, money: money),
@@ -68,40 +69,74 @@ class _MobileHomeScreenState extends State<MobileHomeScreen> {
         onLogout: _logout,
       ),
     ];
+
+    final titles = ['Dashboard', 'Business', 'Approvals', 'More'];
+
     return Scaffold(
-      appBar: AppBar(
-        toolbarHeight: 58,
-        title: Text(widget.session.businessName),
-        actions: [
-          IconButton(
-            tooltip: 'Refresh',
-            onPressed: _refresh,
-            icon: const Icon(Icons.refresh_rounded),
+      appBar: _index == 0
+          ? null
+          : AppBar(
+              toolbarHeight: 56,
+              title: Text(titles[_index]),
+              actions: [
+                if (_index == 1)
+                  IconButton(
+                    tooltip: 'Refresh dashboard',
+                    onPressed: _refresh,
+                    icon: const Icon(Icons.refresh_rounded),
+                  ),
+                const SizedBox(width: 4),
+              ],
+            ),
+      body: _index == 0
+          ? pages[_index]
+          : SafeArea(top: false, child: pages[_index]),
+      bottomNavigationBar: SafeArea(
+        top: false,
+        minimum: const EdgeInsets.fromLTRB(12, 0, 12, 10),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: const Color(0xFFE9E6F1)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.07),
+                blurRadius: 18,
+                offset: const Offset(0, 6),
+              ),
+            ],
           ),
-        ],
-      ),
-      body: SafeArea(top: false, child: pages[_index]),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _index,
-        onDestinationSelected: (v) => setState(() => _index = v),
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.dashboard_outlined),
-            selectedIcon: Icon(Icons.dashboard),
-            label: 'Dashboard',
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(20),
+            child: NavigationBar(
+              selectedIndex: _index,
+              onDestinationSelected: (v) => setState(() => _index = v),
+              destinations: const [
+                NavigationDestination(
+                  icon: Icon(Icons.grid_view_rounded),
+                  selectedIcon: Icon(Icons.grid_view_rounded),
+                  label: 'Overview',
+                ),
+                NavigationDestination(
+                  icon: Icon(Icons.business_center_outlined),
+                  selectedIcon: Icon(Icons.business_center_rounded),
+                  label: 'Business',
+                ),
+                NavigationDestination(
+                  icon: Icon(Icons.approval_outlined),
+                  selectedIcon: Icon(Icons.approval_rounded),
+                  label: 'Approvals',
+                ),
+                NavigationDestination(
+                  icon: Icon(Icons.more_horiz_rounded),
+                  selectedIcon: Icon(Icons.more_horiz_rounded),
+                  label: 'More',
+                ),
+              ],
+            ),
           ),
-          NavigationDestination(
-            icon: Icon(Icons.business_outlined),
-            selectedIcon: Icon(Icons.business),
-            label: 'Business',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.approval_outlined),
-            selectedIcon: Icon(Icons.approval),
-            label: 'Approvals',
-          ),
-          NavigationDestination(icon: Icon(Icons.more_horiz), label: 'More'),
-        ],
+        ),
       ),
     );
   }
@@ -234,6 +269,8 @@ class _DashboardTab extends StatelessWidget {
   final VoidCallback onRefresh;
   final String? locationId;
   final ValueChanged<String?> onLocation;
+  final ValueChanged<String> onOpen;
+
   const _DashboardTab({
     required this.session,
     required this.future,
@@ -241,113 +278,189 @@ class _DashboardTab extends StatelessWidget {
     required this.onRefresh,
     required this.locationId,
     required this.onLocation,
+    required this.onOpen,
   });
+
   @override
   Widget build(BuildContext context) => RefreshIndicator(
     onRefresh: () async => onRefresh(),
     child: FutureBuilder<Map<String, dynamic>>(
       future: future,
       builder: (context, s) {
-        if (s.connectionState != ConnectionState.done)
+        if (s.connectionState != ConnectionState.done) {
           return ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
             children: const [
-              SizedBox(height: 250),
-              Center(child: CircularProgressIndicator()),
+              SizedBox(height: 280),
+              Center(child: CircularProgressIndicator(strokeWidth: 2.4)),
             ],
           );
-        if (s.hasError)
+        }
+
+        if (s.hasError) {
           return ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
             padding: const EdgeInsets.all(20),
-            children: [Text(s.error.toString())],
+            children: [
+              const SizedBox(height: 120),
+              ThqErrorState(
+                title: 'Could not load dashboard',
+                message: 'Pull down to retry.',
+              ),
+            ],
           );
+        }
+
         final d = s.data ?? {};
         final a = d['attention'] is Map
             ? Map<String, dynamic>.from(d['attention'] as Map)
             : <String, dynamic>{};
+
         return ListView(
-          padding: const EdgeInsets.all(10),
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: EdgeInsets.zero,
           children: [
-            if (session.canViewAllLocations)
-              DropdownButtonFormField<String?>(
-                initialValue: locationId,
-                decoration: const InputDecoration(
-                  labelText: 'Store scope',
-                  border: OutlineInputBorder(),
-                ),
-                items: [
-                  const DropdownMenuItem<String?>(
-                    value: null,
-                    child: Text('All accessible stores'),
+            _DashboardHero(
+              businessName: session.businessName,
+              netSales: money(d['net_sales']),
+              grossProfit: money(d['gross_profit']),
+              invoiceCount: '${d['invoice_count'] ?? 0}',
+              approvals: '${d['pending_approvals'] ?? 0}',
+              onRefresh: onRefresh,
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(14, 12, 14, 0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  if (session.canViewAllLocations) ...[
+                    DropdownButtonFormField<String?>(
+                      initialValue: locationId,
+                      decoration: const InputDecoration(
+                        labelText: 'Store scope',
+                        prefixIcon: Icon(Icons.store_mall_directory_outlined),
+                      ),
+                      items: [
+                        const DropdownMenuItem<String?>(
+                          value: null,
+                          child: Text('All accessible stores'),
+                        ),
+                        ...session.locations.map(
+                          (l) => DropdownMenuItem<String?>(
+                            value: l.id,
+                            child: Text(l.name),
+                          ),
+                        ),
+                      ],
+                      onChanged: onLocation,
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+                  const _MobileSectionTitle(
+                    title: 'Quick actions',
+                    subtitle: 'Open the areas you use most.',
                   ),
-                  ...session.locations.map(
-                    (l) => DropdownMenuItem<String?>(
-                      value: l.id,
-                      child: Text(l.name),
+                  const SizedBox(height: 10),
+                  GridView.count(
+                    crossAxisCount: 3,
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    mainAxisSpacing: 9,
+                    crossAxisSpacing: 9,
+                    childAspectRatio: 1.08,
+                    children: [
+                      _QuickActionTile(
+                        label: 'Sales',
+                        icon: Icons.point_of_sale_rounded,
+                        onTap: () => onOpen('sales'),
+                      ),
+                      _QuickActionTile(
+                        label: 'Purchases',
+                        icon: Icons.shopping_bag_outlined,
+                        onTap: () => onOpen('purchases'),
+                      ),
+                      _QuickActionTile(
+                        label: 'Inventory',
+                        icon: Icons.inventory_2_outlined,
+                        onTap: () => onOpen('inventory'),
+                      ),
+                      _QuickActionTile(
+                        label: 'Customers',
+                        icon: Icons.people_alt_outlined,
+                        onTap: () => onOpen('customers'),
+                      ),
+                      _QuickActionTile(
+                        label: 'Suppliers',
+                        icon: Icons.local_shipping_outlined,
+                        onTap: () => onOpen('suppliers'),
+                      ),
+                      _QuickActionTile(
+                        label: 'Stores',
+                        icon: Icons.storefront_outlined,
+                        onTap: () => onOpen('stores'),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 18),
+                  const _MobileSectionTitle(
+                    title: 'Outstanding',
+                    subtitle: 'Current receivable and payable position.',
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _DueCard(
+                          label: 'Customer due',
+                          value: money(d['customer_outstanding']),
+                          icon: Icons.account_balance_wallet_outlined,
+                        ),
+                      ),
+                      const SizedBox(width: 9),
+                      Expanded(
+                        child: _DueCard(
+                          label: 'Supplier due',
+                          value: money(d['supplier_outstanding']),
+                          icon: Icons.payments_outlined,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 18),
+                  const _MobileSectionTitle(
+                    title: 'Attention',
+                    subtitle: 'Items that may need action.',
+                  ),
+                  const SizedBox(height: 10),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(color: const Color(0xFFE9E6F1)),
+                    ),
+                    child: Column(
+                      children: [
+                        _AttentionRow(
+                          icon: Icons.warning_amber_rounded,
+                          label: 'Low stock',
+                          value: '${a['low_stock'] ?? 0}',
+                        ),
+                        const Divider(height: 1, indent: 52, endIndent: 14),
+                        _AttentionRow(
+                          icon: Icons.remove_shopping_cart_outlined,
+                          label: 'Out of stock',
+                          value: '${a['out_of_stock'] ?? 0}',
+                        ),
+                        const Divider(height: 1, indent: 52, endIndent: 14),
+                        _AttentionRow(
+                          icon: Icons.schedule_rounded,
+                          label: 'Overdue receivables',
+                          value: money(a['overdue_receivables']),
+                        ),
+                      ],
                     ),
                   ),
-                ],
-                onChanged: onLocation,
-              ),
-            const SizedBox(height: 12),
-            Text('Today', style: Theme.of(context).textTheme.titleLarge),
-            const SizedBox(height: 10),
-            Wrap(
-              spacing: 10,
-              runSpacing: 10,
-              children: [
-                _Kpi(
-                  label: 'Net Sales',
-                  value: money(d['net_sales']),
-                  icon: Icons.point_of_sale,
-                ),
-                _Kpi(
-                  label: 'Gross Profit',
-                  value: money(d['gross_profit']),
-                  icon: Icons.trending_up,
-                ),
-                _Kpi(
-                  label: 'Invoices',
-                  value: '${d['invoice_count'] ?? 0}',
-                  icon: Icons.receipt_long,
-                ),
-                _Kpi(
-                  label: 'Customer Due',
-                  value: money(d['customer_outstanding']),
-                  icon: Icons.account_balance_wallet_outlined,
-                ),
-                _Kpi(
-                  label: 'Supplier Due',
-                  value: money(d['supplier_outstanding']),
-                  icon: Icons.payments_outlined,
-                ),
-                _Kpi(
-                  label: 'Approvals',
-                  value: '${d['pending_approvals'] ?? 0}',
-                  icon: Icons.approval_outlined,
-                ),
-              ],
-            ),
-            const SizedBox(height: 14),
-            Text('Attention', style: Theme.of(context).textTheme.titleLarge),
-            const SizedBox(height: 8),
-            Card(
-              child: Column(
-                children: [
-                  ListTile(
-                    leading: const Icon(Icons.warning_amber),
-                    title: const Text('Low stock'),
-                    trailing: Text('${a['low_stock'] ?? 0}'),
-                  ),
-                  ListTile(
-                    leading: const Icon(Icons.remove_shopping_cart_outlined),
-                    title: const Text('Out of stock'),
-                    trailing: Text('${a['out_of_stock'] ?? 0}'),
-                  ),
-                  ListTile(
-                    leading: const Icon(Icons.schedule),
-                    title: const Text('Overdue receivables'),
-                    trailing: Text(money(a['overdue_receivables'])),
-                  ),
+                  const SizedBox(height: 18),
                 ],
               ),
             ),
@@ -358,31 +471,408 @@ class _DashboardTab extends StatelessWidget {
   );
 }
 
-class _Kpi extends StatelessWidget {
-  final String label, value;
-  final IconData icon;
-  const _Kpi({required this.label, required this.value, required this.icon});
+class _DashboardHero extends StatelessWidget {
+  final String businessName;
+  final String netSales;
+  final String grossProfit;
+  final String invoiceCount;
+  final String approvals;
+  final VoidCallback onRefresh;
+
+  const _DashboardHero({
+    required this.businessName,
+    required this.netSales,
+    required this.grossProfit,
+    required this.invoiceCount,
+    required this.approvals,
+    required this.onRefresh,
+  });
+
   @override
-  Widget build(BuildContext context) => SizedBox(
-    width: (MediaQuery.sizeOf(context).width - 42) / 2,
-    child: Card(
-      child: Padding(
-        padding: const EdgeInsets.all(10),
+  Widget build(BuildContext context) {
+    final topInset = MediaQuery.paddingOf(context).top;
+    return SizedBox(
+      height: 266 + topInset,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Container(
+            height: 216 + topInset,
+            padding: EdgeInsets.fromLTRB(18, topInset + 14, 14, 24),
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [Color(0xFF5E50D8), Color(0xFF8D7CF6)],
+              ),
+              borderRadius: BorderRadius.vertical(bottom: Radius.circular(30)),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const _ThqMobileMark(),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'THQ BUSINESS',
+                        style: TextStyle(
+                          color: Colors.white70,
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 1.0,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        businessName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.35,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  tooltip: 'Refresh',
+                  onPressed: onRefresh,
+                  style: IconButton.styleFrom(
+                    foregroundColor: Colors.white,
+                    backgroundColor: Colors.white.withValues(alpha: 0.13),
+                  ),
+                  icon: const Icon(Icons.refresh_rounded),
+                ),
+              ],
+            ),
+          ),
+          Positioned(
+            left: 14,
+            right: 14,
+            bottom: 0,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 15),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: const Color(0xFFE8E4F3)),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF4E3DA8).withValues(alpha: 0.11),
+                    blurRadius: 24,
+                    offset: const Offset(0, 9),
+                  ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Row(
+                    children: [
+                      Text(
+                        'TODAY',
+                        style: TextStyle(
+                          color: Color(0xFF77717F),
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.9,
+                        ),
+                      ),
+                      Spacer(),
+                      Icon(
+                        Icons.auto_graph_rounded,
+                        size: 17,
+                        color: Color(0xFF6C5CE7),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 11),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _HeroMetric(label: 'Net sales', value: netSales),
+                      ),
+                      const _MetricDivider(),
+                      Expanded(
+                        child: _HeroMetric(
+                          label: 'Gross profit',
+                          value: grossProfit,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 11),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _HeroMetric(
+                          label: 'Invoices',
+                          value: invoiceCount,
+                        ),
+                      ),
+                      const _MetricDivider(),
+                      Expanded(
+                        child: _HeroMetric(
+                          label: 'Approvals',
+                          value: approvals,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ThqMobileMark extends StatelessWidget {
+  const _ThqMobileMark();
+
+  @override
+  Widget build(BuildContext context) => Container(
+    width: 38,
+    height: 38,
+    alignment: Alignment.center,
+    decoration: BoxDecoration(
+      color: Colors.white.withValues(alpha: 0.16),
+      borderRadius: BorderRadius.circular(12),
+      border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
+    ),
+    child: const Text(
+      'T',
+      style: TextStyle(
+        color: Colors.white,
+        fontSize: 18,
+        fontWeight: FontWeight.w900,
+      ),
+    ),
+  );
+}
+
+class _HeroMetric extends StatelessWidget {
+  final String label;
+  final String value;
+
+  const _HeroMetric({required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 6),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          value,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(
+            color: Color(0xFF211F27),
+            fontSize: 15,
+            fontWeight: FontWeight.w800,
+            letterSpacing: -0.25,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          label,
+          style: const TextStyle(
+            color: Color(0xFF77717F),
+            fontSize: 10.5,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+class _MetricDivider extends StatelessWidget {
+  const _MetricDivider();
+
+  @override
+  Widget build(BuildContext context) =>
+      Container(width: 1, height: 34, color: const Color(0xFFEDEAF4));
+}
+
+class _MobileSectionTitle extends StatelessWidget {
+  final String title;
+  final String subtitle;
+
+  const _MobileSectionTitle({required this.title, required this.subtitle});
+
+  @override
+  Widget build(BuildContext context) => Row(
+    crossAxisAlignment: CrossAxisAlignment.end,
+    children: [
+      Expanded(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(icon),
-            const SizedBox(height: 10),
+            Text(title, style: Theme.of(context).textTheme.titleLarge),
+            const SizedBox(height: 2),
             Text(
-              value,
+              subtitle,
               style: Theme.of(
                 context,
-              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+              ).textTheme.bodySmall?.copyWith(color: const Color(0xFF77717F)),
             ),
-            Text(label, style: Theme.of(context).textTheme.bodySmall),
           ],
         ),
       ),
+    ],
+  );
+}
+
+class _QuickActionTile extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final VoidCallback onTap;
+
+  const _QuickActionTile({
+    required this.label,
+    required this.icon,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) => Material(
+    color: Colors.white,
+    borderRadius: BorderRadius.circular(16),
+    child: InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 11),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: const Color(0xFFE9E6F1)),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 37,
+              height: 37,
+              decoration: BoxDecoration(
+                color: const Color(0xFFF0EDFF),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(icon, size: 20, color: const Color(0xFF6C5CE7)),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontSize: 11.5,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+class _DueCard extends StatelessWidget {
+  final String label;
+  final String value;
+  final IconData icon;
+
+  const _DueCard({
+    required this.label,
+    required this.value,
+    required this.icon,
+  });
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.all(13),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(17),
+      border: Border.all(color: const Color(0xFFE9E6F1)),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 19, color: const Color(0xFF6C5CE7)),
+        const SizedBox(height: 10),
+        Text(
+          value,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w800),
+        ),
+        const SizedBox(height: 3),
+        Text(
+          label,
+          style: const TextStyle(
+            color: Color(0xFF77717F),
+            fontSize: 10.5,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+class _AttentionRow extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+
+  const _AttentionRow({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 11),
+    child: Row(
+      children: [
+        Container(
+          width: 31,
+          height: 31,
+          decoration: BoxDecoration(
+            color: const Color(0xFFFFF4DA),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Icon(icon, size: 17, color: const Color(0xFFC88900)),
+        ),
+        const SizedBox(width: 9),
+        Expanded(
+          child: Text(
+            label,
+            style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Flexible(
+          child: Text(
+            value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.end,
+            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
+          ),
+        ),
+      ],
     ),
   );
 }
