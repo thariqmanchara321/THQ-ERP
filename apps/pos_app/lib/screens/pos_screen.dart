@@ -81,6 +81,18 @@ class _PosScreenState extends State<PosScreen> {
   bool _offlineMode = false;
   bool _offlineHeartbeatBusy = false;
 
+  Map<String, Customer> _customerById = const {};
+  Map<String, InventoryProduct> _productByVariantId = const {};
+  Map<String, InventoryProduct> _exactProductIndex = const {};
+  Map<String, String> _productSearchIndex = const {};
+  List<String> _categoryCache = const ['All'];
+  String? _filteredProductsCacheKey;
+  List<InventoryProduct> _filteredProductsCache = const [];
+  final Map<_PosLine, Timer> _priceDebounce = <_PosLine, Timer>{};
+  int _totalsRevision = 0;
+  int _totalsCacheRevision = -1;
+  _PosTotalsSnapshot? _totalsCache;
+
   bool get _canUse =>
       widget.session.hasPermission('pos.use') ||
       widget.session.hasPermission('sales.manage') ||
@@ -91,47 +103,86 @@ class _PosScreenState extends State<PosScreen> {
       (widget.session.device?.allowedModules.contains('restaurant') ?? false);
 
   Customer? get _customer {
-    for (final customer in _customers) {
-      if (customer.id == _customerId) return customer;
-    }
-    return null;
+    final id = _customerId;
+    return id == null ? null : _customerById[id];
   }
 
   double _lineGross(_PosLine line) => line.quantity * line.unitPrice;
 
-  double get _subtotal =>
-      _cart.fold(0.0, (sum, line) => sum + _lineGross(line));
+  void _invalidateTotals() {
+    _totalsRevision++;
+  }
+
+  _PosTotalsSnapshot get _totalsSnapshot {
+    final cached = _totalsCache;
+    if (cached != null && _totalsCacheRevision == _totalsRevision) {
+      return cached;
+    }
+
+    var subtotal = 0.0;
+    for (final line in _cart) {
+      subtotal += _lineGross(line);
+    }
+
+    final requestedDiscount =
+        double.tryParse(_orderDiscount.text.trim()) ?? 0.0;
+    final manualOrderDiscount = requestedDiscount
+        .clamp(0.0, subtotal)
+        .toDouble();
+
+    var discount = 0.0;
+    var tax = 0.0;
+    for (final line in _cart) {
+      final gross = _lineGross(line);
+      final allocated = subtotal <= 0
+          ? 0.0
+          : manualOrderDiscount * (gross / subtotal);
+      final effectiveDiscount = (line.discount + allocated)
+          .clamp(0.0, gross)
+          .toDouble();
+      discount += effectiveDiscount;
+      final taxable = gross - effectiveDiscount;
+      tax += taxable * line.product.taxRate / 100.0;
+    }
+
+    final beforeRoundOff = subtotal - discount + tax + _cuttingCharges;
+    final delta = beforeRoundOff.roundToDouble() - beforeRoundOff;
+    final roundOffAmount = delta.abs() < 0.000001 ? 0.0 : delta;
+    final snapshot = _PosTotalsSnapshot(
+      subtotal: subtotal,
+      manualOrderDiscount: manualOrderDiscount,
+      discount: discount,
+      tax: tax,
+      beforeRoundOff: beforeRoundOff,
+      roundOffAmount: roundOffAmount,
+      total: beforeRoundOff + roundOffAmount,
+    );
+    _totalsCache = snapshot;
+    _totalsCacheRevision = _totalsRevision;
+    return snapshot;
+  }
+
+  double get _subtotal => _totalsSnapshot.subtotal;
 
   double get _cuttingCharges => 0.0;
 
-  double get _manualOrderDiscount {
-    final value = double.tryParse(_orderDiscount.text.trim()) ?? 0.0;
-    return value.clamp(0.0, _subtotal).toDouble();
-  }
-
   double _effectiveLineDiscount(_PosLine line) {
-    if (_subtotal <= 0) return line.discount;
+    final totals = _totalsSnapshot;
+    if (totals.subtotal <= 0) return line.discount;
     final gross = _lineGross(line);
-    final allocated = _manualOrderDiscount * (gross / _subtotal);
+    final allocated = totals.manualOrderDiscount * (gross / totals.subtotal);
     return (line.discount + allocated).clamp(0.0, gross).toDouble();
   }
 
-  double get _discount =>
-      _cart.fold(0.0, (sum, line) => sum + _effectiveLineDiscount(line));
+  double get _discount => _totalsSnapshot.discount;
 
-  double get _tax => _cart.fold(0.0, (sum, line) {
-    final taxable = _lineGross(line) - _effectiveLineDiscount(line);
-    return sum + (taxable * line.product.taxRate / 100.0);
-  });
+  double get _tax => _totalsSnapshot.tax;
 
-  double get _roundOffAmount {
-    final delta = _beforeRoundOff.roundToDouble() - _beforeRoundOff;
-    return delta.abs() < 0.000001 ? 0 : delta;
-  }
+  double get _roundOffAmount => _totalsSnapshot.roundOffAmount;
 
-  double get _beforeRoundOff => _subtotal - _discount + _tax + _cuttingCharges;
+  double get _beforeRoundOff => _totalsSnapshot.beforeRoundOff;
 
-  double get _total => _beforeRoundOff + _roundOffAmount;
+  double get _total => _totalsSnapshot.total;
 
   // ignore: unused_element
   void _applyRoundOff() {
@@ -212,31 +263,83 @@ class _PosScreenState extends State<PosScreen> {
     return change;
   }
 
-  List<String> get _categories {
-    final values =
-        _products
-            .map((product) => product.categoryName?.trim() ?? '')
-            .where((value) => value.isNotEmpty)
-            .toSet()
-            .toList()
-          ..sort();
-    return ['All', ...values];
+  List<String> get _categories => _categoryCache;
+
+  void _invalidateProductFilter() {
+    _filteredProductsCacheKey = null;
+    _filteredProductsCache = const [];
+  }
+
+  void _rebuildCatalogueCaches(
+    List<InventoryProduct> products,
+    List<Customer> customers,
+  ) {
+    final customerById = <String, Customer>{};
+    for (final customer in customers) {
+      customerById[customer.id] = customer;
+    }
+
+    final productByVariantId = <String, InventoryProduct>{};
+    final exactProductIndex = <String, InventoryProduct>{};
+    final productSearchIndex = <String, String>{};
+    final categorySet = <String>{};
+
+    for (final product in products) {
+      productByVariantId[product.variantId] = product;
+
+      void addExact(String? value) {
+        final normalized = value?.trim().toLowerCase() ?? '';
+        if (normalized.isEmpty) return;
+        exactProductIndex.putIfAbsent(normalized, () => product);
+      }
+
+      addExact(product.sku);
+      addExact(product.barcode);
+      addExact(product.partNumber);
+      for (final identifier in product.identifiers) {
+        if (identifier.active) addExact(identifier.code);
+      }
+
+      final category = product.categoryName?.trim() ?? '';
+      if (category.isNotEmpty) categorySet.add(category);
+
+      productSearchIndex[product.variantId] = [
+        product.productName,
+        product.sku,
+        product.barcode ?? '',
+        product.partNumber ?? '',
+        product.searchCodes,
+        product.brandName ?? '',
+        product.categoryName ?? '',
+      ].join('\u0001').toLowerCase();
+    }
+
+    final categories = categorySet.toList()..sort();
+    _customerById = Map<String, Customer>.unmodifiable(customerById);
+    _productByVariantId = Map<String, InventoryProduct>.unmodifiable(
+      productByVariantId,
+    );
+    _exactProductIndex = Map<String, InventoryProduct>.unmodifiable(
+      exactProductIndex,
+    );
+    _productSearchIndex = Map<String, String>.unmodifiable(productSearchIndex);
+    _categoryCache = List<String>.unmodifiable(['All', ...categories]);
+    _invalidateProductFilter();
   }
 
   List<InventoryProduct> get _filteredProducts {
     final query = _search.text.trim().toLowerCase();
+    final cacheKey = '$query\u0001$_category\u0001$_sort';
+    if (_filteredProductsCacheKey == cacheKey) {
+      return _filteredProductsCache;
+    }
+
     final rows = _products.where((product) {
       final categoryMatch =
           _category == 'All' || product.categoryName == _category;
       if (!categoryMatch) return false;
       if (query.isEmpty) return true;
-      return product.productName.toLowerCase().contains(query) ||
-          product.sku.toLowerCase().contains(query) ||
-          (product.barcode ?? '').toLowerCase().contains(query) ||
-          (product.partNumber ?? '').toLowerCase().contains(query) ||
-          product.searchCodes.toLowerCase().contains(query) ||
-          (product.brandName ?? '').toLowerCase().contains(query) ||
-          (product.categoryName ?? '').toLowerCase().contains(query);
+      return (_productSearchIndex[product.variantId] ?? '').contains(query);
     }).toList();
 
     switch (_sort) {
@@ -257,7 +360,10 @@ class _PosScreenState extends State<PosScreen> {
       default:
         rows.sort((a, b) => a.productName.compareTo(b.productName));
     }
-    return rows;
+
+    _filteredProductsCacheKey = cacheKey;
+    _filteredProductsCache = List<InventoryProduct>.unmodifiable(rows);
+    return _filteredProductsCache;
   }
 
   @override
@@ -271,7 +377,7 @@ class _PosScreenState extends State<PosScreen> {
     unawaited(_offlineLocal.initialize());
     _load();
     _offlineSyncTimer = Timer.periodic(
-      const Duration(seconds: 20),
+      const Duration(seconds: 45),
       (_) => unawaited(_offlineHeartbeat()),
     );
   }
@@ -280,6 +386,10 @@ class _PosScreenState extends State<PosScreen> {
   void dispose() {
     _offlineSyncTimer?.cancel();
     _searchDebounce?.cancel();
+    for (final timer in _priceDebounce.values) {
+      timer.cancel();
+    }
+    _priceDebounce.clear();
     _search.dispose();
     _tendered.dispose();
     _paymentReference.dispose();
@@ -335,6 +445,7 @@ class _PosScreenState extends State<PosScreen> {
         selectedCustomer ??= customers.isEmpty ? null : customers.first.id;
       }
       if (!mounted) return;
+      _rebuildCatalogueCaches(products, customers);
       setState(() {
         _products = products;
         _customers = customers;
@@ -373,6 +484,7 @@ class _PosScreenState extends State<PosScreen> {
             )
             .toList();
         final customers = catalogue.customers.where((c) => c.isActive).toList();
+        _rebuildCatalogueCaches(products, customers);
         setState(() {
           _products = products;
           _customers = customers;
@@ -432,7 +544,7 @@ class _PosScreenState extends State<PosScreen> {
       }
       _syncTendered();
     });
-    if (changedLine != null) unawaited(_resolveLinePrice(changedLine!));
+    if (changedLine != null) _scheduleLinePrice(changedLine!);
     _searchFocus.requestFocus();
   }
 
@@ -616,7 +728,7 @@ class _PosScreenState extends State<PosScreen> {
       line.resolvedUnitPrice = null;
       _syncTendered();
     });
-    unawaited(_resolveLinePrice(_cart[index]));
+    _scheduleLinePrice(_cart[index]);
     _searchFocus.requestFocus();
   }
 
@@ -650,7 +762,7 @@ class _PosScreenState extends State<PosScreen> {
       }
       _syncTendered();
     });
-    if (_cart.contains(line)) unawaited(_resolveLinePrice(line));
+    if (_cart.contains(line)) _scheduleLinePrice(line);
   }
 
   void _openQuantityEditor(_PosLine line) {
@@ -700,7 +812,16 @@ class _PosScreenState extends State<PosScreen> {
         'Quantity reset to ${line.displayQuantity} ${unit.code} for this unit.',
       );
     }
-    unawaited(_resolveLinePrice(line));
+    _scheduleLinePrice(line);
+  }
+
+  void _scheduleLinePrice(_PosLine line) {
+    _priceDebounce.remove(line)?.cancel();
+    _priceDebounce[line] = Timer(const Duration(milliseconds: 120), () {
+      _priceDebounce.remove(line);
+      if (!mounted || !_cart.contains(line)) return;
+      unawaited(_resolveLinePrice(line));
+    });
   }
 
   Future<void> _resolveLinePrice(_PosLine line) async {
@@ -762,19 +883,7 @@ class _PosScreenState extends State<PosScreen> {
     final raw = value.trim();
     final query = raw.toLowerCase();
     if (query.isEmpty) return;
-    InventoryProduct? exact;
-    for (final product in _products) {
-      if (product.sku.toLowerCase() == query ||
-          (product.barcode ?? '').toLowerCase() == query ||
-          (product.partNumber ?? '').toLowerCase() == query ||
-          product.identifiers.any(
-            (identifier) =>
-                identifier.active && identifier.code.toLowerCase() == query,
-          )) {
-        exact = product;
-        break;
-      }
-    }
+    final exact = _exactProductIndex[query];
     if (exact != null) {
       _add(exact);
       _search.clear();
@@ -799,13 +908,9 @@ class _PosScreenState extends State<PosScreen> {
       }
       if (serial != null && serial['status']?.toString() == 'in_stock') {
         final variantId = serial['variant_id']?.toString();
-        InventoryProduct? product;
-        for (final row in _products) {
-          if (row.variantId == variantId) {
-            product = row;
-            break;
-          }
-        }
+        final product = variantId == null
+            ? null
+            : _productByVariantId[variantId];
         if (product != null) {
           _addResolvedSerial(
             product,
@@ -907,6 +1012,7 @@ class _PosScreenState extends State<PosScreen> {
   }
 
   void _syncTendered() {
+    _invalidateTotals();
     if (_paymentMethod != 'cash') {
       _tendered.text = _paymentMethod == 'credit'
           ? '0.00'
@@ -1165,13 +1271,7 @@ class _PosScreenState extends State<PosScreen> {
       final missing = <String>[];
       for (final item in itemRows) {
         final variantId = item['variant_id']?.toString() ?? '';
-        InventoryProduct? product;
-        for (final row in _products) {
-          if (row.variantId == variantId) {
-            product = row;
-            break;
-          }
-        }
+        final product = _productByVariantId[variantId];
         if (product == null) {
           missing.add(variantId);
           continue;
@@ -1215,6 +1315,7 @@ class _PosScreenState extends State<PosScreen> {
         _cart
           ..clear()
           ..addAll(restored);
+        _invalidateTotals();
         final customerId = state['customer_id']?.toString();
         if (customerId != null &&
             _customers.any((row) => row.id == customerId)) {
@@ -1547,6 +1648,7 @@ class _PosScreenState extends State<PosScreen> {
         );
         final catalogue = await _offlineSync.cachedCatalogue(widget.session);
         if (mounted) {
+          _rebuildCatalogueCaches(catalogue.products, catalogue.customers);
           setState(() {
             _products = catalogue.products;
             _customers = catalogue.customers;
@@ -1558,6 +1660,7 @@ class _PosScreenState extends State<PosScreen> {
         );
         final catalogue = await _offlineSync.cachedCatalogue(widget.session);
         if (mounted) {
+          _rebuildCatalogueCaches(catalogue.products, catalogue.customers);
           setState(() {
             _products = catalogue.products;
             _customers = catalogue.customers;
@@ -1575,6 +1678,7 @@ class _PosScreenState extends State<PosScreen> {
   void _resetSale() {
     setState(() {
       _cart.clear();
+      _invalidateTotals();
       _checkoutRequestId = null;
       _selectedProduct = null;
       _search.clear();
@@ -2444,6 +2548,7 @@ class _PosScreenState extends State<PosScreen> {
   Widget _catalog() {
     final products = _filteredProducts;
     final scheme = Theme.of(context).colorScheme;
+    final design = UiDesignScope.of(context, appKey: 'pos');
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(2, 0, 0, 0),
@@ -2673,26 +2778,14 @@ class _PosScreenState extends State<PosScreen> {
                 : GridView.builder(
                     padding: const EdgeInsets.only(right: 2),
                     gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
-                      maxCrossAxisExtent:
-                          UiDesignScope.of(context, appKey: 'pos').posLayout ==
-                              'compact_grid'
+                      maxCrossAxisExtent: design.posLayout == 'compact_grid'
                           ? 165
-                          : UiDesignScope.of(
-                                  context,
-                                  appKey: 'pos',
-                                ).posLayout ==
-                                'touch_grid'
+                          : design.posLayout == 'touch_grid'
                           ? 235
                           : 205,
-                      mainAxisExtent:
-                          UiDesignScope.of(context, appKey: 'pos').posLayout ==
-                              'compact_grid'
+                      mainAxisExtent: design.posLayout == 'compact_grid'
                           ? 98
-                          : UiDesignScope.of(
-                                  context,
-                                  appKey: 'pos',
-                                ).posLayout ==
-                                'touch_grid'
+                          : design.posLayout == 'touch_grid'
                           ? 136
                           : 118,
                       crossAxisSpacing: 5,
@@ -2700,7 +2793,7 @@ class _PosScreenState extends State<PosScreen> {
                     ),
                     itemCount: products.length,
                     itemBuilder: (context, index) =>
-                        _productCard(products[index]),
+                        _productCard(products[index], design),
                   ),
           ),
           SizedBox(
@@ -2760,8 +2853,7 @@ class _PosScreenState extends State<PosScreen> {
     );
   }
 
-  Widget _productCard(InventoryProduct product) {
-    final design = UiDesignScope.of(context, appKey: 'pos');
+  Widget _productCard(InventoryProduct product, UiDesignProfile design) {
     final scheme = Theme.of(context).colorScheme;
     final outOfStock =
         product.itemType == 'stock' && product.stockQuantity <= 0;
@@ -2896,7 +2988,10 @@ class _PosScreenState extends State<PosScreen> {
                     visualDensity: VisualDensity.compact,
                     onPressed: _saving
                         ? null
-                        : () => setState(() => _cart.clear()),
+                        : () => setState(() {
+                            _cart.clear();
+                            _syncTendered();
+                          }),
                     icon: const Icon(Icons.delete_sweep_outlined, size: 16),
                   ),
               ],
@@ -3344,7 +3439,7 @@ class _PosScreenState extends State<PosScreen> {
             labelText: 'Invoice Discount',
             prefixIcon: Icon(Icons.discount_outlined, size: 17),
           ),
-          onChanged: (_) => setState(() {}),
+          onChanged: (_) => setState(_syncTendered),
         ),
         const SizedBox(height: 7),
         MultiPaymentEditor(
@@ -3939,6 +4034,26 @@ ProductUnitOption? _preferredPosUnit(InventoryProduct product) {
     }
   }
   return product.defaultSaleUnit;
+}
+
+class _PosTotalsSnapshot {
+  const _PosTotalsSnapshot({
+    required this.subtotal,
+    required this.manualOrderDiscount,
+    required this.discount,
+    required this.tax,
+    required this.beforeRoundOff,
+    required this.roundOffAmount,
+    required this.total,
+  });
+
+  final double subtotal;
+  final double manualOrderDiscount;
+  final double discount;
+  final double tax;
+  final double beforeRoundOff;
+  final double roundOffAmount;
+  final double total;
 }
 
 class _PosLine {
