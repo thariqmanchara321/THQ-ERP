@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:excel/excel.dart';
 import 'package:file_saver/file_saver.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/painting.dart' as painting;
 import 'package:intl/intl.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
@@ -25,6 +26,9 @@ class _ReportsCenterV500ScreenState extends State<ReportsCenterV500Screen> {
   final _query = TextEditingController();
   List<Map<String, dynamic>> _catalog = const [];
   List<Map<String, dynamic>> _rows = const [];
+  List<String> _columnsCache = const [];
+  Map<String, String> _reportNameByKey = const {};
+  int _runGeneration = 0;
   String? _reportKey;
   DateTime _from = DateTime(DateTime.now().year, DateTime.now().month, 1);
   DateTime _to = DateTime.now();
@@ -111,6 +115,12 @@ class _ReportsCenterV500ScreenState extends State<ReportsCenterV500Screen> {
     try {
       final raw = await Supabase.instance.client.rpc('reports_catalog_v500');
       _catalog = _flattenCatalog(raw);
+      _reportNameByKey = Map<String, String>.unmodifiable({
+        for (final report in _catalog)
+          if ((report['key']?.toString() ?? '').isNotEmpty)
+            report['key'].toString():
+                report['name']?.toString() ?? report['key'].toString(),
+      });
       _reportKey = _catalog.isEmpty
           ? 'sales_summary'
           : _catalog.first['key']?.toString();
@@ -125,32 +135,71 @@ class _ReportsCenterV500ScreenState extends State<ReportsCenterV500Screen> {
     }
   }
 
+  void _invalidateResult() {
+    _runGeneration++;
+    _rows = const [];
+    _columnsCache = const [];
+    _error = null;
+    _loading = false;
+  }
+
+  List<String> _deriveColumns(List<Map<String, dynamic>> rows) {
+    if (rows.isEmpty) return const [];
+    final columns = <String>[];
+    for (final row in rows.take(50)) {
+      for (final key in row.keys) {
+        if (!columns.contains(key)) columns.add(key);
+      }
+    }
+    return List<String>.unmodifiable(columns);
+  }
+
   Future<void> _run() async {
     final key = _reportKey;
     if (key == null) return;
+
+    final request = ++_runGeneration;
+    final from = _from;
+    final to = _to;
+    final locationId = LocationScopeService.currentForRead(widget.session);
+    final query = _query.text.trim();
+
     setState(() {
       _loading = true;
       _error = null;
     });
+
     try {
       final raw = await Supabase.instance.client.rpc(
         'reports_center_data_v500',
         params: {
           'p_tenant_id': widget.session.business.id,
           'p_report_key': key,
-          'p_from': _date(_from),
-          'p_to': _date(_to),
-          'p_location_id': LocationScopeService.currentForRead(widget.session),
-          'p_query': _query.text.trim(),
+          'p_from': _date(from),
+          'p_to': _date(to),
+          'p_location_id': locationId,
+          'p_query': query,
           'p_limit': 5000,
         },
       );
-      _rows = _maps(raw);
+      final rows = _maps(raw);
+      final columns = _deriveColumns(rows);
+
+      if (!mounted || request != _runGeneration) return;
+      setState(() {
+        _rows = rows;
+        _columnsCache = columns;
+        _loading = false;
+        _error = null;
+      });
     } catch (e) {
-      _error = e.toString();
-      _rows = const [];
-    } finally {
-      if (mounted) setState(() => _loading = false);
+      if (!mounted || request != _runGeneration) return;
+      setState(() {
+        _error = e.toString();
+        _rows = const [];
+        _columnsCache = const [];
+        _loading = false;
+      });
     }
   }
 
@@ -173,30 +222,14 @@ class _ReportsCenterV500ScreenState extends State<ReportsCenterV500Screen> {
         _from = _to;
         _to = swap;
       }
+      _invalidateResult();
     });
   }
 
-  List<String> get _columns {
-    if (_rows.isEmpty) return const [];
-    final columns = <String>[];
-    for (final row in _rows.take(50)) {
-      for (final key in row.keys) {
-        if (!columns.contains(key)) columns.add(key);
-      }
-    }
-    return columns;
-  }
+  List<String> get _columns => _columnsCache;
 
-  String get _reportTitle {
-    Map<String, dynamic>? row;
-    for (final item in _catalog) {
-      if (item['key']?.toString() == _reportKey) {
-        row = item;
-        break;
-      }
-    }
-    return row?['name']?.toString() ?? _reportKey ?? 'Report';
-  }
+  String get _reportTitle =>
+      _reportNameByKey[_reportKey] ?? _reportKey ?? 'Report';
 
   Future<Uint8List> _pdf() async {
     final document = pw.Document();
@@ -323,6 +356,97 @@ class _ReportsCenterV500ScreenState extends State<ReportsCenterV500Screen> {
     return value.toString();
   }
 
+  Widget _reportTable(List<String> columns) {
+    final visibleCount = _rows.length > 1000 ? 1000 : _rows.length;
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final calculatedWidth = columns.isEmpty
+            ? constraints.maxWidth
+            : columns.length * 160.0;
+        final tableWidth = calculatedWidth < constraints.maxWidth
+            ? constraints.maxWidth
+            : calculatedWidth;
+        final scheme = Theme.of(context).colorScheme;
+
+        return SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: SizedBox(
+            width: tableWidth,
+            height: constraints.maxHeight,
+            child: Column(
+              children: [
+                Container(
+                  height: 38,
+                  decoration: BoxDecoration(
+                    color: scheme.surfaceContainerHighest,
+                    border: painting.Border(
+                      bottom: BorderSide(color: scheme.outlineVariant),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      for (final column in columns)
+                        Expanded(
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 8),
+                            child: Text(
+                              _label(column),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 10.5,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  child: ListView.builder(
+                    itemCount: visibleCount,
+                    itemBuilder: (context, index) {
+                      final row = _rows[index];
+                      return Container(
+                        constraints: const BoxConstraints(minHeight: 42),
+                        decoration: BoxDecoration(
+                          border: painting.Border(
+                            bottom: BorderSide(color: scheme.outlineVariant),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            for (final column in columns)
+                              Expanded(
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 6,
+                                  ),
+                                  child: Text(
+                                    _cell(row[column]),
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(fontSize: 10),
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final columns = _columns;
@@ -367,7 +491,10 @@ class _ReportsCenterV500ScreenState extends State<ReportsCenterV500Screen> {
                         )
                         .toList(),
                     onChanged: (value) {
-                      setState(() => _reportKey = value);
+                      setState(() {
+                        _reportKey = value;
+                        _invalidateResult();
+                      });
                     },
                   ),
                 ),
@@ -437,48 +564,7 @@ class _ReportsCenterV500ScreenState extends State<ReportsCenterV500Screen> {
                   ? const Center(
                       child: Text('No records for the selected filters.'),
                     )
-                  : Scrollbar(
-                      child: SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        child: SingleChildScrollView(
-                          child: DataTable(
-                            columns: columns
-                                .map(
-                                  (column) => DataColumn(
-                                    label: Text(
-                                      _label(column),
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                    ),
-                                  ),
-                                )
-                                .toList(),
-                            rows: _rows
-                                .take(1000)
-                                .map(
-                                  (row) => DataRow(
-                                    cells: columns
-                                        .map(
-                                          (column) => DataCell(
-                                            SizedBox(
-                                              width: 150,
-                                              child: Text(
-                                                _cell(row[column]),
-                                                maxLines: 2,
-                                                overflow: TextOverflow.ellipsis,
-                                              ),
-                                            ),
-                                          ),
-                                        )
-                                        .toList(),
-                                  ),
-                                )
-                                .toList(),
-                          ),
-                        ),
-                      ),
-                    ),
+                  : _reportTable(columns),
             ),
           ],
         ),

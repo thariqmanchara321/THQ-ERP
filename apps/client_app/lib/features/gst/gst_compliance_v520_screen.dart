@@ -69,6 +69,15 @@ class _GstComplianceV520ScreenState extends State<GstComplianceV520Screen> {
   int _transactionOffset = 0;
   static const int _transactionPageSize = 50;
 
+  int _workspaceEpoch = 0;
+  int _registrationsLoadGeneration = 0;
+  int _productLoadGeneration = 0;
+  int _partyLoadGeneration = 0;
+  int _transactionLoadGeneration = 0;
+  int _taxLoadGeneration = 0;
+  int _accountingLoadGeneration = 0;
+  int _returnsLoadGeneration = 0;
+
   @override
   void initState() {
     super.initState();
@@ -77,6 +86,7 @@ class _GstComplianceV520ScreenState extends State<GstComplianceV520Screen> {
   }
 
   Future<void> _loadInitial() async {
+    final epoch = ++_workspaceEpoch;
     setState(() {
       _loading = true;
       _error = null;
@@ -89,7 +99,7 @@ class _GstComplianceV520ScreenState extends State<GstComplianceV520Screen> {
         limit: 500,
       );
 
-      if (!mounted) return;
+      if (!mounted || epoch != _workspaceEpoch) return;
       setState(() {
         _locations = _list(lookup['locations']);
         _transactions = data.documents;
@@ -106,13 +116,14 @@ class _GstComplianceV520ScreenState extends State<GstComplianceV520Screen> {
 
   Future<void> _refreshWorkspace() async {
     await _guard(() async {
+      final epoch = ++_workspaceEpoch;
       final data = await _controller.refresh();
       final lookup = await widget.service.loadSetupLookups(
         kind: 'locations',
         limit: 500,
       );
 
-      if (!mounted) return;
+      if (!mounted || epoch != _workspaceEpoch) return;
       setState(() {
         _locations = _list(lookup['locations']);
         _transactions = data.documents;
@@ -204,82 +215,152 @@ class _GstComplianceV520ScreenState extends State<GstComplianceV520Screen> {
   // ---------------------------------------------------------------------------
 
   Future<void> _loadRegistrations() async {
+    final request = ++_registrationsLoadGeneration;
+    final epoch = _workspaceEpoch;
     final rows = await widget.service.listRegistrations();
-    if (!mounted) return;
+    if (!mounted ||
+        epoch != _workspaceEpoch ||
+        request != _registrationsLoadGeneration) {
+      return;
+    }
     setState(() => _registrations = rows);
   }
 
   Future<void> _loadProductProfiles() async {
+    final request = ++_productLoadGeneration;
+    final epoch = _workspaceEpoch;
+    final query = _productSearch;
     final rows = await widget.service.listProductProfiles(
-      query: _productSearch,
+      query: query,
       limit: 500,
     );
-    if (!mounted) return;
+    if (!mounted ||
+        epoch != _workspaceEpoch ||
+        request != _productLoadGeneration ||
+        query != _productSearch) {
+      return;
+    }
     setState(() => _productProfiles = rows);
   }
 
   Future<void> _loadPartyProfiles() async {
+    final request = ++_partyLoadGeneration;
+    final epoch = _workspaceEpoch;
+    final partyType = _partyType;
+    final query = _partySearch;
     final rows = await widget.service.listPartyProfiles(
-      partyType: _partyType,
-      query: _partySearch,
+      partyType: partyType,
+      query: query,
       limit: 300,
     );
-    if (!mounted) return;
+    if (!mounted ||
+        epoch != _workspaceEpoch ||
+        request != _partyLoadGeneration ||
+        partyType != _partyType ||
+        query != _partySearch) {
+      return;
+    }
     setState(() => _partyProfiles = rows);
   }
 
   Future<void> _loadTransactions({bool resetPage = true}) async {
     if (resetPage) _transactionOffset = 0;
 
+    final request = ++_transactionLoadGeneration;
+    final epoch = _workspaceEpoch;
+    final from = _controller.from;
+    final to = _controller.to;
+    final locationId = _controller.locationId;
+    final sourceType = _transactionSourceType;
+    final evidence = _transactionEvidence;
+    final query = _transactionSearch;
+    final offset = _transactionOffset;
+
     final data = await widget.service.listDocuments(
-      from: _controller.from,
-      to: _controller.to,
-      locationId: _controller.locationId,
-      sourceType: _emptyToNull(_transactionSourceType),
-      evidenceStatus: _transactionEvidence,
-      query: _transactionSearch,
+      from: from,
+      to: to,
+      locationId: locationId,
+      sourceType: _emptyToNull(sourceType),
+      evidenceStatus: evidence,
+      query: query,
       limit: _transactionPageSize,
-      offset: _transactionOffset,
+      offset: offset,
     );
 
-    if (!mounted) return;
+    if (!mounted ||
+        epoch != _workspaceEpoch ||
+        request != _transactionLoadGeneration ||
+        sourceType != _transactionSourceType ||
+        evidence != _transactionEvidence ||
+        query != _transactionSearch ||
+        offset != _transactionOffset) {
+      return;
+    }
     setState(() => _transactions = data);
   }
 
   Future<void> _loadTaxSummary() async {
+    final request = ++_taxLoadGeneration;
+    final epoch = _workspaceEpoch;
+    final from = _controller.from;
+    final to = _controller.to;
+    final locationId = _controller.locationId;
     final data = await widget.service.loadTaxSummary(
-      from: _controller.from,
-      to: _controller.to,
-      locationId: _controller.locationId,
+      from: from,
+      to: to,
+      locationId: locationId,
     );
 
-    if (!mounted) return;
+    if (!mounted || epoch != _workspaceEpoch || request != _taxLoadGeneration) {
+      return;
+    }
     setState(() => _taxSummary = data);
   }
 
   Future<void> _loadAccounting() async {
-    final health = await widget.service.loadAccountingHealth();
-    final control = await widget.service.loadAccountingControl(
-      from: _controller.from,
-      to: _controller.to,
-      locationId: _controller.locationId,
-    );
+    final request = ++_accountingLoadGeneration;
+    final epoch = _workspaceEpoch;
+    final from = _controller.from;
+    final to = _controller.to;
+    final locationId = _controller.locationId;
 
-    if (!mounted) return;
+    final values = await Future.wait<Map<String, dynamic>>([
+      widget.service.loadAccountingHealth(),
+      widget.service.loadAccountingControl(
+        from: from,
+        to: to,
+        locationId: locationId,
+      ),
+    ]);
+
+    if (!mounted ||
+        epoch != _workspaceEpoch ||
+        request != _accountingLoadGeneration) {
+      return;
+    }
     setState(() {
-      _accountingHealth = health;
-      _accountingControl = control;
+      _accountingHealth = values[0];
+      _accountingControl = values[1];
     });
   }
 
   Future<void> _loadReturnsPreview() async {
+    final request = ++_returnsLoadGeneration;
+    final epoch = _workspaceEpoch;
+    final from = _controller.from;
+    final to = _controller.to;
+    final locationId = _controller.locationId;
     final data = await widget.service.loadReturnsPreview(
-      from: _controller.from,
-      to: _controller.to,
-      locationId: _controller.locationId,
+      from: from,
+      to: to,
+      locationId: locationId,
     );
 
-    if (!mounted) return;
+    if (!mounted ||
+        epoch != _workspaceEpoch ||
+        request != _returnsLoadGeneration) {
+      return;
+    }
     setState(() => _returnsPreview = data);
   }
 
@@ -400,8 +481,9 @@ class _GstComplianceV520ScreenState extends State<GstComplianceV520Screen> {
                 onChanged: (value) async {
                   _controller.locationId = _emptyToNull(value);
                   await _guard(() async {
+                    final epoch = ++_workspaceEpoch;
                     await _controller.load();
-                    if (!mounted) return;
+                    if (!mounted || epoch != _workspaceEpoch) return;
                     setState(() {
                       _transactions = _controller.data?.documents;
                       _taxSummary = null;
@@ -1437,13 +1519,14 @@ class _GstComplianceV520ScreenState extends State<GstComplianceV520Screen> {
     if (range == null) return;
 
     await _guard(() async {
+      final epoch = ++_workspaceEpoch;
       await _controller.changePeriod(
         from: range.start,
         to: range.end,
         locationId: _controller.locationId,
       );
 
-      if (!mounted) return;
+      if (!mounted || epoch != _workspaceEpoch) return;
       setState(() {
         _transactions = _controller.data?.documents;
         _taxSummary = null;

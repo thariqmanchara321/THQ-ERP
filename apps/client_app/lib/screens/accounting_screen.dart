@@ -8,6 +8,18 @@ import '../services/location_scope_service.dart';
 import '../widgets/searchable_select.dart';
 import 'finance_controls_screen.dart';
 
+class _AccountingLoadCacheEntry {
+  const _AccountingLoadCacheEntry({
+    required this.loadedAt,
+    required this.primary,
+    this.secondary,
+  });
+
+  final DateTime loadedAt;
+  final Object primary;
+  final Object? secondary;
+}
+
 class AccountingScreen extends StatefulWidget {
   final ClientSession session;
   const AccountingScreen({super.key, required this.session});
@@ -32,6 +44,11 @@ class _AccountingScreenState extends State<AccountingScreen> {
   List<Map<String, dynamic>> _rows = const [];
   Map<String, dynamic> _gst = const {};
   Map<String, dynamic> _statement = const {};
+
+  static const Duration _loadCacheTtl = Duration(seconds: 45);
+  final Map<String, _AccountingLoadCacheEntry> _loadCache =
+      <String, _AccountingLoadCacheEntry>{};
+  int _loadGeneration = 0;
 
   bool get _canManage =>
       widget.session.hasRole('owner') ||
@@ -67,59 +84,140 @@ class _AccountingScreenState extends State<AccountingScreen> {
   String _date(DateTime value) =>
       '${value.day.toString().padLeft(2, '0')}-${value.month.toString().padLeft(2, '0')}-${value.year}';
 
-  Future<void> _load() async {
+  String _loadCacheKey({
+    required String section,
+    required DateTime from,
+    required DateTime to,
+    required String query,
+  }) {
+    if (section == 'accounts') return 'accounts';
+    String dateKey(DateTime value) =>
+        '${value.year}-${value.month}-${value.day}';
+    return '$section|${dateKey(from)}|${dateKey(to)}|$query';
+  }
+
+  void _applyLoadEntry(String section, _AccountingLoadCacheEntry entry) {
+    if (section == 'overview') {
+      _summary = entry.primary as AccountingSummary;
+      _gst = entry.secondary as Map<String, dynamic>;
+    } else if (section == 'accounts') {
+      _accounts = entry.primary as List<Map<String, dynamic>>;
+      _mappings = entry.secondary as List<Map<String, dynamic>>;
+    } else if (const {
+      'trial_balance',
+      'profit_loss',
+      'balance_sheet',
+      'cash_flow',
+    }.contains(section)) {
+      _statement = entry.primary as Map<String, dynamic>;
+    } else {
+      _rows = entry.primary as List<Map<String, dynamic>>;
+    }
+  }
+
+  void _invalidateLoadCache() {
+    _loadCache.clear();
+  }
+
+  Future<void> _load({bool force = false}) async {
+    final section = _section;
+    final from = _from;
+    final to = _to;
+    final query = _search.text.trim();
+    final cacheKey = _loadCacheKey(
+      section: section,
+      from: from,
+      to: to,
+      query: query,
+    );
+    final request = ++_loadGeneration;
+
+    if (!force) {
+      final cached = _loadCache[cacheKey];
+      if (cached != null &&
+          DateTime.now().difference(cached.loadedAt) < _loadCacheTtl) {
+        if (!mounted || request != _loadGeneration) return;
+        setState(() {
+          _applyLoadEntry(section, cached);
+          _loading = false;
+          _error = null;
+        });
+        return;
+      }
+    }
+
     setState(() {
       _loading = true;
       _error = null;
     });
+
     try {
-      if (_section == 'overview') {
-        final values = await Future.wait([
+      late Object primary;
+      Object? secondary;
+
+      if (section == 'overview') {
+        final values = await Future.wait<dynamic>([
           _service.summary(
             tenantId: widget.session.business.id,
-            from: _from,
-            to: _to,
+            from: from,
+            to: to,
           ),
           _service.gstSummary(
             tenantId: widget.session.business.id,
-            from: _from,
-            to: _to,
+            from: from,
+            to: to,
           ),
         ]);
-        _summary = values[0] as AccountingSummary;
-        _gst = values[1] as Map<String, dynamic>;
-      } else if (_section == 'accounts') {
-        final values = await Future.wait([
+        primary = values[0] as AccountingSummary;
+        secondary = values[1] as Map<String, dynamic>;
+      } else if (section == 'accounts') {
+        final values = await Future.wait<dynamic>([
           _service.accounts(tenantId: widget.session.business.id),
           _service.mappings(tenantId: widget.session.business.id),
         ]);
-        _accounts = values[0];
-        _mappings = values[1];
+        primary = values[0] as List<Map<String, dynamic>>;
+        secondary = values[1] as List<Map<String, dynamic>>;
       } else if (const {
         'trial_balance',
         'profit_loss',
         'balance_sheet',
         'cash_flow',
-      }.contains(_section)) {
-        _statement = await _service.statement(
+      }.contains(section)) {
+        primary = await _service.statement(
           tenantId: widget.session.business.id,
-          statement: _section,
-          from: _from,
-          to: _to,
+          statement: section,
+          from: from,
+          to: to,
         );
       } else {
-        _rows = await _service.register(
+        primary = await _service.register(
           tenantId: widget.session.business.id,
-          register: _section,
-          from: _from,
-          to: _to,
-          query: _search.text,
+          register: section,
+          from: from,
+          to: to,
+          query: query,
         );
       }
+
+      final entry = _AccountingLoadCacheEntry(
+        loadedAt: DateTime.now(),
+        primary: primary,
+        secondary: secondary,
+      );
+      _loadCache[cacheKey] = entry;
+
+      if (!mounted || request != _loadGeneration) return;
+      setState(() {
+        _applyLoadEntry(section, entry);
+        _loading = false;
+        _error = null;
+      });
     } catch (error) {
-      _error = error.toString();
-    } finally {
-      if (mounted) setState(() => _loading = false);
+      if (!mounted || request != _loadGeneration) return;
+      setState(() {
+        _error = error.toString();
+        _loading = false;
+      });
     }
   }
 
@@ -319,7 +417,8 @@ class _AccountingScreenState extends State<AccountingScreen> {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(const SnackBar(content: Text('Account saved.')));
-        _load();
+        _invalidateLoadCache();
+        _load(force: true);
       }
     } catch (error) {
       if (mounted) {
@@ -427,7 +526,8 @@ class _AccountingScreenState extends State<AccountingScreen> {
           accountId: entry.value,
         );
       }
-      await _load();
+      _invalidateLoadCache();
+      await _load(force: true);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Accounting mappings saved.')),
@@ -484,7 +584,8 @@ class _AccountingScreenState extends State<AccountingScreen> {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('Account archived.')));
-      await _load();
+      _invalidateLoadCache();
+      await _load(force: true);
     } catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(
@@ -543,7 +644,8 @@ class _AccountingScreenState extends State<AccountingScreen> {
         context,
       ).showSnackBar(const SnackBar(content: Text('Manual journal posted.')));
       setState(() => _section = 'journal');
-      await _load();
+      _invalidateLoadCache();
+      await _load(force: true);
     } catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(
@@ -832,7 +934,7 @@ class _AccountingScreenState extends State<AccountingScreen> {
                 IconButton(
                   tooltip: 'Refresh',
                   visualDensity: VisualDensity.compact,
-                  onPressed: _load,
+                  onPressed: () => _load(force: true),
                   icon: const Icon(Icons.refresh_rounded, size: 18),
                 ),
                 const SizedBox(width: 2),
@@ -979,7 +1081,7 @@ class _AccountingScreenState extends State<AccountingScreen> {
       ),
       child: TextField(
         controller: _search,
-        onSubmitted: (_) => _load(),
+        onSubmitted: (_) => _load(force: true),
         decoration: InputDecoration(
           hintText:
               'Search invoice, product/SKU, party, account or reference...',
@@ -987,7 +1089,7 @@ class _AccountingScreenState extends State<AccountingScreen> {
           suffixIcon: IconButton(
             tooltip: 'Search',
             visualDensity: VisualDensity.compact,
-            onPressed: _load,
+            onPressed: () => _load(force: true),
             icon: const Icon(Icons.arrow_forward, size: 17),
           ),
           border: InputBorder.none,
@@ -1009,7 +1111,10 @@ class _AccountingScreenState extends State<AccountingScreen> {
             const SizedBox(height: 12),
             Text(_error!, textAlign: TextAlign.center),
             const SizedBox(height: 12),
-            OutlinedButton(onPressed: _load, child: const Text('Retry')),
+            OutlinedButton(
+              onPressed: () => _load(force: true),
+              child: const Text('Retry'),
+            ),
           ],
         ),
       );
