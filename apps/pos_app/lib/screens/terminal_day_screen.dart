@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:thq_ui/thq_ui.dart';
 import 'package:intl/intl.dart';
 
 import '../models/client_session.dart';
@@ -211,7 +212,8 @@ class _TerminalDayScreenState extends State<TerminalDayScreen> {
         );
       }
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        ThqNotify.showSnackBar(
+          context,
           SnackBar(
             content: Text(
               format == 'print'
@@ -223,9 +225,10 @@ class _TerminalDayScreenState extends State<TerminalDayScreen> {
       }
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(
+        ThqNotify.showSnackBar(
           context,
-        ).showSnackBar(SnackBar(content: Text(error.toString())));
+          SnackBar(content: Text(error.toString())),
+        );
       }
     } finally {
       if (mounted) setState(() => _exporting = false);

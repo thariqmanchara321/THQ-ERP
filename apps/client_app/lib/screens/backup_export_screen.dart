@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:thq_ui/thq_ui.dart';
 import 'package:flutter/services.dart';
 
 import '../models/client_session.dart';
@@ -40,12 +41,11 @@ class _BackupExportScreenState extends State<BackupExportScreen> {
     if (data == null) return;
     await Clipboard.setData(ClipboardData(text: data));
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Backup JSON copied. Save it as a .json file in a secure location.',
-          ),
-        ),
+      ThqNotify.info(
+        context,
+        'Backup copied',
+        message: 'Save the JSON in a secure location.',
+        duration: const Duration(seconds: 4),
       );
     }
   }

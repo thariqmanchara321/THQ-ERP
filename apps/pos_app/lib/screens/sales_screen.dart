@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:thq_ui/thq_ui.dart';
 import 'package:erp_core/erp_core.dart';
 
 import '../models/client_session.dart';
@@ -63,9 +64,7 @@ class _SalesScreenState extends State<SalesScreen> {
     if (created == true && mounted) {
       setState(_load);
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Sale completed successfully.')),
-      );
+      ThqNotify.success(context, 'Sale completed');
     }
   }
 
@@ -770,7 +769,8 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
     }).toList();
 
     if (available.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      ThqNotify.showSnackBar(
+        context,
         const SnackBar(content: Text('No more products available to add.')),
       );
 

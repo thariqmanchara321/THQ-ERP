@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:thq_ui/thq_ui.dart';
 
 import '../models/client_session.dart';
 import '../services/location_scope_service.dart';
@@ -102,7 +103,7 @@ class _LocationsScreenState extends State<LocationsScreen> {
 
   void _message(String text) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
+    ThqNotify.showSnackBar(context, SnackBar(content: Text(text)));
   }
 
   Future<void> _editLocation([Map<String, dynamic>? existing]) async {

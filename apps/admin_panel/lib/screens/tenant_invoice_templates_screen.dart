@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:thq_ui/thq_ui.dart';
 import '../services/platform_config_service.dart';
 
 class TenantInvoiceTemplatesScreen extends StatefulWidget {
@@ -27,7 +28,8 @@ class _TenantInvoiceTemplatesScreenState
 
   Future<void> _save() async {
     if (_a4 == null || _thermal == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      ThqNotify.showSnackBar(
+        context,
         const SnackBar(content: Text('Select both A4 and 80mm templates.')),
       );
       return;
@@ -45,7 +47,8 @@ class _TenantInvoiceTemplatesScreenState
         templateId: _thermal!,
       );
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        ThqNotify.showSnackBar(
+          context,
           const SnackBar(content: Text('Invoice templates assigned.')),
         );
       }

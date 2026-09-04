@@ -4,6 +4,7 @@ export 'src/components/thq_buttons.dart';
 export 'src/components/thq_card.dart';
 export 'src/components/thq_command_surface.dart';
 export 'src/components/thq_fields.dart';
+export 'src/components/thq_notification_host.dart';
 export 'src/components/thq_notification_toast.dart';
 export 'src/components/thq_states.dart';
 export 'src/components/thq_status_badge.dart';

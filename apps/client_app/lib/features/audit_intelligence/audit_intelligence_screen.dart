@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:thq_ui/thq_ui.dart';
 
 import '../../models/client_session.dart';
 import '../../services/location_scope_service.dart';
@@ -604,7 +605,8 @@ class _AuditIntelligenceScreenState extends State<AuditIntelligenceScreen> {
         'backdate_high_days': int.tryParse(backdateHigh.text.trim()),
       };
       if (numeric.values.any((value) => (value ?? -1) < 0)) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        ThqNotify.showSnackBar(
+          context,
           const SnackBar(content: Text('Enter valid non-negative thresholds.')),
         );
         return;
@@ -624,9 +626,7 @@ class _AuditIntelligenceScreenState extends State<AuditIntelligenceScreen> {
       }
       Navigator.of(dialogContext).pop();
       _refresh();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Audit risk rules updated.')),
-      );
+      ThqNotify.success(context, 'Audit risk rules updated.');
     }
 
     await showDialog<void>(
@@ -887,7 +887,8 @@ class _AuditIntelligenceScreenState extends State<AuditIntelligenceScreen> {
                         onSelected: (status) async {
                           final note = controller.text.trim();
                           if (note.isEmpty) {
-                            ScaffoldMessenger.of(context).showSnackBar(
+                            ThqNotify.showSnackBar(
+                              context,
                               const SnackBar(
                                 content: Text(
                                   'Add a review note before changing status.',

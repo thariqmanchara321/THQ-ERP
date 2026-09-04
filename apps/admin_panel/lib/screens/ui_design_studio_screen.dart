@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:thq_ui/thq_ui.dart';
 
 import '../models/business.dart';
 import '../services/business_service.dart';
@@ -735,12 +736,11 @@ class _BusinessBrandingPanelState extends State<_BusinessBrandingPanel> {
         overrides: o,
       );
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Business design saved. Restart/re-login to refresh an already-open app.',
-            ),
-          ),
+        ThqNotify.info(
+          context,
+          'Business design saved',
+          message: 'Re-login or restart an open app to refresh the design.',
+          duration: const Duration(seconds: 5),
         );
       }
     } finally {

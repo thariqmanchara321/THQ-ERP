@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:thq_ui/thq_ui.dart';
 import 'package:intl/intl.dart';
 
 import '../models/client_session.dart';
@@ -217,9 +218,10 @@ class _CashierShiftScreenState extends State<CashierShiftScreen> {
       await _load();
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
+      ThqNotify.showSnackBar(
         context,
-      ).showSnackBar(SnackBar(content: Text(error.toString())));
+        SnackBar(content: Text(error.toString())),
+      );
     }
   }
 
@@ -284,9 +286,10 @@ class _CashierShiftScreenState extends State<CashierShiftScreen> {
       await _load();
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
+      ThqNotify.showSnackBar(
         context,
-      ).showSnackBar(SnackBar(content: Text(error.toString())));
+        SnackBar(content: Text(error.toString())),
+      );
     }
   }
 
@@ -426,9 +429,10 @@ class _CashierShiftScreenState extends State<CashierShiftScreen> {
       await _load();
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
+      ThqNotify.showSnackBar(
         context,
-      ).showSnackBar(SnackBar(content: Text(error.toString())));
+        SnackBar(content: Text(error.toString())),
+      );
     }
   }
 
@@ -437,7 +441,8 @@ class _CashierShiftScreenState extends State<CashierShiftScreen> {
     final isOwnOpen =
         isOpen && row['user_id']?.toString() == widget.session.userId;
     if (!isOwnOpen && !_canManageClosed) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      ThqNotify.showSnackBar(
+        context,
         const SnackBar(
           content: Text(
             'Owner or Shift Manage permission is required to edit this shift.',
@@ -591,9 +596,10 @@ class _CashierShiftScreenState extends State<CashierShiftScreen> {
       await _load();
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
+      ThqNotify.showSnackBar(
         context,
-      ).showSnackBar(SnackBar(content: Text(error.toString())));
+        SnackBar(content: Text(error.toString())),
+      );
     }
   }
 

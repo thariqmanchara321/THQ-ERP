@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:thq_ui/thq_ui.dart';
 
 import '../models/client_session.dart';
 import '../models/customer.dart';
@@ -201,13 +202,12 @@ class _LoanScreenState extends State<LoanScreen> {
     try {
       await action();
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(success)));
+      ThqNotify.showSnackBar(context, SnackBar(content: Text(success)));
       await _load();
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
+      ThqNotify.showSnackBar(
+        context,
         SnackBar(
           content: Text(error.toString()),
           backgroundColor: Theme.of(context).colorScheme.error,
@@ -899,9 +899,10 @@ class _LoanScreenState extends State<LoanScreen> {
         }
       } catch (error) {
         if (!mounted) return;
-        ScaffoldMessenger.of(
+        ThqNotify.showSnackBar(
           context,
-        ).showSnackBar(SnackBar(content: Text(error.toString())));
+          SnackBar(content: Text(error.toString())),
+        );
         return;
       }
     }
@@ -1434,7 +1435,8 @@ class _LoanScreenState extends State<LoanScreen> {
                     t <= 0 ||
                     maturity.isBefore(first) ||
                     (rateType == 'variable' && rateIndex.text.trim().isEmpty)) {
-                  ScaffoldMessenger.of(dialogContext).showSnackBar(
+                  ThqNotify.showSnackBar(
+                    dialogContext,
                     const SnackBar(
                       content: Text(
                         'Check principal, rate, term count, dates and variable-rate index.',
@@ -1838,7 +1840,8 @@ class _LoanScreenState extends State<LoanScreen> {
               onPressed: () {
                 final value = double.tryParse(amount.text.trim()) ?? 0;
                 if (value <= 0 || value > maxOutstanding + .01) {
-                  ScaffoldMessenger.of(dialogContext).showSnackBar(
+                  ThqNotify.showSnackBar(
+                    dialogContext,
                     const SnackBar(
                       content: Text(
                         'Enter an amount greater than zero and not above the outstanding balance.',
@@ -2279,9 +2282,10 @@ class _LoanScreenState extends State<LoanScreen> {
       detail = await _service.detail(widget.session, loanId);
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
+      ThqNotify.showSnackBar(
         context,
-      ).showSnackBar(SnackBar(content: Text(error.toString())));
+        SnackBar(content: Text(error.toString())),
+      );
       return;
     }
     if (!mounted) return;

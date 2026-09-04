@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:thq_ui/thq_ui.dart';
 import 'package:erp_core/erp_core.dart';
 
 import '../models/client_session.dart';
@@ -97,7 +98,8 @@ class _SalesScreenState extends State<SalesScreen> {
 
   Future<void> _newSale() async {
     if (LocationScopeService.selectedLocationId.value == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      ThqNotify.showSnackBar(
+        context,
         const SnackBar(
           content: Text(
             'Select a specific store before creating a transaction. All Stores is view-only.',
@@ -124,11 +126,7 @@ class _SalesScreenState extends State<SalesScreen> {
       }
     });
     if (created) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Sale completed. Ready for the next sale.'),
-        ),
-      );
+      ThqNotify.success(context, 'Sale completed');
     }
   }
 
@@ -858,7 +856,8 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
       });
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
+      ThqNotify.showSnackBar(
+        context,
         SnackBar(content: Text('Could not refresh customer pricing: $error')),
       );
     }
@@ -871,7 +870,8 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
         .toList();
 
     if (available.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      ThqNotify.showSnackBar(
+        context,
         const SnackBar(content: Text('No more products available to add.')),
       );
 
@@ -900,7 +900,8 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
       });
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
+      ThqNotify.showSnackBar(
+        context,
         SnackBar(content: Text('Could not resolve selling price: $error')),
       );
     }
@@ -917,7 +918,8 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
         .toList();
 
     if (available.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      ThqNotify.showSnackBar(
+        context,
         const SnackBar(
           content: Text(
             'No Service products are available for Add Charge. Create a product '
@@ -957,7 +959,8 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
         return;
       }
 
-      ScaffoldMessenger.of(context).showSnackBar(
+      ThqNotify.showSnackBar(
+        context,
         SnackBar(content: Text('Could not add service charge: $error')),
       );
     }
@@ -1114,9 +1117,7 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
       }
 
       if (printWarning != null) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(printWarning)));
+        ThqNotify.showSnackBar(context, SnackBar(content: Text(printWarning)));
       }
 
       if (widget.embedded) {

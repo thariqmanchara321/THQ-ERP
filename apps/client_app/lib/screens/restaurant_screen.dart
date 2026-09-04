@@ -1,5 +1,6 @@
 import 'package:erp_core/erp_core.dart';
 import 'package:flutter/material.dart';
+import 'package:thq_ui/thq_ui.dart';
 
 import '../models/client_session.dart';
 import '../models/customer.dart';
@@ -99,7 +100,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
 
   void _message(String text) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
+    ThqNotify.showSnackBar(context, SnackBar(content: Text(text)));
   }
 
   String _money(dynamic value) {
@@ -801,7 +802,8 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                   final roundOff =
                       double.tryParse(roundController.text.trim()) ?? 0;
                   if (roundOff.abs() > 1.000001) {
-                    ScaffoldMessenger.of(dialogContext).showSnackBar(
+                    ThqNotify.showSnackBar(
+                      dialogContext,
                       const SnackBar(
                         content: Text(
                           'Round off must be between -1.00 and +1.00.',
@@ -811,7 +813,8 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                     return;
                   }
                   if (total + roundOff < 0) {
-                    ScaffoldMessenger.of(dialogContext).showSnackBar(
+                    ThqNotify.showSnackBar(
+                      dialogContext,
                       const SnackBar(
                         content: Text('Rounded total cannot be negative.'),
                       ),

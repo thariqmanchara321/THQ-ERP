@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:thq_ui/thq_ui.dart';
 
 import '../models/client_session.dart';
 import '../models/inventory_product.dart';
@@ -71,7 +72,8 @@ class _InventoryProductsScreenState extends State<InventoryProductsScreen> {
   Future<void> _addProduct() async {
     final device = widget.session.device;
     if (device == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      ThqNotify.showSnackBar(
+        context,
         const SnackBar(content: Text('This POS terminal is not activated.')),
       );
       return;
@@ -91,9 +93,7 @@ class _InventoryProductsScreenState extends State<InventoryProductsScreen> {
         _loadProducts();
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Product created successfully.')),
-      );
+      ThqNotify.success(context, 'Product created');
     }
   }
 

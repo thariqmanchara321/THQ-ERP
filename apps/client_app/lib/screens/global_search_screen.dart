@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:thq_ui/thq_ui.dart';
 
 import '../models/client_session.dart';
 import '../services/global_search_service.dart';
@@ -123,7 +124,8 @@ class _GlobalSearchScreenState extends State<GlobalSearchScreen> {
         ),
       );
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
+      ThqNotify.showSnackBar(
+        context,
         SnackBar(
           content: Text(
             '${item.title} • ${item.publicId.isEmpty ? item.entityType : item.publicId}',

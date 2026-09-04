@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:thq_ui/thq_ui.dart';
 import 'package:erp_core/erp_core.dart';
 
 import '../models/client_session.dart';
@@ -233,7 +234,7 @@ class _PosSettingsScreenState extends State<PosSettingsScreen> {
 
   void _message(String text) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
+    ThqNotify.showSnackBar(context, SnackBar(content: Text(text)));
   }
 
   Future<void> _changeStoreBusiness() async {

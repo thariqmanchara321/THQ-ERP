@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:thq_ui/thq_ui.dart';
 import 'package:erp_core/erp_core.dart';
 
 import '../services/admin_auth_service.dart';
@@ -46,13 +47,19 @@ class _AdminDashboardState extends State<AdminDashboard> {
     try {
       await _overviewFuture;
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('THQ Platform refreshed. Saved Admin changes are immediately available to Client/POS after their Refresh action.')),
+        ThqNotify.showSnackBar(
+          context,
+          const SnackBar(
+            content: Text(
+              'THQ Platform refreshed. Saved Admin changes are immediately available to Client/POS after their Refresh action.',
+            ),
+          ),
         );
       }
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        ThqNotify.showSnackBar(
+          context,
           SnackBar(content: Text('Refresh failed: $error')),
         );
       }
@@ -102,7 +109,11 @@ class _AdminDashboardState extends State<AdminDashboard> {
             tooltip: 'Refresh Platform',
             onPressed: _refreshing ? null : _refresh,
             icon: _refreshing
-                ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
                 : const Icon(Icons.refresh),
           ),
           IconButton(

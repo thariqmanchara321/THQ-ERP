@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:thq_ui/thq_ui.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'config/supabase_config.dart';
@@ -29,6 +30,9 @@ class ThqClientMobileApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'THQ Client Mobile',
+      builder: (context, child) =>
+          ThqNotificationHost(child: child ?? const SizedBox.shrink()),
+
       theme: ThemeData(
         colorScheme: scheme,
         useMaterial3: true,
@@ -74,10 +78,6 @@ class ThqClientMobileApp extends StatelessWidget {
           ),
         ),
         navigationBarTheme: const NavigationBarThemeData(height: 66),
-        snackBarTheme: const SnackBarThemeData(
-          behavior: SnackBarBehavior.floating,
-          showCloseIcon: true,
-        ),
       ),
       home: const MobileEntryScreen(),
     );

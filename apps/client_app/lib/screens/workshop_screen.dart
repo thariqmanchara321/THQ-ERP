@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:thq_ui/thq_ui.dart';
 
 import '../models/client_session.dart';
 import '../services/location_scope_service.dart';
@@ -84,7 +85,8 @@ class _WorkshopScreenState extends State<WorkshopScreen>
   Future<void> _vehicleDialog([Map<String, dynamic>? row]) async {
     final locationId = _writeLocationId;
     if (locationId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      ThqNotify.showSnackBar(
+        context,
         const SnackBar(
           content: Text('Select a store before creating a vehicle.'),
         ),
@@ -237,7 +239,8 @@ class _WorkshopScreenState extends State<WorkshopScreen>
   Future<void> _newJob() async {
     final locationId = _writeLocationId;
     if (locationId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      ThqNotify.showSnackBar(
+        context,
         const SnackBar(
           content: Text('Select a store before creating a job card.'),
         ),
@@ -249,9 +252,10 @@ class _WorkshopScreenState extends State<WorkshopScreen>
     );
     if (!mounted) return;
     if (vehicles.isEmpty) {
-      ScaffoldMessenger.of(
+      ThqNotify.showSnackBar(
         context,
-      ).showSnackBar(const SnackBar(content: Text('Add a vehicle first.')));
+        const SnackBar(content: Text('Add a vehicle first.')),
+      );
       return;
     }
     var vehicleId = vehicles.first['id'].toString();

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:thq_ui/thq_ui.dart';
 
 import '../models/client_session.dart';
 import '../models/purchase_detail.dart';
@@ -147,7 +148,8 @@ class _PurchaseDetailScreenState extends State<PurchaseDetailScreen> {
     if (changed == true) {
       await _load();
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        ThqNotify.showSnackBar(
+          context,
           const SnackBar(content: Text('Purchase return posted successfully.')),
         );
       }
@@ -203,7 +205,8 @@ class _PurchaseDetailScreenState extends State<PurchaseDetailScreen> {
     reason.dispose();
     if (value.isEmpty) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        ThqNotify.showSnackBar(
+          context,
           const SnackBar(content: Text('Void reason is required.')),
         );
       }
@@ -217,15 +220,17 @@ class _PurchaseDetailScreenState extends State<PurchaseDetailScreen> {
       );
       await _load();
       if (mounted) {
-        ScaffoldMessenger.of(
+        ThqNotify.showSnackBar(
           context,
-        ).showSnackBar(const SnackBar(content: Text('Purchase voided.')));
+          const SnackBar(content: Text('Purchase voided.')),
+        );
       }
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(
+        ThqNotify.showSnackBar(
           context,
-        ).showSnackBar(SnackBar(content: Text(error.toString())));
+          SnackBar(content: Text(error.toString())),
+        );
       }
     }
   }
@@ -251,9 +256,7 @@ class _PurchaseDetailScreenState extends State<PurchaseDetailScreen> {
         return;
       }
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Payment recorded successfully.')),
-      );
+      ThqNotify.success(context, 'Payment recorded');
     }
   }
 
@@ -679,7 +682,8 @@ class _PurchaseReturnDialogState extends State<_PurchaseReturnDialog> {
           );
         } catch (error) {
           if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
+            ThqNotify.showSnackBar(
+              context,
               SnackBar(
                 content: Text(
                   'Return was saved, but receipt printing failed: $error',

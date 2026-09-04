@@ -5,6 +5,7 @@ import 'package:excel/excel.dart';
 import 'package:file_saver/file_saver.dart';
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
+import 'package:thq_ui/thq_ui.dart';
 
 import '../models/client_session.dart';
 import '../services/bulk_import_service.dart';
@@ -440,7 +441,7 @@ class _BulkImportScreenState extends State<BulkImportScreen> {
 
   void _message(String text) {
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
+      ThqNotify.showSnackBar(context, SnackBar(content: Text(text)));
     }
   }
 

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:thq_ui/thq_ui.dart';
 import 'package:erp_core/erp_core.dart';
 
 import '../models/client_session.dart';
@@ -60,7 +61,8 @@ class _PurchasesScreenState extends State<PurchasesScreen> {
     if (created == true && mounted) {
       setState(_load);
 
-      ScaffoldMessenger.of(context).showSnackBar(
+      ThqNotify.showSnackBar(
+        context,
         const SnackBar(content: Text('Purchase posted successfully.')),
       );
     }
@@ -670,7 +672,8 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
         .toList();
 
     if (available.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      ThqNotify.showSnackBar(
+        context,
         const SnackBar(content: Text('No more products available to add.')),
       );
 

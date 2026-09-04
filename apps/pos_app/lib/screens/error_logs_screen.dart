@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:thq_ui/thq_ui.dart';
 
 import 'business_activity_screen.dart';
 import 'tracking_lookup_screen.dart';
@@ -59,15 +60,17 @@ class _ErrorLogsScreenState extends State<ErrorLogsScreen> {
       );
       await _refresh();
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        ThqNotify.showSnackBar(
+          context,
           const SnackBar(content: Text('Issue added to the system log.')),
         );
       }
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(
+        ThqNotify.showSnackBar(
           context,
-        ).showSnackBar(SnackBar(content: Text(error.toString())));
+          SnackBar(content: Text(error.toString())),
+        );
       }
     }
   }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:thq_ui/thq_ui.dart';
 
 import '../models/client_session.dart';
 import '../models/customer.dart';
@@ -136,7 +137,7 @@ class _PricingScreenState extends State<PricingScreen>
 
   void _message(String text) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
+    ThqNotify.showSnackBar(context, SnackBar(content: Text(text)));
   }
 
   String _money(dynamic value) {
@@ -232,9 +233,10 @@ class _PricingScreenState extends State<PricingScreen>
                   Navigator.pop(dialogContext, true);
                 } catch (error) {
                   if (!dialogContext.mounted) return;
-                  ScaffoldMessenger.of(
+                  ThqNotify.showSnackBar(
                     dialogContext,
-                  ).showSnackBar(SnackBar(content: Text(error.toString())));
+                    SnackBar(content: Text(error.toString())),
+                  );
                 }
               },
               child: const Text('Save'),
@@ -399,7 +401,8 @@ class _PricingScreenState extends State<PricingScreen>
                       minQty <= 0 ||
                       unitPrice == null ||
                       unitPrice < 0) {
-                    ScaffoldMessenger.of(dialogContext).showSnackBar(
+                    ThqNotify.showSnackBar(
+                      dialogContext,
                       const SnackBar(
                         content: Text(
                           'Choose a valid product/unit, quantity and price.',
@@ -444,9 +447,10 @@ class _PricingScreenState extends State<PricingScreen>
                     Navigator.pop(dialogContext, true);
                   } catch (error) {
                     if (!dialogContext.mounted) return;
-                    ScaffoldMessenger.of(
+                    ThqNotify.showSnackBar(
                       dialogContext,
-                    ).showSnackBar(SnackBar(content: Text(error.toString())));
+                      SnackBar(content: Text(error.toString())),
+                    );
                   }
                 },
                 child: const Text('Save'),

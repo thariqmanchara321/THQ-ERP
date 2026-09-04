@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:thq_ui/thq_ui.dart';
 import '../widgets/admin_home_button.dart';
 
 import '../models/business_user.dart';
@@ -46,7 +47,8 @@ class _BusinessUsersScreenState extends State<BusinessUsersScreen> {
     if (created == true && mounted) {
       _reload();
 
-      ScaffoldMessenger.of(context).showSnackBar(
+      ThqNotify.showSnackBar(
+        context,
         const SnackBar(content: Text('User created successfully.')),
       );
     }
@@ -61,7 +63,8 @@ class _BusinessUsersScreenState extends State<BusinessUsersScreen> {
     );
 
     if (changed == true && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      ThqNotify.showSnackBar(
+        context,
         SnackBar(
           content: Text(
             'Password changed for ${user.username.isNotEmpty ? user.username : (user.email ?? user.name)}.',
@@ -112,7 +115,8 @@ class _BusinessUsersScreenState extends State<BusinessUsersScreen> {
 
       _reload();
 
-      ScaffoldMessenger.of(context).showSnackBar(
+      ThqNotify.showSnackBar(
+        context,
         const SnackBar(content: Text('User removed successfully.')),
       );
     } catch (error) {

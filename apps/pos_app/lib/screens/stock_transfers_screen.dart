@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:thq_ui/thq_ui.dart';
 
 import '../models/client_session.dart';
 import '../models/inventory_product.dart';
@@ -817,7 +818,7 @@ class _StockTransfersScreenState extends State<StockTransfersScreen> {
 
   void _message(String text) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
+    ThqNotify.showSnackBar(context, SnackBar(content: Text(text)));
   }
 
   @override

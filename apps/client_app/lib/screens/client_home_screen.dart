@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:thq_ui/thq_ui.dart';
 import 'package:erp_core/erp_core.dart';
 
 import '../models/client_session.dart';
@@ -277,7 +278,8 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
       setState(() => _contentGeneration++);
       unawaited(DeviceHeartbeatService().send(refreshed));
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
+      ThqNotify.showSnackBar(
+        context,
         const SnackBar(
           content: Text(
             'THQ refreshed with the latest business, store, module and data changes.',
@@ -286,9 +288,10 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
       );
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(
+        ThqNotify.showSnackBar(
           context,
-        ).showSnackBar(SnackBar(content: Text('Refresh failed: $error')));
+          SnackBar(content: Text('Refresh failed: $error')),
+        );
       }
     } finally {
       if (mounted) setState(() => _refreshing = false);

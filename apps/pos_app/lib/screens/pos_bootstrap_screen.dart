@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:thq_ui/thq_ui.dart';
 import '../models/client_session.dart';
 import '../services/client_session_service.dart';
 import 'pos_home_screen.dart';
@@ -27,7 +28,8 @@ class _PosBootstrapScreenState extends State<PosBootstrapScreen> {
       final session = await _service.loadSession(business: business);
       if (!mounted) return;
       if (!session.hasModule('pos')) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        ThqNotify.showSnackBar(
+          context,
           const SnackBar(
             content: Text('POS module is not enabled for this business.'),
           ),

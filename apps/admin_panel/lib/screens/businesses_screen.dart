@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:thq_ui/thq_ui.dart';
 import '../widgets/admin_home_button.dart';
 
 import '../models/business.dart';
@@ -49,9 +50,7 @@ class _BusinessesScreenState extends State<BusinessesScreen> {
         _loadBusinesses();
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Business created successfully.')),
-      );
+      ThqNotify.success(context, 'Business created');
     }
   }
 
@@ -59,7 +58,8 @@ class _BusinessesScreenState extends State<BusinessesScreen> {
     final businesses = await _businessesFuture;
     if (!mounted) return;
     if (businesses.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      ThqNotify.showSnackBar(
+        context,
         const SnackBar(content: Text('Create a main business first.')),
       );
       return;
@@ -214,7 +214,8 @@ class _BusinessesScreenState extends State<BusinessesScreen> {
       final storeName = name.text.trim();
       if (storeCode.isEmpty || storeName.isEmpty) {
         if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
+          ThqNotify.showSnackBar(
+            context,
             const SnackBar(content: Text('Store code and name are required.')),
           );
         }
@@ -246,19 +247,20 @@ class _BusinessesScreenState extends State<BusinessesScreen> {
                 : invoicePrefix.text.trim().toUpperCase(),
           );
           if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text(
-                  'Child store created. Open the business to activate Client/POS systems for it.',
-                ),
-              ),
+            ThqNotify.success(
+              context,
+              'Child store created',
+              message:
+                  'Open the business to activate Client/POS systems for it.',
+              duration: const Duration(seconds: 4),
             );
           }
         } catch (error) {
           if (mounted) {
-            ScaffoldMessenger.of(
+            ThqNotify.showSnackBar(
               context,
-            ).showSnackBar(SnackBar(content: Text(error.toString())));
+              SnackBar(content: Text(error.toString())),
+            );
           }
         }
       }
@@ -280,9 +282,7 @@ class _BusinessesScreenState extends State<BusinessesScreen> {
         _loadBusinesses();
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Business modules updated successfully.')),
-      );
+      ThqNotify.success(context, 'Business modules updated');
     }
   }
 

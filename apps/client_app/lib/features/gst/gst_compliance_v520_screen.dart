@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:thq_ui/thq_ui.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'gst_compliance_v520_service.dart';
@@ -1629,9 +1630,7 @@ class _GstComplianceV520ScreenState extends State<GstComplianceV520Screen> {
 
   void _toast(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.maybeOf(
-      context,
-    )?.showSnackBar(SnackBar(content: Text(message)));
+    ThqNotify.showSnackBar(context, SnackBar(content: Text(message)));
   }
 
   Map<String, dynamic>? _locationById(String? id) {

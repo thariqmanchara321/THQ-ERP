@@ -4,6 +4,7 @@ import 'package:excel/excel.dart';
 import 'package:file_saver/file_saver.dart';
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
+import 'package:thq_ui/thq_ui.dart';
 import 'package:uuid/uuid.dart';
 
 import '../models/client_session.dart';
@@ -835,7 +836,7 @@ class _TransactionBulkImportPanelState
 
   void _message(String text) {
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
+      ThqNotify.showSnackBar(context, SnackBar(content: Text(text)));
     }
   }
 }

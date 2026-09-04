@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:thq_ui/thq_ui.dart';
 
 import '../models/client_session.dart';
 import '../services/tracking_service.dart';
@@ -75,9 +76,7 @@ class _TrackingWorkspaceScreenState extends State<TrackingWorkspaceScreen> {
       );
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(_clean(e))));
+        ThqNotify.showSnackBar(context, SnackBar(content: Text(_clean(e))));
       }
     }
   }
@@ -98,9 +97,7 @@ class _TrackingWorkspaceScreenState extends State<TrackingWorkspaceScreen> {
       );
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(_clean(e))));
+        ThqNotify.showSnackBar(context, SnackBar(content: Text(_clean(e))));
       }
     }
   }

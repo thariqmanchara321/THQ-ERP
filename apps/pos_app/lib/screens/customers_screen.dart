@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:thq_ui/thq_ui.dart';
 
 import '../models/client_session.dart';
 import '../models/customer.dart';
@@ -81,7 +82,8 @@ class _CustomersScreenState extends State<CustomersScreen> {
         _loadCustomers();
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
+      ThqNotify.showSnackBar(
+        context,
         const SnackBar(content: Text('Customer created successfully.')),
       );
     }
@@ -104,7 +106,8 @@ class _CustomersScreenState extends State<CustomersScreen> {
         _loadCustomers();
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
+      ThqNotify.showSnackBar(
+        context,
         const SnackBar(content: Text('Customer updated successfully.')),
       );
     }

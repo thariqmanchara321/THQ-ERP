@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:thq_ui/thq_ui.dart';
 
 import '../models/client_session.dart';
 import '../services/notification_service.dart';
@@ -43,15 +44,17 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       final count = await _service.markAllRead(widget.session.business.id);
       await _refresh();
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        ThqNotify.showSnackBar(
+          context,
           SnackBar(content: Text('$count notification(s) marked read.')),
         );
       }
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(
+        ThqNotify.showSnackBar(
           context,
-        ).showSnackBar(SnackBar(content: Text(error.toString())));
+          SnackBar(content: Text(error.toString())),
+        );
       }
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -167,17 +170,17 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       await _service.markRead(widget.session.business.id, row['id'].toString());
       await _refresh();
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Task created and linked to this notification.'),
-          ),
+        ThqNotify.success(
+          context,
+          'Task created and linked to this notification.',
         );
       }
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(
+        ThqNotify.showSnackBar(
           context,
-        ).showSnackBar(SnackBar(content: Text(error.toString())));
+          SnackBar(content: Text(error.toString())),
+        );
       }
     } finally {
       if (mounted) setState(() => _busy = false);

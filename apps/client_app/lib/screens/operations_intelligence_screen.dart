@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:thq_ui/thq_ui.dart';
 
 import '../models/client_session.dart';
 import '../services/location_scope_service.dart';
@@ -701,9 +702,10 @@ class _OperationsIntelligenceScreenState
       await _load();
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(
+        ThqNotify.showSnackBar(
           context,
-        ).showSnackBar(SnackBar(content: Text('PO update failed: $error')));
+          SnackBar(content: Text('PO update failed: $error')),
+        );
       }
     }
   }
@@ -783,9 +785,10 @@ class _OperationsIntelligenceScreenState
       );
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(
+        ThqNotify.showSnackBar(
           context,
-        ).showSnackBar(SnackBar(content: Text('Could not open PO: $error')));
+          SnackBar(content: Text('Could not open PO: $error')),
+        );
       }
     }
   }
@@ -795,7 +798,8 @@ class _OperationsIntelligenceScreenState
         .where((r) => _selectedReorder.contains(_reorderKey(r)))
         .toList();
     if (rows.any((r) => (r['last_supplier_id']?.toString() ?? '').isEmpty)) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      ThqNotify.showSnackBar(
+        context,
         const SnackBar(
           content: Text(
             'Some selected products have no purchase supplier history. Select products with a supplier.',
@@ -833,19 +837,17 @@ class _OperationsIntelligenceScreenState
       _selectedReorder.clear();
       await _load();
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              '${groups.length} purchase order(s) created as Draft.',
-            ),
-          ),
+        ThqNotify.success(
+          context,
+          '${groups.length} purchase order(s) created as Draft.',
         );
       }
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(
+        ThqNotify.showSnackBar(
           context,
-        ).showSnackBar(SnackBar(content: Text('PO creation failed: $error')));
+          SnackBar(content: Text('PO creation failed: $error')),
+        );
       }
     }
   }

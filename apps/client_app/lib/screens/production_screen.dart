@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:thq_ui/thq_ui.dart';
 
 import '../models/client_session.dart';
 import '../models/inventory_product.dart';
@@ -358,7 +359,7 @@ class _ProductionScreenState extends State<ProductionScreen> {
 
   void _snack(String text) {
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
+      ThqNotify.showSnackBar(context, SnackBar(content: Text(text)));
     }
   }
 

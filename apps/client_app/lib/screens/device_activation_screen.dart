@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:thq_ui/thq_ui.dart';
 
 import '../services/device_installation_service.dart';
 
@@ -41,12 +42,9 @@ class _DeviceActivationScreenState extends State<DeviceActivationScreen> {
         appKey: widget.appKey,
       );
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            '${activation.deviceCode} activated for ${activation.locationName}.',
-          ),
-        ),
+      ThqNotify.success(
+        context,
+        '${activation.deviceCode} activated for ${activation.locationName}.',
       );
       Navigator.of(
         context,

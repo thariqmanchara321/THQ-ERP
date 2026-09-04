@@ -113,7 +113,8 @@ class _AdminDashboardV600State extends State<AdminDashboardV600> {
     try {
       await _overviewFuture;
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
+      ThqNotify.showSnackBar(
+        context,
         const SnackBar(
           content: Text(
             'THQ Platform refreshed. Saved Admin changes are available to Client/POS after Refresh.',
@@ -122,7 +123,8 @@ class _AdminDashboardV600State extends State<AdminDashboardV600> {
       );
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
+      ThqNotify.showSnackBar(
+        context,
         SnackBar(content: Text('Refresh failed: $error')),
       );
     } finally {
@@ -240,7 +242,8 @@ class _AdminDashboardV600State extends State<AdminDashboardV600> {
             const SliverToBoxAdapter(
               child: ThqSectionHeader(
                 title: 'Platform workspaces',
-                subtitle: 'Open a control area without leaving the Admin context.',
+                subtitle:
+                    'Open a control area without leaving the Admin context.',
               ),
             ),
             const SliverToBoxAdapter(
@@ -450,9 +453,9 @@ class _AdminBrand extends StatelessWidget {
       ),
       child: Text(
         'T',
-        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.w900,
-            ),
+        style: Theme.of(
+          context,
+        ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w900),
       ),
     );
     return LayoutBuilder(

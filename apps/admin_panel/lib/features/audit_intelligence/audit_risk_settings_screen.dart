@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:thq_ui/thq_ui.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Admin-only editor for v6.0 audit thresholds.
@@ -118,7 +119,8 @@ class _AuditRiskSettingsScreenState extends State<AuditRiskSettingsScreen> {
       if (!mounted) {
         return;
       }
-      ScaffoldMessenger.of(context).showSnackBar(
+      ThqNotify.showSnackBar(
+        context,
         const SnackBar(content: Text('Audit risk thresholds updated.')),
       );
       await _load();

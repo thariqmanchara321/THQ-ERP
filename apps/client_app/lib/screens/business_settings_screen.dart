@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:thq_ui/thq_ui.dart';
 import 'package:erp_core/erp_core.dart';
 
 import '../models/client_session.dart';
@@ -57,12 +58,9 @@ class _BusinessSettingsScreenState extends State<BusinessSettingsScreen> {
     try {
       await _service.setSettings(widget.session.business.id, _settings);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Business settings saved. Sign out/in to refresh session-wide settings.',
-          ),
-        ),
+      ThqNotify.success(
+        context,
+        'Business settings saved. Sign out/in to refresh session-wide settings.',
       );
     } catch (error) {
       if (mounted) setState(() => _error = error.toString());

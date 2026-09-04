@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:thq_ui/thq_ui.dart';
 
 import '../models/client_session.dart';
 import '../models/expense.dart';
@@ -66,7 +67,8 @@ class _PaymentCenterScreenState extends State<PaymentCenterScreen> {
 
   bool _requireSpecificStore() {
     if (LocationScopeService.selectedLocationId.value != null) return true;
-    ScaffoldMessenger.of(context).showSnackBar(
+    ThqNotify.showSnackBar(
+      context,
       const SnackBar(
         content: Text(
           'Select a specific store before recording payments or expenses. All Stores is view-only.',
@@ -79,7 +81,8 @@ class _PaymentCenterScreenState extends State<PaymentCenterScreen> {
   Future<void> _receiveCustomer(PartyPendingSummary party) async {
     if (_actionBusy || !_requireSpecificStore()) return;
     if (party.salesOutstanding <= .005) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      ThqNotify.showSnackBar(
+        context,
         const SnackBar(
           content: Text(
             'This customer has no sales receivable to collect here. Loan settlements remain in the Loans workspace.',
@@ -112,14 +115,13 @@ class _PaymentCenterScreenState extends State<PaymentCenterScreen> {
       if (!mounted) return;
       await _refresh();
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Payment received from ${party.partyName}.')),
-      );
+      ThqNotify.success(context, 'Payment received from ${party.partyName}.');
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(
+        ThqNotify.showSnackBar(
           context,
-        ).showSnackBar(SnackBar(content: Text(error.toString())));
+          SnackBar(content: Text(error.toString())),
+        );
       }
     } finally {
       if (mounted) setState(() => _actionBusy = false);
@@ -153,16 +155,16 @@ class _PaymentCenterScreenState extends State<PaymentCenterScreen> {
       if (!mounted) return;
       await _refresh();
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Supplier payment recorded for ${party.partyName}.'),
-        ),
+      ThqNotify.success(
+        context,
+        'Supplier payment recorded for ${party.partyName}.',
       );
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(
+        ThqNotify.showSnackBar(
           context,
-        ).showSnackBar(SnackBar(content: Text(error.toString())));
+          SnackBar(content: Text(error.toString())),
+        );
       }
     } finally {
       if (mounted) setState(() => _actionBusy = false);
@@ -208,14 +210,13 @@ class _PaymentCenterScreenState extends State<PaymentCenterScreen> {
       );
 
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Expense recorded for ${party.partyName}.')),
-      );
+      ThqNotify.success(context, 'Expense recorded for ${party.partyName}.');
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(
+        ThqNotify.showSnackBar(
           context,
-        ).showSnackBar(SnackBar(content: Text(error.toString())));
+          SnackBar(content: Text(error.toString())),
+        );
       }
     } finally {
       if (mounted) setState(() => _actionBusy = false);

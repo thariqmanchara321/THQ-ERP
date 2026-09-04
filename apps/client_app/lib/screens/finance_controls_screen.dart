@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:thq_ui/thq_ui.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/client_session.dart';
@@ -99,7 +100,8 @@ class _FinanceControlsScreenState extends State<FinanceControlsScreen>
         },
       );
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
+      ThqNotify.showSnackBar(
+        context,
         SnackBar(
           content: Text('Recurring expense processing complete: $result'),
         ),
@@ -107,9 +109,7 @@ class _FinanceControlsScreenState extends State<FinanceControlsScreen>
       await _load();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(e.toString())));
+        ThqNotify.showSnackBar(context, SnackBar(content: Text(e.toString())));
       }
     }
   }
@@ -185,9 +185,7 @@ class _FinanceControlsScreenState extends State<FinanceControlsScreen>
       );
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(e.toString())));
+        ThqNotify.showSnackBar(context, SnackBar(content: Text(e.toString())));
       }
     }
   }
@@ -224,9 +222,7 @@ class _FinanceControlsScreenState extends State<FinanceControlsScreen>
       await _load();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(e.toString())));
+        ThqNotify.showSnackBar(context, SnackBar(content: Text(e.toString())));
       }
     }
   }
@@ -270,9 +266,7 @@ class _FinanceControlsScreenState extends State<FinanceControlsScreen>
       await _load();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(e.toString())));
+        ThqNotify.showSnackBar(context, SnackBar(content: Text(e.toString())));
       }
     }
   }

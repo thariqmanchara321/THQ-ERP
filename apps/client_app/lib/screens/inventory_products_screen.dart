@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:thq_ui/thq_ui.dart';
 
 import '../models/client_session.dart';
 import '../models/inventory_product.dart';
@@ -177,7 +178,8 @@ class _InventoryProductsScreenState extends State<InventoryProductsScreen> {
       return;
     }
     if (location == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      ThqNotify.showSnackBar(
+        context,
         const SnackBar(
           content: Text('Choose a store before adding a product.'),
         ),
@@ -198,12 +200,9 @@ class _InventoryProductsScreenState extends State<InventoryProductsScreen> {
     if (created == true && mounted) {
       setState(_loadProducts);
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Product created for ${location.code} • ${location.name}.',
-          ),
-        ),
+      ThqNotify.success(
+        context,
+        'Product created for ${location.code} • ${location.name}.',
       );
     }
   }

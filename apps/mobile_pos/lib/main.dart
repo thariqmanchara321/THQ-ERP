@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:thq_ui/thq_ui.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'config/supabase_config.dart';
@@ -29,6 +30,9 @@ class ThqMobilePosApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'THQ Mobile POS',
+      builder: (context, child) =>
+          ThqNotificationHost(child: child ?? const SizedBox.shrink()),
+
       theme: ThemeData(
         colorScheme: scheme,
         useMaterial3: true,
@@ -72,10 +76,6 @@ class ThqMobilePosApp extends StatelessWidget {
               borderRadius: BorderRadius.circular(11),
             ),
           ),
-        ),
-        snackBarTheme: const SnackBarThemeData(
-          behavior: SnackBarBehavior.floating,
-          showCloseIcon: true,
         ),
       ),
       home: const MobilePosEntryScreen(),

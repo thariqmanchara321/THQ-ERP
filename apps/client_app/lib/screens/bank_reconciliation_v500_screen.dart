@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:thq_ui/thq_ui.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/client_session.dart';
@@ -171,9 +172,7 @@ class _BankReconciliationV500ScreenState
       await _load();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(e.toString())));
+        ThqNotify.showSnackBar(context, SnackBar(content: Text(e.toString())));
       }
     }
   }
@@ -233,9 +232,7 @@ class _BankReconciliationV500ScreenState
       await _load();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(e.toString())));
+        ThqNotify.showSnackBar(context, SnackBar(content: Text(e.toString())));
       }
     }
   }

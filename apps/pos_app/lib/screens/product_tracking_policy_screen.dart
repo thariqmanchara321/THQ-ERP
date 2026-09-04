@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:thq_ui/thq_ui.dart';
 
 import '../models/client_session.dart';
 import '../services/tracking_service.dart';
@@ -100,9 +101,10 @@ class _ProductTrackingPolicyScreenState
       );
       await _load();
       if (mounted) {
-        ScaffoldMessenger.of(
+        ThqNotify.showSnackBar(
           context,
-        ).showSnackBar(const SnackBar(content: Text('Tracking policy saved.')));
+          const SnackBar(content: Text('Tracking policy saved.')),
+        );
       }
     } catch (e) {
       if (mounted) setState(() => _error = _clean(e));
@@ -135,7 +137,8 @@ class _ProductTrackingPolicyScreenState
       _batches.clear();
       await _load();
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        ThqNotify.showSnackBar(
+          context,
           const SnackBar(
             content: Text('Existing stock registered for traceability.'),
           ),

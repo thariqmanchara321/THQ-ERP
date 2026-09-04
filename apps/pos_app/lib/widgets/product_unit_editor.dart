@@ -1,5 +1,6 @@
 import 'package:erp_core/erp_core.dart';
 import 'package:flutter/material.dart';
+import 'package:thq_ui/thq_ui.dart';
 
 /// Mutable unit configuration used by product create/edit forms.
 ///
@@ -361,7 +362,8 @@ class _ProductUnitEditorState extends State<ProductUnitEditor> {
                   ? null
                   : () {
                       if (!c.addAvailableUnit()) {
-                        ScaffoldMessenger.of(context).showSnackBar(
+                        ThqNotify.showSnackBar(
+                          context,
                           const SnackBar(
                             content: Text(
                               'No more unused units are available.',

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:thq_ui/thq_ui.dart';
 import 'package:uuid/uuid.dart';
 
 import '../services/customer_account_service.dart';
@@ -240,7 +241,8 @@ class _CustomerAccountDialogState extends State<CustomerAccountDialog> {
         requestId: const Uuid().v4(),
       );
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
+      ThqNotify.showSnackBar(
+        context,
         SnackBar(
           content: Text(
             '${result['receipt_number'] ?? 'Payment'} received • Remaining ${_money(result['outstanding_after'])}',

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:thq_ui/thq_ui.dart';
 
 import '../models/client_session.dart';
 import '../models/team_user.dart';
@@ -74,9 +75,10 @@ class _TeamAccessScreenState extends State<TeamAccessScreen> {
       password: result,
     );
     if (mounted) {
-      ScaffoldMessenger.of(
+      ThqNotify.showSnackBar(
         context,
-      ).showSnackBar(const SnackBar(content: Text('Password updated.')));
+        const SnackBar(content: Text('Password updated.')),
+      );
     }
   }
 

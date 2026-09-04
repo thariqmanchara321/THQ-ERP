@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:thq_ui/thq_ui.dart';
 
 import '../models/business.dart';
 import '../services/business_service.dart';
@@ -381,7 +382,7 @@ class _MenuBuilderScreenState extends State<MenuBuilderScreen> {
 
   void _msg(String text) {
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
+      ThqNotify.showSnackBar(context, SnackBar(content: Text(text)));
     }
   }
 

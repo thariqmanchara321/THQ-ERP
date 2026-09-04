@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:thq_ui/thq_ui.dart';
 import 'package:erp_core/erp_core.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -82,7 +83,8 @@ class _PurchasesScreenState extends State<PurchasesScreen> {
 
   Future<void> _newPurchase() async {
     if (LocationScopeService.selectedLocationId.value == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      ThqNotify.showSnackBar(
+        context,
         const SnackBar(
           content: Text(
             'Select a specific store before creating a transaction. All Stores is view-only.',
@@ -109,11 +111,7 @@ class _PurchasesScreenState extends State<PurchasesScreen> {
       }
     });
     if (created) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Purchase posted. Ready for the next purchase.'),
-        ),
-      );
+      ThqNotify.success(context, 'Purchase posted');
     }
   }
 
@@ -769,7 +767,8 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
         .toList();
 
     if (available.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      ThqNotify.showSnackBar(
+        context,
         const SnackBar(content: Text('No more products available to add.')),
       );
 
@@ -800,7 +799,8 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
         .toList();
 
     if (available.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      ThqNotify.showSnackBar(
+        context,
         const SnackBar(
           content: Text(
             'No Service products are available for Add Charge. Create a product '
@@ -1039,9 +1039,7 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
       }
 
       if (printWarning != null) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(printWarning)));
+        ThqNotify.showSnackBar(context, SnackBar(content: Text(printWarning)));
       }
 
       if (widget.embedded) {

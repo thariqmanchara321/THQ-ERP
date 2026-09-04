@@ -1,5 +1,6 @@
 // ignore_for_file: curly_braces_in_flow_control_structures
 import 'package:flutter/material.dart';
+import 'package:thq_ui/thq_ui.dart';
 import '../models/mobile_session.dart';
 import '../services/device_installation_service.dart';
 import '../services/mobile_auth_service.dart';
@@ -890,15 +891,14 @@ class _CustomerPaymentPageState extends State<_CustomerPaymentPage> {
         reference: reference.text,
       );
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
+      ThqNotify.showSnackBar(
+        context,
         const SnackBar(content: Text('Customer payment recorded.')),
       );
       Navigator.pop(context);
     } catch (e) {
       if (mounted)
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(e.toString())));
+        ThqNotify.showSnackBar(context, SnackBar(content: Text(e.toString())));
     } finally {
       if (mounted) setState(() => busy = false);
     }

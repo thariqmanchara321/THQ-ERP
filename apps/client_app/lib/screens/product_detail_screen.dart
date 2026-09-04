@@ -1,5 +1,6 @@
 import 'package:erp_core/erp_core.dart';
 import 'package:flutter/material.dart';
+import 'package:thq_ui/thq_ui.dart';
 
 import '../models/client_session.dart';
 import '../models/inventory_product_detail.dart';
@@ -203,9 +204,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
         return;
       }
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Product updated successfully.')),
-      );
+      ThqNotify.success(context, 'Product updated successfully.');
     }
   }
 
@@ -230,10 +229,10 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
         return;
       }
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Stock adjustment submitted for approval.'),
-        ),
+      ThqNotify.info(
+        context,
+        'Stock adjustment submitted',
+        message: 'Waiting for approval.',
       );
     }
   }
@@ -624,7 +623,8 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
         .where((location) => row != null || !assignedIds.contains(location.id))
         .toList();
     if (availableLocations.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      ThqNotify.showSnackBar(
+        context,
         const SnackBar(
           content: Text(
             'This product is already assigned to every accessible store.',
@@ -761,15 +761,14 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       );
       await _load();
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Store product settings saved.')),
-        );
+        ThqNotify.success(context, 'Store product settings saved.');
       }
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(
+        ThqNotify.showSnackBar(
           context,
-        ).showSnackBar(SnackBar(content: Text(error.toString())));
+          SnackBar(content: Text(error.toString())),
+        );
       }
     } finally {
       price.dispose();

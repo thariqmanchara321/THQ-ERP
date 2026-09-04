@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:thq_ui/thq_ui.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/client_session.dart';
@@ -99,7 +100,8 @@ class _OpeningBalancesV500ScreenState extends State<OpeningBalancesV500Screen> {
     }
 
     if (rows.length < 2) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      ThqNotify.showSnackBar(
+        context,
         const SnackBar(
           content: Text('Enter at least two opening-balance lines.'),
         ),
@@ -116,7 +118,8 @@ class _OpeningBalancesV500ScreenState extends State<OpeningBalancesV500Screen> {
       (sum, row) => sum + ((row['credit'] as num).toDouble()),
     );
     if ((debitTotal - creditTotal).abs() > 0.004) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      ThqNotify.showSnackBar(
+        context,
         SnackBar(
           content: Text(
             'Opening balance is not balanced. Debit $debitTotal / Credit $creditTotal',
@@ -144,15 +147,14 @@ class _OpeningBalancesV500ScreenState extends State<OpeningBalancesV500Screen> {
       }
       await _load();
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Opening balances posted.')),
-        );
+        ThqNotify.success(context, 'Opening balances posted.');
       }
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(
+        ThqNotify.showSnackBar(
           context,
-        ).showSnackBar(SnackBar(content: Text(error.toString())));
+          SnackBar(content: Text(error.toString())),
+        );
       }
     } finally {
       if (mounted) {

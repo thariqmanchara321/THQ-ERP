@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:thq_ui/thq_ui.dart';
 
 import '../models/client_session.dart';
 import '../services/location_scope_service.dart';
@@ -282,7 +283,8 @@ class _TasksScreenState extends State<TasksScreen> {
     if (ok != true || taskTitle.isEmpty) return;
     if (reminderAt != null && dueAt != null && reminderAt!.isAfter(dueAt!)) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        ThqNotify.showSnackBar(
+          context,
           const SnackBar(
             content: Text('Reminder cannot be after the due time.'),
           ),
@@ -314,9 +316,10 @@ class _TasksScreenState extends State<TasksScreen> {
       await _load();
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(
+        ThqNotify.showSnackBar(
           context,
-        ).showSnackBar(SnackBar(content: Text(error.toString())));
+          SnackBar(content: Text(error.toString())),
+        );
       }
     }
   }
@@ -344,9 +347,10 @@ class _TasksScreenState extends State<TasksScreen> {
       await _load();
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(
+        ThqNotify.showSnackBar(
           context,
-        ).showSnackBar(SnackBar(content: Text(error.toString())));
+          SnackBar(content: Text(error.toString())),
+        );
       }
     }
   }

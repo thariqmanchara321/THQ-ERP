@@ -7,6 +7,8 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  thq_ui:
+    path: ../../packages/thq_ui
   cupertino_icons: 1.0.8
   supabase_flutter: 2.17.2
   flutter_secure_storage: 10.3.1

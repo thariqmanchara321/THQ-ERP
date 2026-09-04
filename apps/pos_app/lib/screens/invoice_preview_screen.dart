@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:thq_ui/thq_ui.dart';
 
 import '../models/client_session.dart';
 import '../models/sale_detail.dart';
@@ -137,7 +138,8 @@ class _InvoicePreviewScreenState extends State<InvoicePreviewScreen> {
         );
       } catch (_) {}
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
+      ThqNotify.showSnackBar(
+        context,
         SnackBar(
           content: Text(
             action == 'print' ? 'Print dialog opened.' : 'PDF prepared.',
@@ -146,9 +148,10 @@ class _InvoicePreviewScreenState extends State<InvoicePreviewScreen> {
       );
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
+      ThqNotify.showSnackBar(
         context,
-      ).showSnackBar(SnackBar(content: Text('Invoice output failed: $error')));
+        SnackBar(content: Text('Invoice output failed: $error')),
+      );
     } finally {
       if (mounted) setState(() => _working = false);
     }

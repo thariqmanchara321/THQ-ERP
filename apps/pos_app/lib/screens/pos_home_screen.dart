@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:thq_ui/thq_ui.dart';
 import 'package:erp_core/erp_core.dart';
 
 import '../models/app_menu_node.dart';
@@ -515,18 +516,15 @@ class _PosHomeScreenState extends State<PosHomeScreen> {
     if (_refreshing) return;
     setState(() => _refreshing = true);
     try {
-      final businesses = await _sessionService
-          .getAvailableBusinesses()
-          .timeout(const Duration(seconds: 20));
+      final businesses = await _sessionService.getAvailableBusinesses().timeout(
+        const Duration(seconds: 20),
+      );
       final currentBusiness = businesses.firstWhere(
         (business) => business.id == _session.business.id,
         orElse: () => _session.business,
       );
       final refreshed = await _sessionService
-          .loadSession(
-            business: currentBusiness,
-            requireRuntime: true,
-          )
+          .loadSession(business: currentBusiness, requireRuntime: true)
           .timeout(const Duration(seconds: 25));
       if (!mounted) return;
       _session = refreshed;
@@ -554,7 +552,8 @@ class _PosHomeScreenState extends State<PosHomeScreen> {
       setState(() => _contentGeneration++);
       unawaited(DeviceHeartbeatService().send(refreshed));
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
+      ThqNotify.showSnackBar(
+        context,
         const SnackBar(
           content: Text(
             'POS refreshed with the latest store, modules, products and configuration.',
@@ -563,9 +562,10 @@ class _PosHomeScreenState extends State<PosHomeScreen> {
       );
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(
+        ThqNotify.showSnackBar(
           context,
-        ).showSnackBar(SnackBar(content: Text('Refresh failed: $error')));
+          SnackBar(content: Text('Refresh failed: $error')),
+        );
       }
     } finally {
       if (mounted) setState(() => _refreshing = false);

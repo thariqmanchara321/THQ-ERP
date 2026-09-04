@@ -1,5 +1,6 @@
 import 'package:erp_core/erp_core.dart';
 import 'package:flutter/material.dart';
+import 'package:thq_ui/thq_ui.dart';
 
 import '../models/client_session.dart';
 import '../services/support_service.dart';
@@ -31,7 +32,8 @@ class _SupportScreenState extends State<SupportScreen> {
 
   Future<void> _submit() async {
     if (_subject.text.trim().isEmpty || _description.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      ThqNotify.showSnackBar(
+        context,
         const SnackBar(content: Text('Subject and description are required.')),
       );
       return;
@@ -53,14 +55,16 @@ class _SupportScreenState extends State<SupportScreen> {
       final number = result['ticket_number']?.toString() ?? 'Support ticket';
       _subject.clear();
       _description.clear();
-      ScaffoldMessenger.of(
+      ThqNotify.showSnackBar(
         context,
-      ).showSnackBar(SnackBar(content: Text('$number created.')));
+        SnackBar(content: Text('$number created.')),
+      );
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
+      ThqNotify.showSnackBar(
         context,
-      ).showSnackBar(SnackBar(content: Text(error.toString())));
+        SnackBar(content: Text(error.toString())),
+      );
     } finally {
       if (mounted) setState(() => _saving = false);
     }

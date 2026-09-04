@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:thq_ui/thq_ui.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../services/accounting_service.dart';
@@ -85,9 +86,7 @@ class _PaymentMethodLedgerSettingsState
         );
       }
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Payment ledger mappings saved.')),
-      );
+      ThqNotify.success(context, 'Payment ledger mappings saved.');
       await _load();
     } catch (error) {
       if (mounted) setState(() => _error = error.toString());

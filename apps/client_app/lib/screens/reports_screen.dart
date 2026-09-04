@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:thq_ui/thq_ui.dart';
 
 import '../models/client_session.dart';
 import '../models/report_summary.dart';
@@ -100,7 +101,8 @@ class _ReportsScreenState extends State<ReportsScreen> {
         );
       }
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        ThqNotify.showSnackBar(
+          context,
           SnackBar(
             content: Text(
               format == 'print'
@@ -112,9 +114,10 @@ class _ReportsScreenState extends State<ReportsScreen> {
       }
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(
+        ThqNotify.showSnackBar(
           context,
-        ).showSnackBar(SnackBar(content: Text(error.toString())));
+          SnackBar(content: Text(error.toString())),
+        );
       }
     } finally {
       if (mounted) setState(() => _exporting = false);

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:thq_ui/thq_ui.dart';
 
 import '../models/client_session.dart';
 import '../services/tenant_settings_service.dart';
@@ -54,7 +55,8 @@ class _BusinessSettingsScreenState extends State<BusinessSettingsScreen> {
     try {
       await _service.setSettings(widget.session.business.id, _settings);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
+      ThqNotify.showSnackBar(
+        context,
         const SnackBar(
           content: Text(
             'Business settings saved. Sign out/in to refresh session-wide settings.',

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:thq_ui/thq_ui.dart';
 import '../widgets/admin_home_button.dart';
 
 import '../models/business_role.dart';
@@ -163,7 +164,8 @@ class _BusinessRolesScreenState extends State<BusinessRolesScreen> {
         }
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
+      ThqNotify.showSnackBar(
+        context,
         SnackBar(content: Text('${role.name} permissions saved.')),
       );
     } catch (error) {

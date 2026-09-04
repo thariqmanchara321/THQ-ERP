@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:excel/excel.dart';
 import 'package:file_saver/file_saver.dart';
 import 'package:flutter/material.dart';
+import 'package:thq_ui/thq_ui.dart';
 import 'package:flutter/painting.dart' as painting;
 import 'package:intl/intl.dart';
 import 'package:pdf/pdf.dart';
@@ -324,7 +325,8 @@ class _ReportsCenterV500ScreenState extends State<ReportsCenterV500Screen> {
         }
       }
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        ThqNotify.showSnackBar(
+          context,
           SnackBar(
             content: Text(
               type == 'print'
@@ -336,9 +338,7 @@ class _ReportsCenterV500ScreenState extends State<ReportsCenterV500Screen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(e.toString())));
+        ThqNotify.showSnackBar(context, SnackBar(content: Text(e.toString())));
       }
     } finally {
       if (mounted) setState(() => _exporting = false);

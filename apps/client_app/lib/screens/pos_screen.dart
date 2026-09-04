@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:erp_core/erp_core.dart';
 import 'package:flutter/material.dart';
+import 'package:thq_ui/thq_ui.dart';
 
 import '../models/client_session.dart';
 import '../models/customer.dart';
@@ -512,7 +513,8 @@ class _PosScreenState extends State<PosScreen> {
           ? ' • Change ${_money(_change)}'
           : '';
 
-      ScaffoldMessenger.of(context).showSnackBar(
+      ThqNotify.showSnackBar(
+        context,
         SnackBar(content: Text('$saleNumber completed$changeText')),
       );
 

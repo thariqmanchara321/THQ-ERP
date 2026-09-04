@@ -1,6 +1,7 @@
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
+import 'package:thq_ui/thq_ui.dart';
 import 'package:erp_core/erp_core.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -43,8 +44,9 @@ class ThqAdminApp extends StatelessWidget {
     return MaterialApp(
       title: 'THQ Admin',
       debugShowCheckedModeBanner: false,
-      builder: (context, child) =>
-          NumericZeroAutoSelect(child: child ?? const SizedBox.shrink()),
+      builder: (context, child) => ThqNotificationHost(
+        child: NumericZeroAutoSelect(child: child ?? const SizedBox.shrink()),
+      ),
       theme: UiDesignProfile.fallback('client').theme(),
       home: authenticated ? const AdminDashboardV600() : const LoginScreen(),
     );

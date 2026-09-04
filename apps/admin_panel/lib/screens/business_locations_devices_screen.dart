@@ -1,5 +1,6 @@
 // ignore_for_file: curly_braces_in_flow_control_structures
 import 'package:flutter/material.dart';
+import 'package:thq_ui/thq_ui.dart';
 import '../widgets/admin_home_button.dart';
 
 import '../services/location_device_service.dart';
@@ -67,7 +68,7 @@ class _BusinessLocationsDevicesScreenState
 
   void _message(String text) {
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
+      ThqNotify.showSnackBar(context, SnackBar(content: Text(text)));
     }
   }
 

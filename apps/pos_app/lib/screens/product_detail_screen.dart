@@ -1,5 +1,6 @@
 import 'package:erp_core/erp_core.dart';
 import 'package:flutter/material.dart';
+import 'package:thq_ui/thq_ui.dart';
 
 import '../models/client_session.dart';
 import '../models/inventory_product_detail.dart';
@@ -194,7 +195,8 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
         return;
       }
 
-      ScaffoldMessenger.of(context).showSnackBar(
+      ThqNotify.showSnackBar(
+        context,
         const SnackBar(content: Text('Product updated successfully.')),
       );
     }
@@ -221,10 +223,10 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
         return;
       }
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Stock adjustment submitted for approval.'),
-        ),
+      ThqNotify.info(
+        context,
+        'Stock adjustment submitted',
+        message: 'Waiting for approval.',
       );
     }
   }

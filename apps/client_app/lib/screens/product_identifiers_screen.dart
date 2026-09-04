@@ -1,5 +1,6 @@
 import 'package:erp_core/erp_core.dart';
 import 'package:flutter/material.dart';
+import 'package:thq_ui/thq_ui.dart';
 
 import '../models/client_session.dart';
 import '../models/supplier.dart';
@@ -101,7 +102,7 @@ class _ProductIdentifiersScreenState extends State<ProductIdentifiersScreen> {
 
   void _message(String text) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
+    ThqNotify.showSnackBar(context, SnackBar(content: Text(text)));
   }
 
   String _typeLabel(String type) => switch (type) {
@@ -274,9 +275,10 @@ class _ProductIdentifiersScreenState extends State<ProductIdentifiersScreen> {
                   Navigator.pop(dialogContext, true);
                 } catch (error) {
                   if (!dialogContext.mounted) return;
-                  ScaffoldMessenger.of(
+                  ThqNotify.showSnackBar(
                     dialogContext,
-                  ).showSnackBar(SnackBar(content: Text(error.toString())));
+                    SnackBar(content: Text(error.toString())),
+                  );
                 }
               },
               child: const Text('Save'),

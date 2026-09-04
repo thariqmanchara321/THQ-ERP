@@ -1,5 +1,6 @@
 import 'package:erp_core/erp_core.dart';
 import 'package:flutter/material.dart';
+import 'package:thq_ui/thq_ui.dart';
 
 import '../models/client_session.dart';
 import '../services/inventory_service.dart';
@@ -90,9 +91,10 @@ class _ProductUnitsScreenState extends State<ProductUnitsScreen> {
         .where((u) => u.code != _baseCode && !used.contains(u.id))
         .toList();
     if (available.isEmpty) {
-      ScaffoldMessenger.of(
+      ThqNotify.showSnackBar(
         context,
-      ).showSnackBar(const SnackBar(content: Text('No more units available.')));
+        const SnackBar(content: Text('No more units available.')),
+      );
       return;
     }
     setState(() => _rows.add(_UnitDraft(unitId: available.first.id)));
@@ -115,9 +117,7 @@ class _ProductUnitsScreenState extends State<ProductUnitsScreen> {
       );
       await _load();
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Unit ${draft.code.toUpperCase()} created.')),
-      );
+      ThqNotify.success(context, 'Unit ${draft.code.toUpperCase()} created.');
     } catch (error) {
       if (mounted) setState(() => _error = error.toString());
     }
@@ -150,9 +150,7 @@ class _ProductUnitsScreenState extends State<ProductUnitsScreen> {
         ],
       );
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Units and conversions saved.')),
-      );
+      ThqNotify.success(context, 'Units and conversions saved.');
       Navigator.of(context).pop(true);
     } catch (error) {
       if (mounted) setState(() => _error = error.toString());

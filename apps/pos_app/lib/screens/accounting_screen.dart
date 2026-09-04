@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:thq_ui/thq_ui.dart';
 
 import '../models/accounting_summary.dart';
 import '../models/client_session.dart';
@@ -227,16 +228,18 @@ class _AccountingScreenState extends State<AccountingScreen> {
         active: active,
       );
       if (mounted) {
-        ScaffoldMessenger.of(
+        ThqNotify.showSnackBar(
           context,
-        ).showSnackBar(const SnackBar(content: Text('Account saved.')));
+          const SnackBar(content: Text('Account saved.')),
+        );
         _load();
       }
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(
+        ThqNotify.showSnackBar(
           context,
-        ).showSnackBar(SnackBar(content: Text(error.toString())));
+          SnackBar(content: Text(error.toString())),
+        );
       }
     }
   }
@@ -332,15 +335,17 @@ class _AccountingScreenState extends State<AccountingScreen> {
       }
       await _load();
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        ThqNotify.showSnackBar(
+          context,
           const SnackBar(content: Text('Accounting mappings saved.')),
         );
       }
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(
+        ThqNotify.showSnackBar(
           context,
-        ).showSnackBar(SnackBar(content: Text(error.toString())));
+          SnackBar(content: Text(error.toString())),
+        );
       }
     }
   }

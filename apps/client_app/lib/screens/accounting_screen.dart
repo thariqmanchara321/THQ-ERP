@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:thq_ui/thq_ui.dart';
 
 import '../models/accounting_summary.dart';
 import '../models/client_session.dart';
@@ -267,7 +268,8 @@ class _AccountingScreenState extends State<AccountingScreen> {
         );
       }
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        ThqNotify.showSnackBar(
+          context,
           SnackBar(
             content: Text(
               format == 'print'
@@ -279,9 +281,10 @@ class _AccountingScreenState extends State<AccountingScreen> {
       }
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(
+        ThqNotify.showSnackBar(
           context,
-        ).showSnackBar(SnackBar(content: Text(error.toString())));
+          SnackBar(content: Text(error.toString())),
+        );
       }
     } finally {
       if (mounted) setState(() => _exporting = false);
@@ -414,17 +417,19 @@ class _AccountingScreenState extends State<AccountingScreen> {
         active: active,
       );
       if (mounted) {
-        ScaffoldMessenger.of(
+        ThqNotify.showSnackBar(
           context,
-        ).showSnackBar(const SnackBar(content: Text('Account saved.')));
+          const SnackBar(content: Text('Account saved.')),
+        );
         _invalidateLoadCache();
         _load(force: true);
       }
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(
+        ThqNotify.showSnackBar(
           context,
-        ).showSnackBar(SnackBar(content: Text(error.toString())));
+          SnackBar(content: Text(error.toString())),
+        );
       }
     }
   }
@@ -529,22 +534,22 @@ class _AccountingScreenState extends State<AccountingScreen> {
       _invalidateLoadCache();
       await _load(force: true);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Accounting mappings saved.')),
-        );
+        ThqNotify.success(context, 'Accounting mappings saved.');
       }
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(
+        ThqNotify.showSnackBar(
           context,
-        ).showSnackBar(SnackBar(content: Text(error.toString())));
+          SnackBar(content: Text(error.toString())),
+        );
       }
     }
   }
 
   Future<void> _archiveAccount(Map<String, dynamic> account) async {
     if (account['is_system'] == true) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      ThqNotify.showSnackBar(
+        context,
         const SnackBar(content: Text('System accounts cannot be archived.')),
       );
       return;
@@ -581,16 +586,18 @@ class _AccountingScreenState extends State<AccountingScreen> {
         active: false,
       );
       if (!mounted) return;
-      ScaffoldMessenger.of(
+      ThqNotify.showSnackBar(
         context,
-      ).showSnackBar(const SnackBar(content: Text('Account archived.')));
+        const SnackBar(content: Text('Account archived.')),
+      );
       _invalidateLoadCache();
       await _load(force: true);
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(
+        ThqNotify.showSnackBar(
           context,
-        ).showSnackBar(SnackBar(content: Text(error.toString())));
+          SnackBar(content: Text(error.toString())),
+        );
       }
     }
   }
@@ -598,7 +605,8 @@ class _AccountingScreenState extends State<AccountingScreen> {
   Future<void> _postJournal() async {
     final locationId = LocationScopeService.selectedLocationId.value;
     if (locationId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      ThqNotify.showSnackBar(
+        context,
         const SnackBar(
           content: Text(
             'Select a specific store before posting a manual journal.',
@@ -616,7 +624,8 @@ class _AccountingScreenState extends State<AccountingScreen> {
           .where((a) => a['active'] != false)
           .toList();
       if (activeAccounts.length < 2) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        ThqNotify.showSnackBar(
+          context,
           const SnackBar(
             content: Text('At least two active accounts are required.'),
           ),
@@ -640,17 +649,19 @@ class _AccountingScreenState extends State<AccountingScreen> {
             .toList(),
       );
       if (!mounted) return;
-      ScaffoldMessenger.of(
+      ThqNotify.showSnackBar(
         context,
-      ).showSnackBar(const SnackBar(content: Text('Manual journal posted.')));
+        const SnackBar(content: Text('Manual journal posted.')),
+      );
       setState(() => _section = 'journal');
       _invalidateLoadCache();
       await _load(force: true);
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(
+        ThqNotify.showSnackBar(
           context,
-        ).showSnackBar(SnackBar(content: Text(error.toString())));
+          SnackBar(content: Text(error.toString())),
+        );
       }
     }
   }

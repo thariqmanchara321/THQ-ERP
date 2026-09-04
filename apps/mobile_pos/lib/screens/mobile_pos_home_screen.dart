@@ -1,6 +1,7 @@
 // ignore_for_file: curly_braces_in_flow_control_structures
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:thq_ui/thq_ui.dart';
 import 'package:intl/intl.dart';
 
 import 'package:uuid/uuid.dart';
@@ -158,7 +159,8 @@ class _State extends State<MobilePosHomeScreen> {
       line.resolvedUnitPrice = null;
       line.pricingSource = 'cached';
       if (notify && mounted)
-        ScaffoldMessenger.of(context).showSnackBar(
+        ThqNotify.showSnackBar(
+          context,
           SnackBar(
             content: Text('Live pricing unavailable; cached price kept: $e'),
           ),
@@ -199,7 +201,8 @@ class _State extends State<MobilePosHomeScreen> {
     if (matches.length == 1) {
       await _addProduct(matches.first);
     } else if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      ThqNotify.showSnackBar(
+        context,
         SnackBar(
           content: Text(
             matches.isEmpty
@@ -244,7 +247,8 @@ class _State extends State<MobilePosHomeScreen> {
       );
       if (found == null || found['variant_id']?.toString() != p.variantId) {
         if (mounted)
-          ScaffoldMessenger.of(context).showSnackBar(
+          ThqNotify.showSnackBar(
+            context,
             const SnackBar(
               content: Text('Serial is not available in the local cache.'),
             ),
@@ -263,15 +267,17 @@ class _State extends State<MobilePosHomeScreen> {
     final step = unit.quantityStep > 0 ? unit.quantityStep : 1.0;
     if (p.itemType == 'stock' &&
         p.stockQuantity + 0.000001 < step * unit.conversionToBase) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      ThqNotify.showSnackBar(
+        context,
         const SnackBar(content: Text('No offline stock available.')),
       );
       return;
     }
     if (serial != null && cart.any((l) => l.serialNumbers.contains(serial))) {
-      ScaffoldMessenger.of(
+      ThqNotify.showSnackBar(
         context,
-      ).showSnackBar(const SnackBar(content: Text('Serial already added.')));
+        const SnackBar(content: Text('Serial already added.')),
+      );
       return;
     }
     if (serial == null && p.trackingMode != 'serial') {
@@ -280,7 +286,8 @@ class _State extends State<MobilePosHomeScreen> {
           final next = l.quantity + step;
           if (p.itemType == 'stock' &&
               next * l.unit.conversionToBase > p.stockQuantity + 0.000001) {
-            ScaffoldMessenger.of(context).showSnackBar(
+            ThqNotify.showSnackBar(
+              context,
               const SnackBar(content: Text('Not enough offline stock.')),
             );
             return;
@@ -313,7 +320,8 @@ class _State extends State<MobilePosHomeScreen> {
       setState(() => line.quantity = next);
       unawaited(_resolvePrice(line));
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
+      ThqNotify.showSnackBar(
+        context,
         const SnackBar(content: Text('Not enough offline stock.')),
       );
     }
@@ -358,7 +366,8 @@ class _State extends State<MobilePosHomeScreen> {
       qty = chosen.quantityStep > 0 ? chosen.quantityStep : 1;
     if (line.product.itemType == 'stock' &&
         qty * chosen.conversionToBase > line.product.stockQuantity + 0.000001) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      ThqNotify.showSnackBar(
+        context,
         const SnackBar(
           content: Text('Not enough offline stock for this unit.'),
         ),
@@ -480,7 +489,8 @@ class _State extends State<MobilePosHomeScreen> {
       );
     } catch (e) {
       if (mounted)
-        ScaffoldMessenger.of(context).showSnackBar(
+        ThqNotify.showSnackBar(
+          context,
           SnackBar(content: Text('Could not save local invoice: $e')),
         );
       return;
@@ -606,7 +616,8 @@ class _State extends State<MobilePosHomeScreen> {
         note: note.text,
       );
       if (mounted)
-        ScaffoldMessenger.of(context).showSnackBar(
+        ThqNotify.showSnackBar(
+          context,
           SnackBar(
             content: Text(
               'KOT sent: ${r['kot_number'] ?? r['order_number'] ?? 'OK'}',
@@ -615,7 +626,8 @@ class _State extends State<MobilePosHomeScreen> {
         );
     } catch (e) {
       if (mounted)
-        ScaffoldMessenger.of(context).showSnackBar(
+        ThqNotify.showSnackBar(
+          context,
           SnackBar(content: Text('KOT requires online restaurant access: $e')),
         );
     } finally {
@@ -637,14 +649,16 @@ class _State extends State<MobilePosHomeScreen> {
         await sync.refreshCatalogue(widget.session);
         await _reload();
         if (mounted)
-          ScaffoldMessenger.of(context).showSnackBar(
+          ThqNotify.showSnackBar(
+            context,
             const SnackBar(content: Text('Offline cache refreshed.')),
           );
       } catch (e) {
         if (mounted)
-          ScaffoldMessenger.of(
+          ThqNotify.showSnackBar(
             context,
-          ).showSnackBar(SnackBar(content: Text('Refresh failed: $e')));
+            SnackBar(content: Text('Refresh failed: $e')),
+          );
       } finally {
         if (mounted) setState(() => loading = false);
       }
@@ -999,13 +1013,15 @@ class _PaymentState extends State<_PaymentDialog> {
         onPressed: () {
           final paid = double.tryParse(amount.text) ?? 0;
           if (paid < 0 || paid > widget.total + 0.01) {
-            ScaffoldMessenger.of(context).showSnackBar(
+            ThqNotify.showSnackBar(
+              context,
               const SnackBar(content: Text('Invalid payment amount.')),
             );
             return;
           }
           if (!widget.allowCredit && (paid - widget.total).abs() > 0.01) {
-            ScaffoldMessenger.of(context).showSnackBar(
+            ThqNotify.showSnackBar(
+              context,
               const SnackBar(
                 content: Text('Walk-in customer must be fully paid.'),
               ),

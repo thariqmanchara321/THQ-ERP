@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:thq_ui/thq_ui.dart';
 import '../models/client_session.dart';
 import '../models/expense.dart';
 import '../services/expense_service.dart';
@@ -59,9 +60,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
     if (ok == true && mounted) {
       await _refresh();
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Expense recorded successfully.')),
-        );
+        ThqNotify.success(context, 'Expense recorded');
       }
     }
   }
@@ -155,9 +154,10 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
       );
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(
+        ThqNotify.showSnackBar(
           context,
-        ).showSnackBar(SnackBar(content: Text(error.toString())));
+          SnackBar(content: Text(error.toString())),
+        );
       }
     }
   }
@@ -186,9 +186,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
     if (ok == true && mounted) {
       await _refresh();
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Expense updated successfully.')),
-        );
+        ThqNotify.success(context, 'Expense updated');
       }
     }
   }

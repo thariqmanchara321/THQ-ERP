@@ -35,6 +35,8 @@ dependencies:
   cupertino_icons: ^1.0.8
   erp_core:
     path: ../../packages/erp_core
+  thq_ui:
+    path: ../../packages/thq_ui
   flutter_riverpod: ^3.4.2
   go_router: ^17.5.0
   supabase_flutter: ^2.17.1
