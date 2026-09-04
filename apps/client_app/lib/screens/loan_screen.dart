@@ -325,7 +325,7 @@ class _LoanScreenState extends State<LoanScreen> {
                   'Given and taken loans, schedules and repayments',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(fontSize: 10.5),
+                  style: TextStyle(fontSize: 11.5),
                 ),
               ],
             ),
@@ -474,7 +474,7 @@ class _LoanScreenState extends State<LoanScreen> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontSize: 8.5,
+                    fontSize: 10.5,
                     color: scheme.onSurfaceVariant,
                   ),
                 ),
@@ -483,7 +483,7 @@ class _LoanScreenState extends State<LoanScreen> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    fontSize: 10,
+                    fontSize: 11.5,
                     fontWeight: FontWeight.w800,
                   ),
                 ),

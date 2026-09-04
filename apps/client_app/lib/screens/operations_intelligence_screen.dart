@@ -937,7 +937,7 @@ class _OperationsIntelligenceScreenState
       ),
       child: Text(
         text.isEmpty ? '—' : text.toUpperCase(),
-        style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w800),
+        style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800),
       ),
     );
   }

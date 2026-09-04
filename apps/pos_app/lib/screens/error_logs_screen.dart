@@ -202,7 +202,7 @@ class _ErrorLogsScreenState extends State<ErrorLogsScreen> {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
-                              fontSize: 8.8,
+                              fontSize: 10.5,
                               fontWeight: FontWeight.w800,
                             ),
                           ),
@@ -212,7 +212,7 @@ class _ErrorLogsScreenState extends State<ErrorLogsScreen> {
                             '${_date(item.createdAt)}',
                             maxLines: 1,
                             style: TextStyle(
-                              fontSize: 7.2,
+                              fontSize: 10,
                               color: scheme.onSurfaceVariant,
                             ),
                           ),
@@ -225,7 +225,7 @@ class _ErrorLogsScreenState extends State<ErrorLogsScreen> {
                                     .withValues(alpha: .35),
                                 child: SelectableText(
                                   item.stackTrace!,
-                                  style: const TextStyle(fontSize: 7.5),
+                                  style: const TextStyle(fontSize: 10),
                                 ),
                               ),
                           ],

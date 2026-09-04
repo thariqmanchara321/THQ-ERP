@@ -168,7 +168,7 @@ class _SuppliersScreenState extends State<SuppliersScreen> {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                          fontSize: 10.5,
+                          fontSize: 11.5,
                           color: scheme.onSurfaceVariant,
                         ),
                       ),
@@ -276,7 +276,7 @@ class _SuppliersScreenState extends State<SuppliersScreen> {
                         children: [
                           if (!veryCompact)
                             Container(
-                              height: 34,
+                              height: 40,
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 9,
                               ),
@@ -323,7 +323,7 @@ class _SuppliersScreenState extends State<SuppliersScreen> {
       child: Text(
         label,
         maxLines: 1,
-        style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w800),
+        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800),
       ),
     );
 
@@ -388,7 +388,7 @@ class _SupplierCard extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
-                          fontSize: 10,
+                          fontSize: 11.5,
                           fontWeight: FontWeight.w800,
                         ),
                       ),
@@ -401,7 +401,7 @@ class _SupplierCard extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                          fontSize: 8.2,
+                          fontSize: 10.5,
                           color: scheme.onSurfaceVariant,
                         ),
                       ),
@@ -441,7 +441,7 @@ class _SupplierCard extends StatelessWidget {
       child: InkWell(
         onTap: onStatement,
         child: Container(
-          constraints: const BoxConstraints(minHeight: 48),
+          constraints: const BoxConstraints(minHeight: 52),
           padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
           decoration: BoxDecoration(
             border: Border(bottom: BorderSide(color: scheme.outlineVariant)),
@@ -475,7 +475,7 @@ class _SupplierCard extends StatelessWidget {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
-                              fontSize: 9.8,
+                              fontSize: 11,
                               fontWeight: FontWeight.w800,
                             ),
                           ),
@@ -486,7 +486,7 @@ class _SupplierCard extends StatelessWidget {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
-                              fontSize: 7.9,
+                              fontSize: 10,
                               color: scheme.onSurfaceVariant,
                             ),
                           ),
@@ -506,14 +506,14 @@ class _SupplierCard extends StatelessWidget {
                       supplier.phone ?? 'No phone',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontSize: 9),
+                      style: const TextStyle(fontSize: 11),
                     ),
                     Text(
                       supplier.email ?? '',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        fontSize: 7.8,
+                        fontSize: 10,
                         color: scheme.onSurfaceVariant,
                       ),
                     ),
@@ -531,14 +531,14 @@ class _SupplierCard extends StatelessWidget {
                         supplier.taxNumber ?? 'No Tax ID',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontSize: 8.8),
+                        style: const TextStyle(fontSize: 10.5),
                       ),
                       Text(
                         location,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                          fontSize: 7.8,
+                          fontSize: 10,
                           color: scheme.onSurfaceVariant,
                         ),
                       ),
@@ -553,7 +553,7 @@ class _SupplierCard extends StatelessWidget {
                   textAlign: TextAlign.center,
                   maxLines: 1,
                   style: TextStyle(
-                    fontSize: 7.8,
+                    fontSize: 10,
                     fontWeight: FontWeight.w900,
                     color: supplier.isActive
                         ? scheme.primary

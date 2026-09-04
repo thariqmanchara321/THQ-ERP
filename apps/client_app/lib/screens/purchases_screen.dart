@@ -221,7 +221,7 @@ class _PurchasesScreenState extends State<PurchasesScreen> {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                          fontSize: 10.5,
+                          fontSize: 11.5,
                           color: scheme.onSurfaceVariant,
                         ),
                       ),
@@ -317,7 +317,7 @@ class _PurchasesScreenState extends State<PurchasesScreen> {
                       child: Column(
                         children: [
                           Container(
-                            height: 38,
+                            height: 42,
                             padding: const EdgeInsets.symmetric(horizontal: 10),
                             color: scheme.surfaceContainerHighest,
                             child: _purchaseRegisterHeader(
@@ -362,11 +362,14 @@ class _PurchasesScreenState extends State<PurchasesScreen> {
     Widget cell(String value, int flex, {TextAlign align = TextAlign.left}) =>
         Expanded(
           flex: flex,
-          child: Text(
-            value,
-            textAlign: align,
-            maxLines: 1,
-            style: const TextStyle(fontSize: 9.5, fontWeight: FontWeight.w800),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 3),
+            child: Text(
+              value,
+              textAlign: align,
+              maxLines: 1,
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w900),
+            ),
           ),
         );
 
@@ -378,7 +381,14 @@ class _PurchasesScreenState extends State<PurchasesScreen> {
         if (!compact) cell('Supplier Invoice', 3),
         cell('Total', 2, align: TextAlign.right),
         cell('Balance', 2, align: TextAlign.right),
-        const SizedBox(width: 92, child: Text('Status')),
+        const SizedBox(width: 12),
+        const SizedBox(
+          width: 104,
+          child: Text(
+            'Status',
+            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w900),
+          ),
+        ),
         const SizedBox(width: 28),
       ],
     );
@@ -410,7 +420,7 @@ class _PurchasesScreenState extends State<PurchasesScreen> {
       child: InkWell(
         onTap: () => _openPurchase(purchase),
         child: Container(
-          constraints: const BoxConstraints(minHeight: 48),
+          constraints: const BoxConstraints(minHeight: 54),
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
           decoration: BoxDecoration(
             border: Border(bottom: BorderSide(color: scheme.outlineVariant)),
@@ -435,7 +445,7 @@ class _PurchasesScreenState extends State<PurchasesScreen> {
                       Text(
                         _date(purchase.purchaseDate),
                         style: TextStyle(
-                          fontSize: 9,
+                          fontSize: 11,
                           color: scheme.onSurfaceVariant,
                         ),
                       ),
@@ -447,7 +457,7 @@ class _PurchasesScreenState extends State<PurchasesScreen> {
                 cell(
                   Text(
                     _date(purchase.purchaseDate),
-                    style: const TextStyle(fontSize: 10.5),
+                    style: const TextStyle(fontSize: 11.5),
                   ),
                   2,
                 ),
@@ -457,7 +467,7 @@ class _PurchasesScreenState extends State<PurchasesScreen> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    fontSize: 10.5,
+                    fontSize: 11.5,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -469,7 +479,7 @@ class _PurchasesScreenState extends State<PurchasesScreen> {
                     purchase.supplierInvoiceNumber ?? '—',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 10.5),
+                    style: const TextStyle(fontSize: 11.5),
                   ),
                   3,
                 ),
@@ -478,7 +488,7 @@ class _PurchasesScreenState extends State<PurchasesScreen> {
                   _money(purchase.grandTotal),
                   maxLines: 1,
                   style: const TextStyle(
-                    fontSize: 10.5,
+                    fontSize: 11.5,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -490,7 +500,7 @@ class _PurchasesScreenState extends State<PurchasesScreen> {
                   _money(purchase.balanceDue),
                   maxLines: 1,
                   style: TextStyle(
-                    fontSize: 10.5,
+                    fontSize: 11.5,
                     fontWeight: FontWeight.w700,
                     color: purchase.balanceDue > 0.005
                         ? scheme.error
@@ -500,8 +510,9 @@ class _PurchasesScreenState extends State<PurchasesScreen> {
                 2,
                 alignment: Alignment.centerRight,
               ),
+              const SizedBox(width: 12),
               SizedBox(
-                width: 92,
+                width: 104,
                 child: FittedBox(
                   fit: BoxFit.scaleDown,
                   alignment: Alignment.centerLeft,

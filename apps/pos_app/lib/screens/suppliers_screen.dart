@@ -172,7 +172,7 @@ class _SuppliersScreenState extends State<SuppliersScreen> {
                       Text(
                         'Supplier master and statements',
                         style: TextStyle(
-                          fontSize: 8.3,
+                          fontSize: 10.5,
                           color: scheme.onSurfaceVariant,
                         ),
                       ),
@@ -280,7 +280,7 @@ class _SuppliersScreenState extends State<SuppliersScreen> {
                               child: Text(
                                 'Supplier',
                                 style: TextStyle(
-                                  fontSize: 8.8,
+                                  fontSize: 10.5,
                                   fontWeight: FontWeight.w900,
                                 ),
                               ),
@@ -290,7 +290,7 @@ class _SuppliersScreenState extends State<SuppliersScreen> {
                               child: Text(
                                 'Contact',
                                 style: TextStyle(
-                                  fontSize: 8.8,
+                                  fontSize: 10.5,
                                   fontWeight: FontWeight.w900,
                                 ),
                               ),
@@ -300,7 +300,7 @@ class _SuppliersScreenState extends State<SuppliersScreen> {
                               child: Text(
                                 'Tax / Location',
                                 style: TextStyle(
-                                  fontSize: 8.8,
+                                  fontSize: 10.5,
                                   fontWeight: FontWeight.w900,
                                 ),
                               ),
@@ -311,7 +311,7 @@ class _SuppliersScreenState extends State<SuppliersScreen> {
                                 'Status',
                                 textAlign: TextAlign.center,
                                 style: TextStyle(
-                                  fontSize: 8.8,
+                                  fontSize: 10.5,
                                   fontWeight: FontWeight.w900,
                                 ),
                               ),
@@ -373,7 +373,7 @@ class _SupplierCard extends StatelessWidget {
     ].where((value) => value != null && value.isNotEmpty).join(', ');
 
     return Container(
-      constraints: const BoxConstraints(minHeight: 48),
+      constraints: const BoxConstraints(minHeight: 52),
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
       decoration: BoxDecoration(
         border: Border(bottom: BorderSide(color: scheme.outlineVariant)),
@@ -408,7 +408,7 @@ class _SupplierCard extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
-                          fontSize: 9,
+                          fontSize: 11,
                           fontWeight: FontWeight.w800,
                         ),
                       ),
@@ -420,7 +420,7 @@ class _SupplierCard extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                          fontSize: 7.4,
+                          fontSize: 10,
                           color: scheme.onSurfaceVariant,
                         ),
                       ),
@@ -440,14 +440,14 @@ class _SupplierCard extends StatelessWidget {
                   supplier.phone ?? 'No phone',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 8.3),
+                  style: const TextStyle(fontSize: 10.5),
                 ),
                 Text(
                   supplier.email ?? '',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontSize: 7.2,
+                    fontSize: 10,
                     color: scheme.onSurfaceVariant,
                   ),
                 ),
@@ -464,14 +464,14 @@ class _SupplierCard extends StatelessWidget {
                   supplier.taxNumber ?? 'No Tax ID',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 8.1),
+                  style: const TextStyle(fontSize: 10.5),
                 ),
                 Text(
                   location,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontSize: 7.2,
+                    fontSize: 10,
                     color: scheme.onSurfaceVariant,
                   ),
                 ),
@@ -485,7 +485,7 @@ class _SupplierCard extends StatelessWidget {
               textAlign: TextAlign.center,
               maxLines: 1,
               style: TextStyle(
-                fontSize: 7,
+                fontSize: 10,
                 fontWeight: FontWeight.w900,
                 color: supplier.isActive
                     ? scheme.primary

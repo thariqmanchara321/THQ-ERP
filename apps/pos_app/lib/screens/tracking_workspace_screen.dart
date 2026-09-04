@@ -168,7 +168,7 @@ class _TrackingWorkspaceScreenState extends State<TrackingWorkspaceScreen> {
               ),
               child: const TabBar(
                 labelStyle: TextStyle(
-                  fontSize: 8.8,
+                  fontSize: 10.5,
                   fontWeight: FontWeight.w800,
                 ),
                 tabs: [
@@ -236,7 +236,7 @@ class _TrackingWorkspaceScreenState extends State<TrackingWorkspaceScreen> {
                   _error!,
                   maxLines: 2,
                   style: TextStyle(
-                    fontSize: 8.2,
+                    fontSize: 10.5,
                     color: scheme.onErrorContainer,
                   ),
                 ),

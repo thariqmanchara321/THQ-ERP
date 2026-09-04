@@ -220,7 +220,7 @@ class _SalesScreenState extends State<SalesScreen> {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                          fontSize: 10.5,
+                          fontSize: 11.5,
                           color: scheme.onSurfaceVariant,
                         ),
                       ),
@@ -316,7 +316,7 @@ class _SalesScreenState extends State<SalesScreen> {
                       child: Column(
                         children: [
                           Container(
-                            height: 38,
+                            height: 42,
                             padding: const EdgeInsets.symmetric(horizontal: 10),
                             color: scheme.surfaceContainerHighest,
                             child: _salesRegisterHeader(
@@ -361,11 +361,14 @@ class _SalesScreenState extends State<SalesScreen> {
     Widget cell(String value, int flex, {TextAlign align = TextAlign.left}) =>
         Expanded(
           flex: flex,
-          child: Text(
-            value,
-            textAlign: align,
-            maxLines: 1,
-            style: const TextStyle(fontSize: 9.5, fontWeight: FontWeight.w800),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 3),
+            child: Text(
+              value,
+              textAlign: align,
+              maxLines: 1,
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w900),
+            ),
           ),
         );
 
@@ -377,7 +380,14 @@ class _SalesScreenState extends State<SalesScreen> {
         cell('Total', 2, align: TextAlign.right),
         cell('Balance', 2, align: TextAlign.right),
         if (!compact) cell('Gross Profit', 2, align: TextAlign.right),
-        const SizedBox(width: 92, child: Text('Status')),
+        const SizedBox(width: 12),
+        const SizedBox(
+          width: 104,
+          child: Text(
+            'Status',
+            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w900),
+          ),
+        ),
         const SizedBox(width: 28),
       ],
     );
@@ -409,7 +419,7 @@ class _SalesScreenState extends State<SalesScreen> {
       child: InkWell(
         onTap: () => _openSale(sale),
         child: Container(
-          constraints: const BoxConstraints(minHeight: 48),
+          constraints: const BoxConstraints(minHeight: 54),
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
           decoration: BoxDecoration(
             border: Border(bottom: BorderSide(color: scheme.outlineVariant)),
@@ -434,7 +444,7 @@ class _SalesScreenState extends State<SalesScreen> {
                       Text(
                         _date(sale.saleDate),
                         style: TextStyle(
-                          fontSize: 9,
+                          fontSize: 11,
                           color: scheme.onSurfaceVariant,
                         ),
                       ),
@@ -446,7 +456,7 @@ class _SalesScreenState extends State<SalesScreen> {
                 cell(
                   Text(
                     _date(sale.saleDate),
-                    style: const TextStyle(fontSize: 10.5),
+                    style: const TextStyle(fontSize: 11.5),
                   ),
                   2,
                 ),
@@ -456,7 +466,7 @@ class _SalesScreenState extends State<SalesScreen> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    fontSize: 10.5,
+                    fontSize: 11.5,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -467,7 +477,7 @@ class _SalesScreenState extends State<SalesScreen> {
                   _money(sale.grandTotal),
                   maxLines: 1,
                   style: const TextStyle(
-                    fontSize: 10.5,
+                    fontSize: 11.5,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -479,7 +489,7 @@ class _SalesScreenState extends State<SalesScreen> {
                   _money(sale.balanceDue),
                   maxLines: 1,
                   style: TextStyle(
-                    fontSize: 10.5,
+                    fontSize: 11.5,
                     fontWeight: FontWeight.w700,
                     color: sale.balanceDue > 0.005
                         ? scheme.error
@@ -494,13 +504,14 @@ class _SalesScreenState extends State<SalesScreen> {
                   Text(
                     _money(sale.grossProfit),
                     maxLines: 1,
-                    style: const TextStyle(fontSize: 10.5),
+                    style: const TextStyle(fontSize: 11.5),
                   ),
                   2,
                   alignment: Alignment.centerRight,
                 ),
+              const SizedBox(width: 12),
               SizedBox(
-                width: 92,
+                width: 104,
                 child: FittedBox(
                   fit: BoxFit.scaleDown,
                   alignment: Alignment.centerLeft,
@@ -742,6 +753,11 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
 
   double get _balanceDue =>
       (_grandTotal - _settledPayment).clamp(0.0, _grandTotal);
+
+  bool get _requiresDueDate =>
+      _selectedCustomer?.isWalkIn == false &&
+      _paymentAllocations.isNotEmpty &&
+      _balanceDue > 0.005;
 
   double get _taxableAmount => _subtotal - _discount;
 
@@ -1007,6 +1023,20 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
         _error = 'Walk-in Customer sales must be fully settled.';
       });
       return;
+    }
+    if (_requiresDueDate && _dueDate == null) {
+      setState(() {
+        _error =
+            'Choose a due date because this invoice has an unpaid / credit balance.';
+      });
+      return;
+    }
+
+    // Keep the backend writer contract unchanged. For walk-in or fully
+    // settled sales the Due Date UI is hidden, but the persisted technical
+    // due date remains the sale date.
+    if (!_requiresDueDate) {
+      _dueDate = _saleDate;
     }
 
     setState(() {
@@ -1338,16 +1368,18 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
                   onPressed: _saving ? null : _chooseSaleDate,
                 ),
               ),
-              const SizedBox(width: 8),
-              Expanded(
-                flex: 2,
-                child: _desktopDateButton(
-                  icon: Icons.event_outlined,
-                  label: 'Due Date',
-                  value: _dueDate == null ? 'Not set' : _date(_dueDate!),
-                  onPressed: _saving ? null : _chooseDueDate,
+              if (_requiresDueDate) ...[
+                const SizedBox(width: 8),
+                Expanded(
+                  flex: 2,
+                  child: _desktopDateButton(
+                    icon: Icons.event_outlined,
+                    label: 'Due Date',
+                    value: _dueDate == null ? 'Required' : _date(_dueDate!),
+                    onPressed: _saving ? null : _chooseDueDate,
+                  ),
                 ),
-              ),
+              ],
             ],
           ),
           const SizedBox(height: 8),
@@ -1933,22 +1965,23 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
                   icon: Icons.place_outlined,
                 ),
               ),
-              SizedBox(
-                width: fieldWidth,
-                child: OutlinedButton.icon(
-                  style: OutlinedButton.styleFrom(
-                    minimumSize: const Size.fromHeight(56),
-                    alignment: Alignment.centerLeft,
-                  ),
-                  onPressed: _saving ? null : _chooseDueDate,
-                  icon: const Icon(Icons.event_outlined),
-                  label: Text(
-                    _dueDate == null
-                        ? 'Due Date  Not set'
-                        : 'Due Date  ${_date(_dueDate!)}',
+              if (_requiresDueDate)
+                SizedBox(
+                  width: fieldWidth,
+                  child: OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: const Size.fromHeight(56),
+                      alignment: Alignment.centerLeft,
+                    ),
+                    onPressed: _saving ? null : _chooseDueDate,
+                    icon: const Icon(Icons.event_outlined),
+                    label: Text(
+                      _dueDate == null
+                          ? 'Due Date  Required'
+                          : 'Due Date  ${_date(_dueDate!)}',
+                    ),
                   ),
                 ),
-              ),
               if (customer?.isWalkIn == true)
                 SizedBox(
                   width: compact ? constraints.maxWidth : fieldWidth * 2 + gap,

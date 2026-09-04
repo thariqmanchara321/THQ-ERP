@@ -144,7 +144,7 @@ class _PurchasesScreenState extends State<PurchasesScreen> {
                             ? 'Legacy direct-purchase history'
                             : 'Purchase bills and stock received',
                         style: TextStyle(
-                          fontSize: 8.3,
+                          fontSize: 10.5,
                           color: scheme.onSurfaceVariant,
                         ),
                       ),
@@ -260,7 +260,7 @@ class _PurchasesScreenState extends State<PurchasesScreen> {
                         child: Column(
                           children: [
                             Container(
-                              height: 34,
+                              height: 40,
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 9,
                               ),
@@ -274,7 +274,7 @@ class _PurchasesScreenState extends State<PurchasesScreen> {
                                     child: Text(
                                       'Purchase',
                                       style: TextStyle(
-                                        fontSize: 8.8,
+                                        fontSize: 10.5,
                                         fontWeight: FontWeight.w900,
                                       ),
                                     ),
@@ -284,7 +284,7 @@ class _PurchasesScreenState extends State<PurchasesScreen> {
                                     child: Text(
                                       'Supplier / Invoice',
                                       style: TextStyle(
-                                        fontSize: 8.8,
+                                        fontSize: 10.5,
                                         fontWeight: FontWeight.w900,
                                       ),
                                     ),
@@ -295,7 +295,7 @@ class _PurchasesScreenState extends State<PurchasesScreen> {
                                       'Total',
                                       textAlign: TextAlign.right,
                                       style: TextStyle(
-                                        fontSize: 8.8,
+                                        fontSize: 10.5,
                                         fontWeight: FontWeight.w900,
                                       ),
                                     ),
@@ -306,11 +306,12 @@ class _PurchasesScreenState extends State<PurchasesScreen> {
                                       'Due',
                                       textAlign: TextAlign.right,
                                       style: TextStyle(
-                                        fontSize: 8.8,
+                                        fontSize: 10.5,
                                         fontWeight: FontWeight.w900,
                                       ),
                                     ),
                                   ),
+                                  SizedBox(width: 12),
                                   SizedBox(width: 105),
                                   SizedBox(width: 28),
                                 ],
@@ -361,7 +362,7 @@ class _PurchasesScreenState extends State<PurchasesScreen> {
                                                       overflow:
                                                           TextOverflow.ellipsis,
                                                       style: const TextStyle(
-                                                        fontSize: 8.8,
+                                                        fontSize: 10.5,
                                                         fontWeight:
                                                             FontWeight.w800,
                                                       ),
@@ -371,7 +372,7 @@ class _PurchasesScreenState extends State<PurchasesScreen> {
                                                         purchase.purchaseDate,
                                                       ),
                                                       style: TextStyle(
-                                                        fontSize: 7.2,
+                                                        fontSize: 10,
                                                         color: scheme
                                                             .onSurfaceVariant,
                                                       ),
@@ -393,7 +394,7 @@ class _PurchasesScreenState extends State<PurchasesScreen> {
                                                       overflow:
                                                           TextOverflow.ellipsis,
                                                       style: const TextStyle(
-                                                        fontSize: 8.5,
+                                                        fontSize: 10.5,
                                                         fontWeight:
                                                             FontWeight.w700,
                                                       ),
@@ -405,7 +406,7 @@ class _PurchasesScreenState extends State<PurchasesScreen> {
                                                       overflow:
                                                           TextOverflow.ellipsis,
                                                       style: TextStyle(
-                                                        fontSize: 7.2,
+                                                        fontSize: 10,
                                                         color: scheme
                                                             .onSurfaceVariant,
                                                       ),
@@ -420,7 +421,7 @@ class _PurchasesScreenState extends State<PurchasesScreen> {
                                                   textAlign: TextAlign.right,
                                                   maxLines: 1,
                                                   style: const TextStyle(
-                                                    fontSize: 8.7,
+                                                    fontSize: 10.5,
                                                     fontWeight: FontWeight.w900,
                                                   ),
                                                 ),
@@ -432,10 +433,11 @@ class _PurchasesScreenState extends State<PurchasesScreen> {
                                                   textAlign: TextAlign.right,
                                                   maxLines: 1,
                                                   style: const TextStyle(
-                                                    fontSize: 8.4,
+                                                    fontSize: 10.5,
                                                   ),
                                                 ),
                                               ),
+                                              const SizedBox(width: 12),
                                               SizedBox(
                                                 width: 105,
                                                 child: Align(
@@ -501,7 +503,7 @@ class _PurchasesScreenState extends State<PurchasesScreen> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    fontSize: 9.5,
+                    fontSize: 11,
                     fontWeight: FontWeight.w900,
                   ),
                 ),
@@ -509,7 +511,7 @@ class _PurchasesScreenState extends State<PurchasesScreen> {
                   label,
                   maxLines: 1,
                   style: TextStyle(
-                    fontSize: 7.3,
+                    fontSize: 10,
                     color: scheme.onSurfaceVariant,
                   ),
                 ),

@@ -378,7 +378,10 @@ class _BusinessHeader extends StatelessWidget {
                     '${session.subscription.planName ?? session.subscription.planKey} • ${session.subscription.status}',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontSize: 10, color: Colors.grey.shade500),
+                    style: TextStyle(
+                      fontSize: 11.5,
+                      color: Colors.grey.shade500,
+                    ),
                   ),
                 ],
               ],

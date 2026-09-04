@@ -126,7 +126,7 @@ class _SalesScreenState extends State<SalesScreen> {
                       Text(
                         'Invoices, payments and customer sales',
                         style: TextStyle(
-                          fontSize: 8.3,
+                          fontSize: 10.5,
                           color: scheme.onSurfaceVariant,
                         ),
                       ),
@@ -193,7 +193,7 @@ class _SalesScreenState extends State<SalesScreen> {
                         const Text(
                           'No sales yet today.',
                           style: TextStyle(
-                            fontSize: 10,
+                            fontSize: 11.5,
                             fontWeight: FontWeight.w800,
                           ),
                         ),
@@ -275,7 +275,7 @@ class _SalesScreenState extends State<SalesScreen> {
                         child: Column(
                           children: [
                             Container(
-                              height: 34,
+                              height: 40,
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 9,
                               ),
@@ -289,7 +289,7 @@ class _SalesScreenState extends State<SalesScreen> {
                                     child: Text(
                                       'Invoice',
                                       style: TextStyle(
-                                        fontSize: 8.8,
+                                        fontSize: 10.5,
                                         fontWeight: FontWeight.w900,
                                       ),
                                     ),
@@ -299,7 +299,7 @@ class _SalesScreenState extends State<SalesScreen> {
                                     child: Text(
                                       'Customer',
                                       style: TextStyle(
-                                        fontSize: 8.8,
+                                        fontSize: 10.5,
                                         fontWeight: FontWeight.w900,
                                       ),
                                     ),
@@ -310,7 +310,7 @@ class _SalesScreenState extends State<SalesScreen> {
                                       'Total',
                                       textAlign: TextAlign.right,
                                       style: TextStyle(
-                                        fontSize: 8.8,
+                                        fontSize: 10.5,
                                         fontWeight: FontWeight.w900,
                                       ),
                                     ),
@@ -321,7 +321,7 @@ class _SalesScreenState extends State<SalesScreen> {
                                       'Due',
                                       textAlign: TextAlign.right,
                                       style: TextStyle(
-                                        fontSize: 8.8,
+                                        fontSize: 10.5,
                                         fontWeight: FontWeight.w900,
                                       ),
                                     ),
@@ -332,11 +332,12 @@ class _SalesScreenState extends State<SalesScreen> {
                                       'Profit',
                                       textAlign: TextAlign.right,
                                       style: TextStyle(
-                                        fontSize: 8.8,
+                                        fontSize: 10.5,
                                         fontWeight: FontWeight.w900,
                                       ),
                                     ),
                                   ),
+                                  SizedBox(width: 12),
                                   SizedBox(width: 105),
                                   SizedBox(width: 28),
                                 ],
@@ -387,7 +388,7 @@ class _SalesScreenState extends State<SalesScreen> {
                                                       overflow:
                                                           TextOverflow.ellipsis,
                                                       style: const TextStyle(
-                                                        fontSize: 8.8,
+                                                        fontSize: 10.5,
                                                         fontWeight:
                                                             FontWeight.w800,
                                                       ),
@@ -395,7 +396,7 @@ class _SalesScreenState extends State<SalesScreen> {
                                                     Text(
                                                       _date(sale.saleDate),
                                                       style: TextStyle(
-                                                        fontSize: 7.2,
+                                                        fontSize: 10,
                                                         color: scheme
                                                             .onSurfaceVariant,
                                                       ),
@@ -411,7 +412,7 @@ class _SalesScreenState extends State<SalesScreen> {
                                                   overflow:
                                                       TextOverflow.ellipsis,
                                                   style: const TextStyle(
-                                                    fontSize: 8.5,
+                                                    fontSize: 10.5,
                                                     fontWeight: FontWeight.w700,
                                                   ),
                                                 ),
@@ -423,7 +424,7 @@ class _SalesScreenState extends State<SalesScreen> {
                                                   textAlign: TextAlign.right,
                                                   maxLines: 1,
                                                   style: const TextStyle(
-                                                    fontSize: 8.7,
+                                                    fontSize: 10.5,
                                                     fontWeight: FontWeight.w900,
                                                   ),
                                                 ),
@@ -435,7 +436,7 @@ class _SalesScreenState extends State<SalesScreen> {
                                                   textAlign: TextAlign.right,
                                                   maxLines: 1,
                                                   style: const TextStyle(
-                                                    fontSize: 8.4,
+                                                    fontSize: 10.5,
                                                   ),
                                                 ),
                                               ),
@@ -446,10 +447,11 @@ class _SalesScreenState extends State<SalesScreen> {
                                                   textAlign: TextAlign.right,
                                                   maxLines: 1,
                                                   style: const TextStyle(
-                                                    fontSize: 8.4,
+                                                    fontSize: 10.5,
                                                   ),
                                                 ),
                                               ),
+                                              const SizedBox(width: 12),
                                               SizedBox(
                                                 width: 105,
                                                 child: Align(
@@ -514,7 +516,7 @@ class _SalesScreenState extends State<SalesScreen> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    fontSize: 9.5,
+                    fontSize: 11,
                     fontWeight: FontWeight.w900,
                   ),
                 ),
@@ -522,7 +524,7 @@ class _SalesScreenState extends State<SalesScreen> {
                   label,
                   maxLines: 1,
                   style: TextStyle(
-                    fontSize: 7.3,
+                    fontSize: 10,
                     color: scheme.onSurfaceVariant,
                   ),
                 ),

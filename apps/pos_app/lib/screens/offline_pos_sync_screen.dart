@@ -224,7 +224,7 @@ class _OfflinePosSyncScreenState extends State<OfflinePosSyncScreen> {
                     path,
                     maxLines: 1,
                     style: TextStyle(
-                      fontSize: 7.5,
+                      fontSize: 10,
                       color: scheme.onSurfaceVariant,
                     ),
                   ),
@@ -237,7 +237,7 @@ class _OfflinePosSyncScreenState extends State<OfflinePosSyncScreen> {
                       overflow: TextOverflow.ellipsis,
                       textAlign: TextAlign.right,
                       style: TextStyle(
-                        fontSize: 7.8,
+                        fontSize: 10,
                         fontWeight: FontWeight.w700,
                         color: scheme.primary,
                       ),
@@ -270,7 +270,7 @@ class _OfflinePosSyncScreenState extends State<OfflinePosSyncScreen> {
                           child: Text(
                             'Local Invoice',
                             style: TextStyle(
-                              fontSize: 8.8,
+                              fontSize: 10.5,
                               fontWeight: FontWeight.w900,
                             ),
                           ),
@@ -280,7 +280,7 @@ class _OfflinePosSyncScreenState extends State<OfflinePosSyncScreen> {
                           child: Text(
                             'Created / Attempts',
                             style: TextStyle(
-                              fontSize: 8.8,
+                              fontSize: 10.5,
                               fontWeight: FontWeight.w900,
                             ),
                           ),
@@ -290,7 +290,7 @@ class _OfflinePosSyncScreenState extends State<OfflinePosSyncScreen> {
                           child: Text(
                             'Server / Conflict',
                             style: TextStyle(
-                              fontSize: 8.8,
+                              fontSize: 10.5,
                               fontWeight: FontWeight.w900,
                             ),
                           ),
@@ -301,7 +301,7 @@ class _OfflinePosSyncScreenState extends State<OfflinePosSyncScreen> {
                             'Status',
                             textAlign: TextAlign.center,
                             style: TextStyle(
-                              fontSize: 8.8,
+                              fontSize: 10.5,
                               fontWeight: FontWeight.w900,
                             ),
                           ),
@@ -315,7 +315,7 @@ class _OfflinePosSyncScreenState extends State<OfflinePosSyncScreen> {
                         ? const Center(
                             child: Text(
                               'No offline invoices yet.',
-                              style: TextStyle(fontSize: 9),
+                              style: TextStyle(fontSize: 11),
                             ),
                           )
                         : ListView.builder(
@@ -339,7 +339,7 @@ class _OfflinePosSyncScreenState extends State<OfflinePosSyncScreen> {
     final serverNo = row.serverResponse?['sale_number']?.toString();
 
     return Container(
-      constraints: const BoxConstraints(minHeight: 46),
+      constraints: const BoxConstraints(minHeight: 50),
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
       decoration: BoxDecoration(
         border: Border(bottom: BorderSide(color: scheme.outlineVariant)),
@@ -362,7 +362,7 @@ class _OfflinePosSyncScreenState extends State<OfflinePosSyncScreen> {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
-                      fontSize: 8.8,
+                      fontSize: 10.5,
                       fontWeight: FontWeight.w800,
                     ),
                   ),
@@ -377,7 +377,7 @@ class _OfflinePosSyncScreenState extends State<OfflinePosSyncScreen> {
               '${row.attempts} attempt(s)',
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 7.8),
+              style: const TextStyle(fontSize: 10),
             ),
           ),
           Expanded(
@@ -390,7 +390,7 @@ class _OfflinePosSyncScreenState extends State<OfflinePosSyncScreen> {
                   : '-',
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(fontSize: 7.8, color: scheme.onSurfaceVariant),
+              style: TextStyle(fontSize: 10, color: scheme.onSurfaceVariant),
             ),
           ),
           SizedBox(
@@ -411,7 +411,7 @@ class _OfflinePosSyncScreenState extends State<OfflinePosSyncScreen> {
                   row.status.toUpperCase(),
                   maxLines: 1,
                   style: TextStyle(
-                    fontSize: 7,
+                    fontSize: 10,
                     fontWeight: FontWeight.w900,
                     color: _statusColor(context, row.status),
                   ),
@@ -485,7 +485,7 @@ class _Stat extends StatelessWidget {
                 Text(
                   label,
                   style: TextStyle(
-                    fontSize: 7.5,
+                    fontSize: 10,
                     color: scheme.onSurfaceVariant,
                   ),
                 ),

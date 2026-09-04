@@ -864,7 +864,7 @@ class _StockTransfersScreenState extends State<StockTransfersScreen> {
                         Text(
                           'Transfer, warehouse, count and reconciliation',
                           style: TextStyle(
-                            fontSize: 8.3,
+                            fontSize: 10.5,
                             color: scheme.onSurfaceVariant,
                           ),
                         ),
@@ -906,7 +906,7 @@ class _StockTransfersScreenState extends State<StockTransfersScreen> {
               child: const TabBar(
                 isScrollable: true,
                 labelStyle: TextStyle(
-                  fontSize: 8.8,
+                  fontSize: 10.5,
                   fontWeight: FontWeight.w800,
                 ),
                 tabs: [

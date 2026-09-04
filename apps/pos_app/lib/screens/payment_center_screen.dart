@@ -101,7 +101,7 @@ class _PaymentCenterScreenState extends State<PaymentCenterScreen> {
                       Text(
                         'Customer receivables and supplier payables',
                         style: TextStyle(
-                          fontSize: 8.3,
+                          fontSize: 10.5,
                           color: scheme.onSurfaceVariant,
                         ),
                       ),
@@ -273,7 +273,7 @@ class _PartyPane extends StatelessWidget {
                         title,
                         maxLines: 1,
                         style: const TextStyle(
-                          fontSize: 9.5,
+                          fontSize: 11,
                           fontWeight: FontWeight.w900,
                         ),
                       ),
@@ -281,7 +281,7 @@ class _PartyPane extends StatelessWidget {
                         subtitle,
                         maxLines: 1,
                         style: TextStyle(
-                          fontSize: 7.3,
+                          fontSize: 10,
                           color: scheme.onSurfaceVariant,
                         ),
                       ),
@@ -292,7 +292,7 @@ class _PartyPane extends StatelessWidget {
                   money(amount),
                   maxLines: 1,
                   style: const TextStyle(
-                    fontSize: 10.5,
+                    fontSize: 11.5,
                     fontWeight: FontWeight.w900,
                   ),
                 ),
@@ -304,7 +304,7 @@ class _PartyPane extends StatelessWidget {
                 ? const Center(
                     child: Text(
                       'Nothing pending.',
-                      style: TextStyle(fontSize: 9),
+                      style: TextStyle(fontSize: 11),
                     ),
                   )
                 : ListView.builder(
@@ -368,7 +368,7 @@ class _PartyPane extends StatelessWidget {
                                         maxLines: 1,
                                         overflow: TextOverflow.ellipsis,
                                         style: const TextStyle(
-                                          fontSize: 8.8,
+                                          fontSize: 10.5,
                                           fontWeight: FontWeight.w800,
                                         ),
                                       ),
@@ -377,7 +377,7 @@ class _PartyPane extends StatelessWidget {
                                         maxLines: 1,
                                         overflow: TextOverflow.ellipsis,
                                         style: TextStyle(
-                                          fontSize: 7.2,
+                                          fontSize: 10,
                                           color: scheme.onSurfaceVariant,
                                         ),
                                       ),
@@ -388,7 +388,7 @@ class _PartyPane extends StatelessWidget {
                                         maxLines: 1,
                                         overflow: TextOverflow.ellipsis,
                                         style: TextStyle(
-                                          fontSize: 7,
+                                          fontSize: 10,
                                           color: row.overdue > .005
                                               ? scheme.error
                                               : scheme.onSurfaceVariant,
@@ -402,7 +402,7 @@ class _PartyPane extends StatelessWidget {
                                   money(row.balance),
                                   maxLines: 1,
                                   style: const TextStyle(
-                                    fontSize: 8.8,
+                                    fontSize: 10.5,
                                     fontWeight: FontWeight.w900,
                                   ),
                                 ),

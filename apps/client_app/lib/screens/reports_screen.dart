@@ -199,7 +199,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                          fontSize: 10.5,
+                          fontSize: 12,
                           color: scheme.onSurfaceVariant,
                         ),
                       ),
@@ -302,7 +302,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                           const Text(
                             'Export',
                             style: TextStyle(
-                              fontSize: 9.5,
+                              fontSize: 11.5,
                               fontWeight: FontWeight.w700,
                             ),
                           ),
@@ -458,7 +458,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
         : Icons.point_of_sale_outlined;
 
     return Container(
-      height: 72,
+      height: 82,
       padding: const EdgeInsets.symmetric(horizontal: 10),
       decoration: BoxDecoration(
         color: scheme.surface,
@@ -487,7 +487,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontSize: 8.8,
+                    fontSize: 11,
                     color: scheme.onSurfaceVariant,
                   ),
                 ),
@@ -497,7 +497,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    fontSize: 11.5,
+                    fontSize: 14,
                     fontWeight: FontWeight.w900,
                   ),
                 ),
@@ -506,7 +506,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontSize: 7.8,
+                    fontSize: 10.5,
                     color: scheme.onSurfaceVariant,
                   ),
                 ),

@@ -296,7 +296,7 @@ class _LoanScreenState extends State<LoanScreen> {
                       Text(
                         'Given & taken | schedules | repayments',
                         style: TextStyle(
-                          fontSize: 8.3,
+                          fontSize: 10.5,
                           color: scheme.onSurfaceVariant,
                         ),
                       ),

@@ -247,7 +247,7 @@ class _ReportsCenterV500ScreenState extends State<ReportsCenterV500Screen> {
             ),
             pw.Text(
               '$_reportTitle • ${_date(_from)} to ${_date(_to)}',
-              style: const pw.TextStyle(fontSize: 9),
+              style: const pw.TextStyle(fontSize: 11),
             ),
             pw.SizedBox(height: 8),
           ],
@@ -265,17 +265,17 @@ class _ReportsCenterV500ScreenState extends State<ReportsCenterV500Screen> {
                 color: PdfColors.grey200,
               ),
               headerStyle: pw.TextStyle(
-                fontSize: 7,
+                fontSize: 10.5,
                 fontWeight: pw.FontWeight.bold,
               ),
-              cellStyle: const pw.TextStyle(fontSize: 6.5),
+              cellStyle: const pw.TextStyle(fontSize: 10),
             ),
         ],
         footer: (c) => pw.Align(
           alignment: pw.Alignment.centerRight,
           child: pw.Text(
             'Page ${c.pageNumber} of ${c.pagesCount}',
-            style: const pw.TextStyle(fontSize: 7),
+            style: const pw.TextStyle(fontSize: 10),
           ),
         ),
       ),
@@ -363,7 +363,7 @@ class _ReportsCenterV500ScreenState extends State<ReportsCenterV500Screen> {
       builder: (context, constraints) {
         final calculatedWidth = columns.isEmpty
             ? constraints.maxWidth
-            : columns.length * 160.0;
+            : columns.length * 175.0;
         final tableWidth = calculatedWidth < constraints.maxWidth
             ? constraints.maxWidth
             : calculatedWidth;
@@ -377,7 +377,7 @@ class _ReportsCenterV500ScreenState extends State<ReportsCenterV500Screen> {
             child: Column(
               children: [
                 Container(
-                  height: 38,
+                  height: 42,
                   decoration: BoxDecoration(
                     color: scheme.surfaceContainerHighest,
                     border: painting.Border(
@@ -395,7 +395,7 @@ class _ReportsCenterV500ScreenState extends State<ReportsCenterV500Screen> {
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
-                                fontSize: 10.5,
+                                fontSize: 12,
                                 fontWeight: FontWeight.w800,
                               ),
                             ),
@@ -410,7 +410,7 @@ class _ReportsCenterV500ScreenState extends State<ReportsCenterV500Screen> {
                     itemBuilder: (context, index) {
                       final row = _rows[index];
                       return Container(
-                        constraints: const BoxConstraints(minHeight: 42),
+                        constraints: const BoxConstraints(minHeight: 52),
                         decoration: BoxDecoration(
                           border: painting.Border(
                             bottom: BorderSide(color: scheme.outlineVariant),
@@ -429,7 +429,7 @@ class _ReportsCenterV500ScreenState extends State<ReportsCenterV500Screen> {
                                     _cell(row[column]),
                                     maxLines: 2,
                                     overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(fontSize: 10),
+                                    style: const TextStyle(fontSize: 11.5),
                                   ),
                                 ),
                               ),

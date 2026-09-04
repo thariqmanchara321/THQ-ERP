@@ -275,7 +275,7 @@ class _InventoryProductsScreenState extends State<InventoryProductsScreen> {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                            fontSize: 10.5,
+                            fontSize: 11.5,
                             color: scheme.onSurfaceVariant,
                           ),
                         ),
@@ -491,7 +491,7 @@ class _InventoryProductsScreenState extends State<InventoryProductsScreen> {
                                 Text(
                                   '${products.length} shown',
                                   style: TextStyle(
-                                    fontSize: 10,
+                                    fontSize: 11.5,
                                     fontWeight: FontWeight.w700,
                                     color: scheme.onSurfaceVariant,
                                   ),
@@ -534,7 +534,7 @@ class _InventoryProductsScreenState extends State<InventoryProductsScreen> {
                                                   child: Text(
                                                     'Product',
                                                     style: TextStyle(
-                                                      fontSize: 9.5,
+                                                      fontSize: 11,
                                                       fontWeight:
                                                           FontWeight.w800,
                                                     ),
@@ -545,7 +545,7 @@ class _InventoryProductsScreenState extends State<InventoryProductsScreen> {
                                                   child: Text(
                                                     'SKU / Category',
                                                     style: TextStyle(
-                                                      fontSize: 9.5,
+                                                      fontSize: 11,
                                                       fontWeight:
                                                           FontWeight.w800,
                                                     ),
@@ -557,7 +557,7 @@ class _InventoryProductsScreenState extends State<InventoryProductsScreen> {
                                                     'Stock',
                                                     textAlign: TextAlign.right,
                                                     style: TextStyle(
-                                                      fontSize: 9.5,
+                                                      fontSize: 11,
                                                       fontWeight:
                                                           FontWeight.w800,
                                                     ),
@@ -569,7 +569,7 @@ class _InventoryProductsScreenState extends State<InventoryProductsScreen> {
                                                     'Cost',
                                                     textAlign: TextAlign.right,
                                                     style: TextStyle(
-                                                      fontSize: 9.5,
+                                                      fontSize: 11,
                                                       fontWeight:
                                                           FontWeight.w800,
                                                     ),
@@ -581,7 +581,7 @@ class _InventoryProductsScreenState extends State<InventoryProductsScreen> {
                                                     'Selling',
                                                     textAlign: TextAlign.right,
                                                     style: TextStyle(
-                                                      fontSize: 9.5,
+                                                      fontSize: 11,
                                                       fontWeight:
                                                           FontWeight.w800,
                                                     ),
@@ -673,7 +673,10 @@ class _InventoryProductsScreenState extends State<InventoryProductsScreen> {
                   label,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(fontSize: 9, color: scheme.onSurfaceVariant),
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: scheme.onSurfaceVariant,
+                  ),
                 ),
                 Text(
                   value,
@@ -690,7 +693,7 @@ class _InventoryProductsScreenState extends State<InventoryProductsScreen> {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      fontSize: 8,
+                      fontSize: 10.5,
                       color: scheme.onSurfaceVariant,
                     ),
                   ),
@@ -769,7 +772,7 @@ class _ProductCard extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
-                          fontSize: 10.5,
+                          fontSize: 11.5,
                           fontWeight: FontWeight.w800,
                         ),
                       ),
@@ -778,7 +781,7 @@ class _ProductCard extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                          fontSize: 9,
+                          fontSize: 11,
                           color: scheme.onSurfaceVariant,
                         ),
                       ),
@@ -797,7 +800,7 @@ class _ProductCard extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                          fontSize: 9.5,
+                          fontSize: 11,
                           fontWeight: FontWeight.w700,
                           color: lowStock ? scheme.error : scheme.onSurface,
                         ),
@@ -806,7 +809,7 @@ class _ProductCard extends StatelessWidget {
                         _money(product.sellingPrice),
                         maxLines: 1,
                         style: const TextStyle(
-                          fontSize: 10,
+                          fontSize: 11.5,
                           fontWeight: FontWeight.w800,
                         ),
                       ),
@@ -858,7 +861,7 @@ class _ProductCard extends StatelessWidget {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
-                              fontSize: 10.5,
+                              fontSize: 11.5,
                               fontWeight: FontWeight.w800,
                             ),
                           ),
@@ -870,7 +873,7 @@ class _ProductCard extends StatelessWidget {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
-                              fontSize: 8.5,
+                              fontSize: 10.5,
                               color: scheme.onSurfaceVariant,
                             ),
                           ),
@@ -891,7 +894,7 @@ class _ProductCard extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
-                        fontSize: 9.5,
+                        fontSize: 11,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
@@ -900,7 +903,7 @@ class _ProductCard extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        fontSize: 8.5,
+                        fontSize: 10.5,
                         color: scheme.onSurfaceVariant,
                       ),
                     ),
@@ -915,7 +918,7 @@ class _ProductCard extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   textAlign: TextAlign.right,
                   style: TextStyle(
-                    fontSize: 9.5,
+                    fontSize: 11,
                     fontWeight: FontWeight.w700,
                     color: lowStock ? scheme.error : scheme.onSurface,
                   ),
@@ -927,7 +930,7 @@ class _ProductCard extends StatelessWidget {
                   _money(product.costPrice),
                   maxLines: 1,
                   textAlign: TextAlign.right,
-                  style: const TextStyle(fontSize: 9.5),
+                  style: const TextStyle(fontSize: 11),
                 ),
               ),
               Expanded(
@@ -937,7 +940,7 @@ class _ProductCard extends StatelessWidget {
                   maxLines: 1,
                   textAlign: TextAlign.right,
                   style: const TextStyle(
-                    fontSize: 10,
+                    fontSize: 11.5,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
@@ -951,7 +954,7 @@ class _ProductCard extends StatelessWidget {
                             : 'LOW STOCK',
                         textAlign: TextAlign.center,
                         style: TextStyle(
-                          fontSize: 8,
+                          fontSize: 10.5,
                           fontWeight: FontWeight.w900,
                           color: scheme.error,
                         ),
@@ -960,7 +963,7 @@ class _ProductCard extends StatelessWidget {
                         product.itemType.toUpperCase(),
                         textAlign: TextAlign.center,
                         style: TextStyle(
-                          fontSize: 8,
+                          fontSize: 10.5,
                           fontWeight: FontWeight.w700,
                           color: scheme.onSurfaceVariant,
                         ),

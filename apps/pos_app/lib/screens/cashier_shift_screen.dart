@@ -659,7 +659,7 @@ class _CashierShiftScreenState extends State<CashierShiftScreen> {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                          fontSize: 8.3,
+                          fontSize: 10.5,
                           color: scheme.onSurfaceVariant,
                         ),
                       ),
@@ -712,7 +712,7 @@ class _CashierShiftScreenState extends State<CashierShiftScreen> {
               ),
               child: Text(
                 _error!,
-                style: TextStyle(fontSize: 9, color: scheme.onErrorContainer),
+                style: TextStyle(fontSize: 11, color: scheme.onErrorContainer),
               ),
             ),
           ],
@@ -774,7 +774,10 @@ class _CashierShiftScreenState extends State<CashierShiftScreen> {
               const SizedBox(height: 4),
               Text(
                 'Record opening cash before billing.',
-                style: TextStyle(fontSize: 8.5, color: scheme.onSurfaceVariant),
+                style: TextStyle(
+                  fontSize: 10.5,
+                  color: scheme.onSurfaceVariant,
+                ),
               ),
               const SizedBox(height: 10),
               FilledButton.icon(
@@ -853,7 +856,7 @@ class _CashierShiftScreenState extends State<CashierShiftScreen> {
                         _shift!['shift_number']?.toString() ?? 'Current Shift',
                         maxLines: 1,
                         style: const TextStyle(
-                          fontSize: 10.5,
+                          fontSize: 11.5,
                           fontWeight: FontWeight.w900,
                         ),
                       ),
@@ -863,7 +866,7 @@ class _CashierShiftScreenState extends State<CashierShiftScreen> {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                          fontSize: 7.8,
+                          fontSize: 10,
                           color: scheme.onSurfaceVariant,
                         ),
                       ),
@@ -881,7 +884,7 @@ class _CashierShiftScreenState extends State<CashierShiftScreen> {
                   child: Text(
                     'OPEN',
                     style: TextStyle(
-                      fontSize: 7.5,
+                      fontSize: 10,
                       fontWeight: FontWeight.w900,
                       color: scheme.onPrimaryContainer,
                     ),
@@ -945,7 +948,7 @@ class _CashierShiftScreenState extends State<CashierShiftScreen> {
                   child: Text(
                     "TODAY'S SHIFTS",
                     style: TextStyle(
-                      fontSize: 8.8,
+                      fontSize: 10.5,
                       fontWeight: FontWeight.w900,
                       letterSpacing: .35,
                     ),
@@ -954,7 +957,7 @@ class _CashierShiftScreenState extends State<CashierShiftScreen> {
                 Text(
                   '${_history.length}',
                   style: TextStyle(
-                    fontSize: 8.5,
+                    fontSize: 10.5,
                     color: scheme.onSurfaceVariant,
                   ),
                 ),
@@ -967,7 +970,7 @@ class _CashierShiftScreenState extends State<CashierShiftScreen> {
                     child: Text(
                       'No shifts recorded today.',
                       style: TextStyle(
-                        fontSize: 9,
+                        fontSize: 11,
                         color: scheme.onSurfaceVariant,
                       ),
                     ),
@@ -1022,7 +1025,7 @@ class _CashierShiftScreenState extends State<CashierShiftScreen> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    fontSize: 9,
+                    fontSize: 11,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
@@ -1036,7 +1039,7 @@ class _CashierShiftScreenState extends State<CashierShiftScreen> {
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontSize: 7.6,
+                    fontSize: 10,
                     color: scheme.onSurfaceVariant,
                   ),
                 ),
@@ -1047,7 +1050,7 @@ class _CashierShiftScreenState extends State<CashierShiftScreen> {
           Text(
             open ? 'OPEN' : 'CLOSED',
             style: TextStyle(
-              fontSize: 7.5,
+              fontSize: 10,
               fontWeight: FontWeight.w900,
               color: open ? scheme.primary : scheme.onSurfaceVariant,
             ),
@@ -1089,7 +1092,7 @@ class _CashierShiftScreenState extends State<CashierShiftScreen> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    fontSize: 9.5,
+                    fontSize: 11,
                     fontWeight: FontWeight.w900,
                   ),
                 ),
@@ -1098,7 +1101,7 @@ class _CashierShiftScreenState extends State<CashierShiftScreen> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontSize: 7.5,
+                    fontSize: 10,
                     color: scheme.onSurfaceVariant,
                   ),
                 ),

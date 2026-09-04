@@ -925,7 +925,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    fontSize: 9,
+                    fontSize: 11,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
@@ -935,7 +935,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontSize: 7.5,
+                    fontSize: 10,
                     color: scheme.onSurfaceVariant,
                   ),
                 ),
@@ -953,16 +953,13 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
             ),
             child: Text(
               status.replaceAll('_', ' ').toUpperCase(),
-              style: const TextStyle(
-                fontSize: 6.8,
-                fontWeight: FontWeight.w900,
-              ),
+              style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w900),
             ),
           ),
           const SizedBox(width: 7),
           Text(
             _money(order['total']),
-            style: const TextStyle(fontSize: 8.8, fontWeight: FontWeight.w900),
+            style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w900),
           ),
           PopupMenuButton<String>(
             tooltip: 'Order actions',
@@ -1021,7 +1018,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
             const SizedBox(height: 7),
             const Text(
               'No restaurant tables configured.',
-              style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800),
+              style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800),
             ),
             const SizedBox(height: 8),
             if (widget.session.hasPermission('restaurant.manage'))
@@ -1078,7 +1075,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                       Text(
                         occupied ? 'OCCUPIED' : 'AVAILABLE',
                         style: TextStyle(
-                          fontSize: 6.8,
+                          fontSize: 10,
                           fontWeight: FontWeight.w900,
                           color: occupied ? scheme.error : scheme.primary,
                         ),
@@ -1091,7 +1088,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
-                      fontSize: 10,
+                      fontSize: 11.5,
                       fontWeight: FontWeight.w900,
                     ),
                   ),
@@ -1100,7 +1097,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                     '${table['capacity'] ?? 0} seats',
                     maxLines: 1,
                     style: TextStyle(
-                      fontSize: 7.5,
+                      fontSize: 10,
                       color: scheme.onSurfaceVariant,
                     ),
                   ),
@@ -1111,7 +1108,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
-                        fontSize: 8,
+                        fontSize: 10.5,
                         fontWeight: FontWeight.w800,
                       ),
                     ),
@@ -1121,7 +1118,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                           .replaceAll('_', ' ')
                           .toUpperCase(),
                       maxLines: 1,
-                      style: const TextStyle(fontSize: 7),
+                      style: const TextStyle(fontSize: 10),
                     ),
                   ],
                 ],
@@ -1138,7 +1135,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
       return const Center(
         child: Text(
           'No live restaurant orders.',
-          style: TextStyle(fontSize: 9),
+          style: TextStyle(fontSize: 11),
         ),
       );
     }
@@ -1195,7 +1192,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                         child: Text(
                           label,
                           style: const TextStyle(
-                            fontSize: 8.5,
+                            fontSize: 10.5,
                             fontWeight: FontWeight.w900,
                           ),
                         ),
@@ -1203,7 +1200,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                       Text(
                         '${rows.length}',
                         style: TextStyle(
-                          fontSize: 8,
+                          fontSize: 10.5,
                           color: scheme.onSurfaceVariant,
                         ),
                       ),
@@ -1216,7 +1213,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                           child: Text(
                             'No ${label.toLowerCase()} orders',
                             style: TextStyle(
-                              fontSize: 8,
+                              fontSize: 10.5,
                               color: scheme.onSurfaceVariant,
                             ),
                           ),
@@ -1324,7 +1321,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                           '$occupied occupied | $ready ready',
                           maxLines: 1,
                           style: TextStyle(
-                            fontSize: 8.2,
+                            fontSize: 10.5,
                             color: scheme.onSurfaceVariant,
                           ),
                         ),
@@ -1369,7 +1366,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                   _error!,
                   maxLines: 2,
                   style: TextStyle(
-                    fontSize: 8.5,
+                    fontSize: 10.5,
                     color: scheme.onErrorContainer,
                   ),
                 ),
@@ -1385,7 +1382,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
               ),
               child: const TabBar(
                 labelStyle: TextStyle(
-                  fontSize: 8.8,
+                  fontSize: 10.5,
                   fontWeight: FontWeight.w800,
                 ),
                 tabs: [

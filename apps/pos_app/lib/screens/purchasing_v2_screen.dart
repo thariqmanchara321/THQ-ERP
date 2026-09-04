@@ -996,7 +996,7 @@ class _PurchasingV2ScreenState extends State<PurchasingV2Screen>
       ),
       child: Text(
         value,
-        style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w800),
+        style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800),
       ),
     );
   }

@@ -231,7 +231,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                          fontSize: 10.5,
+                          fontSize: 11.5,
                           color: scheme.onSurfaceVariant,
                         ),
                       ),
@@ -450,7 +450,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontSize: 8.5,
+                    fontSize: 10.5,
                     color: scheme.onSurfaceVariant,
                   ),
                 ),
@@ -459,7 +459,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    fontSize: 10.5,
+                    fontSize: 11.5,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
@@ -479,7 +479,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
             label,
             textAlign: align,
             maxLines: 1,
-            style: const TextStyle(fontSize: 9.5, fontWeight: FontWeight.w800),
+            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800),
           ),
         );
 
@@ -526,7 +526,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
-                          fontSize: 10.5,
+                          fontSize: 11.5,
                           fontWeight: FontWeight.w800,
                         ),
                       ),
@@ -536,7 +536,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                          fontSize: 9,
+                          fontSize: 11,
                           color: scheme.onSurfaceVariant,
                         ),
                       ),
@@ -547,7 +547,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                 Text(
                   _m(expense.totalAmount),
                   style: const TextStyle(
-                    fontSize: 10.5,
+                    fontSize: 11.5,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
@@ -586,7 +586,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
         onTap: () => _showTracking(expense),
         onLongPress: _canEdit ? () => _editExpense(expense) : null,
         child: Container(
-          constraints: const BoxConstraints(minHeight: 48),
+          constraints: const BoxConstraints(minHeight: 52),
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
           decoration: BoxDecoration(
             border: Border(bottom: BorderSide(color: scheme.outlineVariant)),
@@ -603,14 +603,14 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
-                        fontSize: 10.5,
+                        fontSize: 11.5,
                         fontWeight: FontWeight.w800,
                       ),
                     ),
                     Text(
                       _d(expense.expenseDate),
                       style: TextStyle(
-                        fontSize: 8.5,
+                        fontSize: 10.5,
                         color: scheme.onSurfaceVariant,
                       ),
                     ),
@@ -628,7 +628,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
-                        fontSize: 10,
+                        fontSize: 11.5,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
@@ -639,7 +639,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        fontSize: 8.5,
+                        fontSize: 10.5,
                         color: scheme.onSurfaceVariant,
                       ),
                     ),
@@ -652,7 +652,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                   Text(
                     expense.paymentMethod.toUpperCase(),
                     maxLines: 1,
-                    style: const TextStyle(fontSize: 9.5),
+                    style: const TextStyle(fontSize: 11),
                   ),
                   2,
                 ),
@@ -661,7 +661,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                   _m(expense.totalAmount),
                   maxLines: 1,
                   style: const TextStyle(
-                    fontSize: 10.5,
+                    fontSize: 11.5,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
@@ -684,7 +684,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                     child: Text(
                       expense.status.toUpperCase(),
                       style: const TextStyle(
-                        fontSize: 8.5,
+                        fontSize: 10.5,
                         fontWeight: FontWeight.w800,
                       ),
                     ),
