@@ -73,27 +73,66 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
   late ClientSession _session;
   bool _refreshing = false;
   int _contentGeneration = 0;
+  final UiDesignProfile _fallbackProfile = UiDesignProfile.fallback('client');
+  UiDesignProfile? _themeProfile;
+  ThemeData? _themeCache;
   late Future<UiDesignProfile> _designFuture;
   final NavigationService _navigationService = NavigationService();
   final ThqApiService _thqApi = ThqApiService();
+  Timer? _syncWarmupTimer;
   Timer? _syncTimer;
+  bool _syncCheckBusy = false;
   ThqSyncVersions? _syncVersions;
   bool _updatesAvailable = false;
   List<AppMenuNode> _menuNodes = const [];
+  Map<String?, List<AppMenuNode>> _menuChildrenIndex = const {};
+  List<ClientModule> _moduleCache = const [];
+  Map<String, ClientModule> _moduleMap = const {};
   final Set<String> _expandedGroups = <String>{};
 
   String? _selectedModuleKey;
   bool _navCollapsed = false;
   String _menuQuery = '';
 
-  List<ClientModule> get _modules => _session.modules
-      .where((module) => module.key != 'pos')
-      .toList(growable: false);
+  List<ClientModule> get _modules => _moduleCache;
+
+  void _rebuildSessionCaches() {
+    final modules = _session.modules
+        .where((module) => module.key != 'pos')
+        .toList(growable: false);
+    _moduleCache = modules;
+    _moduleMap = {for (final module in modules) module.key: module};
+  }
+
+  Map<String?, List<AppMenuNode>> _indexMenu(List<AppMenuNode> rows) {
+    final index = <String?, List<AppMenuNode>>{};
+    for (final node in rows) {
+      if (!_menuNodeAllowed(node)) continue;
+      index.putIfAbsent(node.parentId, () => <AppMenuNode>[]).add(node);
+    }
+    for (final children in index.values) {
+      children.sort((a, b) {
+        final byOrder = a.sortOrder.compareTo(b.sortOrder);
+        return byOrder != 0 ? byOrder : a.label.compareTo(b.label);
+      });
+    }
+    return index;
+  }
+
+  ThemeData _themeFor(UiDesignProfile profile) {
+    final cached = _themeCache;
+    if (cached != null && identical(_themeProfile, profile)) return cached;
+    final resolved = ClientV600Theme.apply(profile.theme(), profile);
+    _themeProfile = profile;
+    _themeCache = resolved;
+    return resolved;
+  }
 
   @override
   void initState() {
     super.initState();
     _session = widget.session;
+    _rebuildSessionCaches();
     LocationScopeService.initialize(_session);
     _designFuture = UiDesignService().load(
       tenantId: _session.business.id,
@@ -101,7 +140,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
     );
     unawaited(DeviceHeartbeatService().send(_session));
     unawaited(_loadNavigation());
-    unawaited(_startSyncMonitor());
+    _startSyncMonitor();
     final modules = _modules;
     if (modules.isNotEmpty) {
       _selectedModuleKey = modules
@@ -113,48 +152,56 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
     }
   }
 
-  Future<void> _startSyncMonitor() async {
-    try {
-      _syncVersions = await _thqApi.syncVersions(_session.business.id);
-    } catch (_) {
-      // The manual Refresh path remains available if the API gateway is not yet deployed.
-    }
+  void _startSyncMonitor() {
+    _syncWarmupTimer?.cancel();
     _syncTimer?.cancel();
-    _syncTimer = Timer.periodic(const Duration(seconds: 20), (_) async {
-      if (!mounted || _refreshing) return;
-      try {
-        final latest = await _thqApi.syncVersions(_session.business.id);
-        final previous = _syncVersions;
-        _syncVersions = latest;
 
-        if (previous != null && mounted) {
-          final configurationChanged =
-              latest.configuration != previous.configuration;
-          final transactionWorkspace = <String>{
-            'sales',
-            'purchases',
-            'stock_transfers',
-            'loans',
-            'expenses',
-            'production',
-            'transport_service',
-            'restaurant',
-            'restaurant_orders',
-          }.contains(_selectedModuleKey);
-
-          if (configurationChanged && !transactionWorkspace) {
-            await _refreshAll();
-            return;
-          }
-
-          if (latest.anyChangedFrom(previous)) {
-            setState(() => _updatesAvailable = true);
-          }
-        }
-      } catch (_) {
-        // Quiet background detection; explicit Refresh shows actionable failures.
-      }
+    // Do not compete with first paint and the first module's data load.
+    _syncWarmupTimer = Timer(const Duration(seconds: 15), () {
+      unawaited(_checkSyncVersions());
     });
+    _syncTimer = Timer.periodic(const Duration(seconds: 60), (_) {
+      unawaited(_checkSyncVersions());
+    });
+  }
+
+  Future<void> _checkSyncVersions() async {
+    if (!mounted || _refreshing || _syncCheckBusy) return;
+    _syncCheckBusy = true;
+    try {
+      final latest = await _thqApi.syncVersions(_session.business.id);
+      final previous = _syncVersions;
+      _syncVersions = latest;
+
+      if (previous != null && mounted) {
+        final configurationChanged =
+            latest.configuration != previous.configuration;
+        final transactionWorkspace = <String>{
+          'sales',
+          'purchases',
+          'stock_transfers',
+          'loans',
+          'expenses',
+          'production',
+          'transport_service',
+          'restaurant',
+          'restaurant_orders',
+        }.contains(_selectedModuleKey);
+
+        if (configurationChanged && !transactionWorkspace) {
+          await _refreshAll();
+          return;
+        }
+
+        if (latest.anyChangedFrom(previous)) {
+          setState(() => _updatesAvailable = true);
+        }
+      }
+    } catch (_) {
+      // Quiet background detection; explicit Refresh shows actionable failures.
+    } finally {
+      _syncCheckBusy = false;
+    }
   }
 
   Future<void> _loadNavigation({bool strict = false}) async {
@@ -164,8 +211,10 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
         appKey: 'client',
       );
       if (!mounted) return;
+      final menuIndex = _indexMenu(rows);
       setState(() {
         _menuNodes = rows;
+        _menuChildrenIndex = menuIndex;
         _expandedGroups
           ..clear()
           ..addAll(
@@ -197,6 +246,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
       if (!mounted) return;
 
       _session = refreshed;
+      _rebuildSessionCaches();
       if (previousLocation != null &&
           refreshed.canAccessLocation(previousLocation)) {
         LocationScopeService.selectedLocationId.value = previousLocation;
@@ -255,6 +305,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
 
   @override
   void dispose() {
+    _syncWarmupTimer?.cancel();
     _syncTimer?.cancel();
     _workspaceFocusScope.dispose();
     _menuSearch.dispose();
@@ -356,11 +407,11 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
     return FutureBuilder<UiDesignProfile>(
       future: _designFuture,
       builder: (context, snapshot) {
-        final profile = snapshot.data ?? UiDesignProfile.fallback('client');
+        final profile = snapshot.data ?? _fallbackProfile;
         return UiDesignScope(
           profile: profile,
           child: Theme(
-            data: ClientV600Theme.apply(profile.theme(), profile),
+            data: _themeFor(profile),
             child: LayoutBuilder(
               builder: (context, constraints) {
                 if (constraints.maxWidth >= 900) {
@@ -683,13 +734,8 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
     return roleOk && permissionOk;
   }
 
-  List<AppMenuNode> _menuChildren(String? parentId) {
-    final rows = _menuNodes
-        .where((node) => node.parentId == parentId && _menuNodeAllowed(node))
-        .toList();
-    rows.sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
-    return rows;
-  }
+  List<AppMenuNode> _menuChildren(String? parentId) =>
+      _menuChildrenIndex[parentId] ?? const [];
 
   bool _nodeMatchesQuery(
     AppMenuNode node,
@@ -875,7 +921,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
       );
     }
     final query = _menuQuery.trim().toLowerCase();
-    final moduleMap = {for (final module in _modules) module.key: module};
+    final moduleMap = _moduleMap;
     final visibleModules = _menuNodes
         .where(
           (node) =>

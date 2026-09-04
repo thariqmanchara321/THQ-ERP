@@ -59,13 +59,21 @@ class _PosHomeScreenState extends State<PosHomeScreen> {
     traversalEdgeBehavior: TraversalEdgeBehavior.closedLoop,
   );
   bool _expanded = true;
+  final UiDesignProfile _fallbackProfile = UiDesignProfile.fallback('pos');
+  UiDesignProfile? _themeProfile;
+  ThemeData? _themeCache;
   late Future<UiDesignProfile> _designFuture;
   final NavigationService _navigation = NavigationService();
   final ThqApiService _thqApi = ThqApiService();
+  Timer? _syncWarmupTimer;
   Timer? _syncTimer;
+  bool _syncCheckBusy = false;
   ThqSyncVersions? _syncVersions;
   bool _updatesAvailable = false;
   List<AppMenuNode> _menu = const [];
+  Map<String?, List<AppMenuNode>> _menuChildrenIndex = const {};
+  Map<String, _PosPage>? _pageCache;
+  List<_PosPage>? _orderedPageCache;
   final Set<String> _expandedGroups = <String>{};
 
   @override
@@ -83,44 +91,54 @@ class _PosHomeScreenState extends State<PosHomeScreen> {
     }
     unawaited(DeviceHeartbeatService().send(_session));
     unawaited(_loadMenu());
-    unawaited(_startSyncMonitor());
+    _startSyncMonitor();
   }
 
-  Future<void> _startSyncMonitor() async {
-    try {
-      _syncVersions = await _thqApi.syncVersions(_session.business.id);
-    } catch (_) {
-      // Manual Refresh remains available if the API gateway is temporarily unavailable.
-    }
+  void _startSyncMonitor() {
+    _syncWarmupTimer?.cancel();
     _syncTimer?.cancel();
-    _syncTimer = Timer.periodic(const Duration(seconds: 15), (_) async {
-      if (!mounted || _refreshing) return;
-      try {
-        final latest = await _thqApi.syncVersions(_session.business.id);
-        final previous = _syncVersions;
-        _syncVersions = latest;
-        // Apply Admin module/config changes automatically when it is safe.
-        // Billing is deliberately protected because rebuilding it can discard
-        // an unheld cart; in that case the existing Refresh action remains explicit.
-        if (previous != null && mounted) {
-          final configurationChanged =
-              latest.configuration != previous.configuration;
-          if (configurationChanged && _selectedKey != 'sales') {
-            await _refreshAll();
-            return;
-          }
-          if (latest.configurationOrMasterChangedFrom(previous)) {
-            setState(() => _updatesAvailable = true);
-          }
-        }
-      } catch (_) {
-        // Background drift detection is intentionally non-blocking.
-      }
+
+    // Keep startup bandwidth for catalogue/session work first.
+    _syncWarmupTimer = Timer(const Duration(seconds: 15), () {
+      unawaited(_checkSyncVersions());
     });
+    _syncTimer = Timer.periodic(const Duration(seconds: 60), (_) {
+      unawaited(_checkSyncVersions());
+    });
+  }
+
+  Future<void> _checkSyncVersions() async {
+    if (!mounted || _refreshing || _syncCheckBusy) return;
+    _syncCheckBusy = true;
+    try {
+      final latest = await _thqApi.syncVersions(_session.business.id);
+      final previous = _syncVersions;
+      _syncVersions = latest;
+
+      // Apply Admin module/config changes automatically when it is safe.
+      // Billing is deliberately protected because rebuilding it can discard
+      // an unheld cart; in that case the existing Refresh action remains explicit.
+      if (previous != null && mounted) {
+        final configurationChanged =
+            latest.configuration != previous.configuration;
+        if (configurationChanged && _selectedKey != 'sales') {
+          await _refreshAll();
+          return;
+        }
+        if (latest.configurationOrMasterChangedFrom(previous)) {
+          setState(() => _updatesAvailable = true);
+        }
+      }
+    } catch (_) {
+      // Background drift detection is intentionally non-blocking.
+    } finally {
+      _syncCheckBusy = false;
+    }
   }
 
   @override
   void dispose() {
+    _syncWarmupTimer?.cancel();
     _syncTimer?.cancel();
     _workspaceFocusScope.dispose();
     super.dispose();
@@ -133,8 +151,11 @@ class _PosHomeScreenState extends State<PosHomeScreen> {
         appKey: 'pos',
       );
       if (!mounted) return;
+      final menuIndex = _indexMenu(rows);
       setState(() {
         _menu = rows;
+        _menuChildrenIndex = menuIndex;
+        _orderedPageCache = null;
         _expandedGroups
           ..clear()
           ..addAll(
@@ -176,7 +197,33 @@ class _PosHomeScreenState extends State<PosHomeScreen> {
         (permissions.isEmpty || permissions.any(_session.hasPermission));
   }
 
+  Map<String?, List<AppMenuNode>> _indexMenu(List<AppMenuNode> rows) {
+    final index = <String?, List<AppMenuNode>>{};
+    for (final node in rows) {
+      if (!_nodeAllowed(node)) continue;
+      index.putIfAbsent(node.parentId, () => <AppMenuNode>[]).add(node);
+    }
+    for (final children in index.values) {
+      children.sort((a, b) {
+        final byOrder = a.sortOrder.compareTo(b.sortOrder);
+        return byOrder != 0 ? byOrder : a.label.compareTo(b.label);
+      });
+    }
+    return index;
+  }
+
+  ThemeData _themeFor(UiDesignProfile profile) {
+    final cached = _themeCache;
+    if (cached != null && identical(_themeProfile, profile)) return cached;
+    final resolved = PosV600Theme.apply(profile.theme(), profile);
+    _themeProfile = profile;
+    _themeCache = resolved;
+    return resolved;
+  }
+
   Map<String, _PosPage> get _available {
+    final cached = _pageCache;
+    if (cached != null) return cached;
     final session = _session;
     final pages = <String, _PosPage>{};
     if (_allowed('sales')) {
@@ -305,12 +352,20 @@ class _PosHomeScreenState extends State<PosHomeScreen> {
         PosSettingsScreen(session: session),
       );
     }
-    return pages;
+    final result = Map<String, _PosPage>.unmodifiable(pages);
+    _pageCache = result;
+    return result;
   }
 
   List<_PosPage> get _orderedPages {
+    final cached = _orderedPageCache;
+    if (cached != null) return cached;
     final pages = _available;
-    if (_menu.isEmpty) return pages.values.toList();
+    if (_menu.isEmpty) {
+      final ordered = List<_PosPage>.unmodifiable(pages.values);
+      _orderedPageCache = ordered;
+      return ordered;
+    }
     final ordered = <_PosPage>[];
     final modules =
         _menu.where((node) => node.isModule && _nodeAllowed(node)).toList()
@@ -324,7 +379,9 @@ class _PosHomeScreenState extends State<PosHomeScreen> {
     for (final page in pages.values) {
       if (!ordered.any((item) => item.key == page.key)) ordered.add(page);
     }
-    return ordered;
+    final result = List<_PosPage>.unmodifiable(ordered);
+    _orderedPageCache = result;
+    return result;
   }
 
   String _label(String key, String fallback) {
@@ -336,13 +393,8 @@ class _PosHomeScreenState extends State<PosHomeScreen> {
     return fallback;
   }
 
-  List<AppMenuNode> _children(String? parentId) {
-    final rows = _menu
-        .where((node) => node.parentId == parentId && _nodeAllowed(node))
-        .toList();
-    rows.sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
-    return rows;
-  }
+  List<AppMenuNode> _children(String? parentId) =>
+      _menuChildrenIndex[parentId] ?? const [];
 
   List<Widget> _renderLevel(
     Map<String, _PosPage> pages,
@@ -478,6 +530,8 @@ class _PosHomeScreenState extends State<PosHomeScreen> {
       );
       if (!mounted) return;
       _session = refreshed;
+      _pageCache = null;
+      _orderedPageCache = null;
       LocationScopeService.initialize(refreshed);
       _designFuture = UiDesignService().load(
         tenantId: refreshed.business.id,
@@ -544,11 +598,11 @@ class _PosHomeScreenState extends State<PosHomeScreen> {
     return FutureBuilder<UiDesignProfile>(
       future: _designFuture,
       builder: (context, snapshot) {
-        final profile = snapshot.data ?? UiDesignProfile.fallback('pos');
+        final profile = snapshot.data ?? _fallbackProfile;
         return UiDesignScope(
           profile: profile,
           child: Theme(
-            data: PosV600Theme.apply(profile.theme(), profile),
+            data: _themeFor(profile),
             child: Scaffold(
               body: Row(
                 children: [
