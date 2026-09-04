@@ -958,6 +958,13 @@ class _GstComplianceV520ScreenState extends State<GstComplianceV520Screen> {
       subtitle:
           'HSN/SAC, taxability, GST rate, cess, tax-inclusive and reverse-charge configuration.',
       actions: [
+        OutlinedButton.icon(
+          onPressed: widget.service.can('manage')
+              ? _validateImportedProfiles
+              : null,
+          icon: const Icon(Icons.verified_outlined, size: 18),
+          label: const Text('Validate imported'),
+        ),
         FilledButton.icon(
           onPressed: widget.service.can('manage')
               ? () => _openProductDialog()
@@ -993,6 +1000,56 @@ class _GstComplianceV520ScreenState extends State<GstComplianceV520Screen> {
               ],
             ),
     );
+  }
+
+  Future<void> _validateImportedProfiles() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Validate imported GST profiles?'),
+        content: const SizedBox(
+          width: 520,
+          child: Text(
+            'THQ will review only current legacy-imported profiles that are still '
+            'marked Review Required. Profiles are promoted only when their HSN/SAC '
+            'format and GST rate pass the current local GST rules. Invalid profiles '
+            'stay under review and the legacy source remains auditable.',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton.icon(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            icon: const Icon(Icons.verified_outlined),
+            label: const Text('Validate'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    await _guard(() async {
+      final result = await widget.service.validateImportedProductProfiles();
+      final data = await _controller.refresh();
+      if (!mounted) return;
+      setState(() {
+        _transactions = data.documents;
+        _taxSummary = null;
+        _accountingHealth = null;
+        _accountingControl = null;
+        _returnsPreview = null;
+      });
+      await _loadProductProfiles();
+      final validated = _integer(result['validated']);
+      final remaining = _integer(result['remaining_review']);
+      _toast(
+        'Imported GST validation complete: $validated validated, '
+        '$remaining still need review.',
+      );
+    });
   }
 
   Future<void> _openProductDialog({Map<String, dynamic>? existing}) async {

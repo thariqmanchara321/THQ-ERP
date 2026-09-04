@@ -112,25 +112,18 @@ class _PosHomeScreenState extends State<PosHomeScreen> {
     if (!mounted || _refreshing || _syncCheckBusy) return;
     _syncCheckBusy = true;
     try {
-      final latest = await _thqApi.syncVersions(_session.business.id);
+      final latest = await _thqApi
+          .syncVersions(_session.business.id)
+          .timeout(const Duration(seconds: 12));
       final previous = _syncVersions;
       _syncVersions = latest;
 
-      // Apply Admin module/config changes automatically when it is safe.
-      // Billing is deliberately protected because rebuilding it can discard
-      // an unheld cart; in that case the existing Refresh action remains explicit.
-      if (previous != null && mounted) {
-        final configurationChanged =
-            latest.configuration != previous.configuration;
-        if (configurationChanged &&
-            _selectedKey != 'sales' &&
-            !_billingVisited) {
-          await _refreshAll();
-          return;
-        }
-        if (latest.configurationOrMasterChangedFrom(previous)) {
-          setState(() => _updatesAvailable = true);
-        }
+      if (previous != null &&
+          mounted &&
+          latest.configurationOrMasterChangedFrom(previous)) {
+        // Never rebuild POS from background polling. The cashier decides when
+        // to Refresh so Billing/cart state cannot be interrupted.
+        setState(() => _updatesAvailable = true);
       }
     } catch (_) {
       // Background drift detection is intentionally non-blocking.
@@ -522,15 +515,19 @@ class _PosHomeScreenState extends State<PosHomeScreen> {
     if (_refreshing) return;
     setState(() => _refreshing = true);
     try {
-      final businesses = await _sessionService.getAvailableBusinesses();
+      final businesses = await _sessionService
+          .getAvailableBusinesses()
+          .timeout(const Duration(seconds: 20));
       final currentBusiness = businesses.firstWhere(
         (business) => business.id == _session.business.id,
         orElse: () => _session.business,
       );
-      final refreshed = await _sessionService.loadSession(
-        business: currentBusiness,
-        requireRuntime: true,
-      );
+      final refreshed = await _sessionService
+          .loadSession(
+            business: currentBusiness,
+            requireRuntime: true,
+          )
+          .timeout(const Duration(seconds: 25));
       if (!mounted) return;
       _session = refreshed;
       _pageCache = null;
@@ -541,14 +538,16 @@ class _PosHomeScreenState extends State<PosHomeScreen> {
         tenantId: refreshed.business.id,
         appKey: 'pos',
       );
-      await _loadMenu(strict: true);
+      await _loadMenu(strict: true).timeout(const Duration(seconds: 20));
       if (!mounted) return;
       final availableKeys = _available.keys.toSet();
       if (_selectedKey == null || !availableKeys.contains(_selectedKey)) {
         _selectedKey = _orderedPages.isEmpty ? null : _orderedPages.first.key;
       }
       try {
-        _syncVersions = await _thqApi.syncVersions(refreshed.business.id);
+        _syncVersions = await _thqApi
+            .syncVersions(refreshed.business.id)
+            .timeout(const Duration(seconds: 12));
       } catch (_) {}
       if (!mounted) return;
       _updatesAvailable = false;

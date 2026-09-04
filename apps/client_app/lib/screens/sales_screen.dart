@@ -904,8 +904,9 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
-            'No GST-classified Service products are available. '
-            'Create a Service product with a valid GST profile first.',
+            'No Service products are available for Add Charge. Create a product '
+            'with item type Service, then configure its SAC/GST profile under '
+            'GST & Compliance > Products.',
           ),
         ),
       );

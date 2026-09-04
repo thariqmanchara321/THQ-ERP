@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 
 import '../models/client_session.dart';
+import '../models/expense.dart';
 import '../models/payment_pending.dart';
+import '../services/expense_service.dart';
+import '../services/location_scope_service.dart';
 import '../services/payment_center_service.dart';
 import 'party_statement_screen.dart';
 import 'purchase_detail_screen.dart';
@@ -17,8 +20,10 @@ class PaymentCenterScreen extends StatefulWidget {
 
 class _PaymentCenterScreenState extends State<PaymentCenterScreen> {
   final _service = PaymentCenterService();
+  final _expenseService = ExpenseService();
   final _query = TextEditingController();
   late Future<PendingPaymentsData> _future;
+  bool _actionBusy = false;
 
   @override
   void initState() {
@@ -57,6 +62,164 @@ class _PaymentCenterScreenState extends State<PaymentCenterScreen> {
       ),
     );
     if (mounted) await _refresh();
+  }
+
+  bool _requireSpecificStore() {
+    if (LocationScopeService.selectedLocationId.value != null) return true;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(
+          'Select a specific store before recording payments or expenses. All Stores is view-only.',
+        ),
+      ),
+    );
+    return false;
+  }
+
+  Future<void> _receiveCustomer(PartyPendingSummary party) async {
+    if (_actionBusy || !_requireSpecificStore()) return;
+    if (party.salesOutstanding <= .005) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'This customer has no sales receivable to collect here. Loan settlements remain in the Loans workspace.',
+          ),
+        ),
+      );
+      return;
+    }
+
+    final draft = await showDialog<_DirectPaymentDraft>(
+      context: context,
+      builder: (_) => _DirectPaymentDialog(
+        title: 'Receive from ${party.partyName}',
+        actionLabel: 'Receive',
+        maximumAmount: party.salesOutstanding,
+      ),
+    );
+    if (draft == null || !mounted) return;
+
+    setState(() => _actionBusy = true);
+    try {
+      await _service.receiveCustomerPayment(
+        widget.session,
+        customerId: party.partyId,
+        amount: draft.amount,
+        paymentMethod: draft.paymentMethod,
+        referenceNumber: draft.reference,
+        notes: draft.notes,
+      );
+      if (!mounted) return;
+      await _refresh();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Payment received from ${party.partyName}.')),
+      );
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(error.toString())));
+      }
+    } finally {
+      if (mounted) setState(() => _actionBusy = false);
+    }
+  }
+
+  Future<void> _paySupplier(PartyPendingSummary party) async {
+    if (_actionBusy || !_requireSpecificStore()) return;
+    if (party.balance <= .005) return;
+
+    final draft = await showDialog<_DirectPaymentDraft>(
+      context: context,
+      builder: (_) => _DirectPaymentDialog(
+        title: 'Pay ${party.partyName}',
+        actionLabel: 'Pay',
+        maximumAmount: party.balance,
+      ),
+    );
+    if (draft == null || !mounted) return;
+
+    setState(() => _actionBusy = true);
+    try {
+      await _service.paySupplier(
+        widget.session,
+        supplierId: party.partyId,
+        amount: draft.amount,
+        paymentMethod: draft.paymentMethod,
+        referenceNumber: draft.reference,
+        notes: draft.notes,
+      );
+      if (!mounted) return;
+      await _refresh();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Supplier payment recorded for ${party.partyName}.'),
+        ),
+      );
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(error.toString())));
+      }
+    } finally {
+      if (mounted) setState(() => _actionBusy = false);
+    }
+  }
+
+  Future<void> _addSupplierExpense(PartyPendingSummary party) async {
+    if (_actionBusy || !_requireSpecificStore()) return;
+
+    setState(() => _actionBusy = true);
+    try {
+      final categories = (await _expenseService.getCategories(
+        tenantId: widget.session.business.id,
+      )).where((category) => category.active).toList(growable: false);
+
+      if (!mounted) return;
+      if (categories.isEmpty) {
+        throw StateError('Create an active expense category first.');
+      }
+
+      setState(() => _actionBusy = false);
+      final draft = await showDialog<_SupplierExpenseDraft>(
+        context: context,
+        builder: (_) => _SupplierExpenseDialog(
+          supplierName: party.partyName,
+          categories: categories,
+        ),
+      );
+      if (draft == null || !mounted) return;
+
+      setState(() => _actionBusy = true);
+      await _expenseService.createExpense(
+        tenantId: widget.session.business.id,
+        categoryId: draft.categoryId,
+        expenseDate: DateTime.now(),
+        payee: party.partyName,
+        description: draft.description,
+        amount: draft.amount,
+        taxAmount: draft.taxAmount,
+        paymentMethod: draft.paymentMethod,
+        referenceNumber: draft.reference,
+        notes: draft.notes,
+      );
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Expense recorded for ${party.partyName}.')),
+      );
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(error.toString())));
+      }
+    } finally {
+      if (mounted) setState(() => _actionBusy = false);
+    }
   }
 
   @override
@@ -176,6 +339,7 @@ class _PaymentCenterScreenState extends State<PaymentCenterScreen> {
                       money: _m,
                       rows: data.receivables,
                       onOpen: _openParty,
+                      onPayment: _actionBusy ? null : _receiveCustomer,
                     );
                     final pay = _PartyPane(
                       title: 'Suppliers - To Pay',
@@ -185,6 +349,8 @@ class _PaymentCenterScreenState extends State<PaymentCenterScreen> {
                       money: _m,
                       rows: data.payables,
                       onOpen: _openParty,
+                      onPayment: _actionBusy ? null : _paySupplier,
+                      onExpense: _actionBusy ? null : _addSupplierExpense,
                     );
 
                     if (constraints.maxWidth < 900) {
@@ -215,6 +381,332 @@ class _PaymentCenterScreenState extends State<PaymentCenterScreen> {
   }
 }
 
+class _DirectPaymentDraft {
+  const _DirectPaymentDraft({
+    required this.amount,
+    required this.paymentMethod,
+    required this.reference,
+    required this.notes,
+  });
+
+  final double amount;
+  final String paymentMethod;
+  final String reference;
+  final String notes;
+}
+
+class _DirectPaymentDialog extends StatefulWidget {
+  const _DirectPaymentDialog({
+    required this.title,
+    required this.actionLabel,
+    required this.maximumAmount,
+  });
+
+  final String title;
+  final String actionLabel;
+  final double maximumAmount;
+
+  @override
+  State<_DirectPaymentDialog> createState() => _DirectPaymentDialogState();
+}
+
+class _DirectPaymentDialogState extends State<_DirectPaymentDialog> {
+  late final TextEditingController _amount;
+  final TextEditingController _reference = TextEditingController();
+  final TextEditingController _notes = TextEditingController();
+  String _method = 'cash';
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _amount = TextEditingController(
+      text: widget.maximumAmount.toStringAsFixed(2),
+    );
+  }
+
+  @override
+  void dispose() {
+    _amount.dispose();
+    _reference.dispose();
+    _notes.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    final amount = double.tryParse(_amount.text.trim()) ?? 0;
+    if (amount <= 0) {
+      setState(() => _error = 'Amount must be greater than zero.');
+      return;
+    }
+    if (amount > widget.maximumAmount + .005) {
+      setState(
+        () => _error =
+            'Amount cannot exceed ${widget.maximumAmount.toStringAsFixed(2)}.',
+      );
+      return;
+    }
+    Navigator.pop(
+      context,
+      _DirectPaymentDraft(
+        amount: amount,
+        paymentMethod: _method,
+        reference: _reference.text.trim(),
+        notes: _notes.text.trim(),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    title: Text(widget.title),
+    content: SizedBox(
+      width: 440,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          TextField(
+            controller: _amount,
+            autofocus: true,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: InputDecoration(
+              labelText: 'Amount',
+              helperText: 'Maximum ${widget.maximumAmount.toStringAsFixed(2)}',
+            ),
+            onSubmitted: (_) => _submit(),
+          ),
+          const SizedBox(height: 10),
+          DropdownButtonFormField<String>(
+            initialValue: _method,
+            decoration: const InputDecoration(labelText: 'Payment method'),
+            items: const [
+              DropdownMenuItem(value: 'cash', child: Text('Cash')),
+              DropdownMenuItem(value: 'upi', child: Text('UPI')),
+              DropdownMenuItem(value: 'card', child: Text('Card')),
+              DropdownMenuItem(value: 'bank', child: Text('Bank')),
+              DropdownMenuItem(value: 'cheque', child: Text('Cheque')),
+              DropdownMenuItem(value: 'other', child: Text('Other')),
+            ],
+            onChanged: (value) => setState(() => _method = value ?? _method),
+          ),
+          const SizedBox(height: 10),
+          TextField(
+            controller: _reference,
+            decoration: const InputDecoration(labelText: 'Reference'),
+          ),
+          const SizedBox(height: 10),
+          TextField(
+            controller: _notes,
+            maxLines: 2,
+            decoration: const InputDecoration(labelText: 'Notes'),
+          ),
+          if (_error != null) ...[
+            const SizedBox(height: 8),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                _error!,
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
+            ),
+          ],
+        ],
+      ),
+    ),
+    actions: [
+      TextButton(
+        onPressed: () => Navigator.pop(context),
+        child: const Text('Cancel'),
+      ),
+      FilledButton(onPressed: _submit, child: Text(widget.actionLabel)),
+    ],
+  );
+}
+
+class _SupplierExpenseDraft {
+  const _SupplierExpenseDraft({
+    required this.categoryId,
+    required this.description,
+    required this.amount,
+    required this.taxAmount,
+    required this.paymentMethod,
+    required this.reference,
+    required this.notes,
+  });
+
+  final String categoryId;
+  final String description;
+  final double amount;
+  final double taxAmount;
+  final String paymentMethod;
+  final String reference;
+  final String notes;
+}
+
+class _SupplierExpenseDialog extends StatefulWidget {
+  const _SupplierExpenseDialog({
+    required this.supplierName,
+    required this.categories,
+  });
+
+  final String supplierName;
+  final List<ExpenseCategory> categories;
+
+  @override
+  State<_SupplierExpenseDialog> createState() => _SupplierExpenseDialogState();
+}
+
+class _SupplierExpenseDialogState extends State<_SupplierExpenseDialog> {
+  late String _categoryId;
+  final TextEditingController _description = TextEditingController();
+  final TextEditingController _amount = TextEditingController();
+  final TextEditingController _tax = TextEditingController(text: '0');
+  final TextEditingController _reference = TextEditingController();
+  final TextEditingController _notes = TextEditingController();
+  String _method = 'cash';
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _categoryId = widget.categories.first.id;
+    _description.text = 'Expense - ${widget.supplierName}';
+  }
+
+  @override
+  void dispose() {
+    _description.dispose();
+    _amount.dispose();
+    _tax.dispose();
+    _reference.dispose();
+    _notes.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    final amount = double.tryParse(_amount.text.trim()) ?? 0;
+    final tax = double.tryParse(_tax.text.trim()) ?? 0;
+    if (amount <= 0) {
+      setState(() => _error = 'Amount must be greater than zero.');
+      return;
+    }
+    if (tax < 0) {
+      setState(() => _error = 'Tax amount cannot be negative.');
+      return;
+    }
+    if (_description.text.trim().isEmpty) {
+      setState(() => _error = 'Description is required.');
+      return;
+    }
+
+    Navigator.pop(
+      context,
+      _SupplierExpenseDraft(
+        categoryId: _categoryId,
+        description: _description.text.trim(),
+        amount: amount,
+        taxAmount: tax,
+        paymentMethod: _method,
+        reference: _reference.text.trim(),
+        notes: _notes.text.trim(),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    title: Text('Add expense - ${widget.supplierName}'),
+    content: SizedBox(
+      width: 480,
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            DropdownButtonFormField<String>(
+              initialValue: _categoryId,
+              decoration: const InputDecoration(labelText: 'Category'),
+              items: widget.categories
+                  .map(
+                    (category) => DropdownMenuItem(
+                      value: category.id,
+                      child: Text(category.name),
+                    ),
+                  )
+                  .toList(growable: false),
+              onChanged: (value) =>
+                  setState(() => _categoryId = value ?? _categoryId),
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: _description,
+              decoration: const InputDecoration(labelText: 'Description'),
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: _amount,
+              autofocus: true,
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
+              decoration: const InputDecoration(labelText: 'Amount'),
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: _tax,
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
+              decoration: const InputDecoration(labelText: 'Tax amount'),
+            ),
+            const SizedBox(height: 10),
+            DropdownButtonFormField<String>(
+              initialValue: _method,
+              decoration: const InputDecoration(labelText: 'Payment method'),
+              items: const [
+                DropdownMenuItem(value: 'cash', child: Text('Cash')),
+                DropdownMenuItem(value: 'upi', child: Text('UPI')),
+                DropdownMenuItem(value: 'card', child: Text('Card')),
+                DropdownMenuItem(value: 'bank', child: Text('Bank')),
+                DropdownMenuItem(value: 'cheque', child: Text('Cheque')),
+                DropdownMenuItem(value: 'other', child: Text('Other')),
+              ],
+              onChanged: (value) => setState(() => _method = value ?? _method),
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: _reference,
+              decoration: const InputDecoration(labelText: 'Reference'),
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: _notes,
+              maxLines: 2,
+              decoration: const InputDecoration(labelText: 'Notes'),
+            ),
+            if (_error != null) ...[
+              const SizedBox(height: 8),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  _error!,
+                  style: TextStyle(color: Theme.of(context).colorScheme.error),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    ),
+    actions: [
+      TextButton(
+        onPressed: () => Navigator.pop(context),
+        child: const Text('Cancel'),
+      ),
+      FilledButton(onPressed: _submit, child: const Text('Add Expense')),
+    ],
+  );
+}
+
 class _PartyPane extends StatelessWidget {
   final String title;
   final String subtitle;
@@ -223,6 +715,8 @@ class _PartyPane extends StatelessWidget {
   final String Function(double) money;
   final List<PartyPendingSummary> rows;
   final void Function(PartyPendingSummary) onOpen;
+  final void Function(PartyPendingSummary)? onPayment;
+  final void Function(PartyPendingSummary)? onExpense;
 
   const _PartyPane({
     required this.title,
@@ -232,6 +726,8 @@ class _PartyPane extends StatelessWidget {
     required this.money,
     required this.rows,
     required this.onOpen,
+    this.onPayment,
+    this.onExpense,
   });
 
   String _d(DateTime? value) {
@@ -342,7 +838,17 @@ class _PartyPane extends StatelessWidget {
                     ),
                   ),
                 ),
-                SizedBox(width: 24),
+                SizedBox(
+                  width: 174,
+                  child: Text(
+                    'Actions',
+                    textAlign: TextAlign.right,
+                    style: TextStyle(
+                      fontSize: 8.8,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
               ],
             ),
           ),
@@ -474,9 +980,42 @@ class _PartyPane extends StatelessWidget {
                                     ],
                                   ),
                                 ),
-                                const SizedBox(
-                                  width: 24,
-                                  child: Icon(Icons.chevron_right, size: 17),
+                                SizedBox(
+                                  width: 174,
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.end,
+                                    children: [
+                                      TextButton(
+                                        onPressed: onPayment == null
+                                            ? null
+                                            : () => onPayment!(row),
+                                        child: Text(
+                                          customer ? 'Receive' : 'Pay',
+                                        ),
+                                      ),
+                                      if (!customer)
+                                        IconButton(
+                                          tooltip: 'Add expense',
+                                          visualDensity: VisualDensity.compact,
+                                          onPressed: onExpense == null
+                                              ? null
+                                              : () => onExpense!(row),
+                                          icon: const Icon(
+                                            Icons.receipt_long_outlined,
+                                            size: 17,
+                                          ),
+                                        ),
+                                      IconButton(
+                                        tooltip: 'View account',
+                                        visualDensity: VisualDensity.compact,
+                                        onPressed: () => onOpen(row),
+                                        icon: const Icon(
+                                          Icons.chevron_right,
+                                          size: 17,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               ],
                             ),

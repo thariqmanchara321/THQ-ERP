@@ -321,6 +321,13 @@ class GstComplianceV520Service {
     });
   }
 
+  Future<Map<String, dynamic>> validateImportedProductProfiles() async {
+    _requireManage();
+    return _rpcMap('gst_product_profiles_validate_imported_v600', {
+      'p_tenant_id': tenantId,
+    });
+  }
+
   Future<String> saveProductProfile({
     required String variantId,
     required String supplyKind,
@@ -712,6 +719,7 @@ class GstComplianceV520Service {
       'gst_location_registration_set_v520',
       'gst_product_profiles_list_v520',
       'gst_product_profile_save_v520',
+      'gst_product_profiles_validate_imported_v600',
       'gst_party_profiles_list_v520',
       'gst_party_profile_save_v520',
       'gst_documents_list_v520',

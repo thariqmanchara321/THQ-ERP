@@ -792,7 +792,9 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
-            'Create an active Service product with a validated GST profile, then use Add Charge.',
+            'No Service products are available for Add Charge. Create a product '
+            'with item type Service, then configure its SAC/GST profile under '
+            'GST & Compliance > Products.',
           ),
         ),
       );
@@ -870,6 +872,15 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
     if (_supplierId == null) {
       setState(() {
         _error = 'Select a supplier.';
+      });
+      return;
+    }
+
+    final supplierInvoiceNumber = _invoiceController.text.trim();
+    if (supplierInvoiceNumber.isEmpty) {
+      setState(() {
+        _error =
+            'Supplier invoice number is required for an authoritative GST purchase.';
       });
       return;
     }
@@ -968,7 +979,7 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
       final result = await _purchaseService.createPurchase(
         tenantId: widget.session.business.id,
         supplierId: _supplierId!,
-        supplierInvoiceNumber: _invoiceController.text,
+        supplierInvoiceNumber: supplierInvoiceNumber,
         purchaseDate: _purchaseDate,
         dueDate: _dueDate,
         items: preparedItems,
@@ -1287,7 +1298,7 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
                   controller: _invoiceController,
                   enabled: !_saving,
                   decoration: const InputDecoration(
-                    labelText: 'Supplier Invoice No.',
+                    labelText: 'Supplier Invoice No. *',
                     prefixIcon: Icon(Icons.tag_outlined, size: 18),
                   ),
                 ),
@@ -1984,7 +1995,7 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
                   controller: _invoiceController,
                   enabled: !_saving,
                   decoration: const InputDecoration(
-                    labelText: 'Supplier Invoice No.',
+                    labelText: 'Supplier Invoice No. *',
                     prefixIcon: Icon(Icons.tag_outlined),
                     border: OutlineInputBorder(),
                   ),

@@ -171,33 +171,16 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
     if (!mounted || _refreshing || _syncCheckBusy) return;
     _syncCheckBusy = true;
     try {
-      final latest = await _thqApi.syncVersions(_session.business.id);
+      final latest = await _thqApi
+          .syncVersions(_session.business.id)
+          .timeout(const Duration(seconds: 12));
       final previous = _syncVersions;
       _syncVersions = latest;
 
-      if (previous != null && mounted) {
-        final configurationChanged =
-            latest.configuration != previous.configuration;
-        final transactionWorkspace = <String>{
-          'sales',
-          'purchases',
-          'stock_transfers',
-          'loans',
-          'expenses',
-          'production',
-          'transport_service',
-          'restaurant',
-          'restaurant_orders',
-        }.contains(_selectedModuleKey);
-
-        if (configurationChanged && !transactionWorkspace) {
-          await _refreshAll();
-          return;
-        }
-
-        if (latest.anyChangedFrom(previous)) {
-          setState(() => _updatesAvailable = true);
-        }
+      if (previous != null && mounted && latest.anyChangedFrom(previous)) {
+        // Background polling only signals that fresh data exists. It must never
+        // launch a full application refresh or interrupt the active workspace.
+        setState(() => _updatesAvailable = true);
       }
     } catch (_) {
       // Quiet background detection; explicit Refresh shows actionable failures.
@@ -247,15 +230,16 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
     final previousLocation = LocationScopeService.selectedLocationId.value;
     setState(() => _refreshing = true);
     try {
-      final businesses = await _sessionService.getAvailableBusinesses();
+      final businesses = await _sessionService.getAvailableBusinesses().timeout(
+        const Duration(seconds: 20),
+      );
       final currentBusiness = businesses.firstWhere(
         (business) => business.id == _session.business.id,
         orElse: () => _session.business,
       );
-      final refreshed = await _sessionService.loadSession(
-        business: currentBusiness,
-        requireRuntime: true,
-      );
+      final refreshed = await _sessionService
+          .loadSession(business: currentBusiness, requireRuntime: true)
+          .timeout(const Duration(seconds: 25));
       if (!mounted) return;
 
       _session = refreshed;
@@ -270,7 +254,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
         tenantId: refreshed.business.id,
         appKey: 'client',
       );
-      await _loadNavigation(strict: true);
+      await _loadNavigation(strict: true).timeout(const Duration(seconds: 20));
       if (!mounted) return;
 
       final available = _modules;
@@ -284,7 +268,9 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
             .key;
       }
       try {
-        _syncVersions = await _thqApi.syncVersions(refreshed.business.id);
+        _syncVersions = await _thqApi
+            .syncVersions(refreshed.business.id)
+            .timeout(const Duration(seconds: 12));
       } catch (_) {}
       if (!mounted) return;
       _updatesAvailable = false;
