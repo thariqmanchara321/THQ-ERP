@@ -74,6 +74,7 @@ class _PosHomeScreenState extends State<PosHomeScreen> {
   Map<String?, List<AppMenuNode>> _menuChildrenIndex = const {};
   Map<String, _PosPage>? _pageCache;
   List<_PosPage>? _orderedPageCache;
+  bool _billingVisited = false;
   final Set<String> _expandedGroups = <String>{};
 
   @override
@@ -121,7 +122,9 @@ class _PosHomeScreenState extends State<PosHomeScreen> {
       if (previous != null && mounted) {
         final configurationChanged =
             latest.configuration != previous.configuration;
-        if (configurationChanged && _selectedKey != 'sales') {
+        if (configurationChanged &&
+            _selectedKey != 'sales' &&
+            !_billingVisited) {
           await _refreshAll();
           return;
         }
@@ -489,7 +492,7 @@ class _PosHomeScreenState extends State<PosHomeScreen> {
 
   Future<void> _requestRefresh() async {
     if (_refreshing) return;
-    if (_selectedKey == 'sales') {
+    if (_selectedKey == 'sales' || _billingVisited) {
       final proceed = await showDialog<bool>(
         context: context,
         builder: (dialogContext) => AlertDialog(
@@ -532,6 +535,7 @@ class _PosHomeScreenState extends State<PosHomeScreen> {
       _session = refreshed;
       _pageCache = null;
       _orderedPageCache = null;
+      _billingVisited = false;
       LocationScopeService.initialize(refreshed);
       _designFuture = UiDesignService().load(
         tenantId: refreshed.business.id,
@@ -576,6 +580,58 @@ class _PosHomeScreenState extends State<PosHomeScreen> {
       context,
       MaterialPageRoute(builder: (_) => const PosLoginScreen()),
       (_) => false,
+    );
+  }
+
+  void _selectPage(String key) {
+    if (_selectedKey == key) return;
+    FocusManager.instance.primaryFocus?.unfocus();
+    setState(() => _selectedKey = key);
+  }
+
+  Widget _workspaceContent(_PosPage page) {
+    final billing = _available['sales'];
+    if (billing == null) {
+      return KeyedSubtree(
+        key: ValueKey('${page.key}:$_contentGeneration'),
+        child: page.screen,
+      );
+    }
+
+    if (page.key == 'sales') {
+      _billingVisited = true;
+    }
+
+    if (!_billingVisited) {
+      return KeyedSubtree(
+        key: ValueKey('${page.key}:$_contentGeneration'),
+        child: page.screen,
+      );
+    }
+
+    final billingSelected = page.key == 'sales';
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        ExcludeFocus(
+          excluding: !billingSelected,
+          child: Offstage(
+            offstage: !billingSelected,
+            child: TickerMode(
+              enabled: billingSelected,
+              child: KeyedSubtree(
+                key: ValueKey('sales:$_contentGeneration'),
+                child: billing.screen,
+              ),
+            ),
+          ),
+        ),
+        if (!billingSelected)
+          KeyedSubtree(
+            key: ValueKey('${page.key}:$_contentGeneration'),
+            child: page.screen,
+          ),
+      ],
     );
   }
 
@@ -662,10 +718,7 @@ class _PosHomeScreenState extends State<PosHomeScreen> {
                         node: _workspaceFocusScope,
                         child: FocusTraversalGroup(
                           policy: WidgetOrderTraversalPolicy(),
-                          child: KeyedSubtree(
-                            key: ValueKey('${page.key}:$_contentGeneration'),
-                            child: page.screen,
-                          ),
+                          child: _workspaceContent(page),
                         ),
                       ),
                     ),
@@ -775,7 +828,7 @@ class _PosHomeScreenState extends State<PosHomeScreen> {
           borderRadius: BorderRadius.circular(7),
           child: InkWell(
             borderRadius: BorderRadius.circular(7),
-            onTap: () => setState(() => _selectedKey = page.key),
+            onTap: () => _selectPage(page.key),
             child: SizedBox(
               height: 36,
               child: Row(

@@ -5,7 +5,18 @@ import '../models/client_session.dart';
 import '../models/dashboard_data.dart';
 import '../models/dashboard_insights.dart';
 import '../services/dashboard_service.dart';
+import '../services/location_scope_service.dart';
 import '../ui/v43_theme.dart';
+
+class _DashboardFutureCacheEntry<T> {
+  const _DashboardFutureCacheEntry({
+    required this.loadedAt,
+    required this.future,
+  });
+
+  final DateTime loadedAt;
+  final Future<T> future;
+}
 
 class DashboardScreen extends StatefulWidget {
   final ClientSession session;
@@ -16,6 +27,16 @@ class DashboardScreen extends StatefulWidget {
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
+  static const Duration _dashboardCacheTtl = Duration(seconds: 30);
+  static const Duration _dashboardCacheRetention = Duration(minutes: 2);
+  static final Map<String, _DashboardFutureCacheEntry<DashboardData>>
+  _summaryCache = <String, _DashboardFutureCacheEntry<DashboardData>>{};
+  static final Map<String, _DashboardFutureCacheEntry<DashboardInsights>>
+  _insightsCache = <String, _DashboardFutureCacheEntry<DashboardInsights>>{};
+  static final Map<String, _DashboardFutureCacheEntry<Map<String, dynamic>>>
+  _businessIntelligenceCache =
+      <String, _DashboardFutureCacheEntry<Map<String, dynamic>>>{};
+
   final DashboardService _service = DashboardService();
   late Future<DashboardData> _summary;
   late Future<DashboardInsights> _insights;
@@ -27,16 +48,58 @@ class _DashboardScreenState extends State<DashboardScreen> {
     _load();
   }
 
-  void _load() {
-    _summary = _service.load(session: widget.session);
-    _insights = _service.insights(session: widget.session);
-    _businessIntelligence = _service.businessIntelligence(
-      session: widget.session,
+  String get _dashboardCacheKey {
+    final locationId = LocationScopeService.currentForRead(widget.session);
+    return '${widget.session.business.id}|${locationId ?? 'all'}';
+  }
+
+  Future<T> _cachedFuture<T>({
+    required Map<String, _DashboardFutureCacheEntry<T>> cache,
+    required String key,
+    required bool force,
+    required Future<T> Function() loader,
+  }) {
+    final now = DateTime.now();
+    cache.removeWhere(
+      (_, entry) => now.difference(entry.loadedAt) > _dashboardCacheRetention,
+    );
+
+    final cached = cache[key];
+    if (!force &&
+        cached != null &&
+        now.difference(cached.loadedAt) < _dashboardCacheTtl) {
+      return cached.future;
+    }
+
+    final future = loader();
+    cache[key] = _DashboardFutureCacheEntry<T>(loadedAt: now, future: future);
+    return future;
+  }
+
+  void _load({bool force = false}) {
+    final key = _dashboardCacheKey;
+    _summary = _cachedFuture<DashboardData>(
+      cache: _summaryCache,
+      key: key,
+      force: force,
+      loader: () => _service.load(session: widget.session),
+    );
+    _insights = _cachedFuture<DashboardInsights>(
+      cache: _insightsCache,
+      key: key,
+      force: force,
+      loader: () => _service.insights(session: widget.session),
+    );
+    _businessIntelligence = _cachedFuture<Map<String, dynamic>>(
+      cache: _businessIntelligenceCache,
+      key: key,
+      force: force,
+      loader: () => _service.businessIntelligence(session: widget.session),
     );
   }
 
   Future<void> _refresh() async {
-    setState(_load);
+    setState(() => _load(force: true));
     await Future.wait([_summary, _insights, _businessIntelligence]);
   }
 

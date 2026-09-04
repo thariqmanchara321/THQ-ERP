@@ -81,11 +81,13 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
   final ThqApiService _thqApi = ThqApiService();
   Timer? _syncWarmupTimer;
   Timer? _syncTimer;
+  Timer? _menuSearchTimer;
   bool _syncCheckBusy = false;
   ThqSyncVersions? _syncVersions;
   bool _updatesAvailable = false;
   List<AppMenuNode> _menuNodes = const [];
   Map<String?, List<AppMenuNode>> _menuChildrenIndex = const {};
+  Map<String, String> _moduleLabelCache = const {};
   List<ClientModule> _moduleCache = const [];
   Map<String, ClientModule> _moduleMap = const {};
   final Set<String> _expandedGroups = <String>{};
@@ -212,9 +214,20 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
       );
       if (!mounted) return;
       final menuIndex = _indexMenu(rows);
+      final moduleLabels = <String, String>{};
+      for (final node in rows) {
+        final moduleKey = node.moduleKey;
+        if (node.isModule &&
+            moduleKey != null &&
+            moduleKey.isNotEmpty &&
+            _menuNodeAllowed(node)) {
+          moduleLabels[moduleKey] = node.label;
+        }
+      }
       setState(() {
         _menuNodes = rows;
         _menuChildrenIndex = menuIndex;
+        _moduleLabelCache = Map<String, String>.unmodifiable(moduleLabels);
         _expandedGroups
           ..clear()
           ..addAll(
@@ -296,17 +309,22 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
     }
   }
 
-  String _moduleLabel(String key, String fallback) {
-    for (final node in _menuNodes) {
-      if (node.isModule && node.moduleKey == key) return node.label;
-    }
-    return fallback;
+  String _moduleLabel(String key, String fallback) =>
+      _moduleLabelCache[key] ?? fallback;
+
+  void _onMenuSearchChanged(String value) {
+    _menuSearchTimer?.cancel();
+    _menuSearchTimer = Timer(const Duration(milliseconds: 120), () {
+      if (!mounted || _menuQuery == value) return;
+      setState(() => _menuQuery = value);
+    });
   }
 
   @override
   void dispose() {
     _syncWarmupTimer?.cancel();
     _syncTimer?.cancel();
+    _menuSearchTimer?.cancel();
     _workspaceFocusScope.dispose();
     _menuSearch.dispose();
     super.dispose();
@@ -460,8 +478,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
                         height: 34,
                         child: TextField(
                           controller: _menuSearch,
-                          onChanged: (value) =>
-                              setState(() => _menuQuery = value),
+                          onChanged: _onMenuSearchChanged,
                           onSubmitted: (value) {
                             if (value.trim().isNotEmpty) _openSearch(value);
                           },
@@ -600,7 +617,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 12),
                 child: TextField(
                   controller: _menuSearch,
-                  onChanged: (value) => setState(() => _menuQuery = value),
+                  onChanged: _onMenuSearchChanged,
                   onSubmitted: (value) {
                     if (value.trim().isNotEmpty) {
                       Navigator.of(context).pop();
