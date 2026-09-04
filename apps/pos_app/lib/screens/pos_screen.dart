@@ -3465,10 +3465,15 @@ class _PosScreenState extends State<PosScreen> {
           ),
         ),
         Container(
-          padding: const EdgeInsets.fromLTRB(9, 6, 9, 7),
+          padding: const EdgeInsets.fromLTRB(12, 10, 12, 11),
           decoration: BoxDecoration(
-            color: scheme.surfaceContainerHighest.withValues(alpha: .22),
-            border: Border(top: BorderSide(color: scheme.outlineVariant)),
+            color: scheme.primaryContainer.withValues(alpha: .16),
+            border: Border(
+              top: BorderSide(
+                color: scheme.primary.withValues(alpha: .24),
+                width: 1.25,
+              ),
+            ),
           ),
           child: Column(
             children: [
@@ -3482,9 +3487,19 @@ class _PosScreenState extends State<PosScreen> {
               _paymentSummaryRow('Tax', _money(_tax)),
               if (_roundOffAmount.abs() > 0.000001)
                 _paymentSummaryRow('Round Off', _money(_roundOffAmount)),
+              const Divider(height: 14),
+              _paymentSummaryRow(
+                'Grand Total',
+                _money(_total),
+                strong: true,
+                highlight: true,
+              ),
               const SizedBox(height: 2),
-              _paymentSummaryRow('Grand Total', _money(_total), strong: true),
-              _paymentSummaryRow('Received', _money(_appliedPayment)),
+              _paymentSummaryRow(
+                'Received',
+                _money(_appliedPayment),
+                highlight: true,
+              ),
               if (_change > 0.005)
                 _paymentSummaryRow('Change', _money(_change), strong: true),
               if (_accountBalance > 0.005)
@@ -3500,27 +3515,52 @@ class _PosScreenState extends State<PosScreen> {
     );
   }
 
-  Widget _paymentSummaryRow(String label, String value, {bool strong = false}) {
-    return SizedBox(
-      height: strong ? 24 : 19,
+  Widget _paymentSummaryRow(
+    String label,
+    String value, {
+    bool strong = false,
+    bool highlight = false,
+  }) {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      constraints: BoxConstraints(minHeight: strong ? 32 : 25),
+      padding: EdgeInsets.symmetric(
+        horizontal: highlight ? 8 : 2,
+        vertical: highlight ? 4 : 2,
+      ),
+      decoration: highlight
+          ? BoxDecoration(
+              color: scheme.surface.withValues(alpha: .72),
+              borderRadius: BorderRadius.circular(7),
+              border: Border.all(color: scheme.primary.withValues(alpha: .14)),
+            )
+          : null,
       child: Row(
         children: [
           Expanded(
             child: Text(
               label,
               style: TextStyle(
-                fontSize: strong ? 9.5 : 8.2,
-                fontWeight: strong ? FontWeight.w900 : FontWeight.w600,
+                fontSize: strong ? 12.5 : 10.5,
+                fontWeight: strong ? FontWeight.w900 : FontWeight.w700,
+                color: strong ? scheme.onSurface : scheme.onSurfaceVariant,
               ),
             ),
           ),
-          Text(
-            value,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              fontSize: strong ? 11.5 : 8.8,
-              fontWeight: strong ? FontWeight.w900 : FontWeight.w700,
+          const SizedBox(width: 8),
+          Flexible(
+            child: Text(
+              value,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.right,
+              style: TextStyle(
+                fontSize: strong ? 15 : (highlight ? 12.5 : 11),
+                fontWeight: strong
+                    ? FontWeight.w900
+                    : (highlight ? FontWeight.w800 : FontWeight.w700),
+                color: strong ? scheme.primary : scheme.onSurface,
+              ),
             ),
           ),
         ],

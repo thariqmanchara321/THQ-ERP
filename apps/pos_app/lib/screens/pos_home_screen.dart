@@ -54,6 +54,10 @@ class _PosHomeScreenState extends State<PosHomeScreen> {
   String? _selectedKey;
   bool _refreshing = false;
   int _contentGeneration = 0;
+  final FocusScopeNode _workspaceFocusScope = FocusScopeNode(
+    debugLabel: 'THQ POS workspace',
+    traversalEdgeBehavior: TraversalEdgeBehavior.closedLoop,
+  );
   bool _expanded = true;
   late Future<UiDesignProfile> _designFuture;
   final NavigationService _navigation = NavigationService();
@@ -118,6 +122,7 @@ class _PosHomeScreenState extends State<PosHomeScreen> {
   @override
   void dispose() {
     _syncTimer?.cancel();
+    _workspaceFocusScope.dispose();
     super.dispose();
   }
 
@@ -599,9 +604,15 @@ class _PosHomeScreenState extends State<PosHomeScreen> {
                         ),
                       ),
                       clipBehavior: Clip.antiAlias,
-                      child: KeyedSubtree(
-                        key: ValueKey('${page.key}:$_contentGeneration'),
-                        child: page.screen,
+                      child: FocusScope(
+                        node: _workspaceFocusScope,
+                        child: FocusTraversalGroup(
+                          policy: WidgetOrderTraversalPolicy(),
+                          child: KeyedSubtree(
+                            key: ValueKey('${page.key}:$_contentGeneration'),
+                            child: page.screen,
+                          ),
+                        ),
                       ),
                     ),
                   ),

@@ -66,6 +66,10 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
   final ClientAuthService _authService = ClientAuthService();
   final ClientSessionService _sessionService = ClientSessionService();
   final TextEditingController _menuSearch = TextEditingController();
+  final FocusScopeNode _workspaceFocusScope = FocusScopeNode(
+    debugLabel: 'THQ Client workspace',
+    traversalEdgeBehavior: TraversalEdgeBehavior.closedLoop,
+  );
   late ClientSession _session;
   bool _refreshing = false;
   int _contentGeneration = 0;
@@ -252,6 +256,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
   @override
   void dispose() {
     _syncTimer?.cancel();
+    _workspaceFocusScope.dispose();
     _menuSearch.dispose();
     super.dispose();
   }
@@ -482,13 +487,19 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
                           child: ValueListenableBuilder<String?>(
                             valueListenable:
                                 LocationScopeService.selectedLocationId,
-                            builder: (_, locationId, _) => KeyedSubtree(
-                              key: ValueKey(
-                                '${selected.key}:${locationId ?? 'all'}:$_contentGeneration',
-                              ),
-                              child: _ModulePage(
-                                module: selected,
-                                session: _session,
+                            builder: (_, locationId, _) => FocusScope(
+                              node: _workspaceFocusScope,
+                              child: FocusTraversalGroup(
+                                policy: WidgetOrderTraversalPolicy(),
+                                child: KeyedSubtree(
+                                  key: ValueKey(
+                                    '${selected.key}:${locationId ?? 'all'}:$_contentGeneration',
+                                  ),
+                                  child: _ModulePage(
+                                    module: selected,
+                                    session: _session,
+                                  ),
+                                ),
                               ),
                             ),
                           ),
