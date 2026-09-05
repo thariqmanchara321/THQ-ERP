@@ -129,6 +129,7 @@ class MobilePosSyncService {
           params: {
             'p_tenant_id': session.tenantId,
             'p_device_id': session.deviceId,
+            'p_location_id': session.locationId,
             'p_request_id': row.requestId,
             'p_payload': row.payload,
           },

@@ -85,8 +85,9 @@ class CartLine {
 class LocalInvoice {
   final String requestId,localNumber,status;
   final Map<String,dynamic> payload;
+  final Map<String,dynamic>? serverResponse;
   final int attempts;
   final String conflictCode,conflictMessage;
   final DateTime createdAt;
-  const LocalInvoice({required this.requestId,required this.localNumber,required this.status,required this.payload,required this.attempts,required this.conflictCode,required this.conflictMessage,required this.createdAt});
+  const LocalInvoice({required this.requestId,required this.localNumber,required this.status,required this.payload,this.serverResponse,required this.attempts,required this.conflictCode,required this.conflictMessage,required this.createdAt});
 }

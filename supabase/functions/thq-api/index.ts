@@ -352,8 +352,10 @@ Deno.serve(async (req) => {
           rpc = 'purchase_invoice_detail_v484'
           params = { ...params, p_purchase_invoice_id: payload.purchase_invoice_id }
         } else if (action === 'create') {
-          rpc = 'purchase_invoice_create_v489'
-          params = { ...params, p_purchase_order_id: payload.purchase_order_id, p_supplier_invoice_number: payload.supplier_invoice_number, p_invoice_date: payload.invoice_date ?? null, p_due_date: payload.due_date ?? null, p_items: payload.items ?? [], p_additional_charges: payload.additional_charges ?? 0, p_round_off: payload.round_off ?? 0, p_notes: payload.notes ?? '' }
+          const requestId = text(payload.request_id)
+          if (!requestId) return json({ success: false, error: 'request_id is required for authoritative GST purchase invoice creation.' }, 400)
+          rpc = 'gst_purchase_invoice_create_v520'
+          params = { ...params, p_purchase_order_id: payload.purchase_order_id, p_supplier_invoice_number: payload.supplier_invoice_number, p_invoice_date: payload.invoice_date ?? null, p_due_date: payload.due_date ?? null, p_items: payload.items ?? [], p_additional_charges: payload.additional_charges ?? 0, p_round_off: payload.round_off ?? 0, p_notes: payload.notes ?? '', p_request_id: requestId, p_supply_type: payload.supply_type ?? null, p_place_of_supply_code: payload.place_of_supply_code ?? null }
         } else if (action === 'post') {
           rpc = 'purchase_invoice_post_v484'
           params = { ...params, p_purchase_invoice_id: payload.purchase_invoice_id }
@@ -632,8 +634,11 @@ Deno.serve(async (req) => {
           rpc = 'mobile_pos_terminal_context_v488'
           params = { ...params, p_device_id: payload.device_id }
         } else if (action === 'sync') {
-          rpc = 'mobile_pos_sale_sync_v488'
-          params = { ...params, p_device_id: payload.device_id, p_request_id: payload.request_id, p_payload: payload.invoice ?? payload.payload ?? {} }
+          const requestId = text(payload.request_id)
+          const locationId = text(payload.location_id)
+          if (!requestId || !locationId) return json({ success: false, error: 'request_id and location_id are required for authoritative Mobile POS sync.' }, 400)
+          rpc = 'gst_mobile_pos_sale_sync_v522'
+          params = { ...params, p_device_id: payload.device_id, p_location_id: locationId, p_request_id: requestId, p_payload: payload.invoice ?? payload.payload ?? {} }
         } else if (action === 'products') {
           rpc = 'pos_offline_product_cache_v486'
           params = { ...params, p_device_id: payload.device_id }
@@ -667,8 +672,11 @@ Deno.serve(async (req) => {
         break
       case 'offline-pos':
         if (action === 'sync') {
-          rpc = 'pos_offline_sale_sync_v486'
-          params = { ...params, p_device_id: payload.device_id, p_location_id: payload.location_id, p_request_id: payload.request_id, p_payload: payload.invoice ?? payload.payload ?? {} }
+          const requestId = text(payload.request_id)
+          const locationId = text(payload.location_id)
+          if (!requestId || !locationId) return json({ success: false, error: 'request_id and location_id are required for authoritative Offline POS sync.' }, 400)
+          rpc = 'gst_pos_offline_sale_sync_v522'
+          params = { ...params, p_device_id: payload.device_id, p_location_id: locationId, p_request_id: requestId, p_payload: payload.invoice ?? payload.payload ?? {} }
         } else if (action === 'request') {
           rpc = 'pos_offline_request_lookup_v486'
           params = { ...params, p_request_id: payload.request_id }

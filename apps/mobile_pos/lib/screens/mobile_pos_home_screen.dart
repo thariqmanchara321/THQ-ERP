@@ -101,7 +101,7 @@ class _State extends State<MobilePosHomeScreen> {
               : 'Synced',
         );
     } catch (_) {
-      if (mounted) setState(() => syncText = 'Offline • invoices stay queued');
+      if (mounted) setState(() => syncText = 'Offline â€¢ invoices stay queued');
     } finally {
       syncing = false;
     }
@@ -460,6 +460,22 @@ class _State extends State<MobilePosHomeScreen> {
     if (result == null) return;
     final request = const Uuid().v4();
     final now = DateTime.now();
+    final creditAmount = (total - result.paid).clamp(0, double.infinity);
+    final paymentAllocations = <Map<String, dynamic>>[];
+    if (result.paid > 0.005) {
+      paymentAllocations.add({
+        'method_code': result.method,
+        'tendered_amount': result.paid,
+        'reference_number': result.reference,
+      });
+    }
+    if (creditAmount > 0.005) {
+      paymentAllocations.add({
+        'method_code': 'credit',
+        'tendered_amount': creditAmount,
+        'reference_number': null,
+      });
+    }
     final payload = <String, dynamic>{
       'customer_id': customer!.id,
       'customer_name': customer!.name,
@@ -474,9 +490,10 @@ class _State extends State<MobilePosHomeScreen> {
       'initial_payment': result.paid,
       'payment_method': result.method,
       'payment_reference': result.reference,
+      'payment_allocations': paymentAllocations,
       'notes': 'Mobile POS',
       'total': total,
-      'outstanding': (total - result.paid).clamp(0, double.infinity),
+      'outstanding': creditAmount,
     };
     String localNo;
     try {
@@ -496,9 +513,22 @@ class _State extends State<MobilePosHomeScreen> {
       return;
     }
     var synced = false;
+    Map<String, dynamic>? serverResponse;
     try {
       final r = await sync.sync(widget.session, only: request);
       synced = r.synced > 0;
+      if (synced) {
+        final saved = await local.invoiceByRequest(request);
+        serverResponse = saved?.serverResponse;
+        if (serverResponse == null ||
+            serverResponse['sale_id'] == null ||
+            serverResponse['gst_snapshot_id'] == null ||
+            serverResponse['gst_journal_id'] == null) {
+          throw StateError(
+            'Synced sale is missing authoritative receipt evidence.',
+          );
+        }
+      }
     } catch (_) {}
     if (!mounted) return;
     setState(() {
@@ -536,6 +566,7 @@ class _State extends State<MobilePosHomeScreen> {
         localNumber: localNo,
         payload: payload,
         synced: synced,
+        serverResponse: serverResponse,
         requestId: request,
       );
     if (action == 'share')
@@ -544,6 +575,7 @@ class _State extends State<MobilePosHomeScreen> {
         localNumber: localNo,
         payload: payload,
         synced: synced,
+        serverResponse: serverResponse,
         requestId: request,
       );
   }
@@ -1336,7 +1368,7 @@ class _PaymentState extends State<_PaymentDialog> {
   @override
   Widget build(BuildContext context) => AlertDialog(
     title: Text(
-      'Payment • ${widget.currency} ${widget.total.toStringAsFixed(2)}',
+      'Payment â€¢ ${widget.currency} ${widget.total.toStringAsFixed(2)}',
     ),
     content: Column(
       mainAxisSize: MainAxisSize.min,

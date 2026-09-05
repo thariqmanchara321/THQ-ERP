@@ -63,6 +63,7 @@ class _OfflineQueueScreenState extends State<OfflineQueueScreen> {
         localNumber: invoice.localNumber,
         payload: invoice.payload,
         synced: invoice.status == 'synced',
+        serverResponse: invoice.serverResponse,
       );
     } else if (action == 'share') {
       await receipt.shareReceipt(
@@ -70,6 +71,7 @@ class _OfflineQueueScreenState extends State<OfflineQueueScreen> {
         localNumber: invoice.localNumber,
         payload: invoice.payload,
         synced: invoice.status == 'synced',
+        serverResponse: invoice.serverResponse,
       );
     }
 

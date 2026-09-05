@@ -16,18 +16,43 @@ class MobileReceiptService {
     required String localNumber,
     required Map<String, dynamic> payload,
     required bool synced,
+    Map<String, dynamic>? serverResponse,
   }) async {
-    final doc = pw.Document();
-    final items = (payload['items'] as List? ?? const [])
-        .whereType<Map>()
-        .map((e) => Map<String, dynamic>.from(e))
-        .toList();
+    final authoritative = synced
+        ? await _loadAuthoritativeSale(
+            session: session,
+            serverResponse: serverResponse,
+          )
+        : null;
 
+    final sale = _map(authoritative?['sale']);
+    final gst = _map(authoritative?['gst']);
+    final items = authoritative != null
+        ? (authoritative['items'] as List? ?? const [])
+            .whereType<Map>()
+            .map((e) => Map<String, dynamic>.from(e))
+            .toList()
+        : (payload['items'] as List? ?? const [])
+            .whereType<Map>()
+            .map((e) => Map<String, dynamic>.from(e))
+            .toList();
+
+    final total = authoritative != null
+        ? numberValue(sale['grand_total'])
+        : numberValue(payload['total']);
+    final paid = authoritative != null
+        ? numberValue(authoritative['paid_amount'])
+        : numberValue(payload['initial_payment']);
+    final due = authoritative != null
+        ? numberValue(authoritative['balance_due'])
+        : numberValue(payload['outstanding']);
+
+    final doc = pw.Document();
     doc.addPage(
       pw.Page(
         pageFormat: PdfPageFormat(
           80 * PdfPageFormat.mm,
-          200 * PdfPageFormat.mm,
+          240 * PdfPageFormat.mm,
           marginAll: 4 * PdfPageFormat.mm,
         ),
         build: (_) => pw.Column(
@@ -44,7 +69,9 @@ class MobileReceiptService {
             ),
             pw.Center(
               child: pw.Text(
-                synced ? 'MOBILE POS RECEIPT' : 'OFFLINE SALE RECEIPT',
+                synced
+                    ? _documentTitle(gst['document_class']?.toString())
+                    : 'OFFLINE SALE RECEIPT',
                 style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
               ),
             ),
@@ -56,20 +83,36 @@ class MobileReceiptService {
                 ),
               ),
             pw.Divider(),
+            if (synced && sale['sale_number'] != null)
+              pw.Text('Invoice: ${sale['sale_number']}'),
             pw.Text('Local No: $localNumber'),
             pw.Text(
               'Store: ${session.locationCode} • POS: ${session.deviceCode}',
             ),
-            pw.Text('Customer: ${payload['customer_name'] ?? ''}'),
             pw.Text(
-              'Date: ${payload['sale_time'] ?? payload['sale_date'] ?? ''}',
+              'Customer: ${synced ? (sale['customer_name'] ?? '') : (payload['customer_name'] ?? '')}',
             ),
+            pw.Text(
+              'Date: ${synced ? (sale['sale_date'] ?? sale['created_at'] ?? '') : (payload['sale_time'] ?? payload['sale_date'] ?? '')}',
+            ),
+            if (synced && gst['supplier_gstin'] != null)
+              pw.Text('GSTIN: ${gst['supplier_gstin']}'),
+            if (synced && gst['place_of_supply_code'] != null)
+              pw.Text('Place of supply: ${gst['place_of_supply_code']}'),
             pw.Divider(),
             ...items.map((item) {
               final quantity = numberValue(item['quantity']);
               final price = numberValue(item['unit_price']);
-              final tax = numberValue(item['tax_rate']);
-              final line = quantity * price * (1 + tax / 100);
+
+              // Final/synced invoice: use the persisted server line total.
+              // Provisional/offline receipt: local math is allowed only while
+              // clearly marked PENDING SERVER SYNC.
+              final line = authoritative != null
+                  ? numberValue(item['line_total'])
+                  : quantity *
+                      price *
+                      (1 + numberValue(item['tax_rate']) / 100);
+
               return pw.Padding(
                 padding: const pw.EdgeInsets.only(bottom: 4),
                 child: pw.Column(
@@ -101,25 +144,68 @@ class MobileReceiptService {
               );
             }),
             pw.Divider(),
-            _row(session, 'TOTAL', numberValue(payload['total']), true),
-            _row(
-              session,
-              'PAID',
-              numberValue(payload['initial_payment']),
-              false,
-            ),
-            if (numberValue(payload['outstanding']) > 0.005)
+            if (authoritative != null) ...[
               _row(
                 session,
-                'DUE',
-                numberValue(payload['outstanding']),
+                'TAXABLE',
+                numberValue(gst['taxable_total']),
                 false,
               ),
+              if (numberValue(gst['cgst_total']).abs() > 0.004)
+                _row(
+                  session,
+                  'CGST',
+                  numberValue(gst['cgst_total']),
+                  false,
+                ),
+              if (numberValue(gst['sgst_total']).abs() > 0.004)
+                _row(
+                  session,
+                  'SGST',
+                  numberValue(gst['sgst_total']),
+                  false,
+                ),
+              if (numberValue(gst['utgst_total']).abs() > 0.004)
+                _row(
+                  session,
+                  'UTGST',
+                  numberValue(gst['utgst_total']),
+                  false,
+                ),
+              if (numberValue(gst['igst_total']).abs() > 0.004)
+                _row(
+                  session,
+                  'IGST',
+                  numberValue(gst['igst_total']),
+                  false,
+                ),
+              if (numberValue(gst['cess_total']).abs() > 0.004)
+                _row(
+                  session,
+                  'CESS',
+                  numberValue(gst['cess_total']),
+                  false,
+                ),
+              _row(
+                session,
+                'GST TOTAL',
+                numberValue(gst['tax_collected_total']),
+                false,
+              ),
+            ],
+            _row(session, 'TOTAL', total, true),
+            _row(session, 'PAID', paid, false),
+            if (due > 0.005) _row(session, 'DUE', due, false),
             pw.SizedBox(height: 8),
             if (!synced)
               pw.Text(
                 'Local offline receipt. Final server invoice and authoritative '
                 'GST are assigned only after successful synchronization.',
+                style: const pw.TextStyle(fontSize: 8),
+              ),
+            if (synced)
+              pw.Text(
+                'Authoritative server invoice • GST snapshot verified',
                 style: const pw.TextStyle(fontSize: 8),
               ),
           ],
@@ -134,6 +220,7 @@ class MobileReceiptService {
     required String localNumber,
     required Map<String, dynamic> payload,
     required bool synced,
+    Map<String, dynamic>? serverResponse,
     String? requestId,
   }) async {
     final bytes = await build(
@@ -141,6 +228,7 @@ class MobileReceiptService {
       localNumber: localNumber,
       payload: payload,
       synced: synced,
+      serverResponse: serverResponse,
     );
     await Printing.layoutPdf(
       onLayout: (_) => bytes,
@@ -159,6 +247,7 @@ class MobileReceiptService {
     required String localNumber,
     required Map<String, dynamic> payload,
     required bool synced,
+    Map<String, dynamic>? serverResponse,
     String? requestId,
   }) async {
     final bytes = await build(
@@ -166,6 +255,7 @@ class MobileReceiptService {
       localNumber: localNumber,
       payload: payload,
       synced: synced,
+      serverResponse: serverResponse,
     );
     await Printing.sharePdf(
       bytes: bytes,
@@ -177,6 +267,50 @@ class MobileReceiptService {
       eventType: 'share',
       localNumber: localNumber,
     );
+  }
+
+  Future<Map<String, dynamic>> _loadAuthoritativeSale({
+    required PosSession session,
+    required Map<String, dynamic>? serverResponse,
+  }) async {
+    final response = serverResponse ?? const <String, dynamic>{};
+    final saleId = response['sale_id']?.toString().trim() ?? '';
+    final expectedSnapshot =
+        response['gst_snapshot_id']?.toString().trim() ?? '';
+
+    if (saleId.isEmpty || expectedSnapshot.isEmpty) {
+      throw StateError(
+        'Synced Mobile POS receipt is missing authoritative sale/GST evidence.',
+      );
+    }
+
+    final raw = await _supabase.rpc(
+      'sales_get_detail_v520',
+      params: {
+        'p_tenant_id': session.tenantId,
+        'p_sale_id': saleId,
+      },
+    );
+    if (raw is! Map) {
+      throw StateError('Authoritative sale detail returned an invalid response.');
+    }
+
+    final detail = Map<String, dynamic>.from(raw);
+    final gst = _map(detail['gst']);
+    if (gst['authoritative'] != true) {
+      throw StateError(
+        'Final Mobile POS receipt is blocked because GST is not authoritative.',
+      );
+    }
+
+    final actualSnapshot = gst['snapshot_id']?.toString().trim() ?? '';
+    if (actualSnapshot.isEmpty || actualSnapshot != expectedSnapshot) {
+      throw StateError(
+        'Final Mobile POS receipt GST snapshot does not match sync evidence.',
+      );
+    }
+
+    return detail;
   }
 
   Future<void> _recordEvent({
@@ -199,9 +333,23 @@ class MobileReceiptService {
         },
       );
     } catch (_) {
-      // Receipt output must remain available offline. The sale's immutable
-      // request/sync audit remains authoritative even if this optional event
-      // cannot be logged while disconnected.
+      // Receipt output remains available offline. The immutable request/sync
+      // record remains authoritative even if this optional event cannot log.
+    }
+  }
+
+  Map<String, dynamic> _map(dynamic value) => value is Map
+      ? Map<String, dynamic>.from(value)
+      : <String, dynamic>{};
+
+  String _documentTitle(String? value) {
+    switch ((value ?? '').toLowerCase()) {
+      case 'bill_of_supply':
+        return 'BILL OF SUPPLY';
+      case 'tax_invoice':
+        return 'TAX INVOICE';
+      default:
+        return 'FINAL INVOICE';
     }
   }
 
