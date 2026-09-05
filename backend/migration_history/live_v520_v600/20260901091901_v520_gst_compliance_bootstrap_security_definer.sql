@@ -1,0 +1,1 @@
+alter function public.gst_compliance_bootstrap_v520(uuid,date,date,uuid,integer) security definer;

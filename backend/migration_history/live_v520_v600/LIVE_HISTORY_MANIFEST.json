@@ -1,0 +1,822 @@
+[
+  {
+    "version": "20260830212021",
+    "name": "v520_gst_foundation",
+    "filename": "20260830212021_v520_gst_foundation.sql",
+    "embedded_migration_no": 214,
+    "chars": 69799,
+    "bytes": 69805,
+    "md5": "46890d83d81d6aabf56b16e653ff8da4",
+    "exact_match": true
+  },
+  {
+    "version": "20260830212233",
+    "name": "v520_gst_foundation_hotfix1",
+    "filename": "20260830212233_v520_gst_foundation_hotfix1.sql",
+    "embedded_migration_no": 215,
+    "chars": 10560,
+    "bytes": 10560,
+    "md5": "98fb974921f2e2a28c15173ffc2cb804",
+    "exact_match": true
+  },
+  {
+    "version": "20260830212338",
+    "name": "v520_gst_foundation_hotfix2",
+    "filename": "20260830212338_v520_gst_foundation_hotfix2.sql",
+    "embedded_migration_no": 216,
+    "chars": 10646,
+    "bytes": 10646,
+    "md5": "a0a47e25db51e55137d6c4bc533f1339",
+    "exact_match": true
+  },
+  {
+    "version": "20260830212445",
+    "name": "v520_gst_foundation_hotfix3",
+    "filename": "20260830212445_v520_gst_foundation_hotfix3.sql",
+    "embedded_migration_no": 217,
+    "chars": 4460,
+    "bytes": 4460,
+    "md5": "8cb971be7f1254fe95a5899efb874d51",
+    "exact_match": true
+  },
+  {
+    "version": "20260830213522",
+    "name": "v520_gst_master_rule_corrections",
+    "filename": "20260830213522_v520_gst_master_rule_corrections.sql",
+    "embedded_migration_no": 218,
+    "chars": 1622,
+    "bytes": 1626,
+    "md5": "970fc3496082a24daa307973233d34db",
+    "exact_match": true
+  },
+  {
+    "version": "20260830213923",
+    "name": "v520_gst_configuration_history",
+    "filename": "20260830213923_v520_gst_configuration_history.sql",
+    "embedded_migration_no": 219,
+    "chars": 19149,
+    "bytes": 19149,
+    "md5": "321380a3d4cee8bf46f06ee1430cb1ef",
+    "exact_match": true
+  },
+  {
+    "version": "20260830214404",
+    "name": "v520_gst_document_engine",
+    "filename": "20260830214404_v520_gst_document_engine.sql",
+    "embedded_migration_no": 220,
+    "chars": 19210,
+    "bytes": 19210,
+    "md5": "04431b47e9f08a64d9a2694e00ece33d",
+    "exact_match": true
+  },
+  {
+    "version": "20260830214614",
+    "name": "v520_gst_document_engine_hotfix1",
+    "filename": "20260830214614_v520_gst_document_engine_hotfix1.sql",
+    "embedded_migration_no": 221,
+    "chars": 1395,
+    "bytes": 1395,
+    "md5": "eb97596891b97a4e333090cf2731b44d",
+    "exact_match": true
+  },
+  {
+    "version": "20260830214737",
+    "name": "v520_gst_document_engine_hotfix2",
+    "filename": "20260830214737_v520_gst_document_engine_hotfix2.sql",
+    "embedded_migration_no": 222,
+    "chars": 1637,
+    "bytes": 1637,
+    "md5": "e2bd915a1baf88f09a2e44ac7d5cf319",
+    "exact_match": true
+  },
+  {
+    "version": "20260830214857",
+    "name": "v520_gst_document_engine_hotfix3",
+    "filename": "20260830214857_v520_gst_document_engine_hotfix3.sql",
+    "embedded_migration_no": 223,
+    "chars": 2493,
+    "bytes": 2493,
+    "md5": "c046a6d9822434ca0f7f712b9175f020",
+    "exact_match": true
+  },
+  {
+    "version": "20260830220336",
+    "name": "v520_gst_immutable_snapshot_schema",
+    "filename": "20260830220336_v520_gst_immutable_snapshot_schema.sql",
+    "embedded_migration_no": 224,
+    "chars": 8861,
+    "bytes": 8861,
+    "md5": "517c3e2cb77b3dc6a630660085f96559",
+    "exact_match": true
+  },
+  {
+    "version": "20260830220418",
+    "name": "v520_gst_authoritative_snapshot_contract",
+    "filename": "20260830220418_v520_gst_authoritative_snapshot_contract.sql",
+    "embedded_migration_no": 225,
+    "chars": 19900,
+    "bytes": 19900,
+    "md5": "8616e285554c8dd2688395c8a8c1b429",
+    "exact_match": true
+  },
+  {
+    "version": "20260830220445",
+    "name": "v520_gst_legacy_evidence",
+    "filename": "20260830220445_v520_gst_legacy_evidence.sql",
+    "embedded_migration_no": 226,
+    "chars": 10941,
+    "bytes": 10941,
+    "md5": "0c16ca03375ad975d2265ac2f981f9c1",
+    "exact_match": true
+  },
+  {
+    "version": "20260830221521",
+    "name": "v520_gst_component_account_hierarchy",
+    "filename": "20260830221521_v520_gst_component_account_hierarchy.sql",
+    "embedded_migration_no": 227,
+    "chars": 12647,
+    "bytes": 12647,
+    "md5": "4da96613572571951226421bc4388c0a",
+    "exact_match": true
+  },
+  {
+    "version": "20260830221556",
+    "name": "v520_gst_accounting_aggregation",
+    "filename": "20260830221556_v520_gst_accounting_aggregation.sql",
+    "embedded_migration_no": 228,
+    "chars": 13012,
+    "bytes": 13012,
+    "md5": "5298546e07bc80ad0297a0c7945911ad",
+    "exact_match": true
+  },
+  {
+    "version": "20260830221620",
+    "name": "v520_gst_accounting_control_health",
+    "filename": "20260830221620_v520_gst_accounting_control_health.sql",
+    "embedded_migration_no": 229,
+    "chars": 6785,
+    "bytes": 6785,
+    "md5": "d78fa32a7a0a0729415f8e316dd73c88",
+    "exact_match": true
+  },
+  {
+    "version": "20260830221908",
+    "name": "v520_gst_immutable_snapshot_schema",
+    "filename": "20260830221908_v520_gst_immutable_snapshot_schema.sql",
+    "embedded_migration_no": 224,
+    "chars": 8953,
+    "bytes": 8953,
+    "md5": "2e4c22c6c6fd85542531b8be2dc3427d",
+    "exact_match": true
+  },
+  {
+    "version": "20260830222245",
+    "name": "v520_gst_snapshot_writer",
+    "filename": "20260830222245_v520_gst_snapshot_writer.sql",
+    "embedded_migration_no": 225,
+    "chars": 14550,
+    "bytes": 14550,
+    "md5": "b5c4d525fea99e067fd706fce8d33eb7",
+    "exact_match": true
+  },
+  {
+    "version": "20260830222309",
+    "name": "v520_gst_legacy_evidence_markers",
+    "filename": "20260830222309_v520_gst_legacy_evidence_markers.sql",
+    "embedded_migration_no": 226,
+    "chars": 7374,
+    "bytes": 7374,
+    "md5": "04bf3670e4fc6890d11e17759054c0ed",
+    "exact_match": true
+  },
+  {
+    "version": "20260830222643",
+    "name": "v520_gst_migration_contract_cleanup",
+    "filename": "20260830222643_v520_gst_migration_contract_cleanup.sql",
+    "embedded_migration_no": 230,
+    "chars": 1092,
+    "bytes": 1092,
+    "md5": "4ea5653ffa715083eb41e87d0da868b4",
+    "exact_match": true
+  },
+  {
+    "version": "20260830223136",
+    "name": "v520_gst_rcm_liability_scope",
+    "filename": "20260830223136_v520_gst_rcm_liability_scope.sql",
+    "embedded_migration_no": 231,
+    "chars": 3338,
+    "bytes": 3338,
+    "md5": "75f84a461dfde43ad44aa1cb6d4ee5cb",
+    "exact_match": true
+  },
+  {
+    "version": "20260830223528",
+    "name": "v520_gst_snapshot_journal_mapper",
+    "filename": "20260830223528_v520_gst_snapshot_journal_mapper.sql",
+    "embedded_migration_no": 232,
+    "chars": 12550,
+    "bytes": 12550,
+    "md5": "a8bc51286a6d818f4f2a1d93caad5424",
+    "exact_match": true
+  },
+  {
+    "version": "20260830223933",
+    "name": "v520_gst_document_journal_composer",
+    "filename": "20260830223933_v520_gst_document_journal_composer.sql",
+    "embedded_migration_no": 233,
+    "chars": 17027,
+    "bytes": 17027,
+    "md5": "688459f14e5c120016a713a668b65aa3",
+    "exact_match": true
+  },
+  {
+    "version": "20260830224303",
+    "name": "v520_gst_authoritative_journal_poster",
+    "filename": "20260830224303_v520_gst_authoritative_journal_poster.sql",
+    "embedded_migration_no": 234,
+    "chars": 4934,
+    "bytes": 4934,
+    "md5": "45f376003e7c62c6e9180e18962b3aad",
+    "exact_match": true
+  },
+  {
+    "version": "20260831040127",
+    "name": "v520_gst_transition_legacy_auto_evidence",
+    "filename": "20260831040127_v520_gst_transition_legacy_auto_evidence.sql",
+    "embedded_migration_no": 235,
+    "chars": 6735,
+    "bytes": 6735,
+    "md5": "ccdf228cded8b9beb63d6ae060ab6dc3",
+    "exact_match": true
+  },
+  {
+    "version": "20260831040548",
+    "name": "v520_gst_authoritative_transaction_context",
+    "filename": "20260831040548_v520_gst_authoritative_transaction_context.sql",
+    "embedded_migration_no": 236,
+    "chars": 8704,
+    "bytes": 8704,
+    "md5": "b41c868024962267e249017499e54bde",
+    "exact_match": true
+  },
+  {
+    "version": "20260831041024",
+    "name": "v520_gst_operational_calculation_permission",
+    "filename": "20260831041024_v520_gst_operational_calculation_permission.sql",
+    "embedded_migration_no": 237,
+    "chars": 4846,
+    "bytes": 4846,
+    "md5": "c487a9eb8db5589bade459aa6a25240d",
+    "exact_match": true
+  },
+  {
+    "version": "20260831041109",
+    "name": "v520_gst_legacy_accounting_guard",
+    "filename": "20260831041109_v520_gst_legacy_accounting_guard.sql",
+    "embedded_migration_no": 238,
+    "chars": 1491,
+    "bytes": 1491,
+    "md5": "8491b631035e1e8418b0bc72bdae9216",
+    "exact_match": true
+  },
+  {
+    "version": "20260831041349",
+    "name": "v520_gst_legal_document_identity",
+    "filename": "20260831041349_v520_gst_legal_document_identity.sql",
+    "embedded_migration_no": 239,
+    "chars": 4338,
+    "bytes": 4338,
+    "md5": "e161a5a290affce48b9476218a37c47a",
+    "exact_match": true
+  },
+  {
+    "version": "20260831041432",
+    "name": "v520_gst_atomic_request_contract",
+    "filename": "20260831041432_v520_gst_atomic_request_contract.sql",
+    "embedded_migration_no": 240,
+    "chars": 5926,
+    "bytes": 5926,
+    "md5": "bc303e0292e027a40e68c8e962507afc",
+    "exact_match": true
+  },
+  {
+    "version": "20260831042050",
+    "name": "v520_gst_atomic_sale",
+    "filename": "20260831042050_v520_gst_atomic_sale.sql",
+    "embedded_migration_no": 241,
+    "chars": 18221,
+    "bytes": 18221,
+    "md5": "43dcab42a601fb6b016b838f8f659612",
+    "exact_match": true
+  },
+  {
+    "version": "20260831054933",
+    "name": "v520_gst_atomic_purchase",
+    "filename": "20260831054933_v520_gst_atomic_purchase.sql",
+    "embedded_migration_no": 242,
+    "chars": 22139,
+    "bytes": 22139,
+    "md5": "1df494fc52769283e618571a2723519b",
+    "exact_match": true
+  },
+  {
+    "version": "20260831060015",
+    "name": "v520_gst_atomic_purchasing_v2_invoice",
+    "filename": "20260831060015_v520_gst_atomic_purchasing_v2_invoice.sql",
+    "embedded_migration_no": 243,
+    "chars": 29298,
+    "bytes": 29298,
+    "md5": "7d64d93bf34d008e3693f934393e2578",
+    "exact_match": true
+  },
+  {
+    "version": "20260831060751",
+    "name": "v520_purchasing_v2_finance_sync_domain_hotfix",
+    "filename": "20260831060751_v520_purchasing_v2_finance_sync_domain_hotfix.sql",
+    "embedded_migration_no": null,
+    "chars": 671,
+    "bytes": 671,
+    "md5": "3587b309df75a19c46a1a7b4fc966f11",
+    "exact_match": true
+  },
+  {
+    "version": "20260831061906",
+    "name": "v520_gst_atomic_sales_return",
+    "filename": "20260831061906_v520_gst_atomic_sales_return.sql",
+    "embedded_migration_no": null,
+    "chars": 27540,
+    "bytes": 27542,
+    "md5": "203de2766819dbf43f8e4f53b7bea303",
+    "exact_match": true
+  },
+  {
+    "version": "20260831065610",
+    "name": "v520_gst_atomic_purchase_return",
+    "filename": "20260831065610_v520_gst_atomic_purchase_return.sql",
+    "embedded_migration_no": null,
+    "chars": 30984,
+    "bytes": 30986,
+    "md5": "edc1d8daa23976fdf12b10c3933cdb5d",
+    "exact_match": true
+  },
+  {
+    "version": "20260831065947",
+    "name": "v520_gst_atomic_purchase_return_hotfix1",
+    "filename": "20260831065947_v520_gst_atomic_purchase_return_hotfix1.sql",
+    "embedded_migration_no": null,
+    "chars": 533,
+    "bytes": 533,
+    "md5": "56986f77160bc20694cfd998968f8fec",
+    "exact_match": true
+  },
+  {
+    "version": "20260831101025",
+    "name": "v520_gst_atomic_service_billing",
+    "filename": "20260831101025_v520_gst_atomic_service_billing.sql",
+    "embedded_migration_no": null,
+    "chars": 11374,
+    "bytes": 11376,
+    "md5": "ab323206c09913fea18632a495ad657e",
+    "exact_match": true
+  },
+  {
+    "version": "20260831101215",
+    "name": "v520_gst_service_cogs_scope_hotfix",
+    "filename": "20260831101215_v520_gst_service_cogs_scope_hotfix.sql",
+    "embedded_migration_no": null,
+    "chars": 13254,
+    "bytes": 13254,
+    "md5": "39046e21100e0eb14c3afede3bd2e69f",
+    "exact_match": true
+  },
+  {
+    "version": "20260831101939",
+    "name": "v520_gst_atomic_restaurant_billing",
+    "filename": "20260831101939_v520_gst_atomic_restaurant_billing.sql",
+    "embedded_migration_no": null,
+    "chars": 8909,
+    "bytes": 8909,
+    "md5": "5cd198abcfd0762b2a8062d56a6c7c31",
+    "exact_match": true
+  },
+  {
+    "version": "20260831102332",
+    "name": "v520_restaurant_sync_domain_hotfix",
+    "filename": "20260831102332_v520_restaurant_sync_domain_hotfix.sql",
+    "embedded_migration_no": null,
+    "chars": 1380,
+    "bytes": 1380,
+    "md5": "d0e8dfc984a3e3255c9c5adbebf2d3ae",
+    "exact_match": true
+  },
+  {
+    "version": "20260831102437",
+    "name": "v520_restaurant_request_source_hotfix",
+    "filename": "20260831102437_v520_restaurant_request_source_hotfix.sql",
+    "embedded_migration_no": null,
+    "chars": 590,
+    "bytes": 590,
+    "md5": "7c9fb5303c198dde28f6de9b643ff7e8",
+    "exact_match": true
+  },
+  {
+    "version": "20260831102547",
+    "name": "v520_restaurant_order_tax_source_hotfix",
+    "filename": "20260831102547_v520_restaurant_order_tax_source_hotfix.sql",
+    "embedded_migration_no": null,
+    "chars": 4772,
+    "bytes": 4772,
+    "md5": "9992370332789ddef500460c60180cb6",
+    "exact_match": true
+  },
+  {
+    "version": "20260831104904",
+    "name": "v520_offline_pos_authoritative_gst",
+    "filename": "20260831104904_v520_offline_pos_authoritative_gst.sql",
+    "embedded_migration_no": null,
+    "chars": 15643,
+    "bytes": 15645,
+    "md5": "a9ea8e60820e514e68b3a8784d60a81c",
+    "exact_match": true
+  },
+  {
+    "version": "20260831105352",
+    "name": "v520_fix_v486_offline_gst_response_metadata",
+    "filename": "20260831105352_v520_fix_v486_offline_gst_response_metadata.sql",
+    "embedded_migration_no": null,
+    "chars": 807,
+    "bytes": 807,
+    "md5": "dbd335fba2c0cc87c27f70925626e01f",
+    "exact_match": true
+  },
+  {
+    "version": "20260831111708",
+    "name": "v520_offline_pos_remove_duplicate_location_index",
+    "filename": "20260831111708_v520_offline_pos_remove_duplicate_location_index.sql",
+    "embedded_migration_no": null,
+    "chars": 58,
+    "bytes": 58,
+    "md5": "d92dd366cfc750571bc9af46bca86d72",
+    "exact_match": true
+  },
+  {
+    "version": "20260831113210",
+    "name": "v520_mobile_pos_authoritative_gst",
+    "filename": "20260831113210_v520_mobile_pos_authoritative_gst.sql",
+    "embedded_migration_no": null,
+    "chars": 17320,
+    "bytes": 17320,
+    "md5": "5d26e65742fe397b91592d1bb798206a",
+    "exact_match": true
+  },
+  {
+    "version": "20260831120806",
+    "name": "v520_gst_quote_review_blocker_diagnostics",
+    "filename": "20260831120806_v520_gst_quote_review_blocker_diagnostics.sql",
+    "embedded_migration_no": null,
+    "chars": 2316,
+    "bytes": 2316,
+    "md5": "f950426a427d31642e618854f703c037",
+    "exact_match": true
+  },
+  {
+    "version": "20260831122938",
+    "name": "v520_client_pos_gst_cutover_contract",
+    "filename": "20260831122938_v520_client_pos_gst_cutover_contract.sql",
+    "embedded_migration_no": null,
+    "chars": 3137,
+    "bytes": 3137,
+    "md5": "95566fa355329cfea5025e92868dd60e",
+    "exact_match": true
+  },
+  {
+    "version": "20260831132444",
+    "name": "v520_gst_compliance_workspace_read_apis",
+    "filename": "20260831132444_v520_gst_compliance_workspace_read_apis.sql",
+    "embedded_migration_no": 244,
+    "chars": 14049,
+    "bytes": 14049,
+    "md5": "0807a3004e687e4e80cb8cdf8160d78b",
+    "exact_match": true
+  },
+  {
+    "version": "20260831132558",
+    "name": "v520_gst_compliance_readiness_ui_contract",
+    "filename": "20260831132558_v520_gst_compliance_readiness_ui_contract.sql",
+    "embedded_migration_no": 245,
+    "chars": 7987,
+    "bytes": 7987,
+    "md5": "30c72d23a0c26cb780b1f307baca7aff",
+    "exact_match": true
+  },
+  {
+    "version": "20260831132650",
+    "name": "v520_fix_gst_document_evidence_account_code",
+    "filename": "20260831132650_v520_fix_gst_document_evidence_account_code.sql",
+    "embedded_migration_no": 246,
+    "chars": 3458,
+    "bytes": 3458,
+    "md5": "e34871de804d8b2886ca6846a04e32d9",
+    "exact_match": true
+  },
+  {
+    "version": "20260831133226",
+    "name": "v520_gst_application_cutover_contract",
+    "filename": "20260831133226_v520_gst_application_cutover_contract.sql",
+    "embedded_migration_no": 247,
+    "chars": 4807,
+    "bytes": 4807,
+    "md5": "fb3b5edf292109359914fd408544859a",
+    "exact_match": true
+  },
+  {
+    "version": "20260831134429",
+    "name": "v520_gst_compliance_workspace_bootstrap",
+    "filename": "20260831134429_v520_gst_compliance_workspace_bootstrap.sql",
+    "embedded_migration_no": null,
+    "chars": 2517,
+    "bytes": 2517,
+    "md5": "0fcaeb955e4df5fcd130981be0793a42",
+    "exact_match": true
+  },
+  {
+    "version": "20260831134544",
+    "name": "v520_gst_compliance_ui_contract_v2",
+    "filename": "20260831134544_v520_gst_compliance_ui_contract_v2.sql",
+    "embedded_migration_no": null,
+    "chars": 5367,
+    "bytes": 5367,
+    "md5": "c9782285002681e5c4c342b5fbde0563",
+    "exact_match": true
+  },
+  {
+    "version": "20260831134617",
+    "name": "v520_gst_public_execute_hardening",
+    "filename": "20260831134617_v520_gst_public_execute_hardening.sql",
+    "embedded_migration_no": null,
+    "chars": 762,
+    "bytes": 762,
+    "md5": "cda853bf0e65bbf3e0e53deb084f8047",
+    "exact_match": true
+  },
+  {
+    "version": "20260831135515",
+    "name": "v520_gst_ui_setup_lookups",
+    "filename": "20260831135515_v520_gst_ui_setup_lookups.sql",
+    "embedded_migration_no": 251,
+    "chars": 13523,
+    "bytes": 13523,
+    "md5": "348de53d8481fcddf0a196c21771894f",
+    "exact_match": true
+  },
+  {
+    "version": "20260831140618",
+    "name": "v520_gst_ui_permission_contract",
+    "filename": "20260831140618_v520_gst_ui_permission_contract.sql",
+    "embedded_migration_no": 252,
+    "chars": 5645,
+    "bytes": 5645,
+    "md5": "c02840d0d9a1acde18c36ad061d474b3",
+    "exact_match": true
+  },
+  {
+    "version": "20260901063817",
+    "name": "v520_tenant_tax_mode_and_final_gst_hardening",
+    "filename": "20260901063817_v520_tenant_tax_mode_and_final_gst_hardening.sql",
+    "embedded_migration_no": 253,
+    "chars": 38834,
+    "bytes": 38834,
+    "md5": "d6be2bef3325ed054cba5568b1b11503",
+    "exact_match": true
+  },
+  {
+    "version": "20260901064715",
+    "name": "v520_tax_mode_aware_compliance_workspace",
+    "filename": "20260901064715_v520_tax_mode_aware_compliance_workspace.sql",
+    "embedded_migration_no": 254,
+    "chars": 13182,
+    "bytes": 13182,
+    "md5": "5cdbdc6095586e44ed682d4cadbd49dc",
+    "exact_match": true
+  },
+  {
+    "version": "20260901083012",
+    "name": "v520_authoritative_document_immutability_guards",
+    "filename": "20260901083012_v520_authoritative_document_immutability_guards.sql",
+    "embedded_migration_no": null,
+    "chars": 5334,
+    "bytes": 5334,
+    "md5": "f81ba9943f3cc5ab7edce83c7d21fa41",
+    "exact_match": true
+  },
+  {
+    "version": "20260901083656",
+    "name": "v520_client_restaurant_cutover_route",
+    "filename": "20260901083656_v520_client_restaurant_cutover_route.sql",
+    "embedded_migration_no": null,
+    "chars": 1763,
+    "bytes": 1763,
+    "md5": "5203311a8f61802cdf0c54ea3c16b57e",
+    "exact_match": true
+  },
+  {
+    "version": "20260901091901",
+    "name": "v520_gst_compliance_bootstrap_security_definer",
+    "filename": "20260901091901_v520_gst_compliance_bootstrap_security_definer.sql",
+    "embedded_migration_no": null,
+    "chars": 98,
+    "bytes": 98,
+    "md5": "6107f0cda22276a24396d474abfc9acc",
+    "exact_match": true
+  },
+  {
+    "version": "20260901105843",
+    "name": "v520_project_audit_safe_hardening",
+    "filename": "20260901105843_v520_project_audit_safe_hardening.sql",
+    "embedded_migration_no": null,
+    "chars": 190,
+    "bytes": 190,
+    "md5": "f3e9970a75359a700a56c611f5154e2a",
+    "exact_match": true
+  },
+  {
+    "version": "20260901123214",
+    "name": "v520_sales_invoice_gst_detail",
+    "filename": "20260901123214_v520_sales_invoice_gst_detail.sql",
+    "embedded_migration_no": null,
+    "chars": 2223,
+    "bytes": 2223,
+    "md5": "663bccff4141fd95d03f91b424688e6f",
+    "exact_match": true
+  },
+  {
+    "version": "20260901150001",
+    "name": "v520_purchase_invoice_gst_detail",
+    "filename": "20260901150001_v520_purchase_invoice_gst_detail.sql",
+    "embedded_migration_no": null,
+    "chars": 2353,
+    "bytes": 2353,
+    "md5": "9ec22b2af483aa1b6e50e7a3aee4dd1f",
+    "exact_match": true
+  },
+  {
+    "version": "20260901151936",
+    "name": "v520_authorized_installation_change",
+    "filename": "20260901151936_v520_authorized_installation_change.sql",
+    "embedded_migration_no": null,
+    "chars": 1040,
+    "bytes": 1040,
+    "md5": "de7af73e6a451bb8ceef6f23deff0631",
+    "exact_match": true
+  },
+  {
+    "version": "20260901213246",
+    "name": "v600_transaction_story_foundation",
+    "filename": "20260901213246_v600_transaction_story_foundation.sql",
+    "embedded_migration_no": 255,
+    "chars": 13412,
+    "bytes": 13412,
+    "md5": "10ced1ef3c2ee9ec348e899e217c7ffa",
+    "exact_match": true
+  },
+  {
+    "version": "20260901213410",
+    "name": "v600_transaction_story_capture_and_history",
+    "filename": "20260901213410_v600_transaction_story_capture_and_history.sql",
+    "embedded_migration_no": 256,
+    "chars": 23224,
+    "bytes": 23224,
+    "md5": "4aa0daef8bd52a57f11e2d21c643fdb2",
+    "exact_match": true
+  },
+  {
+    "version": "20260901213608",
+    "name": "v600_audit_center_risk_engine",
+    "filename": "20260901213608_v600_audit_center_risk_engine.sql",
+    "embedded_migration_no": 257,
+    "chars": 31663,
+    "bytes": 31663,
+    "md5": "5760ee9030b359c2b0c3fd2afedc0536",
+    "exact_match": true
+  },
+  {
+    "version": "20260901213821",
+    "name": "v600_product_profitability",
+    "filename": "20260901213821_v600_product_profitability.sql",
+    "embedded_migration_no": 258,
+    "chars": 16042,
+    "bytes": 16042,
+    "md5": "ef7c51ae3c843abd0a9c43f9a07d4494",
+    "exact_match": true
+  },
+  {
+    "version": "20260901214030",
+    "name": "v600_explain_this_number",
+    "filename": "20260901214030_v600_explain_this_number.sql",
+    "embedded_migration_no": 259,
+    "chars": 23408,
+    "bytes": 23408,
+    "md5": "c157b23721884b3e160f614084c19cb6",
+    "exact_match": true
+  },
+  {
+    "version": "20260901214121",
+    "name": "v600_explain_balance_scope_hotfix",
+    "filename": "20260901214121_v600_explain_balance_scope_hotfix.sql",
+    "embedded_migration_no": 260,
+    "chars": 20549,
+    "bytes": 20549,
+    "md5": "e6e1f45ad042d8a8ec0ec6e1884e15c6",
+    "exact_match": true
+  },
+  {
+    "version": "20260901214232",
+    "name": "v600_explain_driver_hardening",
+    "filename": "20260901214232_v600_explain_driver_hardening.sql",
+    "embedded_migration_no": 261,
+    "chars": 17204,
+    "bytes": 17204,
+    "md5": "26f0a5a165b8ff95094f914411ae3cdb",
+    "exact_match": true
+  },
+  {
+    "version": "20260901214445",
+    "name": "v600_gst_story_and_transaction_explanation",
+    "filename": "20260901214445_v600_gst_story_and_transaction_explanation.sql",
+    "embedded_migration_no": 262,
+    "chars": 18306,
+    "bytes": 18306,
+    "md5": "984bdfd34044d03efdb95235e66201f9",
+    "exact_match": true
+  },
+  {
+    "version": "20260901214643",
+    "name": "v600_audit_historical_bootstrap_and_export",
+    "filename": "20260901214643_v600_audit_historical_bootstrap_and_export.sql",
+    "embedded_migration_no": 263,
+    "chars": 16335,
+    "bytes": 16335,
+    "md5": "9932e9724d42a0d77d8d46979f127a02",
+    "exact_match": true
+  },
+  {
+    "version": "20260901214731",
+    "name": "v600_audit_writer_overload_hotfix",
+    "filename": "20260901214731_v600_audit_writer_overload_hotfix.sql",
+    "embedded_migration_no": 264,
+    "chars": 13954,
+    "bytes": 13954,
+    "md5": "5b2c38818f77ff25913e688ebbd61401",
+    "exact_match": true
+  },
+  {
+    "version": "20260901214858",
+    "name": "v600_history_quality_and_return_correlation",
+    "filename": "20260901214858_v600_history_quality_and_return_correlation.sql",
+    "embedded_migration_no": 265,
+    "chars": 6174,
+    "bytes": 6174,
+    "md5": "176c1c60041fa3e0fd1ef95a7244c788",
+    "exact_match": true
+  },
+  {
+    "version": "20260901215107",
+    "name": "v600_historical_risk_false_positive_fix",
+    "filename": "20260901215107_v600_historical_risk_false_positive_fix.sql",
+    "embedded_migration_no": 266,
+    "chars": 12470,
+    "bytes": 12470,
+    "md5": "de4cefe174ec2b80bdb3af2fa835ece1",
+    "exact_match": true
+  },
+  {
+    "version": "20260901215152",
+    "name": "v600_audit_active_risk_semantics",
+    "filename": "20260901215152_v600_audit_active_risk_semantics.sql",
+    "embedded_migration_no": 267,
+    "chars": 5351,
+    "bytes": 5351,
+    "md5": "ae50a4dc5826ffd95ba1bdaa8755b1d1",
+    "exact_match": true
+  },
+  {
+    "version": "20260902055850",
+    "name": "v600_audit_center_client_menu",
+    "filename": "20260902055850_v600_audit_center_client_menu.sql",
+    "embedded_migration_no": 268,
+    "chars": 2025,
+    "bytes": 2027,
+    "md5": "7491da146821f11f1e21fcd10d6d44d0",
+    "exact_match": true
+  },
+  {
+    "version": "20260902060616",
+    "name": "v600_build1_app_release_registry",
+    "filename": "20260902060616_v600_build1_app_release_registry.sql",
+    "embedded_migration_no": 269,
+    "chars": 1768,
+    "bytes": 1772,
+    "md5": "e3bd0b279a5386bda109d01548379243",
+    "exact_match": true
+  }
+]

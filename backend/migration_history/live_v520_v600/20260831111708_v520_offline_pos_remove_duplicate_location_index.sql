@@ -1,0 +1,1 @@
+drop index if exists public.idx_pos_offline_sync_ops_v489;

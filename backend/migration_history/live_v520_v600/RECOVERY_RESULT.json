@@ -1,0 +1,9 @@
+{
+  "project_ref": "yguzrxcdvyimjrfvtcvp",
+  "host": "db.yguzrxcdvyimjrfvtcvp.supabase.co",
+  "from_version": "20260830212021",
+  "to_version": "20260902060616",
+  "migration_count": 82,
+  "all_exact": true,
+  "manifest": "D:\\ERP\\flexi_erp\\backend\\migration_history\\live_v520_v600\\LIVE_HISTORY_MANIFEST.json"
+}
