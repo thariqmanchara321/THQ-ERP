@@ -177,7 +177,28 @@ jobs:
                   + ", ".join(sorted(bad_names))
               )
 
-          # Never allow the production project ref inside executable
+                    # Historical upgrade/reconstruction migrations must never
+          # return to the runnable Supabase migration directory.
+          baseline_version = "20260907110044"
+
+          prebaseline = [
+              p.name
+              for p in real.glob("*.sql")
+              if (
+                  re.fullmatch(
+                      r"\d{14}_.+\.sql",
+                      p.name,
+                  )
+                  and p.name[:14] < baseline_version
+              )
+          ]
+
+          if prebaseline:
+              raise SystemExit(
+                  "Historical pre-baseline migrations must not be runnable: "
+                  + ", ".join(sorted(prebaseline))
+              )
+# Never allow the production project ref inside executable
           # certification/reset scripts.
           production_ref = "yguzrxcdvyimjrfvtcvp"
 
