@@ -96,3 +96,127 @@ jobs:
 
           print(f"Checked {len(migrations)} backend migrations.")
           PY
+
+      - name: Guard certified Supabase fresh-install chain
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import hashlib
+          import re
+
+          required = [
+              "20260907110044_thq_current_schema_baseline.sql",
+              "20260907114948_thq_reference_catalog_baseline.sql",
+              "20260907120240_thq_gst_master_catalog_baseline.sql",
+              "20260907125625_v600_transaction_correctness_hotfix.sql",
+              "20260907161022_v600_fresh_install_bootstrap_completion.sql",
+          ]
+
+          real = Path("supabase/migrations")
+          cert = Path(
+              "backend/fresh_install/certification/"
+              "supabase/migrations"
+          )
+
+          for name in required:
+              real_file = real / name
+              cert_file = cert / name
+
+              if not real_file.exists():
+                  raise SystemExit(
+                      f"Missing canonical Supabase migration: {name}"
+                  )
+
+              if not cert_file.exists():
+                  raise SystemExit(
+                      f"Missing certified source migration: {name}"
+                  )
+
+              if real_file.read_bytes() != cert_file.read_bytes():
+                  raise SystemExit(
+                      f"Canonical migration differs from certified copy: "
+                      f"{name}"
+                  )
+
+          # Migration 4 is frozen and independently certified.
+          hotfix = (
+              real /
+              "20260907125625_"
+              "v600_transaction_correctness_hotfix.sql"
+          )
+
+          hotfix_hash = hashlib.sha256(
+              hotfix.read_bytes()
+          ).hexdigest()
+
+          expected_hotfix_hash = (
+              "9f1af7ca000acb33f90a3c2c80498737"
+              "e6b4296b5415adce0439585ce9f79797"
+          )
+
+          if hotfix_hash != expected_hotfix_hash:
+              raise SystemExit(
+                  "Certified transaction hotfix hash changed."
+              )
+
+          # From this baseline onward, runnable Supabase migrations
+          # must use 14-digit timestamp migration names.
+          bad_names = [
+              p.name
+              for p in real.glob("*.sql")
+              if not re.fullmatch(
+                  r"\d{14}_.+\.sql",
+                  p.name,
+              )
+          ]
+
+          if bad_names:
+              raise SystemExit(
+                  "Invalid runnable Supabase migration names: "
+                  + ", ".join(sorted(bad_names))
+              )
+
+          # Never allow the production project ref inside executable
+          # certification/reset scripts.
+          production_ref = "yguzrxcdvyimjrfvtcvp"
+
+          cert_root = Path(
+              "backend/fresh_install/certification"
+          )
+
+          for path in cert_root.rglob("*"):
+              if (
+                  path.is_file()
+                  and path.suffix.lower()
+                  in {".ps1", ".py", ".sh"}
+              ):
+                  text = path.read_text(
+                      encoding="utf-8",
+                      errors="ignore",
+                  )
+
+                  if production_ref in text:
+                      raise SystemExit(
+                          f"Production project ref found in "
+                          f"certification script: {path}"
+                      )
+
+          safe_reset = (
+              cert_root /
+              "THQ_SAFE_TEST_RESET.ps1"
+          )
+
+          safe_text = safe_reset.read_text(
+              encoding="utf-8",
+          )
+
+          if "krejepenqgcmnsugbpmv" not in safe_text:
+              raise SystemExit(
+                  "Safe reset script does not pin the TEST project."
+              )
+
+          print(
+              "Certified THQ Supabase fresh-install chain: GREEN"
+          )
+          PY
