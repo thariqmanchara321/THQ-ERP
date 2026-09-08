@@ -2,20 +2,44 @@ import 'package:erp_core/erp_core.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  test('THQ V5.1 release contract is locked to migration 213', () {
-    expect(ThqReleaseContract.appVersion, '5.1.0');
+  test('THQ V6.0 release contract is locked to migration 213', () {
+    expect(ThqReleaseContract.appVersion, '6.0.0');
     expect(ThqReleaseContract.minimumMigration, 213);
     expect(ThqReleaseContract.apiVersion, 'v1');
   });
 
-  test('sync version drift separates POS master data from transaction drift', () {
-    const base = ThqSyncVersions(configuration: 1, catalogue: 1, parties: 1, transactions: 1, inventory: 1, finance: 1);
-    const salesOnly = ThqSyncVersions(configuration: 1, catalogue: 1, parties: 1, transactions: 2, inventory: 2, finance: 2);
-    const catalog = ThqSyncVersions(configuration: 1, catalogue: 2, parties: 1, transactions: 1, inventory: 1, finance: 1);
-    expect(salesOnly.configurationOrMasterChangedFrom(base), isFalse);
-    expect(salesOnly.anyChangedFrom(base), isTrue);
-    expect(catalog.configurationOrMasterChangedFrom(base), isTrue);
-  });
+  test(
+    'sync version drift separates POS master data from transaction drift',
+    () {
+      const base = ThqSyncVersions(
+        configuration: 1,
+        catalogue: 1,
+        parties: 1,
+        transactions: 1,
+        inventory: 1,
+        finance: 1,
+      );
+      const salesOnly = ThqSyncVersions(
+        configuration: 1,
+        catalogue: 1,
+        parties: 1,
+        transactions: 2,
+        inventory: 2,
+        finance: 2,
+      );
+      const catalog = ThqSyncVersions(
+        configuration: 1,
+        catalogue: 2,
+        parties: 1,
+        transactions: 1,
+        inventory: 1,
+        finance: 1,
+      );
+      expect(salesOnly.configurationOrMasterChangedFrom(base), isFalse);
+      expect(salesOnly.anyChangedFrom(base), isTrue);
+      expect(catalog.configurationOrMasterChangedFrom(base), isTrue);
+    },
+  );
 
   test('unit conversion preserves base stock truth', () {
     const coil = ProductUnitOption(
