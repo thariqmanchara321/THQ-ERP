@@ -5,6 +5,7 @@ import 'package:thq_ui/thq_ui.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'gst_compliance_v520_service.dart';
+import 'gst_compliance_v600_panels.dart';
 
 /// THQ ERP v5.2 GST & Compliance workspace.
 ///
@@ -12,8 +13,8 @@ import 'gst_compliance_v520_service.dart';
 /// - performs no GST calculation in Flutter;
 /// - never falls back to v5.1 transaction RPCs;
 /// - treats legacy_unverified evidence as read-only;
-/// - exposes GST Return preview only;
-/// - keeps E-Invoice / E-Way Bill provider actions locked until the GSP/IRP phase.
+/// - exposes GST v6 returns/reconciliation and provider-outbox actions;
+/// - never stores GSP/IRP credentials in Flutter.
 class GstComplianceV520Screen extends StatefulWidget {
   const GstComplianceV520Screen({
     super.key,
@@ -178,10 +179,6 @@ class _GstComplianceV520ScreenState extends State<GstComplianceV520Screen> {
         }
         return;
       case 'returns':
-        if (force || _returnsPreview == null) {
-          await _loadReturnsPreview();
-        }
-        return;
       case 'einvoice':
       case 'ewaybill':
         return;
@@ -438,7 +435,7 @@ class _GstComplianceV520ScreenState extends State<GstComplianceV520Screen> {
                   ),
                   const SizedBox(width: 8),
                   const _StatusPill(
-                    label: '5.2 Foundation',
+                    label: 'GST v6',
                     tone: _PillTone.info,
                   ),
                 ],
@@ -595,9 +592,21 @@ class _GstComplianceV520ScreenState extends State<GstComplianceV520Screen> {
             'transactions' => _buildTransactions(),
             'tax_summary' => _buildTaxSummary(),
             'accounting' => _buildAccounting(),
-            'returns' => _buildReturns(),
-            'einvoice' => _buildProviderLocked('E-Invoice'),
-            'ewaybill' => _buildProviderLocked('E-Way Bill'),
+            'returns' => GstReturnsV600Panel(
+              service: widget.service,
+              from: _controller.from,
+              to: _controller.to,
+            ),
+            'einvoice' => GstEinvoiceV600Panel(
+              service: widget.service,
+              from: _controller.from,
+              to: _controller.to,
+            ),
+            'ewaybill' => GstEwaybillV600Panel(
+              service: widget.service,
+              from: _controller.from,
+              to: _controller.to,
+            ),
             _ => _buildOverview(),
           },
         ),
@@ -2547,7 +2556,7 @@ class _RegistrationDialogState extends State<_RegistrationDialog> {
                 _field(
                   width: 210,
                   controller: _provider,
-                  label: 'Provider key (future)',
+                  label: 'Provider key',
                 ),
                 SizedBox(
                   width: 640,
@@ -2583,8 +2592,8 @@ class _RegistrationDialogState extends State<_RegistrationDialog> {
                 const SizedBox(
                   width: 640,
                   child: Text(
-                    'Provider toggles are configuration only. '
-                    'They do not enable GSP/IRP submission.',
+                    'Provider credentials are verified server-side. '
+                    'Secrets are never stored in Flutter.',
                     style: TextStyle(fontSize: 11),
                   ),
                 ),

@@ -13,7 +13,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 /// Design rules:
 /// - Flutter never calculates GST.
 /// - The server UI contract is the source of truth for available tabs/RPCs.
-/// - E-Invoice / E-Way Bill provider submission remains disabled.
+/// - E-Invoice / E-Way Bill use the v6 provider outbox and remain fail-closed until provider verification.
 /// - Legacy transactions are view-only legacy_unverified evidence.
 /// - No v5.1 transaction fallback is performed from this service.
 class GstComplianceV520Exception implements Exception {
@@ -231,8 +231,8 @@ class GstComplianceV520Service {
       throw const GstComplianceV520Exception('State code is required.');
     }
 
-    // Provider toggles may be stored for configuration/readiness,
-    // but this service never submits to GSP/IRP.
+    // Provider toggles define registration capabilities; provider credentials remain server-side.
+    // Submission still requires a verified server-side provider adapter.
     final rpc = uiContract.rpcForTab('registrations', 'save_rpc');
 
     final raw = await _rpc(rpc, <String, dynamic>{
@@ -608,9 +608,9 @@ class GstComplianceV520Service {
   // ---------------------------------------------------------------------------
 
   void _validateBootstrap(GstComplianceBootstrapV520 value) {
-    if (value.uiContract.contractVersion < 4) {
+    if (value.uiContract.contractVersion < 7) {
       throw GstComplianceV520Exception(
-        'GST UI contract v4 or newer is required; received '
+        'GST UI contract v7 or newer is required; received '
         '${value.uiContract.contractVersion}.',
       );
     }
@@ -627,9 +627,10 @@ class GstComplianceV520Service {
       );
     }
 
-    if (value.rules['provider_submission'] != false) {
+    if (value.rules['provider_submission'] != true ||
+        value.rules['provider_fail_closed'] != true) {
       throw const GstComplianceV520Exception(
-        'Unexpected GST provider state: provider submission must be disabled.',
+        'Unsafe GST provider contract: v6 provider submission must be fail-closed.',
       );
     }
 
