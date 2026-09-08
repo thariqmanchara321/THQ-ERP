@@ -19,10 +19,8 @@ jobs:
           - apps/client_app
           - apps/client_mobile
           - apps/pos_app
-          - apps/pos_mobile
-          - packages/flexi_core
-          - packages/thq_models
-          - packages/thq_repositories
+          - apps/mobile_pos
+          - packages/erp_core
           - packages/thq_ui
 
     defaults:
@@ -32,6 +30,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
 
       - name: Install Flutter
         uses: subosito/flutter-action@v2
@@ -61,6 +61,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
 
       - name: Check whitespace
         run: git diff --check HEAD^

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 /// App-wide UX helper: when a numeric field containing only zero receives
 /// focus, select the whole value so typing replaces 0/0.00 immediately.

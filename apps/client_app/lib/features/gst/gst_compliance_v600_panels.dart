@@ -565,8 +565,9 @@ class _GstEinvoiceV600PanelState extends State<GstEinvoiceV600Panel> {
 
   String? get _failedJobId {
     for (final job in _rows(_status?['jobs'])) {
-      if (_text(job['status']) == 'failed')
+      if (_text(job['status']) == 'failed') {
         return _text(job['job_id'] ?? job['id']);
+      }
     }
     return null;
   }

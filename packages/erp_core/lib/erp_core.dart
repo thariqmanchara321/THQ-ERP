@@ -1,5 +1,3 @@
-library erp_core;
-
 export 'src/erp_failure.dart';
 export 'src/money.dart';
 export 'src/release_contract.dart';
