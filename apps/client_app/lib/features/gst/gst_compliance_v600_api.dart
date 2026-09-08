@@ -92,9 +92,7 @@ extension GstComplianceV600Api on GstComplianceV520Service {
     );
   }
 
-  Future<Map<String, dynamic>> loadGstr1aPreview({
-    required String periodId,
-  }) {
+  Future<Map<String, dynamic>> loadGstr1aPreview({required String periodId}) {
     _requireV600('returns');
     return _rpcMapV600(
       uiContract.tab('returns').requireString('gstr1a_preview_rpc'),
@@ -181,8 +179,9 @@ extension GstComplianceV600Api on GstComplianceV520Service {
     String? registrationId,
   }) {
     _requireV600('view');
-    final rpc =
-        uiContract.tab('einvoice').requireString('connection_status_rpc');
+    final rpc = uiContract
+        .tab('einvoice')
+        .requireString('connection_status_rpc');
     return _rpcMapV600(rpc, {
       'p_tenant_id': tenantId,
       'p_registration_id': _nullableV600(registrationId),
@@ -204,24 +203,21 @@ extension GstComplianceV600Api on GstComplianceV520Service {
     required String requestId,
   }) {
     _requireV600('einvoice');
-    return _rpcMapV600(
-      uiContract.tab('einvoice').requireString('queue_rpc'),
-      {
-        'p_tenant_id': tenantId,
-        'p_snapshot_id': snapshotId,
-        'p_request_id': requestId,
-      },
-    );
+    return _rpcMapV600(uiContract.tab('einvoice').requireString('queue_rpc'), {
+      'p_tenant_id': tenantId,
+      'p_snapshot_id': snapshotId,
+      'p_request_id': requestId,
+    });
   }
 
   Future<Map<String, dynamic>> loadProviderStatus({
     required String snapshotId,
   }) {
     _requireV600('view');
-    return _rpcMapV600(
-      uiContract.tab('einvoice').requireString('status_rpc'),
-      {'p_tenant_id': tenantId, 'p_snapshot_id': snapshotId},
-    );
+    return _rpcMapV600(uiContract.tab('einvoice').requireString('status_rpc'), {
+      'p_tenant_id': tenantId,
+      'p_snapshot_id': snapshotId,
+    });
   }
 
   Future<Map<String, dynamic>> cancelIrnV600({
@@ -231,16 +227,13 @@ extension GstComplianceV600Api on GstComplianceV520Service {
     required String remarks,
   }) {
     _requireV600('cancel_irn');
-    return _rpcMapV600(
-      uiContract.tab('einvoice').requireString('cancel_rpc'),
-      {
-        'p_tenant_id': tenantId,
-        'p_snapshot_id': snapshotId,
-        'p_request_id': requestId,
-        'p_reason_code': reasonCode,
-        'p_remarks': remarks,
-      },
-    );
+    return _rpcMapV600(uiContract.tab('einvoice').requireString('cancel_rpc'), {
+      'p_tenant_id': tenantId,
+      'p_snapshot_id': snapshotId,
+      'p_request_id': requestId,
+      'p_reason_code': reasonCode,
+      'p_remarks': remarks,
+    });
   }
 
   Future<Map<String, dynamic>> loadEwaybillPreview({
@@ -264,15 +257,12 @@ extension GstComplianceV600Api on GstComplianceV520Service {
     Map<String, dynamic> transport = const {},
   }) {
     _requireV600('ewaybill');
-    return _rpcMapV600(
-      uiContract.tab('ewaybill').requireString('queue_rpc'),
-      {
-        'p_tenant_id': tenantId,
-        'p_snapshot_id': snapshotId,
-        'p_request_id': requestId,
-        'p_transport': transport,
-      },
-    );
+    return _rpcMapV600(uiContract.tab('ewaybill').requireString('queue_rpc'), {
+      'p_tenant_id': tenantId,
+      'p_snapshot_id': snapshotId,
+      'p_request_id': requestId,
+      'p_transport': transport,
+    });
   }
 
   Future<Map<String, dynamic>> cancelEwaybill({
@@ -282,26 +272,21 @@ extension GstComplianceV600Api on GstComplianceV520Service {
     required String remarks,
   }) {
     _requireV600('ewaybill');
-    return _rpcMapV600(
-      uiContract.tab('ewaybill').requireString('cancel_rpc'),
-      {
-        'p_tenant_id': tenantId,
-        'p_snapshot_id': snapshotId,
-        'p_request_id': requestId,
-        'p_reason_code': reasonCode,
-        'p_remarks': remarks,
-      },
-    );
+    return _rpcMapV600(uiContract.tab('ewaybill').requireString('cancel_rpc'), {
+      'p_tenant_id': tenantId,
+      'p_snapshot_id': snapshotId,
+      'p_request_id': requestId,
+      'p_reason_code': reasonCode,
+      'p_remarks': remarks,
+    });
   }
 
-  Future<Map<String, dynamic>> retryProviderJob({
-    required String jobId,
-  }) {
+  Future<Map<String, dynamic>> retryProviderJob({required String jobId}) {
     _requireV600('submit');
-    return _rpcMapV600(
-      uiContract.tab('einvoice').requireString('retry_rpc'),
-      {'p_tenant_id': tenantId, 'p_job_id': jobId},
-    );
+    return _rpcMapV600(uiContract.tab('einvoice').requireString('retry_rpc'), {
+      'p_tenant_id': tenantId,
+      'p_job_id': jobId,
+    });
   }
 
   Future<Map<String, dynamic>> _queueReturn(
@@ -309,14 +294,11 @@ extension GstComplianceV600Api on GstComplianceV520Service {
     String periodId,
     String requestId,
   ) {
-    return _rpcMapV600(
-      uiContract.tab('returns').requireString(rpcKey),
-      {
-        'p_tenant_id': tenantId,
-        'p_period_id': periodId,
-        'p_request_id': requestId,
-      },
-    );
+    return _rpcMapV600(uiContract.tab('returns').requireString(rpcKey), {
+      'p_tenant_id': tenantId,
+      'p_period_id': periodId,
+      'p_request_id': requestId,
+    });
   }
 
   void _requireV600(String capability) {
@@ -332,21 +314,14 @@ extension GstComplianceV600Api on GstComplianceV520Service {
     }
   }
 
-  Future<dynamic> _rpcV600(
-    String rpc,
-    Map<String, dynamic> params,
-  ) async {
+  Future<dynamic> _rpcV600(String rpc, Map<String, dynamic> params) async {
     if (!rpc.startsWith('gst_') || !rpc.endsWith('_v600')) {
-      throw GstComplianceV520Exception(
-        'Unapproved GST v6 RPC "$rpc".',
-      );
+      throw GstComplianceV520Exception('Unapproved GST v6 RPC "$rpc".');
     }
     try {
       return await client.rpc(rpc, params: params);
     } catch (error) {
-      throw GstComplianceV520Exception(
-        'GST v6 RPC "$rpc" failed: $error',
-      );
+      throw GstComplianceV520Exception('GST v6 RPC "$rpc" failed: $error');
     }
   }
 
@@ -366,9 +341,7 @@ Map<String, dynamic> _asMapV600(dynamic raw, String rpc) {
     return Map<String, dynamic>.from(value);
   }
   if (value is Map) {
-    return value.map(
-      (key, value) => MapEntry(key.toString(), value),
-    );
+    return value.map((key, value) => MapEntry(key.toString(), value));
   }
   throw GstComplianceV520Exception(
     'Expected JSON object from "$rpc", got ${value.runtimeType}.',
@@ -389,9 +362,7 @@ List<Map<String, dynamic>> _asListV600(dynamic raw) {
   return value
       .whereType<Map>()
       .map(
-        (entry) => entry.map(
-          (key, value) => MapEntry(key.toString(), value),
-        ),
+        (entry) => entry.map((key, value) => MapEntry(key.toString(), value)),
       )
       .toList(growable: false);
 }

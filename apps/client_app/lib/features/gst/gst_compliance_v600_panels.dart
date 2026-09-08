@@ -56,8 +56,7 @@ class _GstReturnsV600PanelState extends State<GstReturnsV600Panel> {
     try {
       final registrations = await widget.service.listRegistrations();
       var selected = _registrationId;
-      if (selected == null ||
-          !registrations.any((r) => _id(r) == selected)) {
+      if (selected == null || !registrations.any((r) => _id(r) == selected)) {
         selected = registrations.isEmpty ? null : _id(registrations.first);
       }
 
@@ -97,9 +96,7 @@ class _GstReturnsV600PanelState extends State<GstReturnsV600Panel> {
     }
   }
 
-  Future<void> _run(
-    Future<Map<String, dynamic>> Function() action,
-  ) async {
+  Future<void> _run(Future<Map<String, dynamic>> Function() action) async {
     setState(() {
       _loading = true;
       _error = null;
@@ -215,11 +212,11 @@ class _GstReturnsV600PanelState extends State<GstReturnsV600Panel> {
                     onPressed: _loading || _periodId == null
                         ? null
                         : () => _run(
-                              () => widget.service.queueGstr2bFetch(
-                                periodId: _periodId!,
-                                requestId: _uuidV4(),
-                              ),
+                            () => widget.service.queueGstr2bFetch(
+                              periodId: _periodId!,
+                              requestId: _uuidV4(),
                             ),
+                          ),
                     icon: const Icon(Icons.download_outlined, size: 18),
                     label: const Text('Fetch GSTR-2B'),
                   ),
@@ -227,11 +224,11 @@ class _GstReturnsV600PanelState extends State<GstReturnsV600Panel> {
                     onPressed: _loading || _periodId == null
                         ? null
                         : () => _run(
-                              () => widget.service.queueImsFetch(
-                                periodId: _periodId!,
-                                requestId: _uuidV4(),
-                              ),
+                            () => widget.service.queueImsFetch(
+                              periodId: _periodId!,
+                              requestId: _uuidV4(),
                             ),
+                          ),
                     icon: const Icon(Icons.sync_alt_outlined, size: 18),
                     label: const Text('Fetch IMS'),
                   ),
@@ -239,11 +236,11 @@ class _GstReturnsV600PanelState extends State<GstReturnsV600Panel> {
                     onPressed: !_canSubmit('gstr1')
                         ? null
                         : () => _run(
-                              () => widget.service.queueGstr1(
-                                periodId: _periodId!,
-                                requestId: _uuidV4(),
-                              ),
+                            () => widget.service.queueGstr1(
+                              periodId: _periodId!,
+                              requestId: _uuidV4(),
                             ),
+                          ),
                     icon: const Icon(Icons.cloud_upload_outlined, size: 18),
                     label: const Text('Queue GSTR-1'),
                   ),
@@ -251,11 +248,11 @@ class _GstReturnsV600PanelState extends State<GstReturnsV600Panel> {
                     onPressed: !_canSubmit('gstr3b')
                         ? null
                         : () => _run(
-                              () => widget.service.queueGstr3b(
-                                periodId: _periodId!,
-                                requestId: _uuidV4(),
-                              ),
+                            () => widget.service.queueGstr3b(
+                              periodId: _periodId!,
+                              requestId: _uuidV4(),
                             ),
+                          ),
                     icon: const Icon(Icons.cloud_done_outlined, size: 18),
                     label: const Text('Queue GSTR-3B'),
                   ),
@@ -263,10 +260,10 @@ class _GstReturnsV600PanelState extends State<GstReturnsV600Panel> {
                     onPressed: _loading || _periodId == null
                         ? null
                         : () => _run(
-                              () => widget.service.loadGstr1aPreview(
-                                periodId: _periodId!,
-                              ),
+                            () => widget.service.loadGstr1aPreview(
+                              periodId: _periodId!,
                             ),
+                          ),
                     icon: const Icon(Icons.edit_note_outlined, size: 18),
                     label: const Text('Preview GSTR-1A'),
                   ),
@@ -391,12 +388,15 @@ class _GstEinvoiceV600PanelState extends State<GstEinvoiceV600Panel> {
           'Authoritative GST snapshot ID is missing.',
         );
       }
-      final preview =
-          await widget.service.loadEinvoicePreview(snapshotId: snapshotId);
-      final status =
-          await widget.service.loadProviderStatus(snapshotId: snapshotId);
-      final registrationId =
-          _text(preview['registration_id'] ?? snapshot['thq_registration_id']);
+      final preview = await widget.service.loadEinvoicePreview(
+        snapshotId: snapshotId,
+      );
+      final status = await widget.service.loadProviderStatus(
+        snapshotId: snapshotId,
+      );
+      final registrationId = _text(
+        preview['registration_id'] ?? snapshot['thq_registration_id'],
+      );
       final provider = await widget.service.providerConnectionStatus(
         registrationId: registrationId.isEmpty ? null : registrationId,
       );
@@ -417,9 +417,7 @@ class _GstEinvoiceV600PanelState extends State<GstEinvoiceV600Panel> {
     }
   }
 
-  Future<void> _run(
-    Future<Map<String, dynamic>> Function() action,
-  ) async {
+  Future<void> _run(Future<Map<String, dynamic>> Function() action) async {
     setState(() {
       _loading = true;
       _error = null;
@@ -472,21 +470,23 @@ class _GstEinvoiceV600PanelState extends State<GstEinvoiceV600Panel> {
                 runSpacing: 8,
                 children: [
                   FilledButton.icon(
-                    onPressed: _loading ||
+                    onPressed:
+                        _loading ||
                             _snapshotId == null ||
                             !widget.service.can('einvoice')
                         ? null
                         : () => _run(
-                              () => widget.service.queueEinvoice(
-                                snapshotId: _snapshotId!,
-                                requestId: _uuidV4(),
-                              ),
+                            () => widget.service.queueEinvoice(
+                              snapshotId: _snapshotId!,
+                              requestId: _uuidV4(),
                             ),
+                          ),
                     icon: const Icon(Icons.qr_code_2_outlined, size: 18),
                     label: const Text('Generate IRN'),
                   ),
                   OutlinedButton.icon(
-                    onPressed: _loading ||
+                    onPressed:
+                        _loading ||
                             _snapshotId == null ||
                             !widget.service.can('cancel_irn')
                         ? null
@@ -498,10 +498,10 @@ class _GstEinvoiceV600PanelState extends State<GstEinvoiceV600Panel> {
                     onPressed: _failedJobId == null || _loading
                         ? null
                         : () => _run(
-                              () => widget.service.retryProviderJob(
-                                jobId: _failedJobId!,
-                              ),
+                            () => widget.service.retryProviderJob(
+                              jobId: _failedJobId!,
                             ),
+                          ),
                     icon: const Icon(Icons.replay_outlined, size: 18),
                     label: const Text('Retry failed job'),
                   ),
@@ -565,7 +565,8 @@ class _GstEinvoiceV600PanelState extends State<GstEinvoiceV600Panel> {
 
   String? get _failedJobId {
     for (final job in _rows(_status?['jobs'])) {
-      if (_text(job['status']) == 'failed') return _text(job['job_id'] ?? job['id']);
+      if (_text(job['status']) == 'failed')
+        return _text(job['job_id'] ?? job['id']);
     }
     return null;
   }
@@ -648,20 +649,20 @@ class _GstEwaybillV600PanelState extends State<GstEwaybillV600Panel> {
   }
 
   Map<String, dynamic> get _transport => {
-        'mode': _mode,
-        if (_distance.text.trim().isNotEmpty)
-          'distance_km': num.tryParse(_distance.text.trim()),
-        if (_vehicle.text.trim().isNotEmpty)
-          'vehicle_no': _vehicle.text.trim().toUpperCase(),
-        if (_transporterId.text.trim().isNotEmpty)
-          'transporter_id': _transporterId.text.trim().toUpperCase(),
-        if (_transporterName.text.trim().isNotEmpty)
-          'transporter_name': _transporterName.text.trim(),
-        if (_transportDocNo.text.trim().isNotEmpty)
-          'document_no': _transportDocNo.text.trim(),
-        if (_transportDocDate.text.trim().isNotEmpty)
-          'document_date': _transportDocDate.text.trim(),
-      };
+    'mode': _mode,
+    if (_distance.text.trim().isNotEmpty)
+      'distance_km': num.tryParse(_distance.text.trim()),
+    if (_vehicle.text.trim().isNotEmpty)
+      'vehicle_no': _vehicle.text.trim().toUpperCase(),
+    if (_transporterId.text.trim().isNotEmpty)
+      'transporter_id': _transporterId.text.trim().toUpperCase(),
+    if (_transporterName.text.trim().isNotEmpty)
+      'transporter_name': _transporterName.text.trim(),
+    if (_transportDocNo.text.trim().isNotEmpty)
+      'document_no': _transportDocNo.text.trim(),
+    if (_transportDocDate.text.trim().isNotEmpty)
+      'document_date': _transportDocDate.text.trim(),
+  };
 
   Future<void> _loadDocuments() async {
     setState(() {
@@ -716,10 +717,12 @@ class _GstEwaybillV600PanelState extends State<GstEwaybillV600Panel> {
         snapshotId: snapshotId,
         transport: _transport,
       );
-      final status =
-          await widget.service.loadProviderStatus(snapshotId: snapshotId);
-      final registrationId =
-          _text(preview['registration_id'] ?? snapshot['thq_registration_id']);
+      final status = await widget.service.loadProviderStatus(
+        snapshotId: snapshotId,
+      );
+      final registrationId = _text(
+        preview['registration_id'] ?? snapshot['thq_registration_id'],
+      );
       final provider = await widget.service.providerConnectionStatus(
         registrationId: registrationId.isEmpty ? null : registrationId,
       );
@@ -740,9 +743,7 @@ class _GstEwaybillV600PanelState extends State<GstEwaybillV600Panel> {
     }
   }
 
-  Future<void> _run(
-    Future<Map<String, dynamic>> Function() action,
-  ) async {
+  Future<void> _run(Future<Map<String, dynamic>> Function() action) async {
     setState(() {
       _loading = true;
       _error = null;
@@ -832,22 +833,24 @@ class _GstEwaybillV600PanelState extends State<GstEwaybillV600Panel> {
                     label: const Text('Validate / Preview'),
                   ),
                   FilledButton.icon(
-                    onPressed: _loading ||
+                    onPressed:
+                        _loading ||
                             _snapshotId == null ||
                             !widget.service.can('ewaybill')
                         ? null
                         : () => _run(
-                              () => widget.service.queueEwaybill(
-                                snapshotId: _snapshotId!,
-                                requestId: _uuidV4(),
-                                transport: _transport,
-                              ),
+                            () => widget.service.queueEwaybill(
+                              snapshotId: _snapshotId!,
+                              requestId: _uuidV4(),
+                              transport: _transport,
                             ),
+                          ),
                     icon: const Icon(Icons.local_shipping_outlined, size: 18),
                     label: const Text('Generate E-Way Bill'),
                   ),
                   OutlinedButton.icon(
-                    onPressed: _loading ||
+                    onPressed:
+                        _loading ||
                             _snapshotId == null ||
                             !widget.service.can('ewaybill')
                         ? null
@@ -904,7 +907,9 @@ class _GstEwaybillV600PanelState extends State<GstEwaybillV600Panel> {
                 DropdownMenuItem(value: 'ship', child: Text('Ship')),
               ],
               onChanged: (value) {
-                if (value != null) setState(() => _mode = value);
+                if (value != null) {
+                  setState(() => _mode = value);
+                }
               },
             ),
           ),
@@ -1043,10 +1048,7 @@ class _CancelDialogState extends State<_CancelDialog> {
 }
 
 class _CancelValue {
-  const _CancelValue({
-    required this.reasonCode,
-    required this.remarks,
-  });
+  const _CancelValue({required this.reasonCode, required this.remarks});
 
   final String reasonCode;
   final String remarks;
@@ -1087,9 +1089,8 @@ class _V600Page extends StatelessWidget {
                     children: [
                       Text(
                         title,
-                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.w800,
-                            ),
+                        style: Theme.of(context).textTheme.titleMedium
+                            ?.copyWith(fontWeight: FontWeight.w800),
                       ),
                       const SizedBox(height: 2),
                       Text(
@@ -1120,10 +1121,7 @@ class _V600Page extends StatelessWidget {
 }
 
 class _V600Card extends StatelessWidget {
-  const _V600Card({
-    required this.title,
-    required this.child,
-  });
+  const _V600Card({required this.title, required this.child});
 
   final String title;
   final Widget child;
@@ -1140,10 +1138,7 @@ class _V600Card extends StatelessWidget {
           children: [
             Text(
               title,
-              style: const TextStyle(
-                fontWeight: FontWeight.w800,
-                fontSize: 13,
-              ),
+              style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
             ),
             const SizedBox(height: 10),
             child,
@@ -1182,10 +1177,7 @@ class _V600Notice extends StatelessWidget {
 }
 
 class _V600JsonCard extends StatelessWidget {
-  const _V600JsonCard({
-    required this.title,
-    required this.data,
-  });
+  const _V600JsonCard({required this.title, required this.data});
 
   final String title;
   final Map<String, dynamic> data;
@@ -1198,13 +1190,11 @@ class _V600JsonCard extends StatelessWidget {
       child: ExpansionTile(
         tilePadding: EdgeInsets.zero,
         childrenPadding: EdgeInsets.zero,
-        initiallyExpanded: title.contains('workspace') ||
+        initiallyExpanded:
+            title.contains('workspace') ||
             title.contains('preview') ||
             title.contains('connection'),
-        title: Text(
-          _summary(data),
-          style: const TextStyle(fontSize: 12),
-        ),
+        title: Text(_summary(data), style: const TextStyle(fontSize: 12)),
         children: [
           Container(
             width: double.infinity,
@@ -1217,10 +1207,7 @@ class _V600JsonCard extends StatelessWidget {
             child: SingleChildScrollView(
               child: SelectableText(
                 pretty,
-                style: const TextStyle(
-                  fontFamily: 'monospace',
-                  fontSize: 11.5,
-                ),
+                style: const TextStyle(fontFamily: 'monospace', fontSize: 11.5),
               ),
             ),
           ),
@@ -1244,10 +1231,7 @@ class _V600JsonCard extends StatelessWidget {
 }
 
 class _V600Pill extends StatelessWidget {
-  const _V600Pill({
-    required this.label,
-    required this.good,
-  });
+  const _V600Pill({required this.label, required this.good});
 
   final String label;
   final bool good;
@@ -1263,10 +1247,7 @@ class _V600Pill extends StatelessWidget {
       ),
       child: Text(
         label,
-        style: const TextStyle(
-          fontSize: 11,
-          fontWeight: FontWeight.w800,
-        ),
+        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800),
       ),
     );
   }

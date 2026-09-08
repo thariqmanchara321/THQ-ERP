@@ -59,7 +59,6 @@ class _GstComplianceV520ScreenState extends State<GstComplianceV520Screen> {
   Map<String, dynamic>? _taxSummary;
   Map<String, dynamic>? _accountingHealth;
   Map<String, dynamic>? _accountingControl;
-  Map<String, dynamic>? _returnsPreview;
 
   String _productSearch = '';
   String _partySearch = '';
@@ -78,7 +77,6 @@ class _GstComplianceV520ScreenState extends State<GstComplianceV520Screen> {
   int _transactionLoadGeneration = 0;
   int _taxLoadGeneration = 0;
   int _accountingLoadGeneration = 0;
-  int _returnsLoadGeneration = 0;
 
   @override
   void initState() {
@@ -137,7 +135,6 @@ class _GstComplianceV520ScreenState extends State<GstComplianceV520Screen> {
         _taxSummary = null;
         _accountingHealth = null;
         _accountingControl = null;
-        _returnsPreview = null;
       });
 
       await _loadSelectedTab(force: true);
@@ -342,26 +339,6 @@ class _GstComplianceV520ScreenState extends State<GstComplianceV520Screen> {
     });
   }
 
-  Future<void> _loadReturnsPreview() async {
-    final request = ++_returnsLoadGeneration;
-    final epoch = _workspaceEpoch;
-    final from = _controller.from;
-    final to = _controller.to;
-    final locationId = _controller.locationId;
-    final data = await widget.service.loadReturnsPreview(
-      from: from,
-      to: to,
-      locationId: locationId,
-    );
-
-    if (!mounted ||
-        epoch != _workspaceEpoch ||
-        request != _returnsLoadGeneration) {
-      return;
-    }
-    setState(() => _returnsPreview = data);
-  }
-
   // ---------------------------------------------------------------------------
   // BUILD
   // ---------------------------------------------------------------------------
@@ -434,10 +411,7 @@ class _GstComplianceV520ScreenState extends State<GstComplianceV520Screen> {
                     ),
                   ),
                   const SizedBox(width: 8),
-                  const _StatusPill(
-                    label: 'GST v6',
-                    tone: _PillTone.info,
-                  ),
+                  const _StatusPill(label: 'GST v6', tone: _PillTone.info),
                 ],
               ),
             ),
@@ -486,7 +460,6 @@ class _GstComplianceV520ScreenState extends State<GstComplianceV520Screen> {
                       _transactions = _controller.data?.documents;
                       _taxSummary = null;
                       _accountingControl = null;
-                      _returnsPreview = null;
                     });
                     await _loadSelectedTab(force: true);
                   });
@@ -1050,7 +1023,6 @@ class _GstComplianceV520ScreenState extends State<GstComplianceV520Screen> {
         _taxSummary = null;
         _accountingHealth = null;
         _accountingControl = null;
-        _returnsPreview = null;
       });
       await _loadProductProfiles();
       final validated = _integer(result['validated']);
@@ -1523,51 +1495,6 @@ class _GstComplianceV520ScreenState extends State<GstComplianceV520Screen> {
     );
   }
 
-  Widget _buildReturns() {
-    final data = _returnsPreview;
-
-    return _Page(
-      title: 'GST Returns',
-      subtitle:
-          'Statutory preview only. Filing/submission is not enabled in this phase.',
-      actions: const [
-        _StatusPill(label: 'Preview only', tone: _PillTone.warning),
-      ],
-      child: data == null
-          ? const Center(child: CircularProgressIndicator())
-          : Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const _NoticeCard(
-                  icon: Icons.lock_outline,
-                  title: 'Return submission is disabled',
-                  message:
-                      'THQ can prepare and review GST period data here. '
-                      'GSP filing will be enabled only after the provider '
-                      'sandbox, retry/recovery and audit controls are complete.',
-                ),
-                const SizedBox(height: 12),
-                _JsonSections(data: data),
-              ],
-            ),
-    );
-  }
-
-  Widget _buildProviderLocked(String feature) {
-    return _Page(
-      title: feature,
-      subtitle: 'Provider integration is deliberately locked.',
-      child: _NoticeCard(
-        icon: Icons.lock_outline,
-        title: '$feature is not enabled yet',
-        message:
-            'This v5.2 foundation does not call a GSP/IRP provider. '
-            'There is no submission, IRN generation/cancellation, '
-            'E-Way Bill generation or provider retry path in the Client UI.',
-      ),
-    );
-  }
-
   // ---------------------------------------------------------------------------
   // PERIOD / PERMISSION / ERROR HELPERS
   // ---------------------------------------------------------------------------
@@ -1598,7 +1525,6 @@ class _GstComplianceV520ScreenState extends State<GstComplianceV520Screen> {
         _transactions = _controller.data?.documents;
         _taxSummary = null;
         _accountingControl = null;
-        _returnsPreview = null;
       });
 
       await _loadSelectedTab(force: true);
