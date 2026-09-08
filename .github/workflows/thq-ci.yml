@@ -198,7 +198,7 @@ jobs:
                   "Historical pre-baseline migrations must not be runnable: "
                   + ", ".join(sorted(prebaseline))
               )
-# Never allow the production project ref inside executable
+          # Never allow the production project ref inside executable
           # certification/reset scripts.
           production_ref = "yguzrxcdvyimjrfvtcvp"
 
