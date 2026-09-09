@@ -1,0 +1,48 @@
+{
+  "product": "THQ ERP",
+  "release": "6.0.1",
+  "build": 2,
+  "title": "Client Readiness Stabilization",
+  "source_baseline": {
+    "repository": "thariqmanchara321/THQ-ERP",
+    "branch": "main",
+    "commit": "accaecff1887e8ed15dbd6857ae35777321dced4"
+  },
+  "supabase_project": "flexi-erp-dev",
+  "supabase_project_ref": "yguzrxcdvyimjrfvtcvp",
+  "schema_release": {
+    "migration_no": 270,
+    "schema_version": "6.0.1-build2",
+    "migration_file": "backend/migrations/270_v601_build2_stabilization_and_release_registry.sql"
+  },
+  "resolved_before_build2": [
+    "Historical Butterfly Portal AR/GL mismatch repaired: operational AR and GL AR both 3310.70.",
+    "Three historical posted expenses totaling 745.00 now have accounting journals.",
+    "Ten historical duplicate invoice-time sale-payment journals are no longer active."
+  ],
+  "build2_scope": [
+    "Keep one initialized GST compliance service instance across Client GST workspace rebuilds.",
+    "Remove invalid Expanded-under-SizedBox GST metric ownership.",
+    "Bind GST evidence scrolling to the primary scroll controller.",
+    "Fail closed by default when desktop Client/POS runtime context cannot be refreshed.",
+    "Enforce active tenant/location, app access and location access in authoritative runtime/origin validators.",
+    "Prevent activating systems on inactive stores and prevent deactivating a store while active systems remain assigned.",
+    "Provide Material ownership for shared sidebar footer/action ListTiles.",
+    "Synchronize all five app versions to 6.0.1+2 and shared release contract to v6.0.1 Build 2.",
+    "Display the shared release version in Client, POS, Admin and both mobile surfaces."
+  ],
+  "rules_preserved": [
+    "v5.1/v4.8.x transactions retain generic accounting plus legacy_unverified GST evidence.",
+    "v5.2 transactions retain authoritative GST snapshot plus component accounting.",
+    "No fallback to a legacy writer after a v5.2 authoritative transaction failure.",
+    "No destructive edit or deletion of posted accounting history."
+  ],
+  "required_post_apply_tests": [
+    "Run flutter analyze on client_app, pos_app, admin_panel, client_mobile and mobile_pos.",
+    "Open Client GST workspace repeatedly and verify no GST initialization, ParentDataWidget or Scrollbar errors.",
+    "Test revoked Client/POS app access and inactive-store bootstrap fail closed.",
+    "Create one fresh fully-paid v5.2.2 GST sale and verify no standalone posted sale_payment journal is created for its invoice-time payment allocation.",
+    "Reconcile operational AR/AP to GL after the fresh sale.",
+    "Review git diff before committing."
+  ]
+}

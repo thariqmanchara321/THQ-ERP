@@ -1,3 +1,4 @@
+import 'package:erp_core/erp_core.dart';
 import 'package:flutter/material.dart';
 
 import '../models/client_session.dart';
@@ -208,6 +209,13 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
                   title: const Text('Sign Out'),
                   onTap: _logout,
                 ),
+                const Padding(
+                  padding: EdgeInsets.fromLTRB(16, 0, 16, 8),
+                  child: Text(
+                    'v${ThqReleaseContract.appVersion} | Build ${ThqReleaseContract.buildNumber}',
+                    style: TextStyle(fontSize: 10.5, color: Color(0xFF6B7280)),
+                  ),
+                ),
 
                 const SizedBox(height: 8),
               ],
@@ -276,6 +284,13 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
                 leading: const Icon(Icons.logout),
                 title: const Text('Sign Out'),
                 onTap: _logout,
+              ),
+              const Padding(
+                padding: EdgeInsets.fromLTRB(16, 0, 16, 8),
+                child: Text(
+                  'v${ThqReleaseContract.appVersion} | Build ${ThqReleaseContract.buildNumber}',
+                  style: TextStyle(fontSize: 10.5, color: Color(0xFF6B7280)),
+                ),
               ),
             ],
           ),

@@ -397,25 +397,28 @@ class _GstComplianceV520ScreenState extends State<GstComplianceV520Screen> {
           runSpacing: 8,
           crossAxisAlignment: WrapCrossAlignment.center,
           children: [
+            // Build 2 P1: bounded GST workspace title.
             ConstrainedBox(
-              constraints: const BoxConstraints(minWidth: 250),
+              constraints: const BoxConstraints(maxWidth: 380),
               child: Row(
-                mainAxisSize: MainAxisSize.min,
                 children: [
                   const Icon(Icons.receipt_long_outlined, size: 21),
                   const SizedBox(width: 8),
-                  Text(
-                    widget.title,
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.w700,
+                  Expanded(
+                    child: Text(
+                      widget.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ),
                   const SizedBox(width: 8),
                   const _StatusPill(label: 'GST v6', tone: _PillTone.info),
                 ],
               ),
-            ),
-            OutlinedButton.icon(
+            ),            OutlinedButton.icon(
               onPressed: _pickPeriod,
               icon: const Icon(Icons.date_range_outlined, size: 18),
               label: Text(rangeLabel),
@@ -3899,38 +3902,36 @@ class _EvidenceDialog extends StatelessWidget {
     bool emphasize = false,
   }) {
     final scheme = Theme.of(context).colorScheme;
-    return Expanded(
-      child: Container(
-        constraints: const BoxConstraints(minWidth: 120),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
-        decoration: BoxDecoration(
-          color: emphasize
-              ? scheme.primaryContainer.withValues(alpha: .48)
-              : scheme.surfaceContainerLow,
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(
-            color: scheme.outlineVariant.withValues(alpha: .55),
+    return Container(
+      constraints: const BoxConstraints(minWidth: 120),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+      decoration: BoxDecoration(
+        color: emphasize
+            ? scheme.primaryContainer.withValues(alpha: .48)
+            : scheme.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: scheme.outlineVariant.withValues(alpha: .55),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              color: scheme.onSurfaceVariant,
+              fontWeight: FontWeight.w700,
+            ),
           ),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              label,
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: scheme.onSurfaceVariant,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              _money(value),
-              style: Theme.of(
-                context,
-              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w900),
-            ),
-          ],
-        ),
+          const SizedBox(height: 4),
+          Text(
+            _money(value),
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w900),
+          ),
+        ],
       ),
     );
   }
@@ -4399,6 +4400,7 @@ class _EvidenceDialog extends StatelessWidget {
         height: MediaQuery.sizeOf(context).height * .72,
         child: Scrollbar(
           child: SingleChildScrollView(
+            primary: true,
             padding: const EdgeInsets.only(right: 8, bottom: 8),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,

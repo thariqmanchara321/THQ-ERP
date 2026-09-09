@@ -1,4 +1,5 @@
 // ignore_for_file: curly_braces_in_flow_control_structures
+import 'package:erp_core/erp_core.dart';
 import 'package:flutter/material.dart';
 import 'package:thq_ui/thq_ui.dart';
 import '../models/mobile_session.dart';
@@ -1125,7 +1126,10 @@ class _MoreTab extends StatelessWidget {
         child: ListTile(
           leading: const Icon(Icons.phone_android),
           title: Text(session.deviceName),
-          subtitle: Text('${session.deviceCode} • ${session.locationName}'),
+          subtitle: Text(
+            '${session.deviceCode} â€¢ ${session.locationName}\n'
+            'THQ ERP v${ThqReleaseContract.appVersion} â€¢ Build ${ThqReleaseContract.buildNumber}',
+          ),
         ),
       ),
       Card(

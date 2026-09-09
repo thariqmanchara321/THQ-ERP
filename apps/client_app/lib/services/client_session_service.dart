@@ -95,7 +95,7 @@ class ClientSessionService {
 
   Future<ClientSession> loadSession({
     required ClientBusiness business,
-    bool requireRuntime = false,
+    bool requireRuntime = true,
   }) async {
     final activation = await DeviceInstallationService().readActivation();
     if (activation == null || activation.tenantId != business.id) {

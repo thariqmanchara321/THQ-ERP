@@ -21,6 +21,7 @@ class GstV520EntryScreen extends StatefulWidget {
 class _GstV520EntryScreenState extends State<GstV520EntryScreen> {
   SupabaseClient get _client => Supabase.instance.client;
 
+  late final GstComplianceV520Service _service;
   bool _loading = true;
   String _taxMode = 'unconfigured';
   Object? _error;
@@ -31,6 +32,10 @@ class _GstV520EntryScreenState extends State<GstV520EntryScreen> {
   @override
   void initState() {
     super.initState();
+    _service = GstComplianceV520Service(
+      client: _client,
+      tenantId: _tenantId,
+    );
     _loadMode();
   }
 
@@ -105,60 +110,102 @@ class _GstV520EntryScreenState extends State<GstV520EntryScreen> {
       return _TaxModeRequired(error: _error, onConfigure: () => _configure());
     }
 
-    final service = GstComplianceV520Service(
-      client: _client,
-      tenantId: _tenantId,
-    );
-
     return Column(
       children: [
+        // Build 2 P1: responsive tax-mode banner.
         Material(
           color: Theme.of(context).colorScheme.surfaceContainerLow,
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-            child: Row(
-              children: [
-                Icon(
-                  _taxMode == 'gst_registered'
-                      ? Icons.verified_outlined
-                      : Icons.block_outlined,
-                  size: 18,
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    _taxMode == 'gst_registered'
-                        ? 'Tax mode: GST Registered • authoritative GST v5.2'
-                        : 'Tax mode: Non-GST • v5.2 writer with zero GST',
-                    style: const TextStyle(fontWeight: FontWeight.w600),
-                  ),
-                ),
-                if (_error != null)
-                  Flexible(
-                    child: Text(
-                      _error.toString(),
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: Theme.of(context).colorScheme.error,
-                        fontSize: 11,
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final compact = constraints.maxWidth < 620;
+
+                final mode = Row(
+                  children: [
+                    Icon(
+                      _taxMode == 'gst_registered'
+                          ? Icons.verified_outlined
+                          : Icons.block_outlined,
+                      size: 18,
+                    ),
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Text(
+                        _taxMode == 'gst_registered'
+                            ? 'Tax mode: GST Registered â€¢ authoritative GST v5.2'
+                            : 'Tax mode: Non-GST â€¢ v5.2 writer with zero GST',
+                        maxLines: compact ? 2 : 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontWeight: FontWeight.w600),
                       ),
                     ),
-                  ),
-                TextButton.icon(
-                  onPressed: () => _configure(changing: true),
-                  icon: const Icon(Icons.edit_outlined, size: 17),
-                  label: const Text('Change'),
-                ),
-                IconButton(
-                  tooltip: 'Refresh tax mode',
-                  onPressed: _loadMode,
-                  icon: const Icon(Icons.refresh),
-                ),
-              ],
+                  ],
+                );
+
+                final actions = Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextButton.icon(
+                      onPressed: () => _configure(changing: true),
+                      icon: const Icon(Icons.edit_outlined, size: 17),
+                      label: const Text('Change'),
+                    ),
+                    IconButton(
+                      tooltip: 'Refresh tax mode',
+                      onPressed: _loadMode,
+                      icon: const Icon(Icons.refresh),
+                    ),
+                  ],
+                );
+
+                if (compact) {
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      mode,
+                      if (_error != null) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          _error.toString(),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.error,
+                            fontSize: 11,
+                          ),
+                        ),
+                      ],
+                      Align(alignment: Alignment.centerRight, child: actions),
+                    ],
+                  );
+                }
+
+                return Row(
+                  children: [
+                    Expanded(child: mode),
+                    if (_error != null) ...[
+                      const SizedBox(width: 8),
+                      Flexible(
+                        child: Text(
+                          _error.toString(),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.error,
+                            fontSize: 11,
+                          ),
+                        ),
+                      ),
+                    ],
+                    const SizedBox(width: 8),
+                    actions,
+                  ],
+                );
+              },
             ),
           ),
-        ),
-        Expanded(child: GstComplianceV520Screen(service: service)),
+        ),        Expanded(child: GstComplianceV520Screen(service: _service)),
       ],
     );
   }

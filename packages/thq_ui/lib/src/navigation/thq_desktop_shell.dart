@@ -154,7 +154,8 @@ class _Sidebar extends StatelessWidget {
                 },
               ),
             ),
-            if (footer != null) footer!,
+            if (footer != null)
+              Material(color: Colors.transparent, child: footer!),
             if (onCollapsedChanged != null) ...[
               const Divider(height: 1),
               _SidebarAction(
@@ -285,12 +286,15 @@ class _SidebarAction extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final child = ListTile(
-      dense: true,
-      minTileHeight: ThqTokens.controlStandard,
-      leading: Icon(icon, size: ThqTokens.iconMedium),
-      title: collapsed ? null : Text(label),
-      onTap: onTap,
+    final child = Material(
+      color: Colors.transparent,
+      child: ListTile(
+        dense: true,
+        minTileHeight: ThqTokens.controlStandard,
+        leading: Icon(icon, size: ThqTokens.iconMedium),
+        title: collapsed ? null : Text(label),
+        onTap: onTap,
+      ),
     );
     return collapsed ? Tooltip(message: label, child: child) : child;
   }
@@ -349,7 +353,8 @@ class _MobileShell extends StatelessWidget {
                   },
                 ),
               ),
-              if (footer != null) footer!,
+              if (footer != null)
+                Material(color: Colors.transparent, child: footer!),
             ],
           ),
         ),

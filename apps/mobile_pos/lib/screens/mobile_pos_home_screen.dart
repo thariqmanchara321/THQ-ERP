@@ -1,5 +1,6 @@
 // ignore_for_file: curly_braces_in_flow_control_structures
 import 'dart:async';
+import 'package:erp_core/erp_core.dart';
 import 'package:flutter/material.dart';
 import 'package:thq_ui/thq_ui.dart';
 import 'package:intl/intl.dart';
@@ -790,7 +791,7 @@ class _State extends State<MobilePosHomeScreen> {
                                 ),
                                 const SizedBox(height: 2),
                                 Text(
-                                  '${widget.session.locationCode} | ${widget.session.deviceCode}',
+                                  '${widget.session.locationCode} | ${widget.session.deviceCode} â€¢ v${ThqReleaseContract.appVersion} B${ThqReleaseContract.buildNumber}',
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                   style: TextStyle(

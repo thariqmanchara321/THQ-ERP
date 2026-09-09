@@ -6,7 +6,7 @@ plugins {
 
 android {
     namespace = "com.flexierp.mobile_pos"
-    compileSdk = flutter.compileSdkVersion
+    compileSdk = 37
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
