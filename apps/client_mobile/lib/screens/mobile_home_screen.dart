@@ -1127,8 +1127,8 @@ class _MoreTab extends StatelessWidget {
           leading: const Icon(Icons.phone_android),
           title: Text(session.deviceName),
           subtitle: Text(
-            '${session.deviceCode} â€¢ ${session.locationName}\n'
-            'THQ ERP v${ThqReleaseContract.appVersion} â€¢ Build ${ThqReleaseContract.buildNumber}',
+            '${session.deviceCode} • ${session.locationName}\n'
+            'THQ ERP v${ThqReleaseContract.appVersion} • Build ${ThqReleaseContract.buildNumber}',
           ),
         ),
       ),

@@ -133,8 +133,8 @@ class _GstV520EntryScreenState extends State<GstV520EntryScreen> {
                     Flexible(
                       child: Text(
                         _taxMode == 'gst_registered'
-                            ? 'Tax mode: GST Registered â€¢ authoritative GST v5.2'
-                            : 'Tax mode: Non-GST â€¢ v5.2 writer with zero GST',
+                            ? 'Tax mode: GST Registered • authoritative GST v5.2'
+                            : 'Tax mode: Non-GST • v5.2 writer with zero GST',
                         maxLines: compact ? 2 : 1,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(fontWeight: FontWeight.w600),

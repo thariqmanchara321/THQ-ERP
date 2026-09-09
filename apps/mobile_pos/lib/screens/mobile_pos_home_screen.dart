@@ -102,7 +102,7 @@ class _State extends State<MobilePosHomeScreen> {
               : 'Synced',
         );
     } catch (_) {
-      if (mounted) setState(() => syncText = 'Offline â€¢ invoices stay queued');
+      if (mounted) setState(() => syncText = 'Offline • invoices stay queued');
     } finally {
       syncing = false;
     }
@@ -791,7 +791,7 @@ class _State extends State<MobilePosHomeScreen> {
                                 ),
                                 const SizedBox(height: 2),
                                 Text(
-                                  '${widget.session.locationCode} | ${widget.session.deviceCode} â€¢ v${ThqReleaseContract.appVersion} B${ThqReleaseContract.buildNumber}',
+                                  '${widget.session.locationCode} | ${widget.session.deviceCode} • v${ThqReleaseContract.appVersion} B${ThqReleaseContract.buildNumber}',
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                   style: TextStyle(
@@ -1369,7 +1369,7 @@ class _PaymentState extends State<_PaymentDialog> {
   @override
   Widget build(BuildContext context) => AlertDialog(
     title: Text(
-      'Payment â€¢ ${widget.currency} ${widget.total.toStringAsFixed(2)}',
+      'Payment • ${widget.currency} ${widget.total.toStringAsFixed(2)}',
     ),
     content: Column(
       mainAxisSize: MainAxisSize.min,
