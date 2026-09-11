@@ -75,7 +75,7 @@ class RestaurantService {
     bool liveOnly = true,
   }) async {
     final result = await _s.rpc(
-      'restaurant_orders_list_v32',
+      'restaurant_orders_list_v610',
       params: {
         'p_tenant_id': tenantId,
         'p_location_id': locationId,
@@ -178,6 +178,25 @@ class RestaurantService {
     );
     if (result is! Map) {
       throw Exception('Unexpected restaurant add-items response.');
+    }
+    return Map<String, dynamic>.from(result);
+  }
+
+  Future<Map<String, dynamic>> dashboardSummary({
+    required String tenantId,
+    required String locationId,
+    required String deviceId,
+  }) async {
+    final result = await _s.rpc(
+      'restaurant_operations_summary_v610',
+      params: {
+        'p_tenant_id': tenantId,
+        'p_location_id': locationId,
+        'p_device_id': deviceId,
+      },
+    );
+    if (result is! Map) {
+      throw Exception('Unexpected restaurant dashboard response.');
     }
     return Map<String, dynamic>.from(result);
   }
@@ -307,6 +326,33 @@ class RestaurantService {
     );
     if (result is! Map) {
       throw Exception('Unexpected restaurant KOT status response.');
+    }
+    return Map<String, dynamic>.from(result);
+  }
+
+  Future<Map<String, dynamic>> splitOrder({
+    required String tenantId,
+    required String sourceOrderId,
+    required String deviceId,
+    required String toTableId,
+    required List<Map<String, dynamic>> items,
+    required int guestCount,
+    String note = '',
+  }) async {
+    final result = await _s.rpc(
+      'restaurant_order_split_safe_v610',
+      params: {
+        'p_tenant_id': tenantId,
+        'p_source_order_id': sourceOrderId,
+        'p_device_id': deviceId,
+        'p_to_table_id': toTableId,
+        'p_items': items,
+        'p_guest_count': guestCount,
+        'p_note': note.trim(),
+      },
+    );
+    if (result is! Map) {
+      throw Exception('Unexpected restaurant split-order response.');
     }
     return Map<String, dynamic>.from(result);
   }

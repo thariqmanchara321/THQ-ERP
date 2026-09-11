@@ -139,6 +139,268 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
         'item_note': '',
       };
 
+  Widget _restaurantDashboardStrip() {
+    final locationId = _locationId;
+    final deviceId = _deviceId;
+    final scheme = Theme.of(context).colorScheme;
+
+    if (locationId == null || deviceId == null) {
+      return const SizedBox.shrink();
+    }
+
+    return FutureBuilder<Map<String, dynamic>>(
+      future: _restaurant.dashboardSummary(
+        tenantId: widget.session.business.id,
+        locationId: locationId,
+        deviceId: deviceId,
+      ),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting &&
+            !snapshot.hasData) {
+          return Container(
+            height: 58,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: scheme.surface,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: scheme.outlineVariant),
+            ),
+            child: const SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+          );
+        }
+
+        if (snapshot.hasError) {
+          return Container(
+            height: 42,
+            padding: const EdgeInsets.symmetric(horizontal: 9),
+            decoration: BoxDecoration(
+              color: scheme.errorContainer,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.warning_amber_rounded,
+                  size: 16,
+                  color: scheme.onErrorContainer,
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    'Restaurant dashboard unavailable: ${snapshot.error}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 9.8,
+                      color: scheme.onErrorContainer,
+                    ),
+                  ),
+                ),
+                IconButton(
+                  tooltip: 'Retry dashboard',
+                  visualDensity: VisualDensity.compact,
+                  onPressed: () => setState(() {}),
+                  icon: const Icon(Icons.refresh_rounded, size: 15),
+                ),
+              ],
+            ),
+          );
+        }
+
+        final data = snapshot.data ?? const <String, dynamic>{};
+        final tables = Map<String, dynamic>.from(
+          data['tables'] as Map? ?? const {},
+        );
+        final orders = Map<String, dynamic>.from(
+          data['orders'] as Map? ?? const {},
+        );
+        final kitchen = Map<String, dynamic>.from(
+          data['kitchen'] as Map? ?? const {},
+        );
+        final waitlist = Map<String, dynamic>.from(
+          data['waitlist'] as Map? ?? const {},
+        );
+        final reservations = Map<String, dynamic>.from(
+          data['reservations'] as Map? ?? const {},
+        );
+        final sales = Map<String, dynamic>.from(
+          data['sales'] as Map? ?? const {},
+        );
+
+        String count(dynamic value) =>
+            ((value as num?)?.toInt() ?? int.tryParse('$value') ?? 0)
+                .toString();
+
+        Widget metric({
+          required IconData icon,
+          required String label,
+          required String value,
+          required String detail,
+          bool alert = false,
+        }) {
+          return Container(
+            height: 58,
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+            decoration: BoxDecoration(
+              color: alert
+                  ? scheme.errorContainer.withValues(alpha: .55)
+                  : scheme.surface,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: alert ? scheme.error : scheme.outlineVariant,
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  icon,
+                  size: 17,
+                  color: alert ? scheme.error : scheme.primary,
+                ),
+                const SizedBox(width: 7),
+                Expanded(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 9.2,
+                          color: scheme.onSurfaceVariant,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      Text(
+                        value,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      Text(
+                        detail,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 8.6,
+                          color: scheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+
+        final overdue =
+            (kitchen['overdue'] as num?)?.toInt() ??
+            int.tryParse('${kitchen['overdue']}') ??
+            0;
+
+        final cards = <Widget>[
+          metric(
+            icon: Icons.table_restaurant_outlined,
+            label: 'TABLES',
+            value:
+                '${count(tables['available'])} free / '
+                '${count(tables['occupied'])} occupied',
+            detail:
+                '${count(tables['reserved'])} reserved â€¢ '
+                '${count(tables['cleaning'])} cleaning',
+          ),
+          metric(
+            icon: Icons.receipt_long_outlined,
+            label: 'LIVE ORDERS',
+            value:
+                '${count(orders['live'])} orders â€¢ '
+                '${count(orders['live_guests'])} guests',
+            detail:
+                '${count(orders['dine_in'])} dine-in â€¢ '
+                '${count(orders['takeaway'])} takeaway â€¢ '
+                '${count(orders['delivery'])} delivery',
+          ),
+          metric(
+            icon: Icons.soup_kitchen_outlined,
+            label: 'KITCHEN',
+            value:
+                '${count(kitchen['queued'])} queue â€¢ '
+                '${count(kitchen['preparing'])} preparing',
+            detail:
+                '${count(kitchen['ready'])} ready â€¢ '
+                '${count(kitchen['avg_prep_minutes_today'])} min avg',
+            alert: overdue > 0,
+          ),
+          metric(
+            icon: Icons.groups_2_outlined,
+            label: 'WAITLIST',
+            value:
+                '${count(waitlist['waiting'])} waiting â€¢ '
+                '${count(waitlist['notified'])} notified',
+            detail:
+                '${count(waitlist['waiting_guests'])} guests waiting â€¢ '
+                '${count(reservations['next_24h'])} reservations / 24h',
+          ),
+          metric(
+            icon: Icons.payments_outlined,
+            label: 'TODAY',
+            value: _money(sales['sales_today']),
+            detail:
+                '${count(sales['bills_today'])} bills â€¢ '
+                'avg ${_money(sales['avg_ticket_today'])}',
+          ),
+        ];
+
+        return LayoutBuilder(
+          builder: (context, constraints) {
+            if (constraints.maxWidth >= 980) {
+              return Row(
+                children: [
+                  for (var i = 0; i < cards.length; i++) ...[
+                    if (i > 0) const SizedBox(width: 5),
+                    Expanded(child: cards[i]),
+                  ],
+                ],
+              );
+            }
+
+            return Column(
+              children: [
+                Row(
+                  children: [
+                    Expanded(child: cards[0]),
+                    const SizedBox(width: 5),
+                    Expanded(child: cards[1]),
+                    const SizedBox(width: 5),
+                    Expanded(child: cards[2]),
+                  ],
+                ),
+                const SizedBox(height: 5),
+                Row(
+                  children: [
+                    Expanded(child: cards[3]),
+                    const SizedBox(width: 5),
+                    Expanded(child: cards[4]),
+                  ],
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
   Future<void> _addTable() async {
     if (!widget.session.hasPermission('restaurant.manage')) {
       _message('restaurant.manage permission required.');
@@ -1877,6 +2139,467 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
     }
   }
 
+  Future<void> _splitRestaurantOrder(Map<String, dynamic> order) async {
+    if (!widget.session.hasPermission('restaurant.order') &&
+        !widget.session.hasPermission('restaurant.manage')) {
+      _message('Restaurant order permission required.');
+      return;
+    }
+
+    if (order['order_type']?.toString() != 'dine_in') {
+      _message('Only dine-in orders can be split to another table.');
+      return;
+    }
+
+    final sourceGuests =
+        (order['guest_count'] as num?)?.toInt() ??
+        int.tryParse('${order['guest_count']}') ??
+        1;
+    if (sourceGuests <= 1) {
+      _message('At least 2 guests are required to split a table.');
+      return;
+    }
+
+    final deviceId = _deviceId;
+    if (deviceId == null) {
+      _message('This system is not registered.');
+      return;
+    }
+
+    final sourceTableId = order['table_id']?.toString();
+    if (sourceTableId == null || sourceTableId.isEmpty) {
+      _message('This dine-in order is not assigned to a table.');
+      return;
+    }
+
+    try {
+      final detail = await _restaurant.detail(
+        widget.session.business.id,
+        order['id'].toString(),
+        deviceId,
+      );
+      if (!mounted) return;
+
+      final activeItems = (detail['items'] as List? ?? const [])
+          .map((raw) => Map<String, dynamic>.from(raw as Map))
+          .where((item) {
+            final quantity =
+                (item['quantity'] as num?)?.toDouble() ??
+                double.tryParse('${item['quantity']}') ??
+                0;
+            final cancelled =
+                (item['cancelled_quantity'] as num?)?.toDouble() ??
+                double.tryParse('${item['cancelled_quantity']}') ??
+                0;
+            return quantity - cancelled > 0.000001;
+          })
+          .toList();
+
+      if (activeItems.isEmpty) {
+        _message('This order has no active items to split.');
+        return;
+      }
+
+      final availableTables = _tables.where((table) {
+        if (table['active'] == false) return false;
+        final tableId = table['id']?.toString() ?? '';
+        if (tableId.isEmpty || tableId == sourceTableId) return false;
+        if ((table['operational_status']?.toString() ?? 'available') !=
+            'available') {
+          return false;
+        }
+        return _tableOrder(tableId) == null;
+      }).toList();
+
+      if (availableTables.isEmpty) {
+        _message('No available destination table is free.');
+        return;
+      }
+
+      double activeQuantity(Map<String, dynamic> item) {
+        final quantity =
+            (item['quantity'] as num?)?.toDouble() ??
+            double.tryParse('${item['quantity']}') ??
+            0;
+        final cancelled =
+            (item['cancelled_quantity'] as num?)?.toDouble() ??
+            double.tryParse('${item['cancelled_quantity']}') ??
+            0;
+        return (quantity - cancelled).clamp(0, double.infinity).toDouble();
+      }
+
+      String itemName(Map<String, dynamic> item) {
+        final variantId = item['variant_id']?.toString();
+        for (final product in _products) {
+          if (product.variantId == variantId) {
+            return product.productName;
+          }
+        }
+        return 'Item ${variantId ?? item['id'] ?? ''}';
+      }
+
+      String quantityText(double value) {
+        if ((value - value.roundToDouble()).abs() < 0.000001) {
+          return value.toInt().toString();
+        }
+        return value
+            .toStringAsFixed(3)
+            .replaceFirst(RegExp(r'0+$'), '')
+            .replaceFirst(RegExp(r'\.$'), '');
+      }
+
+      final quantityControllers = <String, TextEditingController>{};
+      for (final item in activeItems) {
+        quantityControllers[item['id'].toString()] = TextEditingController(
+          text: '0',
+        );
+      }
+
+      final note = TextEditingController();
+      var movingGuests = 1;
+      var destinationTableId = availableTables.first['id'].toString();
+      Map<String, dynamic>? splitResult;
+
+      final saved = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => StatefulBuilder(
+          builder: (context, setLocalState) {
+            final destination = availableTables.firstWhere(
+              (table) => table['id']?.toString() == destinationTableId,
+              orElse: () => availableTables.first,
+            );
+            final capacity =
+                (destination['capacity'] as num?)?.toInt() ??
+                int.tryParse('${destination['capacity']}') ??
+                0;
+
+            return AlertDialog(
+              title: Text(
+                'Split ${order['order_number'] ?? 'Restaurant Order'}',
+              ),
+              content: SizedBox(
+                width: 760,
+                height: 590,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(9),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context)
+                            .colorScheme
+                            .surfaceContainerHighest
+                            .withValues(alpha: .45),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        'Source: ${order['table_name'] ?? 'Current table'} - '
+                        '$sourceGuests guest(s). Select the guests and item '
+                        'quantities moving to the new table.',
+                        style: const TextStyle(
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(
+                          flex: 2,
+                          child: DropdownButtonFormField<String>(
+                            initialValue: destinationTableId,
+                            isExpanded: true,
+                            decoration: const InputDecoration(
+                              labelText: 'Destination table',
+                            ),
+                            items: availableTables
+                                .map(
+                                  (table) => DropdownMenuItem<String>(
+                                    value: table['id'].toString(),
+                                    child: Text(
+                                      '${table['table_code'] ?? ''} - '
+                                      '${table['name'] ?? ''} - '
+                                      '${table['capacity'] ?? 0} seats',
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                )
+                                .toList(),
+                            onChanged: (value) {
+                              if (value != null) {
+                                setLocalState(() => destinationTableId = value);
+                              }
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: DropdownButtonFormField<int>(
+                            initialValue: movingGuests,
+                            decoration: const InputDecoration(
+                              labelText: 'Guests moving',
+                            ),
+                            items: [
+                              for (
+                                var guests = 1;
+                                guests < sourceGuests;
+                                guests++
+                              )
+                                DropdownMenuItem<int>(
+                                  value: guests,
+                                  child: Text('$guests'),
+                                ),
+                            ],
+                            onChanged: (value) {
+                              if (value != null) {
+                                setLocalState(() => movingGuests = value);
+                              }
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 5),
+                    Text(
+                      capacity < movingGuests
+                          ? 'Selected table has only $capacity seat(s). Choose '
+                                'another table or move fewer guests.'
+                          : '$capacity seats available at the destination.',
+                      style: TextStyle(
+                        fontSize: 9.5,
+                        fontWeight: capacity < movingGuests
+                            ? FontWeight.w800
+                            : FontWeight.w500,
+                        color: capacity < movingGuests
+                            ? Theme.of(context).colorScheme.error
+                            : Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Items to move',
+                      style: TextStyle(
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 5),
+                    Expanded(
+                      child: ListView.separated(
+                        itemCount: activeItems.length,
+                        separatorBuilder: (_, _) => const Divider(height: 1),
+                        itemBuilder: (context, index) {
+                          final item = activeItems[index];
+                          final itemId = item['id'].toString();
+                          final active = activeQuantity(item);
+                          final sent =
+                              (item['kot_sent_quantity'] as num?)?.toDouble() ??
+                              double.tryParse('${item['kot_sent_quantity']}') ??
+                              0;
+
+                          return Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 6),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        itemName(item),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                          fontSize: 10.5,
+                                          fontWeight: FontWeight.w800,
+                                        ),
+                                      ),
+                                      Text(
+                                        'Available ${quantityText(active)}'
+                                        '${sent > 0 ? ' - KOT sent ${quantityText(sent)}' : ''}',
+                                        style: TextStyle(
+                                          fontSize: 9,
+                                          color: Theme.of(
+                                            context,
+                                          ).colorScheme.onSurfaceVariant,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                SizedBox(
+                                  width: 145,
+                                  child: TextField(
+                                    controller: quantityControllers[itemId],
+                                    keyboardType:
+                                        const TextInputType.numberWithOptions(
+                                          decimal: true,
+                                        ),
+                                    decoration: InputDecoration(
+                                      isDense: true,
+                                      labelText: 'Move qty',
+                                      suffixText: '/ ${quantityText(active)}',
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    TextField(
+                      controller: note,
+                      maxLines: 2,
+                      decoration: const InputDecoration(
+                        labelText: 'Split note',
+                        hintText: 'Optional',
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(dialogContext, false),
+                  child: const Text('Cancel'),
+                ),
+                FilledButton.icon(
+                  onPressed: () async {
+                    final selectedTable = availableTables.firstWhere(
+                      (table) => table['id']?.toString() == destinationTableId,
+                      orElse: () => availableTables.first,
+                    );
+                    final selectedCapacity =
+                        (selectedTable['capacity'] as num?)?.toInt() ??
+                        int.tryParse('${selectedTable['capacity']}') ??
+                        0;
+
+                    if (selectedCapacity < movingGuests) {
+                      ThqNotify.showSnackBar(
+                        dialogContext,
+                        SnackBar(
+                          content: Text(
+                            'Destination table has only '
+                            '$selectedCapacity seat(s).',
+                          ),
+                        ),
+                      );
+                      return;
+                    }
+
+                    final items = <Map<String, dynamic>>[];
+                    var sourceQuantity = 0.0;
+                    var movedQuantity = 0.0;
+
+                    for (final item in activeItems) {
+                      final active = activeQuantity(item);
+                      sourceQuantity += active;
+                      final itemId = item['id'].toString();
+                      final quantity =
+                          double.tryParse(
+                            quantityControllers[itemId]!.text.trim(),
+                          ) ??
+                          0;
+
+                      if (quantity < 0 || quantity > active + 0.000001) {
+                        ThqNotify.showSnackBar(
+                          dialogContext,
+                          SnackBar(
+                            content: Text(
+                              '${itemName(item)} move quantity must be '
+                              'between 0 and ${quantityText(active)}.',
+                            ),
+                          ),
+                        );
+                        return;
+                      }
+
+                      if (quantity > 0.000001) {
+                        items.add({
+                          'order_item_id': itemId,
+                          'quantity': quantity,
+                        });
+                        movedQuantity += quantity;
+                      }
+                    }
+
+                    if (items.isEmpty) {
+                      ThqNotify.showSnackBar(
+                        dialogContext,
+                        const SnackBar(
+                          content: Text(
+                            'Enter a quantity for at least one item.',
+                          ),
+                        ),
+                      );
+                      return;
+                    }
+
+                    if (movedQuantity >= sourceQuantity - 0.000001) {
+                      ThqNotify.showSnackBar(
+                        dialogContext,
+                        const SnackBar(
+                          content: Text(
+                            'A split must leave at least one active item on '
+                            'the source table. Use Move to Another Table when '
+                            'moving the whole order.',
+                          ),
+                        ),
+                      );
+                      return;
+                    }
+
+                    try {
+                      splitResult = await _restaurant.splitOrder(
+                        tenantId: widget.session.business.id,
+                        sourceOrderId: order['id'].toString(),
+                        deviceId: deviceId,
+                        toTableId: destinationTableId,
+                        items: items,
+                        guestCount: movingGuests,
+                        note: note.text,
+                      );
+                      if (!dialogContext.mounted) return;
+                      Navigator.pop(dialogContext, true);
+                    } catch (error) {
+                      if (!dialogContext.mounted) return;
+                      ThqNotify.showSnackBar(
+                        dialogContext,
+                        SnackBar(content: Text(error.toString())),
+                      );
+                    }
+                  },
+                  icon: const Icon(Icons.call_split_rounded),
+                  label: const Text('Split to Table'),
+                ),
+              ],
+            );
+          },
+        ),
+      );
+
+      for (final controller in quantityControllers.values) {
+        controller.dispose();
+      }
+      note.dispose();
+
+      if (saved == true && mounted) {
+        _message(
+          'Split complete: ${splitResult?['target_order_number'] ?? 'new order'} '
+          'to ${splitResult?['target_table_name'] ?? 'destination table'}.',
+        );
+        await _load();
+      }
+    } catch (error) {
+      _message(error.toString());
+    }
+  }
+
   Future<void> _mergeRestaurantOrder(Map<String, dynamic> targetOrder) async {
     if (!widget.session.hasPermission('restaurant.order') &&
         !widget.session.hasPermission('restaurant.manage')) {
@@ -2834,6 +3557,8 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                 _transferOrderTable(order);
               } else if (value == 'merge_order') {
                 _mergeRestaurantOrder(order);
+              } else if (value == 'split_order') {
+                _splitRestaurantOrder(order);
               } else if (value == 'bill') {
                 _bill(order);
               } else {
@@ -2864,6 +3589,13 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                 const PopupMenuItem(
                   value: 'merge_order',
                   child: Text('Merge Tables / Orders'),
+                ),
+              if (status != 'billed' &&
+                  status != 'cancelled' &&
+                  order['order_type']?.toString() == 'dine_in')
+                const PopupMenuItem(
+                  value: 'split_order',
+                  child: Text('Split Table / Order'),
                 ),
               if (status != 'billed' && status != 'cancelled')
                 const PopupMenuItem(
@@ -3926,6 +4658,8 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                 ],
               ),
             ),
+            const SizedBox(height: 5),
+            _restaurantDashboardStrip(),
             if (_error != null) ...[
               const SizedBox(height: 5),
               Container(
