@@ -106,6 +106,7 @@ class PosHardwareService {
     required List<Map<String, dynamic>> profiles,
     required String orderNumber,
     required String orderType,
+    String title = 'KITCHEN ORDER',
     String? tableName,
     int? prepMinutes,
     String? chefNote,
@@ -125,7 +126,7 @@ class PosHardwareService {
           children: [
             pw.Center(
               child: pw.Text(
-                'KITCHEN ORDER',
+                title,
                 style: pw.TextStyle(
                   fontSize: 16,
                   fontWeight: pw.FontWeight.bold,
