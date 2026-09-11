@@ -2139,6 +2139,501 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
     }
   }
 
+  Future<void> _moveItemsToExistingOrder(Map<String, dynamic> order) async {
+    if (!widget.session.hasPermission('restaurant.order') &&
+        !widget.session.hasPermission('restaurant.manage')) {
+      _message('Restaurant order permission required.');
+      return;
+    }
+
+    if (order['order_type']?.toString() != 'dine_in') {
+      _message('Only dine-in orders can move items between tables.');
+      return;
+    }
+
+    final deviceId = _deviceId;
+    if (deviceId == null) {
+      _message('This system is not registered.');
+      return;
+    }
+
+    final sourceOrderId = order['id']?.toString();
+    if (sourceOrderId == null || sourceOrderId.isEmpty) {
+      _message('Source restaurant order is missing.');
+      return;
+    }
+
+    final targetOrders = _orders.where((candidate) {
+      final id = candidate['id']?.toString();
+      final status = candidate['status']?.toString() ?? '';
+      return id != null &&
+          id.isNotEmpty &&
+          id != sourceOrderId &&
+          candidate['order_type']?.toString() == 'dine_in' &&
+          candidate['table_id'] != null &&
+          status != 'billed' &&
+          status != 'cancelled';
+    }).toList();
+
+    if (targetOrders.isEmpty) {
+      _message(
+        'No other active dine-in table order is available to receive items.',
+      );
+      return;
+    }
+
+    try {
+      final detail = await _restaurant.detail(
+        widget.session.business.id,
+        sourceOrderId,
+        deviceId,
+      );
+      if (!mounted) return;
+
+      final activeItems = (detail['items'] as List? ?? const [])
+          .map((raw) => Map<String, dynamic>.from(raw as Map))
+          .where((item) {
+            final quantity =
+                (item['quantity'] as num?)?.toDouble() ??
+                double.tryParse('${item['quantity']}') ??
+                0;
+            final cancelled =
+                (item['cancelled_quantity'] as num?)?.toDouble() ??
+                double.tryParse('${item['cancelled_quantity']}') ??
+                0;
+            return quantity - cancelled > 0.000001;
+          })
+          .toList();
+
+      if (activeItems.isEmpty) {
+        _message('This order has no active items to move.');
+        return;
+      }
+
+      double activeQuantity(Map<String, dynamic> item) {
+        final quantity =
+            (item['quantity'] as num?)?.toDouble() ??
+            double.tryParse('${item['quantity']}') ??
+            0;
+        final cancelled =
+            (item['cancelled_quantity'] as num?)?.toDouble() ??
+            double.tryParse('${item['cancelled_quantity']}') ??
+            0;
+        return (quantity - cancelled).clamp(0, double.infinity).toDouble();
+      }
+
+      String itemName(Map<String, dynamic> item) {
+        final variantId = item['variant_id']?.toString();
+        for (final product in _products) {
+          if (product.variantId == variantId) {
+            return product.productName;
+          }
+        }
+        return 'Item ${variantId ?? item['id'] ?? ''}';
+      }
+
+      String quantityText(double value) {
+        if ((value - value.roundToDouble()).abs() < 0.000001) {
+          return value.toInt().toString();
+        }
+        return value
+            .toStringAsFixed(3)
+            .replaceFirst(RegExp(r'0+$'), '')
+            .replaceFirst(RegExp(r'\.$'), '');
+      }
+
+      final quantityControllers = <String, TextEditingController>{};
+      for (final item in activeItems) {
+        quantityControllers[item['id'].toString()] = TextEditingController(
+          text: '0',
+        );
+      }
+
+      final note = TextEditingController();
+      var targetOrderId = targetOrders.first['id'].toString();
+      var sendTargetUnsentToKitchen = true;
+      Map<String, dynamic>? moveResult;
+      Map<String, dynamic>? selectedTarget;
+
+      final saved = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => StatefulBuilder(
+          builder: (context, setLocalState) {
+            selectedTarget = targetOrders.firstWhere(
+              (candidate) => candidate['id']?.toString() == targetOrderId,
+              orElse: () => targetOrders.first,
+            );
+
+            return AlertDialog(
+              title: const Text('Move Selected Items to Existing Table'),
+              content: SizedBox(
+                width: 760,
+                height: 600,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(9),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context)
+                            .colorScheme
+                            .surfaceContainerHighest
+                            .withValues(alpha: .45),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        'From ${order['table_name'] ?? 'current table'} - '
+                        '${order['order_number'] ?? 'order'}. '
+                        'Choose an existing occupied table/order and the exact '
+                        'item quantities to move.',
+                        style: const TextStyle(
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 9),
+                    DropdownButtonFormField<String>(
+                      initialValue: targetOrderId,
+                      isExpanded: true,
+                      decoration: const InputDecoration(
+                        labelText: 'Move items to',
+                      ),
+                      items: targetOrders
+                          .map(
+                            (target) => DropdownMenuItem<String>(
+                              value: target['id'].toString(),
+                              child: Text(
+                                '${target['table_name'] ?? 'Table'} - '
+                                '${target['order_number'] ?? 'Order'} - '
+                                '${target['guest_count'] ?? 1} guest(s)',
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: (value) {
+                        if (value != null) {
+                          setLocalState(() => targetOrderId = value);
+                        }
+                      },
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Items to move',
+                      style: TextStyle(
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 5),
+                    Expanded(
+                      child: ListView.separated(
+                        itemCount: activeItems.length,
+                        separatorBuilder: (_, _) => const Divider(height: 1),
+                        itemBuilder: (context, index) {
+                          final item = activeItems[index];
+                          final itemId = item['id'].toString();
+                          final active = activeQuantity(item);
+                          final sent =
+                              (item['kot_sent_quantity'] as num?)?.toDouble() ??
+                              double.tryParse('${item['kot_sent_quantity']}') ??
+                              0;
+
+                          return Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 6),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        itemName(item),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                          fontSize: 10.5,
+                                          fontWeight: FontWeight.w800,
+                                        ),
+                                      ),
+                                      Text(
+                                        'Available ${quantityText(active)}'
+                                        '${sent > 0 ? ' - KOT sent ${quantityText(sent)}' : ''}',
+                                        style: TextStyle(
+                                          fontSize: 9,
+                                          color: Theme.of(
+                                            context,
+                                          ).colorScheme.onSurfaceVariant,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                SizedBox(
+                                  width: 145,
+                                  child: TextField(
+                                    controller: quantityControllers[itemId],
+                                    keyboardType:
+                                        const TextInputType.numberWithOptions(
+                                          decimal: true,
+                                        ),
+                                    decoration: InputDecoration(
+                                      isDense: true,
+                                      labelText: 'Move qty',
+                                      suffixText: '/ ${quantityText(active)}',
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    SwitchListTile(
+                      contentPadding: EdgeInsets.zero,
+                      dense: true,
+                      value: sendTargetUnsentToKitchen,
+                      title: const Text(
+                        'Send target table unsent items to kitchen',
+                        style: TextStyle(
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      subtitle: const Text(
+                        'Recommended. This queues all currently unsent items '
+                        'on the destination order after the move.',
+                        style: TextStyle(fontSize: 9),
+                      ),
+                      onChanged: (value) {
+                        setLocalState(() => sendTargetUnsentToKitchen = value);
+                      },
+                    ),
+                    const SizedBox(height: 4),
+                    TextField(
+                      controller: note,
+                      maxLines: 2,
+                      decoration: const InputDecoration(
+                        labelText: 'Move note',
+                        hintText: 'Optional reason / instruction',
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(dialogContext, false),
+                  child: const Text('Cancel'),
+                ),
+                FilledButton.icon(
+                  onPressed: () async {
+                    final items = <Map<String, dynamic>>[];
+                    var sourceQuantity = 0.0;
+                    var movedQuantity = 0.0;
+
+                    for (final item in activeItems) {
+                      final active = activeQuantity(item);
+                      sourceQuantity += active;
+                      final itemId = item['id'].toString();
+                      final quantity =
+                          double.tryParse(
+                            quantityControllers[itemId]!.text.trim(),
+                          ) ??
+                          0;
+
+                      if (quantity < 0 || quantity > active + 0.000001) {
+                        ThqNotify.showSnackBar(
+                          dialogContext,
+                          SnackBar(
+                            content: Text(
+                              '${itemName(item)} move quantity must be '
+                              'between 0 and ${quantityText(active)}.',
+                            ),
+                          ),
+                        );
+                        return;
+                      }
+
+                      if (quantity > 0.000001) {
+                        items.add({
+                          'order_item_id': itemId,
+                          'quantity': quantity,
+                        });
+                        movedQuantity += quantity;
+                      }
+                    }
+
+                    if (items.isEmpty) {
+                      ThqNotify.showSnackBar(
+                        dialogContext,
+                        const SnackBar(
+                          content: Text(
+                            'Enter a quantity for at least one item.',
+                          ),
+                        ),
+                      );
+                      return;
+                    }
+
+                    if (movedQuantity >= sourceQuantity - 0.000001) {
+                      ThqNotify.showSnackBar(
+                        dialogContext,
+                        const SnackBar(
+                          content: Text(
+                            'This would empty the source order. Use '
+                            'Merge Tables / Orders instead.',
+                          ),
+                        ),
+                      );
+                      return;
+                    }
+
+                    try {
+                      moveResult = await _restaurant.moveItems(
+                        tenantId: widget.session.business.id,
+                        sourceOrderId: sourceOrderId,
+                        targetOrderId: targetOrderId,
+                        deviceId: deviceId,
+                        items: items,
+                        note: note.text,
+                      );
+                      if (!dialogContext.mounted) return;
+                      Navigator.pop(dialogContext, true);
+                    } catch (error) {
+                      if (!dialogContext.mounted) return;
+                      ThqNotify.showSnackBar(
+                        dialogContext,
+                        SnackBar(content: Text(error.toString())),
+                      );
+                    }
+                  },
+                  icon: const Icon(Icons.compare_arrows_rounded),
+                  label: const Text('Move Items'),
+                ),
+              ],
+            );
+          },
+        ),
+      );
+
+      for (final controller in quantityControllers.values) {
+        controller.dispose();
+      }
+      note.dispose();
+
+      if (saved != true || !mounted) return;
+
+      final target =
+          selectedTarget ??
+          targetOrders.firstWhere(
+            (candidate) => candidate['id']?.toString() == targetOrderId,
+            orElse: () => targetOrders.first,
+          );
+
+      if (!sendTargetUnsentToKitchen) {
+        _message(
+          'Moved ${moveResult?['quantity_moved'] ?? ''} item quantity to '
+          '${moveResult?['target_table_name'] ?? target['table_name'] ?? 'target table'}.',
+        );
+        await _load();
+        return;
+      }
+
+      Map<String, dynamic>? kotResult;
+      String? kotError;
+      String? printWarning;
+
+      try {
+        final rawKot = await _restaurant.sendKot(
+          widget.session.business.id,
+          targetOrderId,
+          deviceId,
+          'Items moved from ${order['order_number'] ?? 'restaurant order'}',
+        );
+        kotResult = Map<String, dynamic>.from(rawKot);
+      } catch (error) {
+        kotError = error.toString();
+      }
+
+      if (kotError == null && kotResult?['kot_created'] == true && mounted) {
+        try {
+          final profiles = await _completion.printerProfiles(
+            tenantId: widget.session.business.id,
+            deviceId: deviceId,
+          );
+          final kotProfiles = profiles
+              .where(
+                (row) =>
+                    row['purpose']?.toString() == 'kot' &&
+                    row['active'] != false &&
+                    row['auto_print'] == true,
+              )
+              .toList();
+
+          final kotItems = (kotResult?['items'] as List? ?? const []).map((
+            raw,
+          ) {
+            final item = Map<String, dynamic>.from(raw as Map);
+            return <String, dynamic>{
+              'name':
+                  item['product_name']?.toString() ??
+                  item['variant_name']?.toString() ??
+                  item['sku']?.toString() ??
+                  'Item',
+              'quantity':
+                  (item['quantity'] as num?)?.toDouble() ??
+                  double.tryParse('${item['quantity']}') ??
+                  0,
+            };
+          }).toList();
+
+          await _hardware.printKot(
+            profiles: kotProfiles,
+            orderNumber: target['order_number']?.toString() ?? targetOrderId,
+            orderType: 'dine_in',
+            tableName: target['table_name']?.toString(),
+            prepMinutes:
+                (target['preparation_minutes'] as num?)?.toInt() ??
+                int.tryParse('${target['preparation_minutes']}') ??
+                0,
+            chefNote:
+                'Items moved from ${order['order_number'] ?? 'restaurant order'}',
+            items: kotItems,
+          );
+        } catch (error) {
+          printWarning = error.toString();
+        }
+      }
+
+      if (!mounted) return;
+
+      if (kotError != null) {
+        _message('Items moved successfully, but KOT send failed: $kotError');
+      } else if (kotResult?['kot_created'] == true) {
+        final kotNumber = kotResult?['kot_number']?.toString() ?? 'KOT';
+        if (printWarning == null) {
+          _message('Items moved and $kotNumber sent to kitchen.');
+        } else {
+          _message('Items moved and $kotNumber queued. Printer: $printWarning');
+        }
+      } else {
+        _message(
+          'Items moved. No new KOT was required for the destination order.',
+        );
+      }
+
+      await _load();
+    } catch (error) {
+      _message(error.toString());
+    }
+  }
+
   Future<void> _splitRestaurantOrder(Map<String, dynamic> order) async {
     if (!widget.session.hasPermission('restaurant.order') &&
         !widget.session.hasPermission('restaurant.manage')) {
@@ -3559,6 +4054,8 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                 _mergeRestaurantOrder(order);
               } else if (value == 'split_order') {
                 _splitRestaurantOrder(order);
+              } else if (value == 'move_items') {
+                _moveItemsToExistingOrder(order);
               } else if (value == 'bill') {
                 _bill(order);
               } else {
@@ -3596,6 +4093,13 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                 const PopupMenuItem(
                   value: 'split_order',
                   child: Text('Split Table / Order'),
+                ),
+              if (status != 'billed' &&
+                  status != 'cancelled' &&
+                  order['order_type']?.toString() == 'dine_in')
+                const PopupMenuItem(
+                  value: 'move_items',
+                  child: Text('Move Selected Items to Existing Table'),
                 ),
               if (status != 'billed' && status != 'cancelled')
                 const PopupMenuItem(

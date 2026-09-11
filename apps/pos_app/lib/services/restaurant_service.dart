@@ -330,6 +330,31 @@ class RestaurantService {
     return Map<String, dynamic>.from(result);
   }
 
+  Future<Map<String, dynamic>> moveItems({
+    required String tenantId,
+    required String sourceOrderId,
+    required String targetOrderId,
+    required String deviceId,
+    required List<Map<String, dynamic>> items,
+    String note = '',
+  }) async {
+    final result = await _s.rpc(
+      'restaurant_order_move_items_v610',
+      params: {
+        'p_tenant_id': tenantId,
+        'p_source_order_id': sourceOrderId,
+        'p_target_order_id': targetOrderId,
+        'p_device_id': deviceId,
+        'p_items': items,
+        'p_note': note.trim(),
+      },
+    );
+    if (result is! Map) {
+      throw Exception('Unexpected restaurant move-items response.');
+    }
+    return Map<String, dynamic>.from(result);
+  }
+
   Future<Map<String, dynamic>> splitOrder({
     required String tenantId,
     required String sourceOrderId,
