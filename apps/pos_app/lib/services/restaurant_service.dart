@@ -24,6 +24,27 @@ class RestaurantService {
         .toList();
   }
 
+  Future<Map<String, dynamic>> saveTableLayoutBatch({
+    required String tenantId,
+    required String locationId,
+    required String deviceId,
+    required List<Map<String, dynamic>> tables,
+  }) async {
+    final result = await _s.rpc(
+      'restaurant_table_layout_batch_set_v610',
+      params: {
+        'p_tenant_id': tenantId,
+        'p_location_id': locationId,
+        'p_device_id': deviceId,
+        'p_tables': tables,
+      },
+    );
+    if (result is! Map) {
+      throw Exception('Unexpected restaurant floor-layout response.');
+    }
+    return Map<String, dynamic>.from(result);
+  }
+
   Future<List<Map<String, dynamic>>> waiters(
     String tenantId,
     String locationId,
@@ -182,6 +203,31 @@ class RestaurantService {
     return Map<String, dynamic>.from(result);
   }
 
+  Future<Map<String, dynamic>> restaurantAnalytics({
+    required String tenantId,
+    required String locationId,
+    required String deviceId,
+    required DateTime from,
+    required DateTime to,
+    int topLimit = 10,
+  }) async {
+    final result = await _s.rpc(
+      'restaurant_analytics_v610',
+      params: {
+        'p_tenant_id': tenantId,
+        'p_location_id': locationId,
+        'p_device_id': deviceId,
+        'p_from': from.toIso8601String(),
+        'p_to': to.toIso8601String(),
+        'p_top_limit': topLimit,
+      },
+    );
+    if (result is! Map) {
+      throw Exception('Unexpected restaurant analytics response.');
+    }
+    return Map<String, dynamic>.from(result);
+  }
+
   Future<Map<String, dynamic>> dashboardSummary({
     required String tenantId,
     required String locationId,
@@ -281,6 +327,36 @@ class RestaurantService {
       throw Exception('Unexpected restaurant waitlist-status response.');
     }
     return Map<String, dynamic>.from(result);
+  }
+
+  Future<List<Map<String, dynamic>>> kotHistory({
+    required String tenantId,
+    required String locationId,
+    required String deviceId,
+    String? orderId,
+    DateTime? from,
+    DateTime? to,
+    int limit = 200,
+  }) async {
+    final result = await _s.rpc(
+      'restaurant_kot_history_v610',
+      params: {
+        'p_tenant_id': tenantId,
+        'p_location_id': locationId,
+        'p_device_id': deviceId,
+        'p_order_id': orderId,
+        'p_from': from?.toIso8601String(),
+        'p_to': to?.toIso8601String(),
+        'p_limit': limit,
+      },
+    );
+    if (result is! Map) {
+      throw Exception('Unexpected restaurant KOT-history response.');
+    }
+    final map = Map<String, dynamic>.from(result);
+    return (map['kots'] as List? ?? const [])
+        .map((raw) => Map<String, dynamic>.from(raw as Map))
+        .toList();
   }
 
   Future<List<Map<String, dynamic>>> kitchenQueue({

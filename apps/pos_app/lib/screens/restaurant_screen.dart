@@ -35,6 +35,10 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
   List<InventoryProduct> _products = [];
   List<Customer> _customerRows = [];
 
+  String? _restaurantFloorFilter;
+  int _restaurantAnalyticsDays = 30;
+  Future<Map<String, dynamic>>? _restaurantAnalyticsFuture;
+
   String? get _locationId => widget.session.device?.locationId;
   String? get _deviceId => widget.session.device?.deviceId;
 
@@ -3084,10 +3088,116 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
       note.dispose();
 
       if (saved == true && mounted) {
-        _message(
-          'Split complete: ${splitResult?['target_order_number'] ?? 'new order'} '
-          'to ${splitResult?['target_table_name'] ?? 'destination table'}.',
-        );
+        final targetOrderId = splitResult?['target_order_id']?.toString();
+        final targetOrderNumber =
+            splitResult?['target_order_number']?.toString() ?? 'new order';
+        final targetTableName =
+            splitResult?['target_table_name']?.toString() ??
+            'destination table';
+
+        if (targetOrderId == null || targetOrderId.isEmpty) {
+          _message(
+            'Split complete: $targetOrderNumber to $targetTableName. '
+            'Target order ID was not returned, so KOT follow-up was skipped.',
+          );
+          await _load();
+          return;
+        }
+
+        Map<String, dynamic>? kotResult;
+        String? kotError;
+        String? printWarning;
+
+        try {
+          kotResult = await _restaurant.sendKot(
+            widget.session.business.id,
+            targetOrderId,
+            deviceId,
+            'Split from ${order['order_number'] ?? 'restaurant order'}',
+          );
+        } catch (error) {
+          kotError = error.toString();
+        }
+
+        if (kotError == null && kotResult?['kot_created'] == true && mounted) {
+          try {
+            final profiles = await _completion.printerProfiles(
+              tenantId: widget.session.business.id,
+              deviceId: deviceId,
+            );
+
+            final kotProfiles = profiles
+                .where(
+                  (row) =>
+                      row['purpose']?.toString() == 'kot' &&
+                      row['active'] != false &&
+                      row['auto_print'] == true,
+                )
+                .toList();
+
+            final kotItems = (kotResult?['items'] as List? ?? const [])
+                .map((raw) => Map<String, dynamic>.from(raw as Map))
+                .map(
+                  (item) => <String, dynamic>{
+                    'name':
+                        item['product_name']?.toString() ??
+                        item['variant_name']?.toString() ??
+                        item['sku']?.toString() ??
+                        'Item',
+                    'quantity':
+                        (item['quantity'] as num?)?.toDouble() ??
+                        double.tryParse('${item['quantity']}') ??
+                        0,
+                  },
+                )
+                .toList();
+
+            await _hardware.printKot(
+              profiles: kotProfiles,
+              orderNumber:
+                  kotResult?['kot_number']?.toString() ?? targetOrderNumber,
+              orderType: 'dine_in',
+              tableName: targetTableName,
+              prepMinutes:
+                  (order['preparation_minutes'] as num?)?.toInt() ??
+                  int.tryParse('${order['preparation_minutes']}') ??
+                  0,
+              chefNote:
+                  'Split from ${order['order_number'] ?? 'restaurant order'}',
+              items: kotItems,
+            );
+          } catch (error) {
+            printWarning = error.toString();
+          }
+        }
+
+        if (!mounted) return;
+
+        if (kotError != null) {
+          _message(
+            'Split saved: $targetOrderNumber to $targetTableName, '
+            'but kitchen KOT needs attention: $kotError',
+          );
+        } else if (kotResult?['kot_created'] == true) {
+          final kotNumber = kotResult?['kot_number']?.toString() ?? 'Delta KOT';
+          if (printWarning == null) {
+            _message(
+              'Split complete: $targetOrderNumber to $targetTableName. '
+              '$kotNumber sent to kitchen.',
+            );
+          } else {
+            _message(
+              'Split saved and $kotNumber queued. '
+              'Printer needs attention: $printWarning',
+            );
+          }
+        } else {
+          _message(
+            'Split complete: $targetOrderNumber to $targetTableName. '
+            'No new kitchen quantity required.',
+          );
+        }
+
         await _load();
       }
     } catch (error) {
@@ -4136,6 +4246,630 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
     );
   }
 
+  Future<void> _editRestaurantFloorLayout(
+    List<Map<String, dynamic>> sourceTables,
+  ) async {
+    if (!widget.session.hasPermission('restaurant.manage')) {
+      _message('Restaurant manage permission required.');
+      return;
+    }
+
+    final locationId = _locationId;
+    final deviceId = _deviceId;
+    if (locationId == null || deviceId == null) {
+      _message('This system is not registered to a restaurant location.');
+      return;
+    }
+
+    final working = sourceTables
+        .map((table) => Map<String, dynamic>.from(table))
+        .toList();
+
+    String floorOf(Map<String, dynamic> table) {
+      final floor = table['floor_name']?.toString().trim() ?? '';
+      if (floor.isNotEmpty) return floor;
+      final area = table['area']?.toString().trim() ?? '';
+      return area.isEmpty ? 'Main Floor' : area;
+    }
+
+    double number(dynamic value, double fallback) {
+      if (value is num) return value.toDouble();
+      return double.tryParse('$value') ?? fallback;
+    }
+
+    final knownFloors = <String>{
+      for (final table in working) floorOf(table),
+    }.toList()..sort();
+
+    if (knownFloors.isEmpty) {
+      knownFloors.add('Main Floor');
+    }
+
+    var currentFloor =
+        _restaurantFloorFilter != null &&
+            knownFloors.contains(_restaurantFloorFilter)
+        ? _restaurantFloorFilter!
+        : knownFloors.first;
+
+    void ensureDefaultsForFloor(String floor) {
+      final rows = working.where((table) => floorOf(table) == floor).toList();
+      if (rows.isEmpty) return;
+
+      final columns = rows.length <= 3
+          ? rows.length
+          : rows.length <= 8
+          ? 4
+          : 5;
+      final safeColumns = columns <= 0 ? 1 : columns;
+      final rowCount = (rows.length / safeColumns).ceil();
+
+      for (var index = 0; index < rows.length; index++) {
+        final table = rows[index];
+        if (table['position_x'] != null && table['position_y'] != null) {
+          continue;
+        }
+        final column = index % safeColumns;
+        final row = index ~/ safeColumns;
+        table['position_x'] = safeColumns == 1
+            ? 50.0
+            : 6.0 + (88.0 * column / (safeColumns - 1));
+        table['position_y'] = rowCount <= 1
+            ? 45.0
+            : 8.0 + (82.0 * row / (rowCount - 1));
+      }
+    }
+
+    for (final floor in knownFloors) {
+      ensureDefaultsForFloor(floor);
+    }
+
+    String? selectedId;
+    final initialRows = working
+        .where((table) => floorOf(table) == currentFloor)
+        .toList();
+    if (initialRows.isNotEmpty) {
+      selectedId = initialRows.first['id']?.toString();
+    }
+
+    final saved = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setLocalState) {
+          final floorRows =
+              working.where((table) => floorOf(table) == currentFloor).toList()
+                ..sort((a, b) {
+                  final aSort =
+                      (a['sort_order'] as num?)?.toInt() ??
+                      int.tryParse('${a['sort_order']}') ??
+                      0;
+                  final bSort =
+                      (b['sort_order'] as num?)?.toInt() ??
+                      int.tryParse('${b['sort_order']}') ??
+                      0;
+                  if (aSort != bSort) return aSort.compareTo(bSort);
+                  return '${a['table_code']}'.compareTo('${b['table_code']}');
+                });
+
+          Map<String, dynamic>? selectedTable;
+          for (final table in working) {
+            if (table['id']?.toString() == selectedId) {
+              selectedTable = table;
+              break;
+            }
+          }
+
+          Future<void> createFloor() async {
+            final controller = TextEditingController();
+            final result = await showDialog<String>(
+              context: dialogContext,
+              builder: (nameContext) => AlertDialog(
+                title: const Text('New Floor / Area'),
+                content: TextField(
+                  controller: controller,
+                  autofocus: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Floor name',
+                    hintText: 'Example: Ground Floor',
+                  ),
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(nameContext),
+                    child: const Text('Cancel'),
+                  ),
+                  FilledButton(
+                    onPressed: () {
+                      final value = controller.text.trim();
+                      if (value.isNotEmpty) {
+                        Navigator.pop(nameContext, value);
+                      }
+                    },
+                    child: const Text('Add Floor'),
+                  ),
+                ],
+              ),
+            );
+            controller.dispose();
+            if (!dialogContext.mounted ||
+                result == null ||
+                result.trim().isEmpty) {
+              return;
+            }
+            final value = result.trim();
+            setLocalState(() {
+              if (!knownFloors.contains(value)) {
+                knownFloors.add(value);
+                knownFloors.sort();
+              }
+              currentFloor = value;
+              selectedId = null;
+            });
+          }
+
+          void autoArrange() {
+            final rows = working
+                .where((table) => floorOf(table) == currentFloor)
+                .toList();
+            if (rows.isEmpty) return;
+
+            final columns = rows.length <= 3
+                ? rows.length
+                : rows.length <= 8
+                ? 4
+                : 5;
+            final safeColumns = columns <= 0 ? 1 : columns;
+            final rowCount = (rows.length / safeColumns).ceil();
+
+            setLocalState(() {
+              for (var index = 0; index < rows.length; index++) {
+                final column = index % safeColumns;
+                final row = index ~/ safeColumns;
+                rows[index]['position_x'] = safeColumns == 1
+                    ? 50.0
+                    : 6.0 + (88.0 * column / (safeColumns - 1));
+                rows[index]['position_y'] = rowCount <= 1
+                    ? 45.0
+                    : 8.0 + (82.0 * row / (rowCount - 1));
+                rows[index]['sort_order'] = index;
+              }
+            });
+          }
+
+          return AlertDialog(
+            titlePadding: const EdgeInsets.fromLTRB(14, 12, 8, 4),
+            contentPadding: const EdgeInsets.fromLTRB(10, 6, 10, 8),
+            title: Row(
+              children: [
+                const Icon(Icons.grid_view_rounded, size: 19),
+                const SizedBox(width: 7),
+                const Expanded(
+                  child: Text(
+                    'Restaurant Floor Layout Editor',
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900),
+                  ),
+                ),
+                OutlinedButton.icon(
+                  onPressed: createFloor,
+                  icon: const Icon(Icons.layers_outlined, size: 14),
+                  label: const Text('New Floor'),
+                ),
+                const SizedBox(width: 6),
+                OutlinedButton.icon(
+                  onPressed: autoArrange,
+                  icon: const Icon(
+                    Icons.auto_awesome_mosaic_outlined,
+                    size: 14,
+                  ),
+                  label: const Text('Auto Arrange'),
+                ),
+              ],
+            ),
+            content: SizedBox(
+              width: 1040,
+              height: 650,
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        SizedBox(
+                          height: 38,
+                          child: ListView.separated(
+                            scrollDirection: Axis.horizontal,
+                            itemCount: knownFloors.length,
+                            separatorBuilder: (_, _) =>
+                                const SizedBox(width: 5),
+                            itemBuilder: (context, index) {
+                              final floor = knownFloors[index];
+                              return ChoiceChip(
+                                label: Text(floor),
+                                selected: floor == currentFloor,
+                                onSelected: (_) {
+                                  setLocalState(() {
+                                    currentFloor = floor;
+                                    ensureDefaultsForFloor(floor);
+                                    final rows = working
+                                        .where(
+                                          (table) =>
+                                              floorOf(table) == currentFloor,
+                                        )
+                                        .toList();
+                                    selectedId = rows.isEmpty
+                                        ? null
+                                        : rows.first['id']?.toString();
+                                  });
+                                },
+                              );
+                            },
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Expanded(
+                          child: LayoutBuilder(
+                            builder: (context, constraints) {
+                              return Container(
+                                clipBehavior: Clip.antiAlias,
+                                decoration: BoxDecoration(
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.surfaceContainerLowest,
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.outlineVariant,
+                                  ),
+                                ),
+                                child: Stack(
+                                  children: [
+                                    Positioned(
+                                      top: 8,
+                                      left: 10,
+                                      child: Text(
+                                        currentFloor,
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.w900,
+                                          color: Theme.of(
+                                            context,
+                                          ).colorScheme.onSurfaceVariant,
+                                        ),
+                                      ),
+                                    ),
+                                    for (final table in floorRows)
+                                      Builder(
+                                        builder: (context) {
+                                          final id =
+                                              table['id']?.toString() ?? '';
+                                          final shape =
+                                              table['shape']?.toString() ??
+                                              'rect';
+                                          final isRound = shape == 'round';
+                                          final isSquare =
+                                              shape == 'square' || isRound;
+                                          final width = isSquare ? 84.0 : 116.0;
+                                          const height = 72.0;
+                                          final maxLeft =
+                                              (constraints.maxWidth - width)
+                                                  .clamp(1.0, double.infinity)
+                                                  .toDouble();
+                                          final maxTop =
+                                              (constraints.maxHeight - height)
+                                                  .clamp(1.0, double.infinity)
+                                                  .toDouble();
+                                          final x = number(
+                                            table['position_x'],
+                                            50,
+                                          ).clamp(0.0, 100.0).toDouble();
+                                          final y = number(
+                                            table['position_y'],
+                                            50,
+                                          ).clamp(0.0, 100.0).toDouble();
+                                          final selected = selectedId == id;
+
+                                          return Positioned(
+                                            left: maxLeft * x / 100,
+                                            top: maxTop * y / 100,
+                                            child: GestureDetector(
+                                              onTap: () {
+                                                setLocalState(
+                                                  () => selectedId = id,
+                                                );
+                                              },
+                                              onPanUpdate: (details) {
+                                                setLocalState(() {
+                                                  final nextX =
+                                                      x +
+                                                      details.delta.dx /
+                                                          maxLeft *
+                                                          100;
+                                                  final nextY =
+                                                      y +
+                                                      details.delta.dy /
+                                                          maxTop *
+                                                          100;
+                                                  table['position_x'] = nextX
+                                                      .clamp(0.0, 100.0)
+                                                      .toDouble();
+                                                  table['position_y'] = nextY
+                                                      .clamp(0.0, 100.0)
+                                                      .toDouble();
+                                                  selectedId = id;
+                                                });
+                                              },
+                                              child: AnimatedContainer(
+                                                duration: const Duration(
+                                                  milliseconds: 100,
+                                                ),
+                                                width: width,
+                                                height: height,
+                                                padding: const EdgeInsets.all(
+                                                  7,
+                                                ),
+                                                decoration: BoxDecoration(
+                                                  color: selected
+                                                      ? Theme.of(context)
+                                                            .colorScheme
+                                                            .primaryContainer
+                                                      : Theme.of(
+                                                          context,
+                                                        ).colorScheme.surface,
+                                                  borderRadius:
+                                                      BorderRadius.circular(
+                                                        isRound ? 999 : 9,
+                                                      ),
+                                                  border: Border.all(
+                                                    width: selected ? 2 : 1,
+                                                    color: selected
+                                                        ? Theme.of(
+                                                            context,
+                                                          ).colorScheme.primary
+                                                        : Theme.of(context)
+                                                              .colorScheme
+                                                              .outlineVariant,
+                                                  ),
+                                                  boxShadow: const [
+                                                    BoxShadow(
+                                                      blurRadius: 3,
+                                                      offset: Offset(0, 1),
+                                                      color: Color(0x18000000),
+                                                    ),
+                                                  ],
+                                                ),
+                                                child: Column(
+                                                  mainAxisAlignment:
+                                                      MainAxisAlignment.center,
+                                                  children: [
+                                                    Text(
+                                                      '${table['table_code'] ?? ''}',
+                                                      maxLines: 1,
+                                                      overflow:
+                                                          TextOverflow.ellipsis,
+                                                      style: const TextStyle(
+                                                        fontSize: 10.5,
+                                                        fontWeight:
+                                                            FontWeight.w900,
+                                                      ),
+                                                    ),
+                                                    Text(
+                                                      '${table['name'] ?? ''}',
+                                                      maxLines: 1,
+                                                      overflow:
+                                                          TextOverflow.ellipsis,
+                                                      style: const TextStyle(
+                                                        fontSize: 9,
+                                                      ),
+                                                    ),
+                                                    Text(
+                                                      '${table['capacity'] ?? 0} seats',
+                                                      style: const TextStyle(
+                                                        fontSize: 8.5,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            ),
+                                          );
+                                        },
+                                      ),
+                                  ],
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                        const SizedBox(height: 5),
+                        const Text(
+                          'Drag tables to position them. Coordinates are saved '
+                          'as percentages so the layout remains responsive.',
+                          style: TextStyle(fontSize: 8.5),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  SizedBox(
+                    width: 240,
+                    child: Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.surface,
+                        borderRadius: BorderRadius.circular(9),
+                        border: Border.all(
+                          color: Theme.of(context).colorScheme.outlineVariant,
+                        ),
+                      ),
+                      child: selectedTable == null
+                          ? const Center(
+                              child: Text(
+                                'Select a table to edit its floor and shape.',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(fontSize: 10),
+                              ),
+                            )
+                          : Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                Text(
+                                  '${selectedTable['table_code'] ?? ''} | '
+                                  '${selectedTable['name'] ?? ''}',
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w900,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  '${selectedTable['capacity'] ?? 0} seats â€¢ '
+                                  '${selectedTable['operational_status'] ?? 'available'}',
+                                  style: const TextStyle(fontSize: 9),
+                                ),
+                                const SizedBox(height: 14),
+                                DropdownButtonFormField<String>(
+                                  key: ValueKey(
+                                    'floor-${selectedTable['id']}-${floorOf(selectedTable)}',
+                                  ),
+                                  initialValue: floorOf(selectedTable),
+                                  isExpanded: true,
+                                  decoration: const InputDecoration(
+                                    labelText: 'Floor',
+                                  ),
+                                  items: knownFloors
+                                      .map(
+                                        (floor) => DropdownMenuItem<String>(
+                                          value: floor,
+                                          child: Text(
+                                            floor,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                      )
+                                      .toList(),
+                                  onChanged: (value) {
+                                    if (value == null) return;
+                                    setLocalState(() {
+                                      selectedTable!['floor_name'] = value;
+                                      ensureDefaultsForFloor(value);
+                                      currentFloor = value;
+                                    });
+                                  },
+                                ),
+                                const SizedBox(height: 10),
+                                DropdownButtonFormField<String>(
+                                  key: ValueKey(
+                                    'shape-${selectedTable['id']}-${selectedTable['shape']}',
+                                  ),
+                                  initialValue:
+                                      selectedTable['shape']?.toString() ??
+                                      'rect',
+                                  decoration: const InputDecoration(
+                                    labelText: 'Table shape',
+                                  ),
+                                  items: const [
+                                    DropdownMenuItem(
+                                      value: 'rect',
+                                      child: Text('Rectangle'),
+                                    ),
+                                    DropdownMenuItem(
+                                      value: 'square',
+                                      child: Text('Square'),
+                                    ),
+                                    DropdownMenuItem(
+                                      value: 'round',
+                                      child: Text('Round'),
+                                    ),
+                                  ],
+                                  onChanged: (value) {
+                                    if (value == null) return;
+                                    setLocalState(
+                                      () => selectedTable!['shape'] = value,
+                                    );
+                                  },
+                                ),
+                                const SizedBox(height: 12),
+                                Text(
+                                  'X ${number(selectedTable['position_x'], 0).toStringAsFixed(1)}%   '
+                                  'Y ${number(selectedTable['position_y'], 0).toStringAsFixed(1)}%',
+                                  style: const TextStyle(
+                                    fontSize: 9.5,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                                const Spacer(),
+                                OutlinedButton.icon(
+                                  onPressed: () =>
+                                      _manageRestaurantTable(selectedTable!),
+                                  icon: const Icon(
+                                    Icons.settings_outlined,
+                                    size: 15,
+                                  ),
+                                  label: const Text('Table Settings'),
+                                ),
+                              ],
+                            ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext, false),
+                child: const Text('Cancel'),
+              ),
+              FilledButton.icon(
+                onPressed: () async {
+                  final payload = <Map<String, dynamic>>[];
+                  for (var index = 0; index < working.length; index++) {
+                    final table = working[index];
+                    payload.add({
+                      'table_id': table['id']?.toString(),
+                      'floor_name': floorOf(table),
+                      'position_x': number(table['position_x'], 50),
+                      'position_y': number(table['position_y'], 50),
+                      'shape': table['shape']?.toString() ?? 'rect',
+                      'sort_order': index,
+                    });
+                  }
+
+                  try {
+                    await _restaurant.saveTableLayoutBatch(
+                      tenantId: widget.session.business.id,
+                      locationId: locationId,
+                      deviceId: deviceId,
+                      tables: payload,
+                    );
+                    if (!dialogContext.mounted) return;
+                    Navigator.pop(dialogContext, true);
+                  } catch (error) {
+                    if (!dialogContext.mounted) return;
+                    ThqNotify.showSnackBar(
+                      dialogContext,
+                      SnackBar(content: Text(error.toString())),
+                    );
+                  }
+                },
+                icon: const Icon(Icons.save_outlined, size: 15),
+                label: const Text('Save Layout'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+
+    if (saved == true && mounted) {
+      _restaurantFloorFilter = currentFloor;
+      _message('Restaurant floor layout saved.');
+      await _load();
+    }
+  }
+
   Widget _floorView() {
     final active = _tables.where((table) => table['active'] != false).toList();
     final scheme = Theme.of(context).colorScheme;
@@ -4167,151 +4901,276 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
       );
     }
 
-    return GridView.builder(
-      padding: const EdgeInsets.all(5),
-      gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-        maxCrossAxisExtent: 220,
-        mainAxisExtent: 136,
-        crossAxisSpacing: 5,
-        mainAxisSpacing: 5,
-      ),
-      itemCount: active.length,
-      itemBuilder: (context, index) {
-        final table = active[index];
-        final id = table['id']?.toString() ?? '';
-        final order = _tableOrder(id);
-        final occupied = order != null;
-        final operationalStatus =
-            table['operational_status']?.toString() ?? 'available';
-        final reserved = operationalStatus == 'reserved';
-        final blocked =
-            operationalStatus == 'cleaning' ||
-            operationalStatus == 'out_of_service';
+    String floorOf(Map<String, dynamic> table) {
+      final floor = table['floor_name']?.toString().trim() ?? '';
+      if (floor.isNotEmpty) return floor;
+      final area = table['area']?.toString().trim() ?? '';
+      return area.isEmpty ? 'Main Floor' : area;
+    }
 
-        return Material(
-          color: scheme.surface,
-          borderRadius: BorderRadius.circular(8),
-          child: InkWell(
-            onTap: occupied
-                ? () => _editOrder(order)
-                : (reserved || blocked)
-                ? () => _manageRestaurantTable(table)
-                : _newOrder,
-            onLongPress: () => _manageRestaurantTable(table),
-            borderRadius: BorderRadius.circular(8),
-            child: Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                border: Border.all(color: scheme.outlineVariant),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Icon(
-                        occupied
-                            ? Icons.restaurant
-                            : Icons.table_restaurant_outlined,
-                        size: 17,
-                        color: scheme.primary,
+    double number(dynamic value, double fallback) {
+      if (value is num) return value.toDouble();
+      return double.tryParse('$value') ?? fallback;
+    }
+
+    final floors = <String>{for (final table in active) floorOf(table)}.toList()
+      ..sort();
+
+    final selectedFloor =
+        _restaurantFloorFilter != null &&
+            floors.contains(_restaurantFloorFilter)
+        ? _restaurantFloorFilter!
+        : floors.first;
+
+    final visible =
+        active.where((table) => floorOf(table) == selectedFloor).toList()
+          ..sort((a, b) {
+            final aSort =
+                (a['sort_order'] as num?)?.toInt() ??
+                int.tryParse('${a['sort_order']}') ??
+                0;
+            final bSort =
+                (b['sort_order'] as num?)?.toInt() ??
+                int.tryParse('${b['sort_order']}') ??
+                0;
+            if (aSort != bSort) return aSort.compareTo(bSort);
+            return '${a['table_code']}'.compareTo('${b['table_code']}');
+          });
+
+    return Column(
+      children: [
+        Container(
+          height: 42,
+          padding: const EdgeInsets.symmetric(horizontal: 5),
+          decoration: BoxDecoration(
+            color: scheme.surface,
+            border: Border(bottom: BorderSide(color: scheme.outlineVariant)),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: floors.length,
+                  separatorBuilder: (_, _) => const SizedBox(width: 4),
+                  itemBuilder: (context, index) {
+                    final floor = floors[index];
+                    return ChoiceChip(
+                      visualDensity: const VisualDensity(
+                        horizontal: -2,
+                        vertical: -3,
                       ),
-                      const Spacer(),
-                      Text(
-                        occupied
-                            ? 'OCCUPIED'
-                            : operationalStatus
-                                  .replaceAll('_', ' ')
-                                  .toUpperCase(),
+                      label: Text(floor),
+                      selected: floor == selectedFloor,
+                      onSelected: (_) {
+                        setState(() => _restaurantFloorFilter = floor);
+                      },
+                    );
+                  },
+                ),
+              ),
+              if (widget.session.hasPermission('restaurant.manage')) ...[
+                const SizedBox(width: 5),
+                OutlinedButton.icon(
+                  onPressed: () => _editRestaurantFloorLayout(active),
+                  icon: const Icon(Icons.grid_view_rounded, size: 14),
+                  label: const Text('Edit Layout'),
+                ),
+                const SizedBox(width: 4),
+                IconButton(
+                  tooltip: 'Add table',
+                  visualDensity: VisualDensity.compact,
+                  onPressed: _addTable,
+                  icon: const Icon(Icons.add_circle_outline, size: 18),
+                ),
+              ],
+            ],
+          ),
+        ),
+        Expanded(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              return Container(
+                margin: const EdgeInsets.all(5),
+                clipBehavior: Clip.antiAlias,
+                decoration: BoxDecoration(
+                  color: scheme.surfaceContainerLowest,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: scheme.outlineVariant),
+                ),
+                child: Stack(
+                  children: [
+                    Positioned(
+                      top: 8,
+                      left: 10,
+                      child: Text(
+                        '$selectedFloor â€¢ ${visible.length} table(s)',
                         style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w900,
-                          color: occupied
-                              ? scheme.error
-                              : reserved
-                              ? scheme.tertiary
-                              : blocked
-                              ? scheme.outline
-                              : scheme.primary,
+                          fontSize: 9.5,
+                          fontWeight: FontWeight.w800,
+                          color: scheme.onSurfaceVariant,
                         ),
                       ),
-                    ],
-                  ),
-                  const Spacer(),
-                  Text(
-                    '${table['table_code']} | ${table['name']}',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 11.5,
-                      fontWeight: FontWeight.w900,
                     ),
-                  ),
-                  Text(
-                    '${table['area'] ?? 'Main floor'} | '
-                    '${table['capacity'] ?? 0} seats',
-                    maxLines: 1,
-                    style: TextStyle(
-                      fontSize: 10,
-                      color: scheme.onSurfaceVariant,
-                    ),
-                  ),
-                  if (!occupied && reserved) ...[
-                    const SizedBox(height: 4),
-                    Text(
-                      'Reserved: ${table['reservation_name'] ?? 'Guest'}',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 10.5,
-                        fontWeight: FontWeight.w800,
+                    for (var index = 0; index < visible.length; index++)
+                      Builder(
+                        builder: (context) {
+                          final table = visible[index];
+                          final id = table['id']?.toString() ?? '';
+                          final order = _tableOrder(id);
+                          final occupied = order != null;
+                          final operationalStatus =
+                              table['operational_status']?.toString() ??
+                              'available';
+                          final reserved = operationalStatus == 'reserved';
+                          final blocked =
+                              operationalStatus == 'cleaning' ||
+                              operationalStatus == 'out_of_service';
+                          final shape = table['shape']?.toString() ?? 'rect';
+                          final isRound = shape == 'round';
+                          final isSquare = shape == 'square' || isRound;
+                          final width = isSquare ? 92.0 : 126.0;
+                          const height = 82.0;
+                          final maxLeft = (constraints.maxWidth - width)
+                              .clamp(1.0, double.infinity)
+                              .toDouble();
+                          final maxTop = (constraints.maxHeight - height)
+                              .clamp(1.0, double.infinity)
+                              .toDouble();
+
+                          final fallbackColumns = visible.length <= 3
+                              ? visible.length
+                              : 4;
+                          final safeColumns = fallbackColumns <= 0
+                              ? 1
+                              : fallbackColumns;
+                          final fallbackRows = (visible.length / safeColumns)
+                              .ceil();
+                          final fallbackColumn = index % safeColumns;
+                          final fallbackRow = index ~/ safeColumns;
+                          final fallbackX = safeColumns == 1
+                              ? 50.0
+                              : 6.0 + 88.0 * fallbackColumn / (safeColumns - 1);
+                          final fallbackY = fallbackRows <= 1
+                              ? 45.0
+                              : 8.0 + 82.0 * fallbackRow / (fallbackRows - 1);
+
+                          final x = number(
+                            table['position_x'],
+                            fallbackX,
+                          ).clamp(0.0, 100.0).toDouble();
+                          final y = number(
+                            table['position_y'],
+                            fallbackY,
+                          ).clamp(0.0, 100.0).toDouble();
+
+                          Color statusColor;
+                          if (occupied) {
+                            statusColor = scheme.error;
+                          } else if (reserved) {
+                            statusColor = scheme.tertiary;
+                          } else if (blocked) {
+                            statusColor = scheme.outline;
+                          } else {
+                            statusColor = scheme.primary;
+                          }
+
+                          return Positioned(
+                            left: maxLeft * x / 100,
+                            top: maxTop * y / 100,
+                            child: Material(
+                              color: scheme.surface,
+                              borderRadius: BorderRadius.circular(
+                                isRound ? 999 : 10,
+                              ),
+                              child: InkWell(
+                                onTap: occupied
+                                    ? () => _editOrder(order)
+                                    : (reserved || blocked)
+                                    ? () => _manageRestaurantTable(table)
+                                    : _newOrder,
+                                onLongPress: () =>
+                                    _manageRestaurantTable(table),
+                                borderRadius: BorderRadius.circular(
+                                  isRound ? 999 : 10,
+                                ),
+                                child: Container(
+                                  width: width,
+                                  height: height,
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 7,
+                                    vertical: 6,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    border: Border.all(
+                                      color: statusColor.withValues(alpha: .65),
+                                      width: 1.4,
+                                    ),
+                                    borderRadius: BorderRadius.circular(
+                                      isRound ? 999 : 10,
+                                    ),
+                                  ),
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Text(
+                                        '${table['table_code'] ?? ''}',
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w900,
+                                        ),
+                                      ),
+                                      Text(
+                                        '${table['name'] ?? ''}',
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(fontSize: 9),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        occupied
+                                            ? '${order['order_number']} â€¢ ${_money(order['total'])}'
+                                            : reserved
+                                            ? 'RESERVED'
+                                            : operationalStatus
+                                                  .replaceAll('_', ' ')
+                                                  .toUpperCase(),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          fontSize: 8.5,
+                                          fontWeight: FontWeight.w900,
+                                          color: statusColor,
+                                        ),
+                                      ),
+                                      Text(
+                                        occupied
+                                            ? '${order['guest_count'] ?? 1} guest(s)'
+                                            : '${table['capacity'] ?? 0} seats',
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          fontSize: 8.2,
+                                          color: scheme.onSurfaceVariant,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          );
+                        },
                       ),
-                    ),
-                    Text(
-                      table['reservation_at']?.toString() ?? '',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontSize: 9.5),
-                    ),
                   ],
-                  if (!occupied && blocked) ...[
-                    const SizedBox(height: 4),
-                    Text(
-                      operationalStatus == 'cleaning'
-                          ? 'Table is being cleaned'
-                          : 'Table temporarily unavailable',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontSize: 10),
-                    ),
-                  ],
-                  if (occupied) ...[
-                    const SizedBox(height: 4),
-                    Text(
-                      '${order['order_number']} | ${_money(order['total'])}',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 10.5,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    Text(
-                      (order['status'] ?? '')
-                          .toString()
-                          .replaceAll('_', ' ')
-                          .toUpperCase(),
-                      maxLines: 1,
-                      style: const TextStyle(fontSize: 10),
-                    ),
-                  ],
-                ],
-              ),
-            ),
+                ),
+              );
+            },
           ),
-        );
-      },
+        ),
+      ],
     );
   }
 
@@ -4332,6 +5191,456 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
         itemCount: _orders.length,
         itemBuilder: (context, index) => _orderCard(_orders[index]),
       ),
+    );
+  }
+
+  Future<Map<String, dynamic>> _fetchRestaurantAnalytics() {
+    final locationId = _locationId;
+    final deviceId = _deviceId;
+    if (locationId == null || deviceId == null) {
+      return Future<Map<String, dynamic>>.error(
+        'This installation is not linked to a registered POS location.',
+      );
+    }
+
+    final to = DateTime.now();
+    final from = to.subtract(Duration(days: _restaurantAnalyticsDays));
+
+    return _restaurant.restaurantAnalytics(
+      tenantId: widget.session.business.id,
+      locationId: locationId,
+      deviceId: deviceId,
+      from: from,
+      to: to,
+      topLimit: 10,
+    );
+  }
+
+  void _reloadRestaurantAnalytics({int? days}) {
+    if (days != null) {
+      _restaurantAnalyticsDays = days;
+    }
+    setState(() {
+      _restaurantAnalyticsFuture = _fetchRestaurantAnalytics();
+    });
+  }
+
+  Widget _restaurantAnalyticsView() {
+    _restaurantAnalyticsFuture ??= _fetchRestaurantAnalytics();
+
+    Map<String, dynamic> asMap(dynamic value) {
+      if (value is Map) return Map<String, dynamic>.from(value);
+      return <String, dynamic>{};
+    }
+
+    List<Map<String, dynamic>> asRows(dynamic value) {
+      if (value is! List) return const <Map<String, dynamic>>[];
+      return value
+          .whereType<Map>()
+          .map((row) => Map<String, dynamic>.from(row))
+          .toList();
+    }
+
+    num number(dynamic value) {
+      if (value is num) return value;
+      return num.tryParse('$value') ?? 0;
+    }
+
+    String compactNumber(dynamic value, {int decimals = 0}) {
+      final n = number(value).toDouble();
+      return n.toStringAsFixed(decimals);
+    }
+
+    Widget metricCard({
+      required IconData icon,
+      required String label,
+      required String value,
+      required String detail,
+      bool alert = false,
+    }) {
+      final scheme = Theme.of(context).colorScheme;
+      return Container(
+        width: 210,
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        decoration: BoxDecoration(
+          color: scheme.surface,
+          borderRadius: BorderRadius.circular(9),
+          border: Border.all(
+            color: alert ? scheme.error : scheme.outlineVariant,
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 32,
+              height: 32,
+              decoration: BoxDecoration(
+                color: scheme.primary.withValues(alpha: .08),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(icon, size: 17, color: scheme.primary),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 9.5,
+                      color: scheme.onSurfaceVariant,
+                    ),
+                  ),
+                  Text(
+                    value,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  Text(
+                    detail,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 8.5,
+                      color: scheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    Widget rankingPanel({
+      required String title,
+      required IconData icon,
+      required List<Map<String, dynamic>> rows,
+      required String Function(Map<String, dynamic>) titleFor,
+      required String Function(Map<String, dynamic>) valueFor,
+      String Function(Map<String, dynamic>)? subtitleFor,
+    }) {
+      final scheme = Theme.of(context).colorScheme;
+      return Container(
+        decoration: BoxDecoration(
+          color: scheme.surface,
+          borderRadius: BorderRadius.circular(9),
+          border: Border.all(color: scheme.outlineVariant),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Column(
+          children: [
+            Container(
+              height: 36,
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+              color: scheme.surfaceContainerHighest.withValues(alpha: .42),
+              child: Row(
+                children: [
+                  Icon(icon, size: 16, color: scheme.primary),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Expanded(
+              child: rows.isEmpty
+                  ? Center(
+                      child: Text(
+                        'No data for this period.',
+                        style: TextStyle(
+                          fontSize: 9.5,
+                          color: scheme.onSurfaceVariant,
+                        ),
+                      ),
+                    )
+                  : ListView.separated(
+                      padding: const EdgeInsets.symmetric(vertical: 3),
+                      itemCount: rows.length > 6 ? 6 : rows.length,
+                      separatorBuilder: (_, _) =>
+                          const Divider(height: 1, indent: 9, endIndent: 9),
+                      itemBuilder: (context, index) {
+                        final row = rows[index];
+                        final subtitle = subtitleFor?.call(row);
+                        return ListTile(
+                          dense: true,
+                          visualDensity: const VisualDensity(
+                            horizontal: -2,
+                            vertical: -3,
+                          ),
+                          minLeadingWidth: 22,
+                          leading: CircleAvatar(
+                            radius: 11,
+                            child: Text(
+                              '${index + 1}',
+                              style: const TextStyle(
+                                fontSize: 8,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                          ),
+                          title: Text(
+                            titleFor(row),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 9.5,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                          subtitle: subtitle == null || subtitle.isEmpty
+                              ? null
+                              : Text(
+                                  subtitle,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(fontSize: 8.5),
+                                ),
+                          trailing: Text(
+                            valueFor(row),
+                            style: const TextStyle(
+                              fontSize: 9.5,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final scheme = Theme.of(context).colorScheme;
+
+    return Column(
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+          decoration: BoxDecoration(
+            color: scheme.surface,
+            border: Border(bottom: BorderSide(color: scheme.outlineVariant)),
+          ),
+          child: Row(
+            children: [
+              const Icon(Icons.analytics_outlined, size: 17),
+              const SizedBox(width: 6),
+              const Text(
+                'Restaurant Analytics',
+                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w900),
+              ),
+              const Spacer(),
+              for (final days in const [7, 30, 90]) ...[
+                ChoiceChip(
+                  visualDensity: const VisualDensity(
+                    horizontal: -3,
+                    vertical: -3,
+                  ),
+                  label: Text('${days}D'),
+                  selected: _restaurantAnalyticsDays == days,
+                  onSelected: (_) => _reloadRestaurantAnalytics(days: days),
+                ),
+                const SizedBox(width: 4),
+              ],
+              IconButton(
+                tooltip: 'Refresh analytics',
+                visualDensity: VisualDensity.compact,
+                onPressed: _reloadRestaurantAnalytics,
+                icon: const Icon(Icons.refresh, size: 17),
+              ),
+            ],
+          ),
+        ),
+        Expanded(
+          child: FutureBuilder<Map<String, dynamic>>(
+            future: _restaurantAnalyticsFuture,
+            builder: (context, snapshot) {
+              if (snapshot.connectionState != ConnectionState.done) {
+                return const Center(child: CircularProgressIndicator());
+              }
+
+              if (snapshot.hasError) {
+                return Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.error_outline, size: 30),
+                        const SizedBox(height: 8),
+                        Text(
+                          snapshot.error.toString(),
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(fontSize: 10),
+                        ),
+                        const SizedBox(height: 8),
+                        OutlinedButton.icon(
+                          onPressed: _reloadRestaurantAnalytics,
+                          icon: const Icon(Icons.refresh, size: 15),
+                          label: const Text('Retry'),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }
+
+              final data = snapshot.data ?? const <String, dynamic>{};
+              final sales = asMap(data['sales']);
+              final orders = asMap(data['orders']);
+              final kitchen = asMap(data['kitchen']);
+              final audit = asMap(data['audit']);
+              final topItems = asRows(data['top_items']);
+              final tables = asRows(data['tables']);
+              final waiters = asRows(data['waiters']);
+              final orderTypes = asRows(data['order_types']);
+
+              return Padding(
+                padding: const EdgeInsets.all(6),
+                child: Column(
+                  children: [
+                    Wrap(
+                      spacing: 5,
+                      runSpacing: 5,
+                      children: [
+                        metricCard(
+                          icon: Icons.payments_outlined,
+                          label: 'Sales',
+                          value: _money(sales['sales']),
+                          detail:
+                              '${compactNumber(sales['bills'])} bills â€¢ avg ${_money(sales['avg_ticket'])}',
+                        ),
+                        metricCard(
+                          icon: Icons.groups_2_outlined,
+                          label: 'Dine-in guests',
+                          value: compactNumber(sales['dine_in_guests']),
+                          detail:
+                              '${_money(sales['sales_per_dine_in_guest'])} / guest',
+                        ),
+                        metricCard(
+                          icon: Icons.receipt_long_outlined,
+                          label: 'Orders',
+                          value: compactNumber(orders['opened']),
+                          detail:
+                              '${compactNumber(orders['billed'])} billed â€¢ ${compactNumber(orders['cancelled'])} cancelled',
+                        ),
+                        metricCard(
+                          icon: Icons.timer_outlined,
+                          label: 'Kitchen',
+                          value:
+                              '${compactNumber(kitchen['avg_send_to_ready_minutes'], decimals: 1)} min',
+                          detail:
+                              '${compactNumber(kitchen['ready_within_target_pct'], decimals: 1)}% within target',
+                        ),
+                        metricCard(
+                          icon: Icons.trending_up_outlined,
+                          label: 'Gross profit',
+                          value: _money(sales['gross_profit']),
+                          detail:
+                              '${compactNumber(orders['avg_order_cycle_minutes'], decimals: 1)} min avg cycle',
+                        ),
+                        metricCard(
+                          icon: Icons.warning_amber_rounded,
+                          label: 'Voids / cancellations',
+                          value: compactNumber(
+                            audit['cancelled_quantity'],
+                            decimals: 1,
+                          ),
+                          detail:
+                              '${compactNumber(audit['cancelled_orders'])} cancelled orders',
+                          alert:
+                              number(audit['cancelled_orders']) > 0 ||
+                              number(audit['cancelled_quantity']) > 0,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Expanded(
+                      child: LayoutBuilder(
+                        builder: (context, constraints) {
+                          final columns = constraints.maxWidth >= 1180
+                              ? 4
+                              : constraints.maxWidth >= 760
+                              ? 2
+                              : 1;
+                          return GridView.count(
+                            crossAxisCount: columns,
+                            crossAxisSpacing: 6,
+                            mainAxisSpacing: 6,
+                            childAspectRatio: columns >= 4 ? 1.18 : 1.55,
+                            children: [
+                              rankingPanel(
+                                title: 'Top Items',
+                                icon: Icons.restaurant_menu,
+                                rows: topItems,
+                                titleFor: (row) =>
+                                    row['product_name']?.toString() ?? 'Item',
+                                valueFor: (row) => _money(row['revenue']),
+                                subtitleFor: (row) =>
+                                    'Qty ${compactNumber(row['quantity'], decimals: 1)}',
+                              ),
+                              rankingPanel(
+                                title: 'Table Performance',
+                                icon: Icons.table_restaurant_outlined,
+                                rows: tables,
+                                titleFor: (row) =>
+                                    row['table_name']?.toString() ?? 'Table',
+                                valueFor: (row) => _money(row['sales']),
+                                subtitleFor: (row) =>
+                                    '${compactNumber(row['bills'])} bills â€¢ ${compactNumber(row['guests'])} guests',
+                              ),
+                              rankingPanel(
+                                title: 'Waiter Performance',
+                                icon: Icons.badge_outlined,
+                                rows: waiters,
+                                titleFor: (row) =>
+                                    row['waiter_name']?.toString() ??
+                                    'Unassigned',
+                                valueFor: (row) => _money(row['sales']),
+                                subtitleFor: (row) =>
+                                    '${compactNumber(row['bills'])} bills â€¢ avg ${_money(row['avg_ticket'])}',
+                              ),
+                              rankingPanel(
+                                title: 'Order Types',
+                                icon: Icons.pie_chart_outline,
+                                rows: orderTypes,
+                                titleFor: (row) =>
+                                    (row['order_type']?.toString() ?? 'order')
+                                        .replaceAll('_', ' ')
+                                        .toUpperCase(),
+                                valueFor: (row) => _money(row['sales']),
+                                subtitleFor: (row) =>
+                                    '${compactNumber(row['bills'])} bills â€¢ avg ${_money(row['avg_ticket'])}',
+                              ),
+                            ],
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 
@@ -4650,6 +5959,416 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
           ],
         );
       },
+    );
+  }
+
+  Future<void> _reprintRestaurantKot(Map<String, dynamic> kot) async {
+    final deviceId = _deviceId;
+    if (deviceId == null) {
+      _message('This POS is not registered.');
+      return;
+    }
+
+    try {
+      final profiles = await _completion.printerProfiles(
+        tenantId: widget.session.business.id,
+        deviceId: deviceId,
+      );
+
+      final kotProfiles = profiles
+          .where(
+            (row) =>
+                row['purpose']?.toString() == 'kot' && row['active'] != false,
+          )
+          .toList();
+
+      if (kotProfiles.isEmpty) {
+        throw Exception('No active KOT printer profile is configured.');
+      }
+
+      final items = (kot['items'] as List? ?? const [])
+          .map((raw) => Map<String, dynamic>.from(raw as Map))
+          .map(
+            (item) => <String, dynamic>{
+              'name':
+                  item['product_name']?.toString() ??
+                  item['variant_name']?.toString() ??
+                  item['sku']?.toString() ??
+                  'Item',
+              'quantity':
+                  (item['quantity'] as num?)?.toDouble() ??
+                  double.tryParse('${item['quantity']}') ??
+                  0,
+            },
+          )
+          .toList();
+
+      if (items.isEmpty) {
+        throw Exception('This historical KOT has no printable item snapshot.');
+      }
+
+      final kind = kot['kind']?.toString() ?? 'items';
+      final originalNote = kot['note']?.toString().trim() ?? '';
+      final chefNote = kot['chef_note']?.toString().trim() ?? '';
+      final reprintNote = <String>[
+        'REPRINT',
+        if (chefNote.isNotEmpty) chefNote,
+        if (originalNote.isNotEmpty) originalNote,
+      ].join(' | ');
+
+      await _hardware.printKot(
+        profiles: kotProfiles,
+        title: kind == 'void' ? 'VOID KOT REPRINT' : 'KOT REPRINT',
+        orderNumber:
+            kot['kot_number']?.toString() ??
+            kot['order_number']?.toString() ??
+            'KOT',
+        orderType: kot['order_type']?.toString() ?? 'dine_in',
+        tableName: kot['table_name']?.toString(),
+        prepMinutes:
+            (kot['preparation_minutes'] as num?)?.toInt() ??
+            int.tryParse('${kot['preparation_minutes']}'),
+        chefNote: reprintNote,
+        items: items,
+      );
+
+      if (!mounted) return;
+      _message('${kot['kot_number'] ?? 'KOT'} reprinted successfully.');
+    } catch (error) {
+      if (!mounted) return;
+      _message('KOT reprint failed: $error');
+    }
+  }
+
+  Future<void> _showRestaurantKotHistory() async {
+    final locationId = _locationId;
+    final deviceId = _deviceId;
+
+    if (locationId == null || deviceId == null) {
+      _message('This POS is not registered to a restaurant location.');
+      return;
+    }
+
+    var days = 30;
+
+    Future<List<Map<String, dynamic>>> loadHistory() {
+      final to = DateTime.now();
+      final from = to.subtract(Duration(days: days));
+      return _restaurant.kotHistory(
+        tenantId: widget.session.business.id,
+        locationId: locationId,
+        deviceId: deviceId,
+        from: from,
+        to: to,
+        limit: 200,
+      );
+    }
+
+    var historyFuture = loadHistory();
+
+    String displayTime(dynamic value) {
+      final raw = value?.toString() ?? '';
+      if (raw.isEmpty) return '';
+      final parsed = DateTime.tryParse(raw)?.toLocal();
+      if (parsed == null) {
+        return raw.length > 16 ? raw.substring(0, 16) : raw;
+      }
+      String two(int value) => value.toString().padLeft(2, '0');
+      return '${parsed.year}-${two(parsed.month)}-${two(parsed.day)} '
+          '${two(parsed.hour)}:${two(parsed.minute)}';
+    }
+
+    String itemSummary(Map<String, dynamic> kot) {
+      final items = (kot['items'] as List? ?? const [])
+          .map((raw) => Map<String, dynamic>.from(raw as Map))
+          .toList();
+      if (items.isEmpty) return 'No item snapshot';
+      return items
+          .take(3)
+          .map((item) {
+            final name =
+                item['product_name']?.toString() ??
+                item['variant_name']?.toString() ??
+                item['sku']?.toString() ??
+                'Item';
+            final quantity = item['quantity'] ?? 1;
+            return '$quantity x $name';
+          })
+          .join(' â€¢ ');
+    }
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setLocalState) {
+          return AlertDialog(
+            titlePadding: const EdgeInsets.fromLTRB(14, 12, 10, 4),
+            contentPadding: const EdgeInsets.fromLTRB(10, 6, 10, 8),
+            title: Row(
+              children: [
+                const Icon(Icons.history_rounded, size: 19),
+                const SizedBox(width: 7),
+                const Expanded(
+                  child: Text(
+                    'KOT History / Reprint',
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900),
+                  ),
+                ),
+                for (final range in const [7, 30, 90]) ...[
+                  ChoiceChip(
+                    visualDensity: const VisualDensity(
+                      horizontal: -3,
+                      vertical: -3,
+                    ),
+                    label: Text('${range}D'),
+                    selected: days == range,
+                    onSelected: (_) {
+                      setLocalState(() {
+                        days = range;
+                        historyFuture = loadHistory();
+                      });
+                    },
+                  ),
+                  const SizedBox(width: 4),
+                ],
+                IconButton(
+                  tooltip: 'Refresh KOT history',
+                  visualDensity: VisualDensity.compact,
+                  onPressed: () {
+                    setLocalState(() {
+                      historyFuture = loadHistory();
+                    });
+                  },
+                  icon: const Icon(Icons.refresh_rounded, size: 17),
+                ),
+              ],
+            ),
+            content: SizedBox(
+              width: 920,
+              height: 620,
+              child: FutureBuilder<List<Map<String, dynamic>>>(
+                future: historyFuture,
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState != ConnectionState.done) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+
+                  if (snapshot.hasError) {
+                    return Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.error_outline, size: 30),
+                            const SizedBox(height: 8),
+                            Text(
+                              snapshot.error.toString(),
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(fontSize: 10.5),
+                            ),
+                            const SizedBox(height: 8),
+                            OutlinedButton.icon(
+                              onPressed: () {
+                                setLocalState(() {
+                                  historyFuture = loadHistory();
+                                });
+                              },
+                              icon: const Icon(Icons.refresh_rounded, size: 15),
+                              label: const Text('Retry'),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  }
+
+                  final rows = snapshot.data ?? const <Map<String, dynamic>>[];
+
+                  if (rows.isEmpty) {
+                    return const Center(
+                      child: Text(
+                        'No KOT history was found for this period.',
+                        style: TextStyle(fontSize: 10.5),
+                      ),
+                    );
+                  }
+
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text(
+                        '${rows.length} historical KOT(s) â€¢ last $days day(s)',
+                        style: const TextStyle(
+                          fontSize: 9.5,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      const SizedBox(height: 5),
+                      Expanded(
+                        child: ListView.separated(
+                          itemCount: rows.length,
+                          separatorBuilder: (_, _) => const SizedBox(height: 5),
+                          itemBuilder: (context, index) {
+                            final kot = rows[index];
+                            final kind = kot['kind']?.toString() ?? 'items';
+                            final isVoid = kind == 'void';
+                            final status = kot['status']?.toString() ?? '';
+                            final waiter = kot['waiter_name']?.toString() ?? '';
+                            final table = kot['table_name']?.toString() ?? '';
+
+                            return Container(
+                              padding: const EdgeInsets.all(9),
+                              decoration: BoxDecoration(
+                                color: Theme.of(context).colorScheme.surface,
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                  color: isVoid
+                                      ? Theme.of(context).colorScheme.error
+                                            .withValues(alpha: .55)
+                                      : Theme.of(
+                                          context,
+                                        ).colorScheme.outlineVariant,
+                                ),
+                              ),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Container(
+                                    width: 72,
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 6,
+                                      vertical: 5,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: isVoid
+                                          ? Theme.of(
+                                              context,
+                                            ).colorScheme.errorContainer
+                                          : Theme.of(
+                                              context,
+                                            ).colorScheme.primaryContainer,
+                                      borderRadius: BorderRadius.circular(7),
+                                    ),
+                                    child: Column(
+                                      children: [
+                                        Text(
+                                          isVoid ? 'VOID' : 'KOT',
+                                          style: const TextStyle(
+                                            fontSize: 8.5,
+                                            fontWeight: FontWeight.w900,
+                                          ),
+                                        ),
+                                        Text(
+                                          kot['kot_number']?.toString() ?? '-',
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: const TextStyle(
+                                            fontSize: 9.5,
+                                            fontWeight: FontWeight.w900,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Row(
+                                          children: [
+                                            Expanded(
+                                              child: Text(
+                                                '${kot['order_number'] ?? 'Order'}'
+                                                '${table.isNotEmpty ? ' â€¢ $table' : ''}',
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: const TextStyle(
+                                                  fontSize: 10.5,
+                                                  fontWeight: FontWeight.w900,
+                                                ),
+                                              ),
+                                            ),
+                                            Text(
+                                              displayTime(kot['sent_at']),
+                                              style: TextStyle(
+                                                fontSize: 8.8,
+                                                color: Theme.of(
+                                                  context,
+                                                ).colorScheme.onSurfaceVariant,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        const SizedBox(height: 3),
+                                        Text(
+                                          itemSummary(kot),
+                                          maxLines: 2,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: const TextStyle(
+                                            fontSize: 9.5,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 3),
+                                        Text(
+                                          [
+                                            if (status.isNotEmpty)
+                                              status
+                                                  .replaceAll('_', ' ')
+                                                  .toUpperCase(),
+                                            if (waiter.isNotEmpty)
+                                              'Waiter: $waiter',
+                                            if ((kot['note']
+                                                    ?.toString()
+                                                    .trim()
+                                                    .isNotEmpty ??
+                                                false))
+                                              'Note: ${kot['note']}',
+                                          ].join(' â€¢ '),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: TextStyle(
+                                            fontSize: 8.8,
+                                            color: Theme.of(
+                                              context,
+                                            ).colorScheme.onSurfaceVariant,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  OutlinedButton.icon(
+                                    onPressed: () => _reprintRestaurantKot(kot),
+                                    icon: const Icon(
+                                      Icons.print_outlined,
+                                      size: 14,
+                                    ),
+                                    label: const Text('Reprint'),
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext),
+                child: const Text('Close'),
+              ),
+            ],
+          );
+        },
+      ),
     );
   }
 
@@ -5018,6 +6737,12 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                   ),
                   const Spacer(),
                   OutlinedButton.icon(
+                    onPressed: _showRestaurantKotHistory,
+                    icon: const Icon(Icons.history_rounded, size: 15),
+                    label: const Text('History / Reprint'),
+                  ),
+                  const SizedBox(width: 5),
+                  OutlinedButton.icon(
                     onPressed: () => setState(() {}),
                     icon: const Icon(Icons.refresh_rounded, size: 15),
                     label: const Text('Refresh Kitchen'),
@@ -5089,7 +6814,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
         .length;
 
     return DefaultTabController(
-      length: 4,
+      length: 5,
       child: Padding(
         padding: const EdgeInsets.all(6),
         child: Column(
@@ -5213,6 +6938,8 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                     icon: Icon(Icons.groups_2_outlined, size: 15),
                     text: 'Waitlist',
                   ),
+
+                  Tab(icon: Icon(Icons.analytics_outlined), text: 'Reports'),
                 ],
               ),
             ),
@@ -5224,6 +6951,8 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                   _ordersView(),
                   _kitchenView(),
                   _waitlistView(),
+
+                  _restaurantAnalyticsView(),
                 ],
               ),
             ),
