@@ -10,6 +10,7 @@ class PosSession {
   final String currencyCode;
   final String username;
   final bool restaurantEnabled;
+  final Set<String> allowedModules;
 
   const PosSession({
     required this.tenantId,
@@ -23,5 +24,9 @@ class PosSession {
     required this.currencyCode,
     required this.username,
     required this.restaurantEnabled,
+    this.allowedModules = const <String>{},
   });
+
+  bool hasDeviceModule(String module) =>
+      allowedModules.contains(module.trim().toLowerCase());
 }

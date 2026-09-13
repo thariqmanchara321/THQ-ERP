@@ -73,6 +73,7 @@ class _PosScreenState extends State<PosScreen> {
   _PosLine? _editingLine;
   String _category = 'All';
   String _sort = 'name';
+  String _productFilter = 'all';
   String _paymentMethod = 'cash';
   List<Map<String, dynamic>> _paymentAllocations = const [];
   String _orderMode = 'counter';
@@ -80,6 +81,7 @@ class _PosScreenState extends State<PosScreen> {
   Timer? _searchDebounce;
   Timer? _offlineSyncTimer;
   bool _offlineMode = false;
+  bool _manualOffline = false;
   bool _offlineHeartbeatBusy = false;
 
   Map<String, Customer> _customerById = const {};
@@ -330,7 +332,8 @@ class _PosScreenState extends State<PosScreen> {
 
   List<InventoryProduct> get _filteredProducts {
     final query = _search.text.trim().toLowerCase();
-    final cacheKey = '$query\u0001$_category\u0001$_sort';
+    final cacheKey =
+        '$query\u0001$_category\u0001$_productFilter\u0001$_sort';
     if (_filteredProductsCacheKey == cacheKey) {
       return _filteredProductsCache;
     }
@@ -339,11 +342,24 @@ class _PosScreenState extends State<PosScreen> {
       final categoryMatch =
           _category == 'All' || product.categoryName == _category;
       if (!categoryMatch) return false;
+
+      final filterMatch = switch (_productFilter) {
+        'stock' => product.itemType == 'stock',
+        'serial' => product.trackingMode == 'serial',
+        'batch' => product.trackingMode == 'batch',
+        'service' => product.itemType != 'stock',
+        _ => true,
+      };
+      if (!filterMatch) return false;
+
       if (query.isEmpty) return true;
       return (_productSearchIndex[product.variantId] ?? '').contains(query);
     }).toList();
 
     switch (_sort) {
+      case 'name_desc':
+        rows.sort((a, b) => b.productName.compareTo(a.productName));
+        break;
       case 'price_low':
         rows.sort((a, b) => a.sellingPrice.compareTo(b.sellingPrice));
         break;
@@ -352,6 +368,9 @@ class _PosScreenState extends State<PosScreen> {
         break;
       case 'stock_high':
         rows.sort((a, b) => b.stockQuantity.compareTo(a.stockQuantity));
+        break;
+      case 'stock_low':
+        rows.sort((a, b) => a.stockQuantity.compareTo(b.stockQuantity));
         break;
       case 'category':
         rows.sort(
@@ -375,8 +394,7 @@ class _PosScreenState extends State<PosScreen> {
             .setting('pos.default_payment_method', 'cash')
             ?.toString() ??
         'cash';
-    unawaited(_offlineLocal.initialize());
-    _load();
+    unawaited(_initializeOfflinePreference());
     _offlineSyncTimer = Timer.periodic(
       const Duration(seconds: 45),
       (_) => unawaited(_offlineHeartbeat()),
@@ -402,6 +420,18 @@ class _PosScreenState extends State<PosScreen> {
     super.dispose();
   }
 
+  String get _manualOfflineKey {
+    final deviceId = widget.session.device?.deviceId ?? 'unknown';
+    return 'manual_offline:${widget.session.business.id}:$deviceId';
+  }
+
+  Future<void> _initializeOfflinePreference() async {
+    await _offlineLocal.initialize();
+    final stored = await _offlineLocal.getMeta(_manualOfflineKey);
+    _manualOffline = stored == true;
+    await _load();
+  }
+
   Future<void> _load() async {
     if (mounted) {
       setState(() {
@@ -412,16 +442,25 @@ class _PosScreenState extends State<PosScreen> {
     try {
       await _offlineLocal.initialize();
       OfflineCatalogue catalogue;
-      var offline = false;
-      try {
-        catalogue = await _offlineSync.refreshCatalogue(widget.session);
-      } catch (onlineError) {
-        offline = true;
+      var offline = _manualOffline;
+      if (_manualOffline) {
         catalogue = await _offlineSync.cachedCatalogue(widget.session);
         if (catalogue.products.isEmpty || catalogue.customers.isEmpty) {
           throw StateError(
-            'POS is offline and no local product/customer cache is available yet. Connect once and refresh the POS before using offline billing. $onlineError',
+            'Manual offline mode needs a cached product/customer catalogue. Go online and Sync once first.',
           );
+        }
+      } else {
+        try {
+          catalogue = await _offlineSync.refreshCatalogue(widget.session);
+        } catch (onlineError) {
+          offline = true;
+          catalogue = await _offlineSync.cachedCatalogue(widget.session);
+          if (catalogue.products.isEmpty || catalogue.customers.isEmpty) {
+            throw StateError(
+              'POS is offline and no local product/customer cache is available yet. Connect once and refresh the POS before using offline billing. $onlineError',
+            );
+          }
         }
       }
       final products = catalogue.products
@@ -467,7 +506,8 @@ class _PosScreenState extends State<PosScreen> {
   }
 
   Future<void> _offlineHeartbeat() async {
-    if (_offlineHeartbeatBusy ||
+    if (_manualOffline ||
+        _offlineHeartbeatBusy ||
         _saving ||
         !mounted ||
         widget.session.device == null) {
@@ -497,6 +537,68 @@ class _PosScreenState extends State<PosScreen> {
     } finally {
       _offlineHeartbeatBusy = false;
     }
+  }
+
+  Future<void> _syncNow() async {
+    if (_offlineHeartbeatBusy || _saving || widget.session.device == null) {
+      return;
+    }
+    _offlineHeartbeatBusy = true;
+    if (mounted) setState(() => _error = null);
+    try {
+      final result = await _offlineSync.syncPending(widget.session);
+      final catalogue = await _offlineSync.refreshCatalogue(widget.session);
+      if (!mounted) return;
+      final products = catalogue.products
+          .where(
+            (product) =>
+                product.productStatus == 'active' &&
+                product.variantStatus == 'active',
+          )
+          .toList();
+      final customers =
+          catalogue.customers.where((customer) => customer.isActive).toList();
+      _rebuildCatalogueCaches(products, customers);
+      setState(() {
+        _products = products;
+        _customers = customers;
+        _offlineMode = _manualOffline;
+      });
+      _message(
+        'Sync complete: ${result.synced} synced, ${result.pending} pending, '
+        '${result.conflicts} conflict(s).',
+      );
+    } catch (error) {
+      if (mounted) {
+        setState(() => _offlineMode = true);
+        _message('Sync unavailable: $error');
+      }
+    } finally {
+      _offlineHeartbeatBusy = false;
+      if (mounted) setState(() {});
+    }
+  }
+
+  Future<void> _setManualOffline(bool enabled) async {
+    if (enabled) {
+      final catalogue = await _offlineSync.cachedCatalogue(widget.session);
+      if (catalogue.products.isEmpty || catalogue.customers.isEmpty) {
+        _message(
+          'Offline mode needs a cached product/customer catalogue. '
+          'Connect and sync once first.',
+        );
+        return;
+      }
+    }
+
+    await _offlineLocal.setMeta(_manualOfflineKey, enabled);
+    if (!mounted) return;
+    setState(() {
+      _manualOffline = enabled;
+      _offlineMode = enabled ? true : _offlineMode;
+    });
+    _message(enabled ? 'Manual offline mode enabled.' : 'Returning online...');
+    if (!enabled) await _syncNow();
   }
 
   String _money(double value) => widget.session.currencyCode == 'INR'
@@ -1560,13 +1662,15 @@ class _PosScreenState extends State<PosScreen> {
         printRequested: printAfter,
       );
 
-      try {
-        await _offlineSync.syncPending(
-          widget.session,
-          onlyRequestId: requestId,
-        );
-      } catch (_) {
-        // The durable local queue is the source of truth during a network outage.
+      if (!_manualOffline) {
+        try {
+          await _offlineSync.syncPending(
+            widget.session,
+            onlyRequestId: requestId,
+          );
+        } catch (_) {
+          // The durable local queue is the source of truth during a network outage.
+        }
       }
       final record = await _offlineLocal.invoice(requestId);
       if (record == null) {
@@ -1576,7 +1680,7 @@ class _PosScreenState extends State<PosScreen> {
       String? printWarning;
       String completedNumber = localNumber;
       if (record.status == 'synced') {
-        _offlineMode = false;
+        _offlineMode = _manualOffline;
         final result = record.serverResponse ?? const <String, dynamic>{};
         final saleNumber =
             result['sale_number']?.toString() ??
@@ -1685,6 +1789,7 @@ class _PosScreenState extends State<PosScreen> {
       _search.clear();
       _category = 'All';
       _sort = 'name';
+      _productFilter = 'all';
       _step = 0;
       _paymentReference.clear();
       _orderDiscount.text = '0.00';
@@ -1852,6 +1957,32 @@ class _PosScreenState extends State<PosScreen> {
               ],
               const Spacer(),
               _billingStatusPill(),
+              const SizedBox(width: 4),
+              IconButton(
+                tooltip: _manualOffline ? 'Go online' : 'Work offline',
+                visualDensity: VisualDensity.compact,
+                onPressed: _offlineHeartbeatBusy
+                    ? null
+                    : () => _setManualOffline(!_manualOffline),
+                icon: Icon(
+                  _manualOffline
+                      ? Icons.cloud_done_outlined
+                      : Icons.cloud_off_outlined,
+                  size: 17,
+                ),
+              ),
+              IconButton(
+                tooltip: 'Sync now',
+                visualDensity: VisualDensity.compact,
+                onPressed: _offlineHeartbeatBusy ? null : _syncNow,
+                icon: _offlineHeartbeatBusy
+                    ? const SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.sync_rounded, size: 17),
+              ),
               if (_step == 0) ...[
                 const SizedBox(width: 4),
                 if (compact)
@@ -1935,7 +2066,7 @@ class _PosScreenState extends State<PosScreen> {
           ),
           const SizedBox(width: 4),
           Text(
-            _offlineMode ? 'OFFLINE' : 'ONLINE',
+            _manualOffline ? 'OFFLINE MANUAL' : (_offlineMode ? 'OFFLINE' : 'ONLINE'),
             style: TextStyle(
               fontSize: 9.1,
               fontWeight: FontWeight.w900,
@@ -2602,12 +2733,34 @@ class _PosScreenState extends State<PosScreen> {
                   },
                 );
 
+                final filter = DropdownButtonFormField<String>(
+                  initialValue: _productFilter,
+                  isExpanded: true,
+                  decoration: const InputDecoration(labelText: 'Filter'),
+                  items: const [
+                    DropdownMenuItem(value: 'all', child: Text('All products')),
+                    DropdownMenuItem(value: 'stock', child: Text('Stock')),
+                    DropdownMenuItem(value: 'serial', child: Text('Serial')),
+                    DropdownMenuItem(value: 'batch', child: Text('Batch')),
+                    DropdownMenuItem(value: 'service', child: Text('Service')),
+                  ],
+                  onChanged: (value) {
+                    if (value != null) {
+                      setState(() => _productFilter = value);
+                    }
+                  },
+                );
+
                 final sort = DropdownButtonFormField<String>(
                   initialValue: _sort,
                   isExpanded: true,
                   decoration: const InputDecoration(labelText: 'Sort'),
                   items: const [
                     DropdownMenuItem(value: 'name', child: Text('Name A-Z')),
+                    DropdownMenuItem(
+                      value: 'name_desc',
+                      child: Text('Name Z-A'),
+                    ),
                     DropdownMenuItem(
                       value: 'category',
                       child: Text('Category'),
@@ -2623,7 +2776,11 @@ class _PosScreenState extends State<PosScreen> {
                     DropdownMenuItem(
                       value: 'stock_high',
                       child: Text('Stock high-low'),
+                    ),                    DropdownMenuItem(
+                      value: 'stock_low',
+                      child: Text('Stock low-high'),
                     ),
+
                   ],
                   onChanged: (value) {
                     if (value != null) {
@@ -2686,11 +2843,13 @@ class _PosScreenState extends State<PosScreen> {
                         children: [
                           Expanded(child: category),
                           const SizedBox(width: 4),
-                          Expanded(child: sort),
+                          Expanded(child: filter),
                           const SizedBox(width: 4),
-                          Expanded(flex: 2, child: customer),
+                          Expanded(child: sort),
                         ],
                       ),
+                      const SizedBox(height: 4),
+                      SizedBox(height: 38, child: customer),
                     ],
                   );
                 }
@@ -2699,11 +2858,13 @@ class _PosScreenState extends State<PosScreen> {
                   children: [
                     Expanded(flex: 5, child: search),
                     const SizedBox(width: 4),
-                    SizedBox(width: 145, child: category),
+                    SizedBox(width: 128, child: category),
                     const SizedBox(width: 4),
-                    SizedBox(width: 145, child: sort),
+                    SizedBox(width: 128, child: filter),
                     const SizedBox(width: 4),
-                    SizedBox(width: 185, child: customer),
+                    SizedBox(width: 128, child: sort),
+                    const SizedBox(width: 4),
+                    SizedBox(width: 175, child: customer),
                     const SizedBox(width: 3),
                     IconButton.filledTonal(
                       tooltip: 'Customer balance / receive payment',

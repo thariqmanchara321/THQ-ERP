@@ -45,6 +45,139 @@ class RestaurantService {
     return Map<String, dynamic>.from(result);
   }
 
+  Future<Map<String, dynamic>> saveAdvancedTable({
+    required String tenantId,
+    String? tableId,
+    required String locationId,
+    required String deviceId,
+    required String code,
+    required String name,
+    required int capacity,
+    required String area,
+    required String floorName,
+    required String operationalStatus,
+    required String shape,
+    double? positionX,
+    double? positionY,
+    required double widthPercent,
+    required double heightPercent,
+    required double rotationDegrees,
+    required bool layoutLocked,
+    required String layoutNote,
+  }) async {
+    final result = await _s.rpc(
+      'restaurant_table_save_advanced_v610',
+      params: {
+        'p_tenant_id': tenantId,
+        'p_table_id': tableId,
+        'p_location_id': locationId,
+        'p_device_id': deviceId,
+        'p_table_code': code.trim(),
+        'p_name': name.trim(),
+        'p_capacity': capacity,
+        'p_area': area.trim(),
+        'p_floor_name': floorName.trim(),
+        'p_operational_status': operationalStatus,
+        'p_shape': shape,
+        'p_position_x': positionX,
+        'p_position_y': positionY,
+        'p_width_percent': widthPercent,
+        'p_height_percent': heightPercent,
+        'p_rotation_degrees': rotationDegrees,
+        'p_layout_locked': layoutLocked,
+        'p_layout_note': layoutNote.trim(),
+      },
+    );
+    if (result is! Map) {
+      throw Exception('Unexpected advanced table-save response.');
+    }
+    return Map<String, dynamic>.from(result);
+  }
+
+  Future<Map<String, dynamic>> saveAdvancedTableLayoutBatch({
+    required String tenantId,
+    required String locationId,
+    required String deviceId,
+    required List<Map<String, dynamic>> tables,
+  }) async {
+    final result = await _s.rpc(
+      'restaurant_table_layout_batch_set_advanced_v610',
+      params: {
+        'p_tenant_id': tenantId,
+        'p_location_id': locationId,
+        'p_device_id': deviceId,
+        'p_tables': tables,
+      },
+    );
+    if (result is! Map) {
+      throw Exception('Unexpected advanced floor-layout response.');
+    }
+    return Map<String, dynamic>.from(result);
+  }
+
+  Future<Map<String, dynamic>> deactivateTable({
+    required String tenantId,
+    required String tableId,
+    required String deviceId,
+    String reason = '',
+  }) async {
+    final result = await _s.rpc(
+      'restaurant_table_deactivate_v610',
+      params: {
+        'p_tenant_id': tenantId,
+        'p_table_id': tableId,
+        'p_device_id': deviceId,
+        'p_reason': reason.trim(),
+      },
+    );
+    if (result is! Map) {
+      throw Exception('Unexpected table-deactivate response.');
+    }
+    return Map<String, dynamic>.from(result);
+  }
+
+  Future<Map<String, dynamic>> reactivateTable({
+    required String tenantId,
+    required String tableId,
+    required String deviceId,
+  }) async {
+    final result = await _s.rpc(
+      'restaurant_table_reactivate_v610',
+      params: {
+        'p_tenant_id': tenantId,
+        'p_table_id': tableId,
+        'p_device_id': deviceId,
+      },
+    );
+    if (result is! Map) {
+      throw Exception('Unexpected table-reactivate response.');
+    }
+    return Map<String, dynamic>.from(result);
+  }
+
+  Future<Map<String, dynamic>> duplicateTable({
+    required String tenantId,
+    required String tableId,
+    required String deviceId,
+    required String newCode,
+    required String newName,
+  }) async {
+    final result = await _s.rpc(
+      'restaurant_table_duplicate_v610',
+      params: {
+        'p_tenant_id': tenantId,
+        'p_table_id': tableId,
+        'p_device_id': deviceId,
+        'p_new_table_code': newCode.trim(),
+        'p_new_name': newName.trim(),
+      },
+    );
+    if (result is! Map) {
+      throw Exception('Unexpected table-duplicate response.');
+    }
+    return Map<String, dynamic>.from(result);
+  }
+
   Future<List<Map<String, dynamic>>> waiters(
     String tenantId,
     String locationId,
@@ -650,6 +783,78 @@ class RestaurantService {
       'p_status': status,
     },
   );
+
+  Future<List<Map<String, dynamic>>> availableSerials({
+    required String tenantId,
+    required String locationId,
+    required String deviceId,
+    required String variantId,
+    int limit = 200,
+  }) async {
+    final result = await _s.rpc(
+      'restaurant_available_serials_v610',
+      params: {
+        'p_tenant_id': tenantId,
+        'p_location_id': locationId,
+        'p_device_id': deviceId,
+        'p_variant_id': variantId,
+        'p_limit': limit,
+      },
+    );
+    if (result is! Map) {
+      throw Exception('Unexpected restaurant serial-list response.');
+    }
+    final map = Map<String, dynamic>.from(result);
+    return (map['serials'] as List? ?? const [])
+        .whereType<Map>()
+        .map((row) => Map<String, dynamic>.from(row))
+        .toList();
+  }
+
+  Future<Map<String, dynamic>> billOrderV522({
+    required String tenantId,
+    required String orderId,
+    required String deviceId,
+    required String customerId,
+    DateTime? dueDate,
+    required List<Map<String, dynamic>> paymentAllocations,
+    required List<Map<String, dynamic>> trackingAssignments,
+    String notes = '',
+  }) async {
+    final rpc = await _guard.route(
+      tenantId: tenantId,
+      channel: 'pos',
+      routeKey: 'restaurant_bill_v522',
+      deviceId: deviceId,
+    );
+
+    try {
+      final result = await _s.rpc(
+        rpc,
+        params: {
+          'p_tenant_id': tenantId,
+          'p_order_id': orderId,
+          'p_device_id': deviceId,
+          'p_customer_id': customerId,
+          'p_due_date': dueDate == null ? null : _date(dueDate),
+          'p_payment_allocations': paymentAllocations,
+          'p_tracking_assignments': trackingAssignments,
+          'p_notes': notes.trim(),
+          'p_supply_type': null,
+          'p_place_of_supply_code': null,
+        },
+      );
+      if (result is! Map) {
+        throw StateError('Unexpected response from $rpc.');
+      }
+      return Map<String, dynamic>.from(result);
+    } catch (error) {
+      throw StateError(
+        'Authoritative POS Restaurant GST v5.2.2 billing failed. '
+        'Legacy fallback is disabled. $error',
+      );
+    }
+  }
 
   Future<Map<String, dynamic>> billOrder({
     required String tenantId,
