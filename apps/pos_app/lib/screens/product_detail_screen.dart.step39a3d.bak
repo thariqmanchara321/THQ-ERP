@@ -6,7 +6,6 @@ import '../models/client_session.dart';
 import '../models/inventory_product_detail.dart';
 import '../models/stock_movement.dart';
 import '../services/inventory_service.dart';
-import '../widgets/commercial_product_rules_dialog.dart';
 import '../widgets/product_unit_editor.dart';
 import 'product_tracking_policy_screen.dart';
 
@@ -38,26 +37,6 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   List<StockMovement> _movements = [];
 
   bool get _canManage => widget.session.hasPermission('inventory.manage');
-
-  bool get _canManageCommercial =>
-      widget.session.hasRole('owner') ||
-      widget.session.hasPermission('sales.manage') ||
-      widget.session.hasPermission('restaurant.manage') ||
-      widget.session.hasPermission('inventory.manage');
-
-  Future<void> _commercialRules() async {
-    final product = _product;
-    if (product == null) return;
-
-    await showDialog<void>(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => CommercialProductRulesDialog(
-        session: widget.session,
-        product: product,
-      ),
-    );
-  }
 
   @override
   void initState() {
@@ -264,12 +243,6 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
         ),
 
         actions: [
-          if (_canManageCommercial && _product != null)
-            IconButton(
-              tooltip: 'Commercial Pricing Rules',
-              onPressed: _commercialRules,
-              icon: const Icon(Icons.price_change_outlined),
-            ),
           if (_canManage && _product != null)
             IconButton(
               tooltip: 'Edit Product',

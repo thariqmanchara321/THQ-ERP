@@ -811,62 +811,6 @@ class RestaurantService {
         .toList();
   }
 
-  Future<Map<String, dynamic>> billOrderCommercialV610({
-    required String tenantId,
-    required String orderId,
-    required String deviceId,
-    required String customerId,
-    DateTime? dueDate,
-    required List<Map<String, dynamic>> paymentAllocations,
-    required List<Map<String, dynamic>> trackingAssignments,
-    String discountType = 'none',
-    double discountValue = 0,
-    List<Map<String, dynamic>> chargeSelections = const [],
-    String notes = '',
-  }) async {
-    // Validate the active v5.2.2 Build 30 contract first. The commercial
-    // Restaurant RPC still posts through gst_sale_create_v522 and never
-    // falls back to a legacy writer.
-    await _guard.route(
-      tenantId: tenantId,
-      channel: 'pos',
-      routeKey: 'restaurant_bill_v522',
-      deviceId: deviceId,
-    );
-
-    try {
-      final result = await _s.rpc(
-        'gst_restaurant_order_bill_v610',
-        params: {
-          'p_tenant_id': tenantId,
-          'p_order_id': orderId,
-          'p_device_id': deviceId,
-          'p_customer_id': customerId,
-          'p_due_date': dueDate == null ? null : _date(dueDate),
-          'p_payment_allocations': paymentAllocations,
-          'p_tracking_assignments': trackingAssignments,
-          'p_discount_type': discountType,
-          'p_discount_value': discountValue,
-          'p_charge_selections': chargeSelections,
-          'p_notes': notes.trim(),
-          'p_supply_type': null,
-          'p_place_of_supply_code': null,
-        },
-      );
-      if (result is! Map) {
-        throw StateError(
-          'Unexpected response from gst_restaurant_order_bill_v610.',
-        );
-      }
-      return Map<String, dynamic>.from(result);
-    } catch (error) {
-      throw StateError(
-        'Authoritative Restaurant v6.1 commercial GST billing failed. '
-        'Legacy fallback is disabled. $error',
-      );
-    }
-  }
-
   Future<Map<String, dynamic>> billOrderV522({
     required String tenantId,
     required String orderId,

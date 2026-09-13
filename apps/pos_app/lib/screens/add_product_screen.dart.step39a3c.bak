@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:erp_core/erp_core.dart';
 
 import '../models/client_session.dart';
-import '../services/commercial_pricing_service.dart';
 import '../services/inventory_service.dart';
 import '../widgets/product_unit_editor.dart';
 
@@ -26,7 +25,6 @@ class _AddProductScreenState extends State<AddProductScreen> {
   final _formKey = GlobalKey<FormState>();
 
   final InventoryService _service = InventoryService();
-  final CommercialPricingService _commercial = CommercialPricingService();
 
   final _nameController = TextEditingController();
   final _skuController = TextEditingController();
@@ -53,16 +51,6 @@ class _AddProductScreenState extends State<AddProductScreen> {
   final _openingStockController = TextEditingController(text: '0');
 
   String _itemType = 'stock';
-
-  List<Map<String, dynamic>> _commercialCatalog = const [];
-  final Set<String> _deliveryChargeIds = <String>{};
-  bool _commercialLoading = false;
-  bool _registerAsCommercialCharge = false;
-  String _commercialChargeKind = 'packaging';
-  bool _commercialAutoDineIn = false;
-  bool _commercialAutoTakeaway = false;
-  bool _commercialAutoDelivery = false;
-
   List<InventoryUnit> _units = const [];
   String _baseUnitCode = 'PCS';
   ProductUnitEditorController? _unitEditor;
@@ -118,28 +106,6 @@ class _AddProductScreenState extends State<AddProductScreen> {
     super.initState();
     _loadNextSku();
     _loadUnits();
-    _loadCommercialCatalog();
-  }
-
-  Future<void> _loadCommercialCatalog() async {
-    final deviceId = widget.session.device?.deviceId;
-    if (deviceId == null || deviceId.isEmpty) return;
-
-    setState(() => _commercialLoading = true);
-    try {
-      final rows = await _commercial.chargeCatalog(
-        tenantId: widget.session.business.id,
-        locationId: widget.locationId,
-        deviceId: deviceId,
-      );
-      if (!mounted) return;
-      setState(() => _commercialCatalog = rows);
-    } catch (_) {
-      // Product creation must remain usable even when optional commercial
-      // configuration cannot be loaded.
-    } finally {
-      if (mounted) setState(() => _commercialLoading = false);
-    }
   }
 
   Future<void> _loadNextSku() async {
@@ -211,7 +177,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
           'SKU already exists. Choose another SKU or generate the next one.',
         );
       }
-      final created = await _service.createProduct(
+      await _service.createProduct(
         tenantId: widget.session.business.id,
         name: _nameController.text,
         sku: _skuController.text,
@@ -234,69 +200,8 @@ class _AddProductScreenState extends State<AddProductScreen> {
         units: _unitEditor?.toPayload() ?? const <Map<String, dynamic>>[],
       );
 
-      final variantId = created['variant_id']?.toString();
-      final deviceId = widget.session.device?.deviceId;
-      String? commercialWarning;
-
-      if (variantId != null &&
-          variantId.isNotEmpty &&
-          deviceId != null &&
-          deviceId.isNotEmpty) {
-        try {
-          if (_itemType == 'service' && _registerAsCommercialCharge) {
-            await _commercial.saveChargeCatalog(
-              tenantId: widget.session.business.id,
-              locationId: widget.locationId,
-              deviceId: deviceId,
-              code: _skuController.text.trim(),
-              name: _nameController.text.trim(),
-              chargeKind: _commercialChargeKind,
-              serviceVariantId: variantId,
-              defaultQuantity: 1,
-              autoDineIn: _commercialAutoDineIn,
-              autoTakeaway: _commercialAutoTakeaway,
-              autoDelivery: _commercialAutoDelivery,
-            );
-          }
-
-          for (final chargeId in _deliveryChargeIds) {
-            await _commercial.saveProductChargeRule(
-              tenantId: widget.session.business.id,
-              locationId: widget.locationId,
-              deviceId: deviceId,
-              productVariantId: variantId,
-              chargeCatalogId: chargeId,
-              orderType: 'delivery',
-              quantityMode: 'per_unit',
-              quantityValue: 1,
-            );
-          }
-        } catch (error) {
-          commercialWarning =
-              'Product was saved, but optional commercial charge setup '
-              'could not be completed: $error';
-        }
-      }
-
       if (!mounted) {
         return;
-      }
-
-      if (commercialWarning != null) {
-        await showDialog<void>(
-          context: context,
-          builder: (dialogContext) => AlertDialog(
-            title: const Text('Product saved'),
-            content: Text(commercialWarning!),
-            actions: [
-              FilledButton(
-                onPressed: () => Navigator.pop(dialogContext),
-                child: const Text('Continue'),
-              ),
-            ],
-          ),
-        );
-        if (!mounted) return;
       }
 
       Navigator.of(context).pop(true);
@@ -461,9 +366,6 @@ class _AddProductScreenState extends State<AddProductScreen> {
 
                               if (_itemType != 'stock') {
                                 _openingStockController.text = '0';
-                              }
-                              if (_itemType != 'service') {
-                                _registerAsCommercialCharge = false;
                               }
                               final preferred = _itemType == 'service'
                                   ? 'HR'
@@ -652,192 +554,6 @@ class _AddProductScreenState extends State<AddProductScreen> {
                     ),
                   ),
 
-                  const SizedBox(height: 26),
-
-                  const Text(
-                    'Commercial Charges',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-                  ),
-
-                  const SizedBox(height: 8),
-
-                  Text(
-                    'Configure GST-classified packaging, delivery and service '
-                    'charges. Charges are posted as service-product lines so '
-                    'sales, GST, accounting and reports stay in sync.',
-                    style: TextStyle(color: Colors.grey.shade700),
-                  ),
-
-                  const SizedBox(height: 14),
-
-                  if (_commercialLoading)
-                    const LinearProgressIndicator()
-                  else ...[
-                    if (_itemType == 'service') ...[
-                      SwitchListTile.adaptive(
-                        contentPadding: EdgeInsets.zero,
-                        title: const Text(
-                          'Use this service as a commercial charge',
-                        ),
-                        subtitle: const Text(
-                          'Example: Packaging Charge, Delivery Fee, '
-                          'Service Charge or Handling Fee.',
-                        ),
-                        value: _registerAsCommercialCharge,
-                        onChanged: _saving
-                            ? null
-                            : (value) => setState(
-                                () => _registerAsCommercialCharge = value,
-                              ),
-                      ),
-                      if (_registerAsCommercialCharge) ...[
-                        const SizedBox(height: 8),
-                        DropdownButtonFormField<String>(
-                          initialValue: _commercialChargeKind,
-                          decoration: const InputDecoration(
-                            labelText: 'Charge type',
-                            border: OutlineInputBorder(),
-                          ),
-                          items: const [
-                            DropdownMenuItem(
-                              value: 'packaging',
-                              child: Text('Packaging'),
-                            ),
-                            DropdownMenuItem(
-                              value: 'delivery',
-                              child: Text('Delivery'),
-                            ),
-                            DropdownMenuItem(
-                              value: 'service',
-                              child: Text('Service'),
-                            ),
-                            DropdownMenuItem(
-                              value: 'handling',
-                              child: Text('Handling'),
-                            ),
-                            DropdownMenuItem(
-                              value: 'convenience',
-                              child: Text('Convenience'),
-                            ),
-                            DropdownMenuItem(
-                              value: 'other',
-                              child: Text('Other'),
-                            ),
-                          ],
-                          onChanged: _saving
-                              ? null
-                              : (value) {
-                                  if (value == null) return;
-                                  setState(() => _commercialChargeKind = value);
-                                },
-                        ),
-                        const SizedBox(height: 8),
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 6,
-                          children: [
-                            FilterChip(
-                              selected: _commercialAutoDineIn,
-                              label: const Text('Auto: Dine-in'),
-                              onSelected: _saving
-                                  ? null
-                                  : (value) => setState(
-                                      () => _commercialAutoDineIn = value,
-                                    ),
-                            ),
-                            FilterChip(
-                              selected: _commercialAutoTakeaway,
-                              label: const Text('Auto: Takeaway'),
-                              onSelected: _saving
-                                  ? null
-                                  : (value) => setState(
-                                      () => _commercialAutoTakeaway = value,
-                                    ),
-                            ),
-                            FilterChip(
-                              selected: _commercialAutoDelivery,
-                              label: const Text('Auto: Delivery'),
-                              onSelected: _saving
-                                  ? null
-                                  : (value) => setState(
-                                      () => _commercialAutoDelivery = value,
-                                    ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 14),
-                      ],
-                    ],
-                    const Text(
-                      'Automatic delivery charges for this product',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 5),
-                    if (_commercialCatalog.isEmpty)
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: Colors.grey.shade100,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: const Text(
-                          'No commercial charge products exist yet. '
-                          'Create a Service / Labour product and enable '
-                          '"Use this service as a commercial charge".',
-                        ),
-                      )
-                    else
-                      Wrap(
-                        spacing: 7,
-                        runSpacing: 7,
-                        children: _commercialCatalog.map((charge) {
-                          final id = charge['id']?.toString() ?? '';
-                          final name =
-                              charge['name']?.toString() ??
-                              charge['code']?.toString() ??
-                              'Charge';
-                          final kind =
-                              charge['charge_kind']?.toString() ?? 'other';
-                          final price =
-                              (charge['selling_price'] as num?)?.toDouble() ??
-                              double.tryParse('${charge['selling_price']}') ??
-                              0.0;
-                          return FilterChip(
-                            selected: _deliveryChargeIds.contains(id),
-                            label: Text(
-                              '$name | $kind | '
-                              '${widget.session.currencyCode} '
-                              '${price.toStringAsFixed(2)}',
-                            ),
-                            onSelected: _saving
-                                ? null
-                                : (selected) => setState(() {
-                                    if (selected) {
-                                      _deliveryChargeIds.add(id);
-                                    } else {
-                                      _deliveryChargeIds.remove(id);
-                                    }
-                                  }),
-                          );
-                        }).toList(),
-                      ),
-                    if (_deliveryChargeIds.isNotEmpty) ...[
-                      const SizedBox(height: 8),
-                      Text(
-                        'Selected charges apply once per product unit on '
-                        'Delivery orders. Advanced per-line/fixed rules can '
-                        'be managed in the next commercial settings step.',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey.shade700,
-                        ),
-                      ),
-                    ],
-                  ],
                   const SizedBox(height: 26),
 
                   const Text(

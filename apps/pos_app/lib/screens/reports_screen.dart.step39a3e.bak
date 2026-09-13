@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import '../models/client_session.dart';
 import '../models/report_summary.dart';
 import '../services/report_service.dart';
-import '../widgets/commercial_pricing_report_dialog.dart';
 
 class ReportsScreen extends StatefulWidget {
   final ClientSession session;
@@ -39,18 +38,6 @@ class _ReportsScreenState extends State<ReportsScreen> {
   }
 
   void _reload() => setState(_load);
-
-  Future<void> _commercialReport() async {
-    await showDialog<void>(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => CommercialPricingReportDialog(
-        session: widget.session,
-        from: _from,
-        to: _to,
-      ),
-    );
-  }
 
   String _money(double value) {
     if (widget.session.currencyCode == 'INR') {
@@ -135,12 +122,6 @@ class _ReportsScreenState extends State<ReportsScreen> {
                   onPressed: () => _pick(false),
                   icon: const Icon(Icons.date_range, size: 14),
                   label: Text('To ${_date(_to)}'),
-                ),
-                const SizedBox(width: 4),
-                OutlinedButton.icon(
-                  onPressed: _commercialReport,
-                  icon: const Icon(Icons.price_change_outlined, size: 14),
-                  label: const Text('Commercial'),
                 ),
                 const SizedBox(width: 4),
                 IconButton(
