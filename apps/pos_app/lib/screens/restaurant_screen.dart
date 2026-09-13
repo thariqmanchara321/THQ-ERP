@@ -4905,33 +4905,14 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
         throw Exception('Choose a customer before billing.');
       }
 
-      final commercialChoice = await _restaurantCommercialPricingDialog(
-        order: orderMap,
-        itemRows: itemRows,
-        fallbackSubtotal: subtotal,
-        fallbackDiscount: discount,
-        fallbackTax: tax,
-        fallbackTotal: storedTotal,
-      );
-      if (commercialChoice == null || !mounted) return;
-
-      final commercialTotalsRaw = commercialChoice.quote['totals'];
-      final commercialTotals = commercialTotalsRaw is Map
-          ? Map<String, dynamic>.from(commercialTotalsRaw)
-          : const <String, dynamic>{};
-
-      double commercialNumber(String key, double fallback) =>
-          (commercialTotals[key] as num?)?.toDouble() ??
-          double.tryParse('${commercialTotals[key]}') ??
-          fallback;
-
       final choice = await _restaurantBillingDialog(
+        order: orderMap,
         orderNumber: order['order_number']?.toString() ?? 'Restaurant Order',
         itemRows: itemRows,
-        subtotal: commercialNumber('subtotal', subtotal),
-        discount: commercialNumber('discount', discount),
-        tax: commercialNumber('tax', tax),
-        total: commercialNumber('before_round_off', storedTotal),
+        subtotal: subtotal,
+        discount: discount,
+        tax: tax,
+        total: storedTotal,
         initialCustomerId: initialCustomerId,
         initialNote: orderMap['order_note']?.toString() ?? '',
       );
@@ -4962,9 +4943,9 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
         dueDate: choice.dueDate,
         paymentAllocations: choice.paymentAllocations,
         trackingAssignments: trackingAssignments,
-        discountType: commercialChoice.discountType,
-        discountValue: commercialChoice.discountValue,
-        chargeSelections: commercialChoice.chargeSelections,
+        discountType: choice.discountType,
+        discountValue: choice.discountValue,
+        chargeSelections: choice.chargeSelections,
         notes: choice.note,
       );
 
@@ -5018,13 +4999,16 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
     }
   }
 
-  Future<_RestaurantCommercialChoice?> _restaurantCommercialPricingDialog({
+  Future<_RestaurantBillingChoice?> _restaurantBillingDialog({
     required Map<String, dynamic> order,
+    required String orderNumber,
     required List<Map<String, dynamic>> itemRows,
-    required double fallbackSubtotal,
-    required double fallbackDiscount,
-    required double fallbackTax,
-    required double fallbackTotal,
+    required double subtotal,
+    required double discount,
+    required double tax,
+    required double total,
+    required String initialCustomerId,
+    required String initialNote,
   }) async {
     final locationId = _locationId;
     final deviceId = _deviceId;
@@ -5033,8 +5017,8 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
       return null;
     }
 
-    double number(dynamic value) =>
-        (value as num?)?.toDouble() ?? double.tryParse('$value') ?? 0.0;
+    double number(dynamic value, [double fallback = 0]) =>
+        (value as num?)?.toDouble() ?? double.tryParse('$value') ?? fallback;
 
     double activeQuantity(Map<String, dynamic> item) {
       final quantity = number(item['quantity']);
@@ -5092,603 +5076,23 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
 
     if (!mounted) return null;
 
-    final discountController = TextEditingController(text: '0.00');
-    String discountType = 'none';
-    List<Map<String, dynamic>> selections = const [];
-    Map<String, dynamic>? quote;
-    String? quoteError;
-    var quoteBusy = false;
-    var quoteToken = 0;
-
-    Future<Map<String, dynamic>?> fetchQuote() async {
-      return _commercial.quote(
-        tenantId: widget.session.business.id,
-        locationId: locationId,
-        deviceId: deviceId,
-        orderType: orderType,
-        items: commercialItems,
-        discountType: discountType,
-        discountValue: double.tryParse(discountController.text.trim()) ?? 0.0,
-        chargeSelections: selections,
-      );
-    }
-
-    try {
-      quote = await fetchQuote();
-    } catch (error) {
-      quoteError = error.toString();
-    }
-
-    if (!mounted) {
-      discountController.dispose();
-      return null;
-    }
-
-    final result = await showDialog<_RestaurantCommercialChoice>(
-      context: context,
-      barrierDismissible: false,
-      builder: (dialogContext) => StatefulBuilder(
-        builder: (context, setDialogState) {
-          final scheme = Theme.of(context).colorScheme;
-
-          Future<void> refreshQuote() async {
-            final token = ++quoteToken;
-            setDialogState(() {
-              quoteBusy = true;
-              quoteError = null;
-            });
-
-            try {
-              final next = await fetchQuote();
-              if (!dialogContext.mounted || token != quoteToken) return;
-              setDialogState(() {
-                quote = next;
-                quoteBusy = false;
-              });
-            } catch (error) {
-              if (!dialogContext.mounted || token != quoteToken) return;
-              setDialogState(() {
-                quoteBusy = false;
-                quoteError = error.toString();
-              });
-            }
-          }
-
-          bool selected(String id) =>
-              selections.any((row) => row['charge_id']?.toString() == id);
-
-          void toggleCharge(Map<String, dynamic> charge, bool value) {
-            final id = charge['id']?.toString() ?? '';
-            if (id.isEmpty) return;
-
-            final next = selections
-                .map((row) => Map<String, dynamic>.from(row))
-                .toList();
-            next.removeWhere((row) => row['charge_id']?.toString() == id);
-
-            if (value) {
-              next.add(<String, dynamic>{
-                'charge_id': id,
-                'quantity':
-                    (charge['default_quantity'] as num?)?.toDouble() ??
-                    double.tryParse('${charge['default_quantity']}') ??
-                    1.0,
-              });
-            }
-
-            setDialogState(() => selections = next);
-            refreshQuote();
-          }
-
-          final totalsRaw = quote?['totals'];
-          final totals = totalsRaw is Map
-              ? Map<String, dynamic>.from(totalsRaw)
-              : <String, dynamic>{
-                  'subtotal': fallbackSubtotal,
-                  'discount': fallbackDiscount,
-                  'tax': fallbackTax,
-                  'before_round_off': fallbackTotal,
-                  'automatic_round_off': 0.0,
-                  'grand_total': fallbackTotal,
-                };
-
-          final breakdown = (quote?['charge_breakdown'] as List? ?? const [])
-              .whereType<Map>()
-              .map((row) => Map<String, dynamic>.from(row))
-              .toList(growable: false);
-
-          final documentDiscount = number(quote?['document_discount_total']);
-          final classifiedCharges = number(quote?['classified_charge_total']);
-          final canContinue = quote != null && !quoteBusy && quoteError == null;
-
-          Widget summaryRow(
-            String label,
-            dynamic value, {
-            bool strong = false,
-          }) {
-            return Padding(
-              padding: const EdgeInsets.symmetric(vertical: 3),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      label,
-                      style: TextStyle(
-                        fontSize: strong ? 11.5 : 9.8,
-                        fontWeight: strong ? FontWeight.w900 : FontWeight.w700,
-                        color: strong
-                            ? scheme.onSurface
-                            : scheme.onSurfaceVariant,
-                      ),
-                    ),
-                  ),
-                  Text(
-                    _money(value),
-                    style: TextStyle(
-                      fontSize: strong ? 14 : 10.5,
-                      fontWeight: strong ? FontWeight.w900 : FontWeight.w800,
-                      color: strong ? scheme.primary : scheme.onSurface,
-                    ),
-                  ),
-                ],
-              ),
-            );
-          }
-
-          return Dialog(
-            insetPadding: const EdgeInsets.all(24),
-            clipBehavior: Clip.antiAlias,
-            child: SizedBox(
-              width: 980,
-              height: 680,
-              child: Column(
-                children: [
-                  Container(
-                    height: 56,
-                    padding: const EdgeInsets.symmetric(horizontal: 14),
-                    decoration: BoxDecoration(
-                      color: scheme.surface,
-                      border: Border(
-                        bottom: BorderSide(color: scheme.outlineVariant),
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons.price_change_outlined,
-                          color: scheme.primary,
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text(
-                                'Restaurant Pricing',
-                                style: TextStyle(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w900,
-                                ),
-                              ),
-                              Text(
-                                '${order['order_number'] ?? 'Restaurant Order'}'
-                                '  |  ${orderType.replaceAll('_', ' ').toUpperCase()}',
-                                style: TextStyle(
-                                  fontSize: 9,
-                                  color: scheme.onSurfaceVariant,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        if (quoteBusy)
-                          const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        else
-                          Chip(
-                            visualDensity: VisualDensity.compact,
-                            avatar: const Icon(
-                              Icons.verified_user_outlined,
-                              size: 14,
-                            ),
-                            label: const Text('GST classified'),
-                          ),
-                      ],
-                    ),
-                  ),
-                  Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.all(12),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          Expanded(
-                            flex: 6,
-                            child: SingleChildScrollView(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.stretch,
-                                children: [
-                                  const Text(
-                                    'ORDER DISCOUNT',
-                                    style: TextStyle(
-                                      fontSize: 9.5,
-                                      fontWeight: FontWeight.w900,
-                                      letterSpacing: .4,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 6),
-                                  Row(
-                                    children: [
-                                      SizedBox(
-                                        width: 150,
-                                        child: DropdownButtonFormField<String>(
-                                          initialValue: discountType,
-                                          decoration: const InputDecoration(
-                                            labelText: 'Discount type',
-                                          ),
-                                          items: const [
-                                            DropdownMenuItem(
-                                              value: 'none',
-                                              child: Text('None'),
-                                            ),
-                                            DropdownMenuItem(
-                                              value: 'fixed',
-                                              child: Text('Fixed amount'),
-                                            ),
-                                            DropdownMenuItem(
-                                              value: 'percent',
-                                              child: Text('Percentage'),
-                                            ),
-                                          ],
-                                          onChanged: quoteBusy
-                                              ? null
-                                              : (value) {
-                                                  if (value == null) return;
-                                                  setDialogState(() {
-                                                    discountType = value;
-                                                    if (value == 'none') {
-                                                      discountController.text =
-                                                          '0.00';
-                                                    }
-                                                  });
-                                                  refreshQuote();
-                                                },
-                                        ),
-                                      ),
-                                      const SizedBox(width: 8),
-                                      Expanded(
-                                        child: TextField(
-                                          controller: discountController,
-                                          enabled:
-                                              !quoteBusy &&
-                                              discountType != 'none',
-                                          keyboardType:
-                                              const TextInputType.numberWithOptions(
-                                                decimal: true,
-                                              ),
-                                          decoration: InputDecoration(
-                                            labelText: discountType == 'percent'
-                                                ? 'Discount %'
-                                                : 'Discount amount',
-                                            prefixIcon: const Icon(
-                                              Icons.discount_outlined,
-                                              size: 17,
-                                            ),
-                                          ),
-                                          onSubmitted: (_) => refreshQuote(),
-                                        ),
-                                      ),
-                                      const SizedBox(width: 8),
-                                      OutlinedButton.icon(
-                                        onPressed: quoteBusy
-                                            ? null
-                                            : refreshQuote,
-                                        icon: const Icon(
-                                          Icons.calculate_outlined,
-                                          size: 16,
-                                        ),
-                                        label: const Text('Recalculate'),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 14),
-                                  const Text(
-                                    'ADDITIONAL CHARGES',
-                                    style: TextStyle(
-                                      fontSize: 9.5,
-                                      fontWeight: FontWeight.w900,
-                                      letterSpacing: .4,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    'Packaging, Delivery, Service, Handling '
-                                    'and Convenience charges use configured '
-                                    'service products, so GST and accounting '
-                                    'remain authoritative.',
-                                    style: TextStyle(
-                                      fontSize: 9.2,
-                                      color: scheme.onSurfaceVariant,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 8),
-                                  if (catalog.isEmpty)
-                                    Container(
-                                      padding: const EdgeInsets.all(10),
-                                      decoration: BoxDecoration(
-                                        color: scheme.surfaceContainerHighest,
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
-                                      child: const Text(
-                                        'No manual commercial charges are '
-                                        'configured. Product/default charge '
-                                        'rules can still apply automatically.',
-                                        style: TextStyle(fontSize: 9.5),
-                                      ),
-                                    )
-                                  else
-                                    Wrap(
-                                      spacing: 6,
-                                      runSpacing: 6,
-                                      children: catalog.map((charge) {
-                                        final id =
-                                            charge['id']?.toString() ?? '';
-                                        final name =
-                                            charge['name']?.toString() ??
-                                            charge['code']?.toString() ??
-                                            'Charge';
-                                        final kind =
-                                            charge['charge_kind']?.toString() ??
-                                            'other';
-                                        final price = number(
-                                          charge['selling_price'],
-                                        );
-                                        return FilterChip(
-                                          selected: selected(id),
-                                          onSelected: quoteBusy
-                                              ? null
-                                              : (value) =>
-                                                    toggleCharge(charge, value),
-                                          avatar: const Icon(
-                                            Icons.add_card_outlined,
-                                            size: 14,
-                                          ),
-                                          label: Text(
-                                            '$name | '
-                                            '${kind.replaceAll('_', ' ')} | '
-                                            '${_money(price)}',
-                                          ),
-                                        );
-                                      }).toList(),
-                                    ),
-                                  if (breakdown.isNotEmpty) ...[
-                                    const SizedBox(height: 14),
-                                    const Text(
-                                      'APPLIED CHARGES',
-                                      style: TextStyle(
-                                        fontSize: 9.5,
-                                        fontWeight: FontWeight.w900,
-                                        letterSpacing: .4,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 6),
-                                    for (final row in breakdown)
-                                      Container(
-                                        margin: const EdgeInsets.only(
-                                          bottom: 5,
-                                        ),
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 9,
-                                          vertical: 7,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: scheme.surfaceContainerHighest,
-                                          borderRadius: BorderRadius.circular(
-                                            7,
-                                          ),
-                                        ),
-                                        child: Row(
-                                          children: [
-                                            Expanded(
-                                              child: Text(
-                                                '${row['name'] ?? row['code'] ?? 'Charge'}'
-                                                '  |  ${row['kind'] ?? 'other'}',
-                                                style: const TextStyle(
-                                                  fontSize: 9.7,
-                                                  fontWeight: FontWeight.w800,
-                                                ),
-                                              ),
-                                            ),
-                                            Text(
-                                              'Qty ${number(row['quantity']).toStringAsFixed(2)}',
-                                              style: TextStyle(
-                                                fontSize: 9,
-                                                color: scheme.onSurfaceVariant,
-                                              ),
-                                            ),
-                                            const SizedBox(width: 10),
-                                            Text(
-                                              _money(row['line_total']),
-                                              style: const TextStyle(
-                                                fontSize: 10,
-                                                fontWeight: FontWeight.w900,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                  ],
-                                  if (quoteError != null) ...[
-                                    const SizedBox(height: 10),
-                                    Container(
-                                      padding: const EdgeInsets.all(9),
-                                      decoration: BoxDecoration(
-                                        color: scheme.errorContainer,
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
-                                      child: Text(
-                                        quoteError!,
-                                        style: TextStyle(
-                                          fontSize: 9.5,
-                                          color: scheme.onErrorContainer,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ],
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          SizedBox(
-                            width: 300,
-                            child: Container(
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                color: scheme.surfaceContainerLowest,
-                                borderRadius: BorderRadius.circular(9),
-                                border: Border.all(
-                                  color: scheme.outlineVariant,
-                                ),
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.stretch,
-                                children: [
-                                  const Text(
-                                    'COMMERCIAL SUMMARY',
-                                    style: TextStyle(
-                                      fontSize: 9.5,
-                                      fontWeight: FontWeight.w900,
-                                      letterSpacing: .4,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 8),
-                                  summaryRow('Subtotal', totals['subtotal']),
-                                  summaryRow(
-                                    'Total discounts',
-                                    -number(totals['discount']),
-                                  ),
-                                  if (documentDiscount > .005)
-                                    summaryRow(
-                                      'Order discount',
-                                      -documentDiscount,
-                                    ),
-                                  if (classifiedCharges > .005)
-                                    summaryRow(
-                                      'Classified charges',
-                                      classifiedCharges,
-                                    ),
-                                  summaryRow('Tax', totals['tax']),
-                                  if (number(
-                                        totals['automatic_round_off'],
-                                      ).abs() >
-                                      .000001)
-                                    summaryRow(
-                                      'Round off',
-                                      totals['automatic_round_off'],
-                                    ),
-                                  const Divider(height: 18),
-                                  summaryRow(
-                                    'Grand Total',
-                                    totals['grand_total'],
-                                    strong: true,
-                                  ),
-                                  const Spacer(),
-                                  Text(
-                                    'Auto charge rules for this order type '
-                                    'and product-level packaging rules are '
-                                    'included automatically by the server.',
-                                    style: TextStyle(
-                                      fontSize: 8.8,
-                                      color: scheme.onSurfaceVariant,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
-                    decoration: BoxDecoration(
-                      color: scheme.surface,
-                      border: Border(
-                        top: BorderSide(color: scheme.outlineVariant),
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        TextButton(
-                          onPressed: quoteBusy
-                              ? null
-                              : () => Navigator.pop(dialogContext),
-                          child: const Text('Cancel'),
-                        ),
-                        const Spacer(),
-                        FilledButton.icon(
-                          onPressed: canContinue
-                              ? () => Navigator.pop(
-                                  dialogContext,
-                                  _RestaurantCommercialChoice(
-                                    discountType: discountType,
-                                    discountValue:
-                                        double.tryParse(
-                                          discountController.text.trim(),
-                                        ) ??
-                                        0.0,
-                                    chargeSelections: selections
-                                        .map(
-                                          (row) =>
-                                              Map<String, dynamic>.from(row),
-                                        )
-                                        .toList(growable: false),
-                                    quote: Map<String, dynamic>.from(quote!),
-                                  ),
-                                )
-                              : null,
-                          icon: const Icon(
-                            Icons.arrow_forward_rounded,
-                            size: 16,
-                          ),
-                          label: const Text('Continue to Payment'),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
-      ),
-    );
-
-    discountController.dispose();
-    return result;
-  }
-
-  Future<_RestaurantBillingChoice?> _restaurantBillingDialog({
-    required String orderNumber,
-    required List<Map<String, dynamic>> itemRows,
-    required double subtotal,
-    required double discount,
-    required double tax,
-    required double total,
-    required String initialCustomerId,
-    required String initialNote,
-  }) async {
     final noteController = TextEditingController(text: initialNote);
+    final discountController = TextEditingController(text: '0.00');
 
     String customerId = initialCustomerId;
     DateTime dueDate = DateTime.now().add(const Duration(days: 30));
     List<Map<String, dynamic>> allocations = const [];
+
+    String discountType = 'none';
+    List<Map<String, dynamic>> chargeSelections = const [];
+    String? chargeToAdd = catalog.isNotEmpty
+        ? catalog.first['id']?.toString()
+        : null;
+
+    Map<String, dynamic>? quote;
+    String? quoteError;
+    var quoteBusy = false;
+    var quoteToken = 0;
 
     String quantityText(double value) {
       if ((value - value.roundToDouble()).abs() < .000001) {
@@ -5704,6 +5108,32 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
       return null;
     }
 
+    Future<Map<String, dynamic>> fetchQuote() async {
+      final result = await _commercial.quote(
+        tenantId: widget.session.business.id,
+        locationId: locationId,
+        deviceId: deviceId,
+        orderType: orderType,
+        items: commercialItems,
+        discountType: discountType,
+        discountValue: double.tryParse(discountController.text.trim()) ?? 0.0,
+        chargeSelections: chargeSelections,
+      );
+      return result;
+    }
+
+    try {
+      quote = await fetchQuote();
+    } catch (error) {
+      quoteError = error.toString();
+    }
+
+    if (!mounted) {
+      noteController.dispose();
+      discountController.dispose();
+      return null;
+    }
+
     final result = await showDialog<_RestaurantBillingChoice>(
       context: context,
       barrierDismissible: false,
@@ -5711,12 +5141,104 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
         builder: (context, setDialogState) {
           final scheme = Theme.of(context).colorScheme;
           final media = MediaQuery.sizeOf(context);
-          final roundOff = double.parse(
-            (total.roundToDouble() - total).toStringAsFixed(2),
+
+          Future<void> refreshQuote() async {
+            final token = ++quoteToken;
+            setDialogState(() {
+              quoteBusy = true;
+              quoteError = null;
+            });
+
+            try {
+              final next = await fetchQuote();
+              if (!dialogContext.mounted || token != quoteToken) return;
+              setDialogState(() {
+                quote = next;
+                quoteBusy = false;
+                allocations = const [];
+              });
+            } catch (error) {
+              if (!dialogContext.mounted || token != quoteToken) return;
+              setDialogState(() {
+                quoteBusy = false;
+                quoteError = error.toString();
+              });
+            }
+          }
+
+          bool selectedCharge(String id) =>
+              chargeSelections.any((row) => row['charge_id']?.toString() == id);
+
+          void addSelectedCharge() {
+            final id = chargeToAdd;
+            if (id == null || id.isEmpty || selectedCharge(id)) return;
+
+            Map<String, dynamic>? charge;
+            for (final row in catalog) {
+              if (row['id']?.toString() == id) {
+                charge = row;
+                break;
+              }
+            }
+            if (charge == null) return;
+
+            final next = chargeSelections
+                .map((row) => Map<String, dynamic>.from(row))
+                .toList();
+            next.add(<String, dynamic>{
+              'charge_id': id,
+              'quantity':
+                  (charge['default_quantity'] as num?)?.toDouble() ??
+                  double.tryParse('${charge['default_quantity']}') ??
+                  1.0,
+            });
+
+            setDialogState(() => chargeSelections = next);
+            refreshQuote();
+          }
+
+          void removeCharge(String id) {
+            setDialogState(() {
+              chargeSelections = chargeSelections
+                  .where((row) => row['charge_id']?.toString() != id)
+                  .map((row) => Map<String, dynamic>.from(row))
+                  .toList(growable: false);
+            });
+            refreshQuote();
+          }
+
+          final totalsRaw = quote?['totals'];
+          final quoteTotals = totalsRaw is Map
+              ? Map<String, dynamic>.from(totalsRaw)
+              : const <String, dynamic>{};
+
+          final currentSubtotal = number(quoteTotals['subtotal'], subtotal);
+          final currentDiscount = number(quoteTotals['discount'], discount);
+          final currentTax = number(quoteTotals['tax'], tax);
+          final beforeRoundOff = number(quoteTotals['before_round_off'], total);
+          final roundOff = number(
+            quoteTotals['automatic_round_off'],
+            double.parse(
+              (beforeRoundOff.roundToDouble() - beforeRoundOff).toStringAsFixed(
+                2,
+              ),
+            ),
           );
-          final finalTotal = double.parse(
-            (total + roundOff).toStringAsFixed(2),
+          final finalTotal = number(
+            quoteTotals['grand_total'],
+            double.parse((beforeRoundOff + roundOff).toStringAsFixed(2)),
           );
+
+          final classifiedChargeTotal = number(
+            quote?['classified_charge_total'],
+          );
+          final documentDiscount = number(quote?['document_discount_total']);
+          final chargeBreakdown =
+              (quote?['charge_breakdown'] as List? ?? const [])
+                  .whereType<Map>()
+                  .map((row) => Map<String, dynamic>.from(row))
+                  .toList(growable: false);
+
           final customer = selectedCustomer();
 
           var remaining = finalTotal;
@@ -5747,6 +5269,9 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
           final creditBlocked =
               creditAmount > .005 && (customer?.isWalkIn ?? true);
           final canConfirm =
+              quote != null &&
+              !quoteBusy &&
+              quoteError == null &&
               finalTotal >= 0 &&
               allocations.isNotEmpty &&
               remaining <= .005 &&
@@ -5853,36 +5378,20 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                           Divider(height: 12, color: scheme.outlineVariant),
                       itemBuilder: (context, index) {
                         final item = itemRows[index];
-                        final quantity =
-                            (item['quantity'] as num?)?.toDouble() ??
-                            double.tryParse('${item['quantity']}') ??
-                            0;
-                        final cancelled =
-                            (item['cancelled_quantity'] as num?)?.toDouble() ??
-                            double.tryParse('${item['cancelled_quantity']}') ??
-                            0;
-                        final activeQuantity = (quantity - cancelled)
+                        final quantity = number(item['quantity']);
+                        final cancelled = number(item['cancelled_quantity']);
+                        final activeQty = (quantity - cancelled)
                             .clamp(0.0, double.infinity)
                             .toDouble();
-                        final unitPrice =
-                            (item['unit_price'] as num?)?.toDouble() ??
-                            double.tryParse('${item['unit_price']}') ??
-                            0;
-                        final storedDiscount =
-                            (item['discount_amount'] as num?)?.toDouble() ??
-                            double.tryParse('${item['discount_amount']}') ??
-                            0;
+                        final unitPrice = number(item['unit_price']);
+                        final storedDiscount = number(item['discount_amount']);
                         final activeDiscount = quantity <= 0
                             ? 0.0
-                            : storedDiscount * (activeQuantity / quantity);
-                        final taxRate =
-                            (item['tax_rate'] as num?)?.toDouble() ??
-                            double.tryParse('${item['tax_rate']}') ??
-                            0;
-                        final taxable =
-                            (activeQuantity * unitPrice - activeDiscount)
-                                .clamp(0.0, double.infinity)
-                                .toDouble();
+                            : storedDiscount * (activeQty / quantity);
+                        final taxRate = number(item['tax_rate']);
+                        final taxable = (activeQty * unitPrice - activeDiscount)
+                            .clamp(0.0, double.infinity)
+                            .toDouble();
                         final lineTotal = taxable * (1 + taxRate / 100.0);
 
                         final name =
@@ -5904,7 +5413,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                                 borderRadius: BorderRadius.circular(9),
                               ),
                               child: Text(
-                                '${quantityText(activeQuantity)}x',
+                                '${quantityText(activeQty)}x',
                                 style: TextStyle(
                                   color: scheme.onPrimaryContainer,
                                   fontSize: 9.5,
@@ -5938,7 +5447,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                                   ),
                                   if (activeDiscount > .005)
                                     Text(
-                                      'Discount ${_money(activeDiscount)}',
+                                      'Line discount ${_money(activeDiscount)}',
                                       style: TextStyle(
                                         color: scheme.primary,
                                         fontSize: 9,
@@ -5967,14 +5476,26 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                     padding: const EdgeInsets.all(12),
                     child: Column(
                       children: [
-                        amountRow('Subtotal', subtotal),
-                        if (discount > .005)
+                        amountRow('Subtotal', currentSubtotal),
+                        if (currentDiscount > .005)
                           amountRow(
-                            'Discount',
-                            -discount,
+                            'Total discount',
+                            -currentDiscount,
                             valueColor: scheme.primary,
                           ),
-                        amountRow('Tax', tax),
+                        if (documentDiscount > .005)
+                          amountRow(
+                            'Order discount',
+                            -documentDiscount,
+                            valueColor: scheme.primary,
+                          ),
+                        if (classifiedChargeTotal > .005)
+                          amountRow(
+                            'Additional charges',
+                            classifiedChargeTotal,
+                            valueColor: scheme.tertiary,
+                          ),
+                        amountRow('Tax', currentTax),
                         if (roundOff.abs() > .0001)
                           amountRow('Round off', roundOff),
                         const Divider(height: 16),
@@ -5982,6 +5503,244 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                       ],
                     ),
                   ),
+                ],
+              ),
+            );
+          }
+
+          Widget pricingSection() {
+            String chargeLabel(Map<String, dynamic> charge) {
+              final kind = (charge['charge_kind']?.toString() ?? 'other')
+                  .replaceAll('_', ' ')
+                  .toUpperCase();
+              final name =
+                  charge['name']?.toString() ??
+                  charge['code']?.toString() ??
+                  'Charge';
+              final price = number(charge['selling_price']);
+              return '$kind â€¢ $name â€¢ ${_money(price)}';
+            }
+
+            return Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: scheme.surfaceContainerLowest,
+                borderRadius: BorderRadius.circular(9),
+                border: Border.all(color: scheme.outlineVariant),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.price_change_outlined,
+                        size: 17,
+                        color: scheme.primary,
+                      ),
+                      const SizedBox(width: 7),
+                      const Expanded(
+                        child: Text(
+                          'Discount & Additional Charges',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ),
+                      if (quoteBusy)
+                        const SizedBox(
+                          width: 15,
+                          height: 15,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      else
+                        Text(
+                          'GST CLASSIFIED',
+                          style: TextStyle(
+                            fontSize: 8,
+                            fontWeight: FontWeight.w900,
+                            color: scheme.primary,
+                          ),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      SizedBox(
+                        width: 132,
+                        child: DropdownButtonFormField<String>(
+                          initialValue: discountType,
+                          decoration: const InputDecoration(
+                            labelText: 'Discount',
+                            isDense: true,
+                          ),
+                          items: const [
+                            DropdownMenuItem(
+                              value: 'none',
+                              child: Text('None'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'fixed',
+                              child: Text('Fixed â‚¹'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'percent',
+                              child: Text('Percent %'),
+                            ),
+                          ],
+                          onChanged: quoteBusy
+                              ? null
+                              : (value) {
+                                  if (value == null) return;
+                                  setDialogState(() {
+                                    discountType = value;
+                                    allocations = const [];
+                                    if (value == 'none') {
+                                      discountController.text = '0.00';
+                                    }
+                                  });
+                                  refreshQuote();
+                                },
+                        ),
+                      ),
+                      const SizedBox(width: 7),
+                      Expanded(
+                        child: TextField(
+                          controller: discountController,
+                          enabled: !quoteBusy && discountType != 'none',
+                          keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true,
+                          ),
+                          decoration: InputDecoration(
+                            labelText: discountType == 'percent'
+                                ? 'Discount %'
+                                : 'Discount amount',
+                            isDense: true,
+                          ),
+                          onSubmitted: (_) => refreshQuote(),
+                        ),
+                      ),
+                      const SizedBox(width: 7),
+                      IconButton.filledTonal(
+                        tooltip: 'Recalculate',
+                        onPressed: quoteBusy ? null : refreshQuote,
+                        icon: const Icon(Icons.calculate_outlined, size: 17),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: DropdownButtonFormField<String>(
+                          initialValue: chargeToAdd,
+                          isExpanded: true,
+                          decoration: const InputDecoration(
+                            labelText: 'Additional charge',
+                            hintText: 'Packaging / Delivery / Service...',
+                            isDense: true,
+                          ),
+                          items: catalog
+                              .map(
+                                (charge) => DropdownMenuItem<String>(
+                                  value: charge['id']?.toString(),
+                                  child: Text(
+                                    chargeLabel(charge),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              )
+                              .toList(),
+                          onChanged: catalog.isEmpty || quoteBusy
+                              ? null
+                              : (value) =>
+                                    setDialogState(() => chargeToAdd = value),
+                        ),
+                      ),
+                      const SizedBox(width: 7),
+                      FilledButton.tonalIcon(
+                        onPressed:
+                            catalog.isEmpty ||
+                                quoteBusy ||
+                                chargeToAdd == null ||
+                                selectedCharge(chargeToAdd!)
+                            ? null
+                            : addSelectedCharge,
+                        icon: const Icon(Icons.add, size: 16),
+                        label: const Text('Add'),
+                      ),
+                    ],
+                  ),
+                  if (catalog.isEmpty) ...[
+                    const SizedBox(height: 5),
+                    Text(
+                      'No charge service is configured yet. Create Packaging, '
+                      'Delivery, Service or Handling as a Service product and '
+                      'register it under Commercial Pricing Rules.',
+                      style: TextStyle(
+                        fontSize: 8.8,
+                        color: scheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                  if (chargeSelections.isNotEmpty) ...[
+                    const SizedBox(height: 7),
+                    Wrap(
+                      spacing: 5,
+                      runSpacing: 5,
+                      children: chargeSelections.map((selection) {
+                        final id = selection['charge_id']?.toString() ?? '';
+                        Map<String, dynamic>? charge;
+                        for (final row in catalog) {
+                          if (row['id']?.toString() == id) {
+                            charge = row;
+                            break;
+                          }
+                        }
+                        final label = charge == null
+                            ? 'Charge'
+                            : (charge['charge_kind']?.toString() ?? 'other')
+                                  .replaceAll('_', ' ')
+                                  .toUpperCase();
+                        return InputChip(
+                          visualDensity: VisualDensity.compact,
+                          label: Text(label),
+                          onDeleted: quoteBusy ? null : () => removeCharge(id),
+                        );
+                      }).toList(),
+                    ),
+                  ],
+                  if (chargeBreakdown.isNotEmpty) ...[
+                    const SizedBox(height: 7),
+                    Text(
+                      'Applied: ${chargeBreakdown.map((row) {
+                        final name = row['name']?.toString() ?? row['code']?.toString() ?? 'Charge';
+                        return '$name ${_money(row['line_total'])}';
+                      }).join(' â€¢ ')}',
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 8.8,
+                        fontWeight: FontWeight.w700,
+                        color: scheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                  if (quoteError != null) ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      quoteError!,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 8.8,
+                        fontWeight: FontWeight.w700,
+                        color: scheme.error,
+                      ),
+                    ),
+                  ],
                 ],
               ),
             );
@@ -6036,6 +5795,8 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                         });
                       },
                     ),
+                    const SizedBox(height: 9),
+                    pricingSection(),
                     const SizedBox(height: 9),
                     Container(
                       padding: const EdgeInsets.symmetric(
@@ -6219,7 +5980,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                         const SizedBox(width: 6),
                         _RestaurantCheckoutStep(
                           number: '2',
-                          label: 'Pay',
+                          label: 'Bill & Pay',
                           active: true,
                           complete: false,
                         ),
@@ -6257,9 +6018,9 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
 
                           return Column(
                             children: [
-                              Expanded(flex: 45, child: itemPanel()),
+                              Expanded(flex: 43, child: itemPanel()),
                               const SizedBox(height: 8),
-                              Expanded(flex: 55, child: paymentPanel()),
+                              Expanded(flex: 57, child: paymentPanel()),
                             ],
                           );
                         },
@@ -6319,6 +6080,18 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                                         : null,
                                     roundOff: roundOff,
                                     note: noteController.text,
+                                    discountType: discountType,
+                                    discountValue:
+                                        double.tryParse(
+                                          discountController.text.trim(),
+                                        ) ??
+                                        0.0,
+                                    chargeSelections: chargeSelections
+                                        .map(
+                                          (row) =>
+                                              Map<String, dynamic>.from(row),
+                                        )
+                                        .toList(growable: false),
                                   ),
                                 )
                               : null,
@@ -6340,6 +6113,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
     );
 
     noteController.dispose();
+    discountController.dispose();
     return result;
   }
 
@@ -10617,26 +10391,15 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
   }
 }
 
-class _RestaurantCommercialChoice {
-  final String discountType;
-  final double discountValue;
-  final List<Map<String, dynamic>> chargeSelections;
-  final Map<String, dynamic> quote;
-
-  const _RestaurantCommercialChoice({
-    required this.discountType,
-    required this.discountValue,
-    required this.chargeSelections,
-    required this.quote,
-  });
-}
-
 class _RestaurantBillingChoice {
   final String customerId;
   final List<Map<String, dynamic>> paymentAllocations;
   final DateTime? dueDate;
   final double roundOff;
   final String note;
+  final String discountType;
+  final double discountValue;
+  final List<Map<String, dynamic>> chargeSelections;
 
   const _RestaurantBillingChoice({
     required this.customerId,
@@ -10644,6 +10407,9 @@ class _RestaurantBillingChoice {
     required this.dueDate,
     required this.roundOff,
     required this.note,
+    required this.discountType,
+    required this.discountValue,
+    required this.chargeSelections,
   });
 }
 
@@ -10680,7 +10446,7 @@ class _RestaurantCheckoutStep extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(
-            complete ? 'âœ“' : number,
+            complete ? '\u2713' : number,
             style: TextStyle(
               color: foreground,
               fontSize: 10,
