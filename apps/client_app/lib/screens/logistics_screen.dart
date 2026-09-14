@@ -4,6 +4,7 @@ import 'package:thq_ui/thq_ui.dart';
 import '../models/client_session.dart';
 import '../services/location_scope_service.dart';
 import '../services/logistics_service.dart';
+import 'logistics_operations_screen.dart';
 import 'logistics_reports_screen.dart';
 import 'logistics_receipt_dialog.dart';
 import '../services/stock_transfer_service.dart';
@@ -179,7 +180,7 @@ class _LogisticsScreenState extends State<LogisticsScreen> {
                             (row) => DropdownMenuItem(
                               value: row['id'].toString(),
                               child: Text(
-                                '${row['registration_number'] ?? '-'} ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ ${row['vehicle_type'] ?? 'Vehicle'}',
+                                '${row['registration_number'] ?? '-'} ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ ${row['vehicle_type'] ?? 'Vehicle'}',
                               ),
                             ),
                           )
@@ -315,10 +316,10 @@ class _LogisticsScreenState extends State<LogisticsScreen> {
                                   }
                                 : null,
                             title: Text(
-                              '${transfer['transfer_number'] ?? '-'} ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ ${transfer['from_location'] ?? '-'} ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ ${transfer['to_location'] ?? '-'}',
+                              '${transfer['transfer_number'] ?? '-'} ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ ${transfer['from_location'] ?? '-'} ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾Ãƒâ€šÃ‚Â¢ ${transfer['to_location'] ?? '-'}',
                             ),
                             subtitle: Text(
-                              '${transfer['item_count'] ?? 0} item(s) ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ Qty ${transfer['total_quantity'] ?? 0}',
+                              '${transfer['item_count'] ?? 0} item(s) ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ Qty ${transfer['total_quantity'] ?? 0}',
                             ),
                           );
                         },
@@ -458,13 +459,13 @@ class _LogisticsScreenState extends State<LogisticsScreen> {
                       ],
                     ),
                     Text(
-                      '${trip['from_location'] ?? '-'} ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ ${trip['to_location'] ?? '-'}',
+                      '${trip['from_location'] ?? '-'} ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾Ãƒâ€šÃ‚Â¢ ${trip['to_location'] ?? '-'}',
                     ),
                     Text(
-                      '${trip['vehicle_registration'] ?? '-'} ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ ${trip['driver_name'] ?? 'No driver'} ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ ${trip['document_count'] ?? 0} transfer(s)',
+                      '${trip['vehicle_registration'] ?? '-'} ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ ${trip['driver_name'] ?? 'No driver'} ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ ${trip['document_count'] ?? 0} transfer(s)',
                     ),
                     Text(
-                      'Qty ${trip['total_quantity'] ?? 0} ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ In transit ${trip['in_transit_quantity'] ?? 0}',
+                      'Qty ${trip['total_quantity'] ?? 0} ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ In transit ${trip['in_transit_quantity'] ?? 0}',
                       style: TextStyle(
                         color: Theme.of(context).colorScheme.onSurfaceVariant,
                         fontSize: 12,
@@ -491,6 +492,21 @@ class _LogisticsScreenState extends State<LogisticsScreen> {
       appBar: AppBar(
         title: const Text('Vehicle Logistics'),
         actions: [
+          IconButton(
+            onPressed: () async {
+              await Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) =>
+                      LogisticsOperationsScreen(session: widget.session),
+                ),
+              );
+              if (mounted) {
+                await _load();
+              }
+            },
+            icon: const Icon(Icons.rule_folder_outlined),
+            tooltip: 'Operations',
+          ),
           IconButton(
             onPressed: () => Navigator.of(context).push(
               MaterialPageRoute<void>(
@@ -529,7 +545,7 @@ class _LogisticsScreenState extends State<LogisticsScreen> {
                               ),
                             ),
                             Text(
-                              'Trip ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ dispatch ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ arrival ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ receipt, with stock remaining authoritative in Inventory.',
+                              'Trip ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾Ãƒâ€šÃ‚Â¢ dispatch ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾Ãƒâ€šÃ‚Â¢ arrival ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾Ãƒâ€šÃ‚Â¢ receipt, with stock remaining authoritative in Inventory.',
                             ),
                           ],
                         ),
@@ -885,8 +901,8 @@ class _LogisticsTripDialogState extends State<LogisticsTripDialog> {
       final hasVariance = result['has_variance'] == true;
       _message(
         hasVariance
-            ? 'Received with variance${receiptNumber == null ? '' : ' â€¢ $receiptNumber'}'
-            : 'Received${receiptNumber == null ? '' : ' â€¢ $receiptNumber'}',
+            ? 'Received with variance${receiptNumber == null ? '' : ' ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¢ $receiptNumber'}'
+            : 'Received${receiptNumber == null ? '' : ' ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¢ $receiptNumber'}',
       );
 
       await _load();
@@ -971,7 +987,7 @@ class _LogisticsTripDialogState extends State<LogisticsTripDialog> {
                   runSpacing: 8,
                   children: [
                     Text(
-                      'Route: ${_trip['from_location'] ?? '-'} ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ ${_trip['to_location'] ?? '-'}',
+                      'Route: ${_trip['from_location'] ?? '-'} ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾Ãƒâ€šÃ‚Â¢ ${_trip['to_location'] ?? '-'}',
                     ),
                     Text('Vehicle: ${_trip['vehicle_registration'] ?? '-'}'),
                     Text('Driver: ${_trip['driver_name'] ?? '-'}'),
@@ -1019,7 +1035,7 @@ class _LogisticsTripDialogState extends State<LogisticsTripDialog> {
                                     ],
                                   ),
                                   subtitle: Text(
-                                    '${doc['item_count'] ?? 0} item(s) ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ Qty ${doc['total_quantity'] ?? 0} ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ In transit ${doc['in_transit_quantity'] ?? 0}',
+                                    '${doc['item_count'] ?? 0} item(s) ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ Qty ${doc['total_quantity'] ?? 0} ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ In transit ${doc['in_transit_quantity'] ?? 0}',
                                   ),
                                   trailing:
                                       status == 'arrived' &&
@@ -1037,7 +1053,7 @@ class _LogisticsTripDialogState extends State<LogisticsTripDialog> {
                                         (item) => ListTile(
                                           dense: true,
                                           title: Text(
-                                            '${item['product_name'] ?? '-'} ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ ${item['sku'] ?? '-'}',
+                                            '${item['product_name'] ?? '-'} ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ ${item['sku'] ?? '-'}',
                                           ),
                                           subtitle: Text(
                                             'Tracking: ${item['tracking_mode'] ?? 'none'}',
