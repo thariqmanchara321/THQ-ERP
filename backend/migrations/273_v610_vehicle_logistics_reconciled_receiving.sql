@@ -750,4 +750,3 @@ $function$;
 
 revoke execute on function public.logistics_trip_receive_transfer_reconciled_v1(uuid,uuid,uuid,uuid,jsonb,text) from public, anon;
 grant execute on function public.logistics_trip_receive_transfer_reconciled_v1(uuid,uuid,uuid,uuid,jsonb,text) to authenticated, service_role;
-
