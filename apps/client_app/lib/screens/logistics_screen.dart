@@ -4,6 +4,7 @@ import 'package:thq_ui/thq_ui.dart';
 import '../models/client_session.dart';
 import '../services/location_scope_service.dart';
 import '../services/logistics_service.dart';
+import 'logistics_reports_screen.dart';
 import 'logistics_receipt_dialog.dart';
 import '../services/stock_transfer_service.dart';
 import '../services/transport_service.dart';
@@ -178,7 +179,7 @@ class _LogisticsScreenState extends State<LogisticsScreen> {
                             (row) => DropdownMenuItem(
                               value: row['id'].toString(),
                               child: Text(
-                                '${row['registration_number'] ?? '-'} Ã¢â‚¬Â¢ ${row['vehicle_type'] ?? 'Vehicle'}',
+                                '${row['registration_number'] ?? '-'} ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ ${row['vehicle_type'] ?? 'Vehicle'}',
                               ),
                             ),
                           )
@@ -314,10 +315,10 @@ class _LogisticsScreenState extends State<LogisticsScreen> {
                                   }
                                 : null,
                             title: Text(
-                              '${transfer['transfer_number'] ?? '-'} Ã¢â‚¬Â¢ ${transfer['from_location'] ?? '-'} Ã¢â€ â€™ ${transfer['to_location'] ?? '-'}',
+                              '${transfer['transfer_number'] ?? '-'} ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ ${transfer['from_location'] ?? '-'} ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ ${transfer['to_location'] ?? '-'}',
                             ),
                             subtitle: Text(
-                              '${transfer['item_count'] ?? 0} item(s) Ã¢â‚¬Â¢ Qty ${transfer['total_quantity'] ?? 0}',
+                              '${transfer['item_count'] ?? 0} item(s) ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ Qty ${transfer['total_quantity'] ?? 0}',
                             ),
                           );
                         },
@@ -457,13 +458,13 @@ class _LogisticsScreenState extends State<LogisticsScreen> {
                       ],
                     ),
                     Text(
-                      '${trip['from_location'] ?? '-'} Ã¢â€ â€™ ${trip['to_location'] ?? '-'}',
+                      '${trip['from_location'] ?? '-'} ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ ${trip['to_location'] ?? '-'}',
                     ),
                     Text(
-                      '${trip['vehicle_registration'] ?? '-'} Ã¢â‚¬Â¢ ${trip['driver_name'] ?? 'No driver'} Ã¢â‚¬Â¢ ${trip['document_count'] ?? 0} transfer(s)',
+                      '${trip['vehicle_registration'] ?? '-'} ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ ${trip['driver_name'] ?? 'No driver'} ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ ${trip['document_count'] ?? 0} transfer(s)',
                     ),
                     Text(
-                      'Qty ${trip['total_quantity'] ?? 0} Ã¢â‚¬Â¢ In transit ${trip['in_transit_quantity'] ?? 0}',
+                      'Qty ${trip['total_quantity'] ?? 0} ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ In transit ${trip['in_transit_quantity'] ?? 0}',
                       style: TextStyle(
                         color: Theme.of(context).colorScheme.onSurfaceVariant,
                         fontSize: 12,
@@ -490,6 +491,15 @@ class _LogisticsScreenState extends State<LogisticsScreen> {
       appBar: AppBar(
         title: const Text('Vehicle Logistics'),
         actions: [
+          IconButton(
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => LogisticsReportsScreen(session: widget.session),
+              ),
+            ),
+            icon: const Icon(Icons.analytics_outlined),
+            tooltip: 'Reports',
+          ),
           IconButton(
             onPressed: _load,
             icon: const Icon(Icons.refresh),
@@ -519,7 +529,7 @@ class _LogisticsScreenState extends State<LogisticsScreen> {
                               ),
                             ),
                             Text(
-                              'Trip Ã¢â€ â€™ dispatch Ã¢â€ â€™ arrival Ã¢â€ â€™ receipt, with stock remaining authoritative in Inventory.',
+                              'Trip ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ dispatch ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ arrival ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ receipt, with stock remaining authoritative in Inventory.',
                             ),
                           ],
                         ),
@@ -698,11 +708,12 @@ class _LogisticsTripDialogState extends State<LogisticsTripDialog> {
         _loading = false;
       });
     } catch (error) {
-      if (mounted)
+      if (mounted) {
         setState(() {
           _loading = false;
           _error = _clean(error);
         });
+      }
     }
   }
 
@@ -874,8 +885,8 @@ class _LogisticsTripDialogState extends State<LogisticsTripDialog> {
       final hasVariance = result['has_variance'] == true;
       _message(
         hasVariance
-            ? 'Received with variance${receiptNumber == null ? '' : ' • $receiptNumber'}'
-            : 'Received${receiptNumber == null ? '' : ' • $receiptNumber'}',
+            ? 'Received with variance${receiptNumber == null ? '' : ' â€¢ $receiptNumber'}'
+            : 'Received${receiptNumber == null ? '' : ' â€¢ $receiptNumber'}',
       );
 
       await _load();
@@ -960,7 +971,7 @@ class _LogisticsTripDialogState extends State<LogisticsTripDialog> {
                   runSpacing: 8,
                   children: [
                     Text(
-                      'Route: ${_trip['from_location'] ?? '-'} Ã¢â€ â€™ ${_trip['to_location'] ?? '-'}',
+                      'Route: ${_trip['from_location'] ?? '-'} ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ ${_trip['to_location'] ?? '-'}',
                     ),
                     Text('Vehicle: ${_trip['vehicle_registration'] ?? '-'}'),
                     Text('Driver: ${_trip['driver_name'] ?? '-'}'),
@@ -1008,7 +1019,7 @@ class _LogisticsTripDialogState extends State<LogisticsTripDialog> {
                                     ],
                                   ),
                                   subtitle: Text(
-                                    '${doc['item_count'] ?? 0} item(s) Ã¢â‚¬Â¢ Qty ${doc['total_quantity'] ?? 0} Ã¢â‚¬Â¢ In transit ${doc['in_transit_quantity'] ?? 0}',
+                                    '${doc['item_count'] ?? 0} item(s) ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ Qty ${doc['total_quantity'] ?? 0} ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ In transit ${doc['in_transit_quantity'] ?? 0}',
                                   ),
                                   trailing:
                                       status == 'arrived' &&
@@ -1026,7 +1037,7 @@ class _LogisticsTripDialogState extends State<LogisticsTripDialog> {
                                         (item) => ListTile(
                                           dense: true,
                                           title: Text(
-                                            '${item['product_name'] ?? '-'} Ã¢â‚¬Â¢ ${item['sku'] ?? '-'}',
+                                            '${item['product_name'] ?? '-'} ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ ${item['sku'] ?? '-'}',
                                           ),
                                           subtitle: Text(
                                             'Tracking: ${item['tracking_mode'] ?? 'none'}',
