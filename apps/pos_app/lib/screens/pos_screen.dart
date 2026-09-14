@@ -62,6 +62,7 @@ class _PosScreenState extends State<PosScreen> {
   Timer? _commercialQuoteDebounce;
   String _orderDiscountType = 'fixed';
   List<Map<String, dynamic>> _commercialChargeCatalog = const [];
+  bool _additionalChargesEnabled = true;
   String? _commercialChargeToAdd;
   List<Map<String, dynamic>> _commercialChargeSelections = const [];
   Map<String, dynamic>? _commercialQuote;
@@ -3765,17 +3766,44 @@ class _PosScreenState extends State<PosScreen> {
     if (device == null || _offlineMode || _manualOffline || _cart.isEmpty) {
       return;
     }
-    if (_commercialChargeCatalog.isNotEmpty && !force) {
-      _scheduleCommercialQuote();
-      return;
-    }
+
     try {
+      final enabled = await _commercial.additionalChargesEnabled(
+        tenantId: widget.session.business.id,
+      );
+      if (!mounted) return;
+
+      setState(() {
+        _additionalChargesEnabled = enabled;
+        if (!enabled) {
+          _commercialChargeCatalog = const [];
+          _commercialChargeSelections = const [];
+          _commercialChargeToAdd = null;
+          _commercialChargeAmount.text = '0.00';
+          _commercialQuote = null;
+          _commercialQuoteError = null;
+          _paymentAllocations = const [];
+          _invalidateTotals();
+        }
+      });
+
+      if (!enabled) {
+        _scheduleCommercialQuote();
+        return;
+      }
+
+      if (_commercialChargeCatalog.isNotEmpty && !force) {
+        _scheduleCommercialQuote();
+        return;
+      }
+
       final rows = await _commercial.chargeCatalog(
         tenantId: widget.session.business.id,
         locationId: device.locationId,
         deviceId: device.deviceId,
       );
       if (!mounted) return;
+
       setState(() {
         _commercialChargeCatalog = rows;
         if (rows.isEmpty) {
@@ -4102,6 +4130,11 @@ class _PosScreenState extends State<PosScreen> {
             Text(
               'Discounts remain available offline. Additional charges require '
               'an online authoritative quote.',
+              style: TextStyle(fontSize: 9.3, color: scheme.onSurfaceVariant),
+            )
+          else if (!_additionalChargesEnabled)
+            Text(
+              'Additional Charges are disabled in Business Settings.',
               style: TextStyle(fontSize: 9.3, color: scheme.onSurfaceVariant),
             )
           else if (_commercialChargeCatalog.isEmpty)

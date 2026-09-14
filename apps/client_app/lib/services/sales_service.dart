@@ -39,6 +39,7 @@ class SalesService {
     String? requestId,
     String? supplyType,
     String? placeOfSupplyCode,
+    List<Map<String, dynamic>> chargeSelections = const [],
   }) async {
     final origin = await _originParams(tenantId, locationId: locationId);
     final payload = <String, dynamic>{
@@ -52,6 +53,7 @@ class SalesService {
       'device_id': origin['p_device_id'],
       'supply_type': supplyType,
       'place_of_supply_code': placeOfSupplyCode,
+      'charge_selections': chargeSelections,
     };
 
     final lease = await _requestIds.acquire(
@@ -69,10 +71,15 @@ class SalesService {
     );
     await gateway.initialize();
     final rpc = gateway.routeFor('sale');
+    if (rpc != 'gst_sale_create_v522') {
+      throw StateError(
+        'GST Sale route guard mismatch. Expected gst_sale_create_v522, got $rpc.',
+      );
+    }
 
     try {
       final result = await _supabase.rpc(
-        rpc,
+        'gst_client_sale_create_v611',
         params: {
           'p_tenant_id': tenantId,
           'p_customer_id': customerId,
@@ -86,10 +93,13 @@ class SalesService {
           'p_request_id': lease.requestId,
           'p_supply_type': supplyType,
           'p_place_of_supply_code': placeOfSupplyCode,
+          'p_charge_selections': chargeSelections,
         },
       );
       if (result is! Map) {
-        throw StateError('Unexpected response from $rpc.');
+        throw StateError(
+          'Unexpected response from gst_client_sale_create_v611.',
+        );
       }
       await _requestIds.complete(lease);
       return Map<String, dynamic>.from(result);

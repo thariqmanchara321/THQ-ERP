@@ -5062,13 +5062,19 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
       orderType = 'dine_in';
     }
 
+    bool additionalChargesEnabled;
     List<Map<String, dynamic>> catalog;
     try {
-      catalog = await _commercial.chargeCatalog(
+      additionalChargesEnabled = await _commercial.additionalChargesEnabled(
         tenantId: widget.session.business.id,
-        locationId: locationId,
-        deviceId: deviceId,
       );
+      catalog = additionalChargesEnabled
+          ? await _commercial.chargeCatalog(
+              tenantId: widget.session.business.id,
+              locationId: locationId,
+              deviceId: deviceId,
+            )
+          : const <Map<String, dynamic>>[];
     } catch (error) {
       _message('Commercial charge catalogue unavailable: $error');
       return null;
@@ -5726,8 +5732,10 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                   if (catalog.isEmpty) ...[
                     const SizedBox(height: 5),
                     Text(
-                      'No additional charge is configured yet. Add one from '
-                      'Products â†’ Additional Charges.',
+                      additionalChargesEnabled
+                          ? 'No additional charge is configured yet. Add one '
+                                'from Products â†’ Additional Charges.'
+                          : 'Additional Charges are disabled in Business Settings.',
                       style: TextStyle(
                         fontSize: 8.8,
                         color: scheme.onSurfaceVariant,

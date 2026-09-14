@@ -3,6 +3,7 @@ import 'package:erp_core/erp_core.dart';
 
 import '../models/client_session.dart';
 import '../services/inventory_service.dart';
+import '../widgets/product_classification_picker.dart';
 import '../widgets/product_unit_editor.dart';
 
 class AddProductScreen extends StatefulWidget {
@@ -401,25 +402,14 @@ class _AddProductScreenState extends State<AddProductScreen> {
 
                   const SizedBox(height: 16),
 
-                  _twoFields(
-                    TextFormField(
-                      controller: _categoryController,
-                      enabled: !_saving,
-                      decoration: const InputDecoration(
-                        labelText: 'Category',
-                        hintText: 'Starter Motor',
-                        border: OutlineInputBorder(),
-                      ),
-                    ),
-                    TextFormField(
-                      controller: _brandController,
-                      enabled: !_saving,
-                      decoration: const InputDecoration(
-                        labelText: 'Brand',
-                        hintText: 'Bosch',
-                        border: OutlineInputBorder(),
-                      ),
-                    ),
+                  ProductClassificationPicker(
+                    session: widget.session,
+                    enabled: !_saving,
+                    initialCategory: _categoryController.text,
+                    initialBrand: _brandController.text,
+                    onCategoryChanged: (value) =>
+                        _categoryController.text = value,
+                    onBrandChanged: (value) => _brandController.text = value,
                   ),
 
                   const SizedBox(height: 26),

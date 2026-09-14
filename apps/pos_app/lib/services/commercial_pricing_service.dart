@@ -89,6 +89,14 @@ class CommercialPricingService {
     return Map<String, dynamic>.from(raw);
   }
 
+  Future<bool> additionalChargesEnabled({required String tenantId}) async {
+    final raw = await _client.rpc(
+      'sales_additional_charges_enabled_v611',
+      params: {'p_tenant_id': tenantId},
+    );
+    return raw == true || raw?.toString().toLowerCase() == 'true';
+  }
+
   Future<String> saveChargeCatalog({
     required String tenantId,
     required String locationId,
