@@ -9,6 +9,7 @@ import '../services/inventory_service.dart';
 import '../services/location_scope_service.dart';
 import '../services/transport_service.dart';
 import '../widgets/searchable_select.dart';
+import 'logistics_screen.dart';
 
 class TransportServiceScreen extends StatefulWidget {
   final ClientSession session;
@@ -106,7 +107,7 @@ class _TransportServiceScreenState extends State<TransportServiceScreen> {
   String _money(dynamic value) {
     final number = _number(value);
     if (widget.session.currencyCode == 'INR') {
-      return '₹${number.toStringAsFixed(2)}';
+      return 'â‚¹${number.toStringAsFixed(2)}';
     }
     return '${widget.session.currencyCode} ${number.toStringAsFixed(2)}';
   }
@@ -373,7 +374,7 @@ class _TransportServiceScreenState extends State<TransportServiceScreen> {
                               (vehicle) => DropdownMenuItem<String?>(
                                 value: vehicle['id']?.toString(),
                                 child: Text(
-                                  '${vehicle['registration_number']} • ${vehicle['make_model'] ?? vehicle['vehicle_type'] ?? ''}',
+                                  '${vehicle['registration_number']} â€¢ ${vehicle['make_model'] ?? vehicle['vehicle_type'] ?? ''}',
                                 ),
                               ),
                             ),
@@ -433,7 +434,7 @@ class _TransportServiceScreenState extends State<TransportServiceScreen> {
                                     ]
                                     .whereType<String>()
                                     .where((v) => v.trim().isNotEmpty)
-                                    .join(' • '),
+                                    .join(' â€¢ '),
                             searchText:
                                 '${customer.name} ${customer.publicId} ${customer.phone ?? ''} ${customer.email ?? ''} ${customer.taxNumber ?? ''}',
                           ),
@@ -689,7 +690,7 @@ class _TransportServiceScreenState extends State<TransportServiceScreen> {
                                           v != null &&
                                           v.toString().trim().isNotEmpty,
                                     )
-                                    .join(' • '),
+                                    .join(' â€¢ '),
                             searchText:
                                 '${product.productName} ${product.variantName} ${product.sku} ${product.barcode ?? ''} ${product.partNumber ?? ''} ${product.searchCodes}',
                           ),
@@ -891,16 +892,16 @@ class _TransportServiceScreenState extends State<TransportServiceScreen> {
                 ],
               ),
               Text(
-                '${vehicle['vehicle_type'] ?? '-'} • ${vehicle['make_model'] ?? '-'}',
+                '${vehicle['vehicle_type'] ?? '-'} â€¢ ${vehicle['make_model'] ?? '-'}',
               ),
               Text(
-                'Driver: ${vehicle['driver_name'] ?? '-'} • ${vehicle['driver_phone'] ?? '-'}',
+                'Driver: ${vehicle['driver_name'] ?? '-'} â€¢ ${vehicle['driver_phone'] ?? '-'}',
               ),
               Text(
                 'Capacity: ${vehicle['capacity'] ?? 0} ${vehicle['capacity_unit'] ?? ''}',
               ),
               Text(
-                '${vehicle['open_jobs'] ?? 0} open jobs • ${active ? 'ACTIVE' : 'INACTIVE'}',
+                '${vehicle['open_jobs'] ?? 0} open jobs â€¢ ${active ? 'ACTIVE' : 'INACTIVE'}',
               ),
             ],
           ),
@@ -929,7 +930,7 @@ class _TransportServiceScreenState extends State<TransportServiceScreen> {
                     crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
                       Text(
-                        '${job['job_number'] ?? ''} • ${job['registration_number'] ?? 'No vehicle'}',
+                        '${job['job_number'] ?? ''} â€¢ ${job['registration_number'] ?? 'No vehicle'}',
                         style: const TextStyle(fontWeight: FontWeight.bold),
                       ),
                       Chip(
@@ -943,14 +944,14 @@ class _TransportServiceScreenState extends State<TransportServiceScreen> {
                     ],
                   ),
                   Text(
-                    '${job['from_location'] ?? '-'} → ${job['to_location'] ?? '-'} • ${job['distance_km'] ?? 0} km • ${job['service_date'] ?? '-'}',
+                    '${job['from_location'] ?? '-'} â†’ ${job['to_location'] ?? '-'} â€¢ ${job['distance_km'] ?? 0} km â€¢ ${job['service_date'] ?? '-'}',
                   ),
                   Text(
-                    'Qty ${job['quantity'] ?? 0} ${job['quantity_unit'] ?? ''} × ${_money(job['rate'])} • Customer: ${job['customer_name'] ?? 'Not assigned'}',
+                    'Qty ${job['quantity'] ?? 0} ${job['quantity_unit'] ?? ''} Ã— ${_money(job['rate'])} â€¢ Customer: ${job['customer_name'] ?? 'Not assigned'}',
                   ),
                   Text(
                     billed
-                        ? 'Sale: ${job['sale_number'] ?? job['sale_id']} • ${job['sale_status'] ?? ''}'
+                        ? 'Sale: ${job['sale_number'] ?? job['sale_id']} â€¢ ${job['sale_status'] ?? ''}'
                         : 'Tracking: ${job['tracking_code'] ?? '-'}',
                     style: TextStyle(
                       color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -1064,6 +1065,16 @@ class _TransportServiceScreenState extends State<TransportServiceScreen> {
                   ],
                 ),
               ),
+              FilledButton.tonalIcon(
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => LogisticsScreen(session: widget.session),
+                  ),
+                ),
+                icon: const Icon(Icons.route_outlined),
+                label: const Text('Logistics'),
+              ),
+              const SizedBox(width: 8),
               OutlinedButton.icon(
                 onPressed: _load,
                 icon: const Icon(Icons.refresh),

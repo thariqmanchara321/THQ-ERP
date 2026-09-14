@@ -129,6 +129,7 @@ class UiDesignProfile {
       useMaterial3: true,
       visualDensity: compact ? VisualDensity.compact : VisualDensity.standard,
       colorScheme: scheme,
+      canvasColor: surface,
       scaffoldBackgroundColor: background,
       fontFamily: null,
       textTheme: TextTheme(
@@ -350,8 +351,29 @@ class UiDesignProfile {
           return border;
         }),
       ),
+      dropdownMenuTheme: DropdownMenuThemeData(
+        textStyle: TextStyle(color: textPrimary, fontWeight: FontWeight.w600),
+        menuStyle: MenuStyle(
+          backgroundColor: WidgetStatePropertyAll(surface),
+          surfaceTintColor: const WidgetStatePropertyAll(Colors.transparent),
+        ),
+      ),
+      segmentedButtonTheme: SegmentedButtonThemeData(
+        style: ButtonStyle(
+          foregroundColor: WidgetStateProperty.resolveWith((states) {
+            return states.contains(WidgetState.selected)
+                ? scheme.onPrimary
+                : textPrimary;
+          }),
+          backgroundColor: WidgetStateProperty.resolveWith((states) {
+            return states.contains(WidgetState.selected) ? primary : surface;
+          }),
+          side: WidgetStatePropertyAll(BorderSide(color: border)),
+        ),
+      ),
       popupMenuTheme: PopupMenuThemeData(
         color: surface,
+        textStyle: TextStyle(color: textPrimary),
         surfaceTintColor: Colors.transparent,
         elevation: 3,
         shape: RoundedRectangleBorder(

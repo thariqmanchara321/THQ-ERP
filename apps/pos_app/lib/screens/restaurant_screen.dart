@@ -5078,6 +5078,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
 
     final noteController = TextEditingController(text: initialNote);
     final discountController = TextEditingController(text: '0.00');
+    final chargeAmountController = TextEditingController(text: '0.00');
 
     String customerId = initialCustomerId;
     DateTime dueDate = DateTime.now().add(const Duration(days: 30));
@@ -5088,6 +5089,11 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
     String? chargeToAdd = catalog.isNotEmpty
         ? catalog.first['id']?.toString()
         : null;
+    if (catalog.isNotEmpty) {
+      chargeAmountController.text = number(
+        catalog.first['selling_price'],
+      ).toStringAsFixed(2);
+    }
 
     Map<String, dynamic>? quote;
     String? quoteError;
@@ -5131,6 +5137,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
     if (!mounted) {
       noteController.dispose();
       discountController.dispose();
+      chargeAmountController.dispose();
       return null;
     }
 
@@ -5173,24 +5180,26 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
             final id = chargeToAdd;
             if (id == null || id.isEmpty || selectedCharge(id)) return;
 
-            Map<String, dynamic>? charge;
-            for (final row in catalog) {
-              if (row['id']?.toString() == id) {
-                charge = row;
-                break;
-              }
+            final amount =
+                double.tryParse(chargeAmountController.text.trim()) ?? -1;
+            if (amount < 0) {
+              ScaffoldMessenger.of(dialogContext).showSnackBar(
+                const SnackBar(
+                  content: Text(
+                    'Enter a valid non-negative additional charge amount.',
+                  ),
+                ),
+              );
+              return;
             }
-            if (charge == null) return;
 
             final next = chargeSelections
                 .map((row) => Map<String, dynamic>.from(row))
                 .toList();
             next.add(<String, dynamic>{
               'charge_id': id,
-              'quantity':
-                  (charge['default_quantity'] as num?)?.toDouble() ??
-                  double.tryParse('${charge['default_quantity']}') ??
-                  1.0,
+              'quantity': 1.0,
+              'amount': amount,
             });
 
             setDialogState(() => chargeSelections = next);
@@ -5521,6 +5530,22 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
               return '$kind â€¢ $name â€¢ ${_money(price)}';
             }
 
+            void selectCharge(String? value) {
+              Map<String, dynamic>? charge;
+              for (final row in catalog) {
+                if (row['id']?.toString() == value) {
+                  charge = row;
+                  break;
+                }
+              }
+              setDialogState(() {
+                chargeToAdd = value;
+                chargeAmountController.text = charge == null
+                    ? '0.00'
+                    : number(charge['selling_price']).toStringAsFixed(2);
+              });
+            }
+
             return Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
@@ -5572,6 +5597,8 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                         width: 132,
                         child: DropdownButtonFormField<String>(
                           initialValue: discountType,
+                          dropdownColor: scheme.surface,
+                          style: TextStyle(color: scheme.onSurface),
                           decoration: const InputDecoration(
                             labelText: 'Discount',
                             isDense: true,
@@ -5631,32 +5658,55 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                     ],
                   ),
                   const SizedBox(height: 8),
+                  DropdownButtonFormField<String>(
+                    key: ValueKey(
+                      'restaurant-additional-${chargeToAdd ?? ''}-'
+                      '${catalog.length}',
+                    ),
+                    initialValue: chargeToAdd,
+                    isExpanded: true,
+                    dropdownColor: scheme.surface,
+                    style: TextStyle(
+                      color: scheme.onSurface,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    decoration: const InputDecoration(
+                      labelText: 'Additional charge',
+                      hintText: 'Packaging / Delivery / Service...',
+                      isDense: true,
+                    ),
+                    items: catalog
+                        .map(
+                          (charge) => DropdownMenuItem<String>(
+                            value: charge['id']?.toString(),
+                            child: Text(
+                              chargeLabel(charge),
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(color: scheme.onSurface),
+                            ),
+                          ),
+                        )
+                        .toList(),
+                    onChanged: catalog.isEmpty || quoteBusy
+                        ? null
+                        : selectCharge,
+                  ),
+                  const SizedBox(height: 6),
                   Row(
                     children: [
                       Expanded(
-                        child: DropdownButtonFormField<String>(
-                          initialValue: chargeToAdd,
-                          isExpanded: true,
+                        child: TextField(
+                          controller: chargeAmountController,
+                          enabled: !quoteBusy && catalog.isNotEmpty,
+                          keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true,
+                          ),
                           decoration: const InputDecoration(
-                            labelText: 'Additional charge',
-                            hintText: 'Packaging / Delivery / Service...',
+                            labelText: 'Charge amount before GST',
+                            prefixIcon: Icon(Icons.currency_rupee, size: 16),
                             isDense: true,
                           ),
-                          items: catalog
-                              .map(
-                                (charge) => DropdownMenuItem<String>(
-                                  value: charge['id']?.toString(),
-                                  child: Text(
-                                    chargeLabel(charge),
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                              )
-                              .toList(),
-                          onChanged: catalog.isEmpty || quoteBusy
-                              ? null
-                              : (value) =>
-                                    setDialogState(() => chargeToAdd = value),
                         ),
                       ),
                       const SizedBox(width: 7),
@@ -5676,9 +5726,8 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                   if (catalog.isEmpty) ...[
                     const SizedBox(height: 5),
                     Text(
-                      'No charge service is configured yet. Create Packaging, '
-                      'Delivery, Service or Handling as a Service product and '
-                      'register it under Commercial Pricing Rules.',
+                      'No additional charge is configured yet. Add one from '
+                      'Products â†’ Additional Charges.',
                       style: TextStyle(
                         fontSize: 8.8,
                         color: scheme.onSurfaceVariant,
@@ -5699,14 +5748,20 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                             break;
                           }
                         }
-                        final label = charge == null
-                            ? 'Charge'
-                            : (charge['charge_kind']?.toString() ?? 'other')
-                                  .replaceAll('_', ' ')
-                                  .toUpperCase();
+                        final label =
+                            charge?['name']?.toString() ??
+                            charge?['code']?.toString() ??
+                            'Charge';
+                        final amount =
+                            (selection['amount'] as num?)?.toDouble() ??
+                            double.tryParse('${selection['amount']}') ??
+                            0.0;
                         return InputChip(
                           visualDensity: VisualDensity.compact,
-                          label: Text(label),
+                          label: Text(
+                            '$label ${_money(amount)}',
+                            style: TextStyle(color: scheme.onSurface),
+                          ),
                           onDeleted: quoteBusy ? null : () => removeCharge(id),
                         );
                       }).toList(),
@@ -5715,7 +5770,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                   if (chargeBreakdown.isNotEmpty) ...[
                     const SizedBox(height: 7),
                     Text(
-                      'Applied: ${chargeBreakdown.map((row) {
+                      'Applied including GST: ${chargeBreakdown.map((row) {
                         final name = row['name']?.toString() ?? row['code']?.toString() ?? 'Charge';
                         return '$name ${_money(row['line_total'])}';
                       }).join(' â€¢ ')}',
@@ -6114,6 +6169,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
 
     noteController.dispose();
     discountController.dispose();
+    chargeAmountController.dispose();
     return result;
   }
 

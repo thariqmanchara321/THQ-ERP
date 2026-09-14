@@ -56,9 +56,13 @@ class _PosScreenState extends State<PosScreen> {
     text: '0.00',
   );
   final TextEditingController _roundOff = TextEditingController(text: '0.00');
+  final TextEditingController _commercialChargeAmount = TextEditingController(
+    text: '0.00',
+  );
   Timer? _commercialQuoteDebounce;
   String _orderDiscountType = 'fixed';
   List<Map<String, dynamic>> _commercialChargeCatalog = const [];
+  String? _commercialChargeToAdd;
   List<Map<String, dynamic>> _commercialChargeSelections = const [];
   Map<String, dynamic>? _commercialQuote;
   bool _commercialQuoteLoading = false;
@@ -479,6 +483,7 @@ class _PosScreenState extends State<PosScreen> {
     _paymentReference.dispose();
     _orderDiscount.dispose();
     _roundOff.dispose();
+    _commercialChargeAmount.dispose();
     _notes.dispose();
     _holdLabel.dispose();
     _searchFocus.dispose();
@@ -3116,9 +3121,33 @@ class _PosScreenState extends State<PosScreen> {
     final scheme = Theme.of(context).colorScheme;
     final outOfStock =
         product.itemType == 'stock' && product.stockQuantity <= 0;
+    final cartIndex = _cart.indexWhere(
+      (line) => line.product.variantId == product.variantId,
+    );
+    final inCart = cartIndex >= 0;
+    final focused = _selectedProduct?.variantId == product.variantId;
+    final cartQuantity = inCart ? _cart[cartIndex].displayQuantity : '';
+
+    final cardColor = inCart
+        ? Color.alphaBlend(
+            scheme.primary.withValues(alpha: .14),
+            design.surface,
+          )
+        : focused
+        ? Color.alphaBlend(
+            scheme.secondary.withValues(alpha: .09),
+            design.surface,
+          )
+        : design.surface;
+
+    final borderColor = inCart
+        ? scheme.primary
+        : focused
+        ? scheme.secondary
+        : design.border;
 
     return Material(
-      color: design.surface,
+      color: cardColor,
       borderRadius: BorderRadius.circular(9),
       child: InkWell(
         onTap: outOfStock ? null : () => _add(product),
@@ -3127,7 +3156,7 @@ class _PosScreenState extends State<PosScreen> {
         child: Container(
           padding: const EdgeInsets.all(7),
           decoration: BoxDecoration(
-            border: Border.all(color: design.border),
+            border: Border.all(color: borderColor, width: inCart ? 1.6 : 1),
             borderRadius: BorderRadius.circular(9),
           ),
           child: Column(
@@ -3147,21 +3176,44 @@ class _PosScreenState extends State<PosScreen> {
                       ),
                     ),
                   ),
-                  const SizedBox(width: 4),
-                  Text(
-                    product.itemType == 'stock'
-                        ? _formatStock(
-                            product.stockQuantity,
-                            product.baseUnitCode,
-                          )
-                        : product.itemType,
-                    maxLines: 1,
-                    style: TextStyle(
-                      fontSize: 10.1,
-                      fontWeight: FontWeight.w700,
-                      color: outOfStock ? scheme.error : scheme.primary,
+                  if (inCart) ...[
+                    const SizedBox(width: 4),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 5,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: scheme.primaryContainer,
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Text(
+                        '$cartQuantity in cart',
+                        maxLines: 1,
+                        style: TextStyle(
+                          fontSize: 7.8,
+                          fontWeight: FontWeight.w900,
+                          color: scheme.onPrimaryContainer,
+                        ),
+                      ),
                     ),
-                  ),
+                  ] else ...[
+                    const SizedBox(width: 4),
+                    Text(
+                      product.itemType == 'stock'
+                          ? _formatStock(
+                              product.stockQuantity,
+                              product.baseUnitCode,
+                            )
+                          : product.itemType,
+                      maxLines: 1,
+                      style: TextStyle(
+                        fontSize: 10.1,
+                        fontWeight: FontWeight.w700,
+                        color: outOfStock ? scheme.error : scheme.primary,
+                      ),
+                    ),
+                  ],
                 ],
               ),
               const SizedBox(height: 3),
@@ -3169,7 +3221,8 @@ class _PosScreenState extends State<PosScreen> {
                 product.productName,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
+                style: TextStyle(
+                  color: scheme.onSurface,
                   fontSize: 12.5,
                   fontWeight: FontWeight.w800,
                   height: 1.08,
@@ -3190,16 +3243,25 @@ class _PosScreenState extends State<PosScreen> {
                       _money(product.sellingPrice),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
+                      style: TextStyle(
+                        color: scheme.onSurface,
                         fontSize: 13,
                         fontWeight: FontWeight.w900,
                       ),
                     ),
                   ),
                   Icon(
-                    outOfStock ? Icons.block : Icons.add_circle,
+                    inCart
+                        ? Icons.check_circle
+                        : outOfStock
+                        ? Icons.block
+                        : Icons.add_circle,
                     size: 17,
-                    color: outOfStock ? scheme.error : scheme.primary,
+                    color: inCart
+                        ? scheme.primary
+                        : outOfStock
+                        ? scheme.error
+                        : scheme.primary,
                   ),
                 ],
               ),
@@ -3716,6 +3778,20 @@ class _PosScreenState extends State<PosScreen> {
       if (!mounted) return;
       setState(() {
         _commercialChargeCatalog = rows;
+        if (rows.isEmpty) {
+          _commercialChargeToAdd = null;
+          _commercialChargeAmount.text = '0.00';
+        } else if (_commercialChargeToAdd == null ||
+            !rows.any(
+              (row) => row['id']?.toString() == _commercialChargeToAdd,
+            )) {
+          _commercialChargeToAdd = rows.first['id']?.toString();
+          final amount =
+              (rows.first['selling_price'] as num?)?.toDouble() ??
+              double.tryParse('${rows.first['selling_price']}') ??
+              0.0;
+          _commercialChargeAmount.text = amount.toStringAsFixed(2);
+        }
         _commercialQuoteError = null;
       });
       _scheduleCommercialQuote();
@@ -3786,28 +3862,67 @@ class _PosScreenState extends State<PosScreen> {
     }
   }
 
+  Map<String, dynamic>? _commercialCatalogCharge(String? id) {
+    if (id == null || id.isEmpty) return null;
+    for (final row in _commercialChargeCatalog) {
+      if (row['id']?.toString() == id) return row;
+    }
+    return null;
+  }
+
   bool _commercialChargeSelected(String id) => _commercialChargeSelections.any(
     (row) => row['charge_id']?.toString() == id,
   );
 
-  void _toggleCommercialCharge(Map<String, dynamic> charge, bool selected) {
-    final id = charge['id']?.toString() ?? '';
-    if (id.isEmpty) return;
+  void _selectCommercialCharge(String? id) {
+    final charge = _commercialCatalogCharge(id);
     setState(() {
-      final next = _commercialChargeSelections
-          .map((row) => Map<String, dynamic>.from(row))
-          .toList();
-      next.removeWhere((row) => row['charge_id']?.toString() == id);
-      if (selected) {
-        next.add(<String, dynamic>{
-          'charge_id': id,
-          'quantity':
-              (charge['default_quantity'] as num?)?.toDouble() ??
-              double.tryParse('${charge['default_quantity']}') ??
-              1.0,
-        });
+      _commercialChargeToAdd = id;
+      if (charge == null) {
+        _commercialChargeAmount.text = '0.00';
+      } else {
+        final amount =
+            (charge['selling_price'] as num?)?.toDouble() ??
+            double.tryParse('${charge['selling_price']}') ??
+            0.0;
+        _commercialChargeAmount.text = amount.toStringAsFixed(2);
       }
-      _commercialChargeSelections = next;
+    });
+  }
+
+  void _addCommercialCharge() {
+    final id = _commercialChargeToAdd;
+    if (id == null || id.isEmpty) return;
+
+    if (_commercialChargeSelected(id)) {
+      _message('This additional charge is already on the invoice.');
+      return;
+    }
+
+    final amount = double.tryParse(_commercialChargeAmount.text.trim());
+    if (amount == null || amount < 0) {
+      _message('Enter a valid non-negative additional charge amount.');
+      return;
+    }
+
+    setState(() {
+      _commercialChargeSelections = [
+        ..._commercialChargeSelections,
+        <String, dynamic>{'charge_id': id, 'quantity': 1.0, 'amount': amount},
+      ];
+      _commercialQuote = null;
+      _paymentAllocations = const [];
+      _invalidateTotals();
+    });
+    _scheduleCommercialQuote();
+  }
+
+  void _removeCommercialCharge(String id) {
+    setState(() {
+      _commercialChargeSelections = _commercialChargeSelections
+          .where((row) => row['charge_id']?.toString() != id)
+          .map((row) => Map<String, dynamic>.from(row))
+          .toList(growable: false);
       _commercialQuote = null;
       _paymentAllocations = const [];
       _invalidateTotals();
@@ -3876,6 +3991,19 @@ class _PosScreenState extends State<PosScreen> {
     final scheme = Theme.of(context).colorScheme;
     final offline = _offlineMode || _manualOffline;
 
+    String chargeLabel(Map<String, dynamic> charge) {
+      final kind = (charge['charge_kind']?.toString() ?? 'other')
+          .replaceAll('_', ' ')
+          .toUpperCase();
+      final name =
+          charge['name']?.toString() ?? charge['code']?.toString() ?? 'Charge';
+      final amount =
+          (charge['selling_price'] as num?)?.toDouble() ??
+          double.tryParse('${charge['selling_price']}') ??
+          0.0;
+      return '$kind â€¢ $name â€¢ ${_money(amount)}';
+    }
+
     return Container(
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
@@ -3891,7 +4019,7 @@ class _PosScreenState extends State<PosScreen> {
               Icon(Icons.percent_rounded, size: 16, color: scheme.primary),
               const SizedBox(width: 6),
               const Text(
-                'Discount & Charges',
+                'Discount & Additional Charges',
                 style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w900),
               ),
               const Spacer(),
@@ -3919,6 +4047,8 @@ class _PosScreenState extends State<PosScreen> {
                 width: 118,
                 child: DropdownButtonFormField<String>(
                   initialValue: _orderDiscountType,
+                  dropdownColor: scheme.surface,
+                  style: TextStyle(color: scheme.onSurface),
                   decoration: const InputDecoration(
                     labelText: 'Discount',
                     isDense: true,
@@ -3967,44 +4097,107 @@ class _PosScreenState extends State<PosScreen> {
               ),
             ],
           ),
-          const SizedBox(height: 7),
+          const SizedBox(height: 8),
           if (offline)
             Text(
-              'Fixed and percentage discounts remain available offline. '
-              'GST-classified packaging/delivery/service charges require '
-              'an online authoritative quote in this checkpoint.',
+              'Discounts remain available offline. Additional charges require '
+              'an online authoritative quote.',
               style: TextStyle(fontSize: 9.3, color: scheme.onSurfaceVariant),
             )
           else if (_commercialChargeCatalog.isEmpty)
             Text(
-              'No classified charges configured. Create Packaging, Delivery, '
-              'Service or Handling charge products before using this section.',
+              'No additional charges are configured. Add them from Products â†’ '
+              'Additional Charges.',
               style: TextStyle(fontSize: 9.3, color: scheme.onSurfaceVariant),
             )
-          else
+          else ...[
+            DropdownButtonFormField<String>(
+              key: ValueKey(
+                'pos-additional-${_commercialChargeToAdd ?? ''}-'
+                '${_commercialChargeCatalog.length}',
+              ),
+              initialValue: _commercialChargeToAdd,
+              isExpanded: true,
+              dropdownColor: scheme.surface,
+              style: TextStyle(
+                color: scheme.onSurface,
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+              ),
+              decoration: const InputDecoration(
+                labelText: 'Additional charge',
+                hintText: 'Packaging / Delivery / Service...',
+                isDense: true,
+              ),
+              items: _commercialChargeCatalog
+                  .map(
+                    (charge) => DropdownMenuItem<String>(
+                      value: charge['id']?.toString(),
+                      child: Text(
+                        chargeLabel(charge),
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(color: scheme.onSurface),
+                      ),
+                    ),
+                  )
+                  .toList(),
+              onChanged: _saving ? null : _selectCommercialCharge,
+            ),
+            const SizedBox(height: 6),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _commercialChargeAmount,
+                    enabled: !_saving,
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    decoration: const InputDecoration(
+                      labelText: 'Charge amount before GST',
+                      prefixIcon: Icon(Icons.currency_rupee, size: 16),
+                      isDense: true,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 6),
+                FilledButton.tonalIcon(
+                  onPressed: _saving || _commercialChargeToAdd == null
+                      ? null
+                      : _addCommercialCharge,
+                  icon: const Icon(Icons.add, size: 16),
+                  label: const Text('Add'),
+                ),
+              ],
+            ),
+          ],
+          if (_commercialChargeSelections.isNotEmpty) ...[
+            const SizedBox(height: 7),
             Wrap(
               spacing: 5,
               runSpacing: 5,
-              children: _commercialChargeCatalog.map((charge) {
-                final id = charge['id']?.toString() ?? '';
+              children: _commercialChargeSelections.map((selection) {
+                final id = selection['charge_id']?.toString() ?? '';
+                final charge = _commercialCatalogCharge(id);
                 final name =
-                    charge['name']?.toString() ??
-                    charge['code']?.toString() ??
+                    charge?['name']?.toString() ??
+                    charge?['code']?.toString() ??
                     'Charge';
-                final price =
-                    (charge['selling_price'] as num?)?.toDouble() ??
-                    double.tryParse('${charge['selling_price']}') ??
+                final amount =
+                    (selection['amount'] as num?)?.toDouble() ??
+                    double.tryParse('${selection['amount']}') ??
                     0.0;
-                return FilterChip(
-                  selected: _commercialChargeSelected(id),
-                  label: Text('$name ${_money(price)}'),
-                  onSelected: _saving
-                      ? null
-                      : (selected) => _toggleCommercialCharge(charge, selected),
+                return InputChip(
                   visualDensity: VisualDensity.compact,
+                  label: Text(
+                    '$name ${_money(amount)}',
+                    style: TextStyle(color: scheme.onSurface),
+                  ),
+                  onDeleted: _saving ? null : () => _removeCommercialCharge(id),
                 );
               }).toList(),
             ),
+          ],
           if (_commercialChargeBreakdown.isNotEmpty) ...[
             const SizedBox(height: 6),
             Wrap(
@@ -4021,7 +4214,10 @@ class _PosScreenState extends State<PosScreen> {
                     0.0;
                 return Chip(
                   visualDensity: VisualDensity.compact,
-                  label: Text('$name ${_money(total)}'),
+                  label: Text(
+                    '$name incl. GST ${_money(total)}',
+                    style: TextStyle(color: scheme.onSurface),
+                  ),
                 );
               }).toList(),
             ),

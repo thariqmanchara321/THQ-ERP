@@ -305,6 +305,34 @@ class InventoryService {
     );
   }
 
+  Future<Map<String, dynamic>> productClassifications({
+    required String tenantId,
+  }) async {
+    final result = await _supabase.rpc(
+      'inventory_product_classifications_v611',
+      params: {'p_tenant_id': tenantId},
+    );
+    if (result is! Map) {
+      throw StateError('Unexpected product-classification response.');
+    }
+    return Map<String, dynamic>.from(result);
+  }
+
+  Future<Map<String, dynamic>> addProductClassification({
+    required String tenantId,
+    required String kind,
+    required String name,
+  }) async {
+    final result = await _supabase.rpc(
+      'inventory_product_classification_add_v611',
+      params: {'p_tenant_id': tenantId, 'p_kind': kind, 'p_name': name.trim()},
+    );
+    if (result is! Map) {
+      throw StateError('Unexpected classification-create response.');
+    }
+    return Map<String, dynamic>.from(result);
+  }
+
   Future<Map<String, dynamic>> adjustStock({
     required String tenantId,
     required String variantId,
