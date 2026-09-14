@@ -171,6 +171,30 @@ class LogisticsService {
     return Map<String, dynamic>.from(result as Map);
   }
 
+  Future<Map<String, dynamic>> reportsDashboard({
+    required String tenantId,
+    String? locationId,
+    required DateTime fromDate,
+    required DateTime toDate,
+  }) async {
+    String dateOnly(DateTime value) =>
+        '${value.year.toString().padLeft(4, '0')}-${value.month.toString().padLeft(2, '0')}-${value.day.toString().padLeft(2, '0')}';
+
+    final result = await _supabase.rpc(
+      'logistics_reports_dashboard_v1',
+      params: {
+        'p_tenant_id': tenantId,
+        'p_location_id': locationId,
+        'p_from_date': dateOnly(fromDate),
+        'p_to_date': dateOnly(toDate),
+      },
+    );
+    if (result is Map) {
+      return Map<String, dynamic>.from(result);
+    }
+    throw StateError('Unexpected logistics reports response.');
+  }
+
   Future<Map<String, dynamic>> close({
     required String tenantId,
     required String tripId,
