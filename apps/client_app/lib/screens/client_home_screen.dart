@@ -53,6 +53,7 @@ import 'suppliers_screen.dart';
 import 'support_screen.dart';
 import 'team_access_screen.dart';
 import 'transport_service_screen.dart';
+import 'logistics_screen.dart';
 
 class ClientHomeScreen extends StatefulWidget {
   final ClientSession session;
@@ -366,6 +367,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
     'users' => Icons.manage_accounts_outlined,
     'production' => Icons.factory_outlined,
     'transport_service' => Icons.local_shipping_outlined,
+    'vehicle_logistics' => Icons.route_outlined,
     'restaurant' || 'restaurant_orders' => Icons.restaurant_outlined,
     'stock_transfers' => Icons.swap_horiz_outlined,
     'cashier_shifts' => Icons.account_balance_wallet_outlined,
@@ -1353,6 +1355,7 @@ class _ModulePage extends StatelessWidget {
       'users' => TeamAccessScreen(session: session),
       'production' => ProductionScreen(session: session),
       'transport_service' => TransportServiceScreen(session: session),
+      'vehicle_logistics' => LogisticsScreen(session: session),
       'restaurant' || 'restaurant_orders' => RestaurantScreen(session: session),
       'workshop' => WorkshopScreen(session: session),
       'healthcare' ||

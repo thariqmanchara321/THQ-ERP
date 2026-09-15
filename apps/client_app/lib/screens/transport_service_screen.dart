@@ -9,7 +9,6 @@ import '../services/inventory_service.dart';
 import '../services/location_scope_service.dart';
 import '../services/transport_service.dart';
 import '../widgets/searchable_select.dart';
-import 'logistics_screen.dart';
 
 class TransportServiceScreen extends StatefulWidget {
   final ClientSession session;
@@ -252,9 +251,13 @@ class _TransportServiceScreenState extends State<TransportServiceScreen> {
               child: const Text('Cancel'),
             ),
             FilledButton(
-              onPressed: registration.text.trim().isEmpty
-                  ? null
-                  : () => Navigator.pop(dialogContext, true),
+              onPressed: () {
+                if (registration.text.trim().isEmpty) {
+                  _message('Registration number is required.');
+                  return;
+                }
+                Navigator.pop(dialogContext, true);
+              },
               child: const Text('Save'),
             ),
           ],
@@ -1065,16 +1068,6 @@ class _TransportServiceScreenState extends State<TransportServiceScreen> {
                   ],
                 ),
               ),
-              FilledButton.tonalIcon(
-                onPressed: () => Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => LogisticsScreen(session: widget.session),
-                  ),
-                ),
-                icon: const Icon(Icons.route_outlined),
-                label: const Text('Logistics'),
-              ),
-              const SizedBox(width: 8),
               OutlinedButton.icon(
                 onPressed: _load,
                 icon: const Icon(Icons.refresh),
