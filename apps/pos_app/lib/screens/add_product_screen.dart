@@ -3,6 +3,8 @@ import 'package:erp_core/erp_core.dart';
 
 import '../models/client_session.dart';
 import '../services/inventory_service.dart';
+import '../widgets/additional_charges_dialog.dart';
+import '../widgets/product_classification_picker.dart';
 import '../widgets/product_unit_editor.dart';
 
 class AddProductScreen extends StatefulWidget {
@@ -30,10 +32,8 @@ class _AddProductScreenState extends State<AddProductScreen> {
   final _skuController = TextEditingController();
   final _descriptionController = TextEditingController();
 
-  final _categoryController = TextEditingController();
-
-  final _brandController = TextEditingController();
-
+  String _categoryName = '';
+  String _brandName = '';
   final _barcodeController = TextEditingController();
 
   final _partNumberController = TextEditingController();
@@ -51,6 +51,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
   final _openingStockController = TextEditingController(text: '0');
 
   String _itemType = 'stock';
+
   List<InventoryUnit> _units = const [];
   String _baseUnitCode = 'PCS';
   ProductUnitEditorController? _unitEditor;
@@ -183,8 +184,8 @@ class _AddProductScreenState extends State<AddProductScreen> {
         sku: _skuController.text,
         itemType: _itemType,
         description: _descriptionController.text,
-        categoryName: _categoryController.text,
-        brandName: _brandController.text,
+        categoryName: _categoryName,
+        brandName: _brandName,
         barcode: _barcodeController.text,
         partNumber: _partNumberController.text,
         costPrice: _number(_costPriceController),
@@ -199,10 +200,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
         baseUnitCode: _unitEditor?.baseCode ?? _baseUnitCode,
         units: _unitEditor?.toPayload() ?? const <Map<String, dynamic>>[],
       );
-
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return;
 
       Navigator.of(context).pop(true);
     } catch (error) {
@@ -234,8 +232,6 @@ class _AddProductScreenState extends State<AddProductScreen> {
     _nameController.dispose();
     _skuController.dispose();
     _descriptionController.dispose();
-    _categoryController.dispose();
-    _brandController.dispose();
     _barcodeController.dispose();
     _partNumberController.dispose();
     _costPriceController.dispose();
@@ -399,25 +395,13 @@ class _AddProductScreenState extends State<AddProductScreen> {
 
                   const SizedBox(height: 16),
 
-                  _twoFields(
-                    TextFormField(
-                      controller: _categoryController,
-                      enabled: !_saving,
-                      decoration: const InputDecoration(
-                        labelText: 'Category',
-                        hintText: 'Starter Motor',
-                        border: OutlineInputBorder(),
-                      ),
-                    ),
-                    TextFormField(
-                      controller: _brandController,
-                      enabled: !_saving,
-                      decoration: const InputDecoration(
-                        labelText: 'Brand',
-                        hintText: 'Bosch',
-                        border: OutlineInputBorder(),
-                      ),
-                    ),
+                  ProductClassificationPicker(
+                    session: widget.session,
+                    enabled: !_saving,
+                    initialCategory: _categoryName,
+                    initialBrand: _brandName,
+                    onCategoryChanged: (value) => _categoryName = value,
+                    onBrandChanged: (value) => _brandName = value,
                   ),
 
                   const SizedBox(height: 26),
@@ -551,6 +535,47 @@ class _AddProductScreenState extends State<AddProductScreen> {
                         suffixText: '%',
                         border: OutlineInputBorder(),
                       ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 26),
+
+                  const Text(
+                    'Additional Charges',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+                  ),
+
+                  const SizedBox(height: 8),
+
+                  Text(
+                    'Additional charges are global billing options. Create '
+                    'Packaging, Delivery, Service, Handling or Convenience '
+                    'charges here; every active charge will appear in the '
+                    'billing dropdown and its amount can be edited per invoice.',
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+
+                  const SizedBox(height: 12),
+
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: OutlinedButton.icon(
+                      onPressed: _saving
+                          ? null
+                          : () async {
+                              await showDialog<void>(
+                                context: context,
+                                barrierDismissible: false,
+                                builder: (_) => AdditionalChargesDialog(
+                                  session: widget.session,
+                                  locationId: widget.locationId,
+                                ),
+                              );
+                            },
+                      icon: const Icon(Icons.add_card_outlined),
+                      label: const Text('Manage Additional Charges'),
                     ),
                   ),
 

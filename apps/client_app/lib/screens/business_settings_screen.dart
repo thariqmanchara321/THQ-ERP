@@ -4,6 +4,7 @@ import 'package:erp_core/erp_core.dart';
 
 import '../models/client_session.dart';
 import '../services/tenant_settings_service.dart';
+import '../widgets/additional_charges_dialog.dart';
 import 'custom_fields_screen.dart';
 import '../widgets/payment_method_ledger_settings.dart';
 
@@ -231,6 +232,76 @@ class _BusinessSettingsScreenState extends State<BusinessSettingsScreen> {
                             );
                           }
                         },
+                ),
+              ]),
+              const SizedBox(height: 16),
+              _section('Additional Charges', [
+                Row(
+                  children: [
+                    const Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Enable Additional Charges',
+                            style: TextStyle(fontWeight: FontWeight.w800),
+                          ),
+                          SizedBox(height: 3),
+                          Text(
+                            'One switch controls Client Sales, POS and Restaurant billing.',
+                          ),
+                        ],
+                      ),
+                    ),
+                    SegmentedButton<bool>(
+                      segments: const [
+                        ButtonSegment<bool>(value: false, label: Text('No')),
+                        ButtonSegment<bool>(value: true, label: Text('Yes')),
+                      ],
+                      selected: <bool>{
+                        _value('sales.additional_charges_enabled', true),
+                      },
+                      onSelectionChanged: !_canManage
+                          ? null
+                          : (values) {
+                              if (values.isEmpty) return;
+                              setState(
+                                () =>
+                                    _settings['sales.additional_charges_enabled'] =
+                                        values.first,
+                              );
+                            },
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.add_card_outlined),
+                  title: const Text('Manage Additional Charges'),
+                  subtitle: const Text(
+                    'Add Packaging, Delivery, Service, Handling, Convenience '
+                    'or your own custom charge. The same catalogue is shared '
+                    'by Client, POS and Restaurant.',
+                  ),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: !_canManage
+                      ? null
+                      : () async {
+                          await showDialog<void>(
+                            context: context,
+                            barrierDismissible: false,
+                            builder: (_) => AdditionalChargesDialog(
+                              session: widget.session,
+                            ),
+                          );
+                        },
+                ),
+                const SizedBox(height: 6),
+                const Text(
+                  'Charge defaults are saved centrally. During billing the '
+                  'amount can be edited for that invoice while GST remains '
+                  'calculated through the classified service item.',
                 ),
               ]),
               const SizedBox(height: 16),

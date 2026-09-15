@@ -14,6 +14,7 @@ class GstV520RouteGuard {
     'gst_mobile_pos_sale_sync_v522',
     'gst_sales_return_create_v520',
     'gst_restaurant_order_bill_v520',
+    'gst_restaurant_order_bill_v522',
     'gst_pos_offline_sale_sync_v520',
     'pos_offline_api_contract_v520',
     'gst_mobile_pos_sale_sync_v520',

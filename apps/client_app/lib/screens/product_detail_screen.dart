@@ -6,6 +6,7 @@ import '../models/client_session.dart';
 import '../models/inventory_product_detail.dart';
 import '../models/stock_movement.dart';
 import '../services/inventory_service.dart';
+import '../widgets/product_classification_picker.dart';
 import '../widgets/product_unit_editor.dart';
 import 'product_units_screen.dart';
 import 'product_identifiers_screen.dart';
@@ -1218,23 +1219,14 @@ class _EditProductDialogState extends State<_EditProductDialog> {
 
                 const SizedBox(height: 16),
 
-                _twoFields(
-                  TextFormField(
-                    controller: _categoryController,
-                    enabled: !_saving,
-                    decoration: const InputDecoration(
-                      labelText: 'Category',
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                  TextFormField(
-                    controller: _brandController,
-                    enabled: !_saving,
-                    decoration: const InputDecoration(
-                      labelText: 'Brand',
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
+                ProductClassificationPicker(
+                  session: widget.session,
+                  enabled: !_saving,
+                  initialCategory: _categoryController.text,
+                  initialBrand: _brandController.text,
+                  onCategoryChanged: (value) =>
+                      _categoryController.text = value,
+                  onBrandChanged: (value) => _brandController.text = value,
                 ),
 
                 const SizedBox(height: 16),

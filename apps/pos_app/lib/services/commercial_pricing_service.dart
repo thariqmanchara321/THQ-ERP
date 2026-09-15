@@ -1,0 +1,228 @@
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+class CommercialPricingService {
+  CommercialPricingService({SupabaseClient? client})
+    : _client = client ?? Supabase.instance.client;
+
+  final SupabaseClient _client;
+
+  Future<List<Map<String, dynamic>>> chargeCatalog({
+    required String tenantId,
+    required String locationId,
+    required String deviceId,
+    bool activeOnly = true,
+  }) async {
+    final raw = await _client.rpc(
+      'sales_charge_catalog_list_pos_v610',
+      params: {
+        'p_tenant_id': tenantId,
+        'p_location_id': locationId,
+        'p_device_id': deviceId,
+        'p_active_only': activeOnly,
+      },
+    );
+    if (raw is! Map) {
+      throw StateError('Unexpected commercial charge-catalog response.');
+    }
+    final map = Map<String, dynamic>.from(raw);
+    return (map['charges'] as List? ?? const [])
+        .whereType<Map>()
+        .map((row) => Map<String, dynamic>.from(row))
+        .toList(growable: false);
+  }
+
+  Future<Map<String, dynamic>> quote({
+    required String tenantId,
+    required String locationId,
+    required String deviceId,
+    required String orderType,
+    required List<Map<String, dynamic>> items,
+    String discountType = 'none',
+    double discountValue = 0,
+    List<Map<String, dynamic>> chargeSelections = const [],
+  }) async {
+    final raw = await _client.rpc(
+      'sales_commercial_quote_v610',
+      params: {
+        'p_tenant_id': tenantId,
+        'p_location_id': locationId,
+        'p_device_id': deviceId,
+        'p_order_type': orderType,
+        'p_items': items,
+        'p_discount_type': discountType,
+        'p_discount_value': discountValue,
+        'p_charge_selections': chargeSelections,
+      },
+    );
+    if (raw is! Map) {
+      throw StateError('Unexpected commercial pricing quote response.');
+    }
+    return Map<String, dynamic>.from(raw);
+  }
+
+  Future<Map<String, dynamic>> captureSummary({
+    required String tenantId,
+    required String locationId,
+    required String deviceId,
+    required String saleId,
+    String sourceType = 'sale',
+    String? sourceId,
+    required String orderType,
+    required Map<String, dynamic> summary,
+  }) async {
+    final raw = await _client.rpc(
+      'sales_commercial_summary_capture_v610',
+      params: {
+        'p_tenant_id': tenantId,
+        'p_location_id': locationId,
+        'p_device_id': deviceId,
+        'p_sale_id': saleId,
+        'p_source_type': sourceType,
+        'p_source_id': sourceId,
+        'p_order_type': orderType,
+        'p_summary': summary,
+      },
+    );
+    if (raw is! Map) {
+      throw StateError('Unexpected commercial summary response.');
+    }
+    return Map<String, dynamic>.from(raw);
+  }
+
+  Future<bool> additionalChargesEnabled({required String tenantId}) async {
+    final raw = await _client.rpc(
+      'sales_additional_charges_enabled_v611',
+      params: {'p_tenant_id': tenantId},
+    );
+    return raw == true || raw?.toString().toLowerCase() == 'true';
+  }
+
+  Future<String> saveChargeCatalog({
+    required String tenantId,
+    required String locationId,
+    required String deviceId,
+    String? chargeId,
+    required String code,
+    required String name,
+    required String chargeKind,
+    required String serviceVariantId,
+    double defaultQuantity = 1,
+    bool autoDineIn = false,
+    bool autoTakeaway = false,
+    bool autoDelivery = false,
+    bool active = true,
+  }) async {
+    final result = await _client.rpc(
+      'sales_charge_catalog_put_pos_v610',
+      params: {
+        'p_tenant_id': tenantId,
+        'p_location_id': locationId,
+        'p_device_id': deviceId,
+        'p_charge_id': chargeId,
+        'p_code': code,
+        'p_name': name,
+        'p_charge_kind': chargeKind,
+        'p_service_variant_id': serviceVariantId,
+        'p_default_quantity': defaultQuantity,
+        'p_auto_dine_in': autoDineIn,
+        'p_auto_takeaway': autoTakeaway,
+        'p_auto_delivery': autoDelivery,
+        'p_active': active,
+      },
+    );
+    return result?.toString() ?? '';
+  }
+
+  Future<String> saveProductChargeRule({
+    required String tenantId,
+    required String locationId,
+    required String deviceId,
+    String? ruleId,
+    required String productVariantId,
+    required String chargeCatalogId,
+    String orderType = 'delivery',
+    String quantityMode = 'per_unit',
+    double quantityValue = 1,
+    bool active = true,
+  }) async {
+    final result = await _client.rpc(
+      'product_charge_rule_put_pos_v610',
+      params: {
+        'p_tenant_id': tenantId,
+        'p_location_id': locationId,
+        'p_device_id': deviceId,
+        'p_rule_id': ruleId,
+        'p_product_variant_id': productVariantId,
+        'p_charge_catalog_id': chargeCatalogId,
+        'p_order_type': orderType,
+        'p_quantity_mode': quantityMode,
+        'p_quantity_value': quantityValue,
+        'p_active': active,
+      },
+    );
+    return result?.toString() ?? '';
+  }
+
+  Future<List<Map<String, dynamic>>> productChargeRules({
+    required String tenantId,
+    required String locationId,
+    required String deviceId,
+    required String productVariantId,
+  }) async {
+    final raw = await _client.rpc(
+      'product_charge_rules_list_pos_v610',
+      params: {
+        'p_tenant_id': tenantId,
+        'p_product_variant_id': productVariantId,
+        'p_location_id': locationId,
+        'p_device_id': deviceId,
+      },
+    );
+    if (raw is! Map) {
+      throw StateError('Unexpected product commercial-rule response.');
+    }
+    final map = Map<String, dynamic>.from(raw);
+    return (map['rules'] as List? ?? const [])
+        .whereType<Map>()
+        .map((row) => Map<String, dynamic>.from(row))
+        .toList(growable: false);
+  }
+
+  Future<Map<String, dynamic>> saleTrace({
+    required String tenantId,
+    required String saleId,
+  }) async {
+    final raw = await _client.rpc(
+      'sales_commercial_trace_v610',
+      params: {'p_tenant_id': tenantId, 'p_sale_id': saleId},
+    );
+    if (raw is! Map) {
+      throw StateError('Unexpected commercial sale-trace response.');
+    }
+    return Map<String, dynamic>.from(raw);
+  }
+
+  Future<Map<String, dynamic>> commercialReport({
+    required String tenantId,
+    required DateTime from,
+    required DateTime to,
+  }) async {
+    String date(DateTime value) =>
+        '${value.year.toString().padLeft(4, '0')}-'
+        '${value.month.toString().padLeft(2, '0')}-'
+        '${value.day.toString().padLeft(2, '0')}';
+
+    final raw = await _client.rpc(
+      'reports_commercial_summary_v610',
+      params: {
+        'p_tenant_id': tenantId,
+        'p_from_date': date(from),
+        'p_to_date': date(to),
+      },
+    );
+    if (raw is! Map) {
+      throw StateError('Unexpected commercial report response.');
+    }
+    return Map<String, dynamic>.from(raw);
+  }
+}

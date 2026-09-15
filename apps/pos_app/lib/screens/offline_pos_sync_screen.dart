@@ -4,6 +4,8 @@ import '../models/client_session.dart';
 import '../services/offline_pos_service.dart';
 import '../services/offline_pos_sync_service.dart';
 
+enum _QueueView { notSynced, synced, all }
+
 class OfflinePosSyncScreen extends StatefulWidget {
   final ClientSession session;
   const OfflinePosSyncScreen({super.key, required this.session});
@@ -15,8 +17,10 @@ class OfflinePosSyncScreen extends StatefulWidget {
 class _OfflinePosSyncScreenState extends State<OfflinePosSyncScreen> {
   final OfflinePosService _local = OfflinePosService.instance;
   final OfflinePosSyncService _sync = OfflinePosSyncService();
+
   bool _busy = false;
   String? _message;
+  _QueueView _view = _QueueView.notSynced;
   List<OfflineInvoiceRecord> _rows = const [];
   OfflineQueueSummary _summary = const OfflineQueueSummary(
     pending: 0,
@@ -37,7 +41,11 @@ class _OfflinePosSyncScreenState extends State<OfflinePosSyncScreen> {
   Future<void> _refresh() async {
     if (_deviceId.isEmpty) return;
     await _local.initialize();
-    final rows = await _local.queue(tenantId: _tenantId, deviceId: _deviceId);
+    final rows = await _local.queue(
+      tenantId: _tenantId,
+      deviceId: _deviceId,
+      limit: 1000,
+    );
     final summary = await _local.summary(
       tenantId: _tenantId,
       deviceId: _deviceId,
@@ -48,6 +56,26 @@ class _OfflinePosSyncScreenState extends State<OfflinePosSyncScreen> {
       _summary = summary;
     });
   }
+
+  List<OfflineInvoiceRecord> get _visibleRows {
+    switch (_view) {
+      case _QueueView.synced:
+        return _rows.where((row) => row.status == 'synced').toList();
+      case _QueueView.notSynced:
+        return _rows
+            .where(
+              (row) =>
+                  row.status != 'synced' && row.status != 'cancelled',
+            )
+            .toList();
+      case _QueueView.all:
+        return _rows;
+    }
+  }
+
+  int get _notSyncedCount => _rows
+      .where((row) => row.status != 'synced' && row.status != 'cancelled')
+      .length;
 
   Future<void> _syncNow() async {
     if (_busy) return;
@@ -66,7 +94,8 @@ class _OfflinePosSyncScreenState extends State<OfflinePosSyncScreen> {
       if (!mounted) return;
       setState(
         () => _message =
-            'Attempted ${result.attempted} • Synced ${result.synced} • Conflicts ${result.conflicts} • Pending ${result.pending}',
+            'Attempted ${result.attempted} • Synced ${result.synced} • '
+            'Conflicts ${result.conflicts} • Pending ${result.pending}',
       );
     } catch (error) {
       if (mounted) setState(() => _message = error.toString());
@@ -77,6 +106,7 @@ class _OfflinePosSyncScreenState extends State<OfflinePosSyncScreen> {
   }
 
   Future<void> _retry(OfflineInvoiceRecord row) async {
+    if (_busy) return;
     setState(() => _busy = true);
     try {
       await _local.retry(row.requestId);
@@ -94,6 +124,7 @@ class _OfflinePosSyncScreenState extends State<OfflinePosSyncScreen> {
   }
 
   Future<void> _cancel(OfflineInvoiceRecord row) async {
+    if (_busy) return;
     setState(() => _busy = true);
     try {
       await _local.cancel(row.requestId);
@@ -105,25 +136,32 @@ class _OfflinePosSyncScreenState extends State<OfflinePosSyncScreen> {
     }
   }
 
-  Color _statusColor(BuildContext context, String status) => switch (status) {
-    'synced' => Colors.green,
-    'conflict' => Colors.orange,
-    'error' => Colors.red,
-    'cancelled' => Colors.grey,
-    _ => Theme.of(context).colorScheme.primary,
-  };
+  Color _statusColor(BuildContext context, String status) {
+    switch (status) {
+      case 'synced':
+        return Colors.green;
+      case 'conflict':
+        return Colors.orange;
+      case 'error':
+        return Theme.of(context).colorScheme.error;
+      case 'cancelled':
+        return Colors.grey;
+      default:
+        return Theme.of(context).colorScheme.primary;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final path = _local.databasePath ?? 'Initializing...';
     final scheme = Theme.of(context).colorScheme;
+    final visible = _visibleRows;
 
     return Padding(
       padding: const EdgeInsets.all(6),
       child: Column(
         children: [
           Container(
-            height: 46,
+            height: 48,
             padding: const EdgeInsets.symmetric(horizontal: 8),
             decoration: BoxDecoration(
               color: scheme.surface,
@@ -134,7 +172,7 @@ class _OfflinePosSyncScreenState extends State<OfflinePosSyncScreen> {
               children: [
                 Container(
                   width: 4,
-                  height: 25,
+                  height: 26,
                   decoration: BoxDecoration(
                     color: scheme.primary,
                     borderRadius: BorderRadius.circular(999),
@@ -142,16 +180,26 @@ class _OfflinePosSyncScreenState extends State<OfflinePosSyncScreen> {
                 ),
                 const SizedBox(width: 8),
                 const Expanded(
-                  child: Text(
-                    'Offline POS Sync',
-                    style: TextStyle(
-                      fontSize: 14.5,
-                      fontWeight: FontWeight.w900,
-                    ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Offline & Sync',
+                        style: TextStyle(
+                          fontSize: 14.5,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      Text(
+                        'Synced and non-synced transactions are separated below',
+                        style: TextStyle(fontSize: 9.5),
+                      ),
+                    ],
                   ),
                 ),
                 IconButton(
-                  tooltip: 'Refresh queue',
+                  tooltip: 'Refresh local queue',
                   visualDensity: VisualDensity.compact,
                   onPressed: _busy ? null : _refresh,
                   icon: const Icon(Icons.refresh_rounded, size: 17),
@@ -165,7 +213,7 @@ class _OfflinePosSyncScreenState extends State<OfflinePosSyncScreen> {
                           height: 13,
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
-                      : const Icon(Icons.cloud_sync_outlined, size: 15),
+                      : const Icon(Icons.sync_rounded, size: 15),
                   label: Text(_busy ? 'Syncing...' : 'Sync Now'),
                 ),
               ],
@@ -177,7 +225,11 @@ class _OfflinePosSyncScreenState extends State<OfflinePosSyncScreen> {
             child: Row(
               children: [
                 Expanded(
-                  child: _Stat('Pending', _summary.pending, Icons.schedule),
+                  child: _Stat(
+                    'Not Synced',
+                    _notSyncedCount,
+                    Icons.cloud_upload_outlined,
+                  ),
                 ),
                 const SizedBox(width: 5),
                 Expanded(
@@ -189,7 +241,11 @@ class _OfflinePosSyncScreenState extends State<OfflinePosSyncScreen> {
                 ),
                 const SizedBox(width: 5),
                 Expanded(
-                  child: _Stat('Error', _summary.error, Icons.error_outline),
+                  child: _Stat(
+                    'Error',
+                    _summary.error,
+                    Icons.error_outline,
+                  ),
                 ),
                 const SizedBox(width: 5),
                 Expanded(
@@ -203,49 +259,52 @@ class _OfflinePosSyncScreenState extends State<OfflinePosSyncScreen> {
             ),
           ),
           const SizedBox(height: 5),
-          Container(
-            constraints: const BoxConstraints(minHeight: 34),
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-            decoration: BoxDecoration(
-              color: scheme.surface,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: scheme.outlineVariant),
-            ),
-            child: Row(
-              children: [
-                Icon(
-                  Icons.storage_outlined,
-                  size: 14,
-                  color: scheme.onSurfaceVariant,
+          Row(
+            children: [
+              Expanded(
+                child: _viewButton(
+                  _QueueView.notSynced,
+                  'Not Synced',
+                  Icons.cloud_upload_outlined,
                 ),
-                const SizedBox(width: 6),
-                Expanded(
-                  child: SelectableText(
-                    path,
-                    maxLines: 1,
-                    style: TextStyle(
-                      fontSize: 10,
-                      color: scheme.onSurfaceVariant,
-                    ),
-                  ),
+              ),
+              const SizedBox(width: 5),
+              Expanded(
+                child: _viewButton(
+                  _QueueView.synced,
+                  'Synced',
+                  Icons.cloud_done_outlined,
                 ),
-                if (_message != null)
-                  Expanded(
-                    child: Text(
-                      _message!,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      textAlign: TextAlign.right,
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w700,
-                        color: scheme.primary,
-                      ),
-                    ),
-                  ),
-              ],
-            ),
+              ),
+              const SizedBox(width: 5),
+              Expanded(
+                child: _viewButton(
+                  _QueueView.all,
+                  'All',
+                  Icons.list_alt_rounded,
+                ),
+              ),
+            ],
           ),
+          if (_message != null) ...[
+            const SizedBox(height: 5),
+            Container(
+              width: double.infinity,
+              constraints: const BoxConstraints(minHeight: 32),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+              decoration: BoxDecoration(
+                color: scheme.primaryContainer.withValues(alpha: .35),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: scheme.outlineVariant),
+              ),
+              child: Text(
+                _message!,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700),
+              ),
+            ),
+          ],
           const SizedBox(height: 5),
           Expanded(
             child: Container(
@@ -260,15 +319,13 @@ class _OfflinePosSyncScreenState extends State<OfflinePosSyncScreen> {
                   Container(
                     height: 34,
                     padding: const EdgeInsets.symmetric(horizontal: 9),
-                    color: scheme.surfaceContainerHighest.withValues(
-                      alpha: .45,
-                    ),
+                    color: scheme.surfaceContainerHighest.withValues(alpha: .45),
                     child: const Row(
                       children: [
                         Expanded(
                           flex: 3,
                           child: Text(
-                            'Local Invoice',
+                            'Invoice',
                             style: TextStyle(
                               fontSize: 10.5,
                               fontWeight: FontWeight.w900,
@@ -296,7 +353,7 @@ class _OfflinePosSyncScreenState extends State<OfflinePosSyncScreen> {
                           ),
                         ),
                         SizedBox(
-                          width: 92,
+                          width: 100,
                           child: Text(
                             'Status',
                             textAlign: TextAlign.center,
@@ -306,26 +363,43 @@ class _OfflinePosSyncScreenState extends State<OfflinePosSyncScreen> {
                             ),
                           ),
                         ),
-                        SizedBox(width: 64),
+                        SizedBox(width: 70),
                       ],
                     ),
                   ),
                   Expanded(
-                    child: _rows.isEmpty
-                        ? const Center(
+                    child: visible.isEmpty
+                        ? Center(
                             child: Text(
-                              'No offline invoices yet.',
-                              style: TextStyle(fontSize: 11),
+                              _view == _QueueView.synced
+                                  ? 'No synced transactions yet.'
+                                  : _view == _QueueView.notSynced
+                                      ? 'Nothing is waiting to sync.'
+                                      : 'No local transactions yet.',
+                              style: const TextStyle(fontSize: 11),
                             ),
                           )
                         : ListView.builder(
                             padding: EdgeInsets.zero,
-                            itemCount: _rows.length,
+                            itemCount: visible.length,
                             itemBuilder: (context, index) =>
-                                _queueRow(_rows[index]),
+                                _queueRow(visible[index]),
                           ),
                   ),
                 ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 4),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Text(
+              'Local database: ${_local.databasePath ?? 'Initializing...'}',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 9,
+                color: scheme.onSurfaceVariant,
               ),
             ),
           ),
@@ -334,12 +408,32 @@ class _OfflinePosSyncScreenState extends State<OfflinePosSyncScreen> {
     );
   }
 
+  Widget _viewButton(_QueueView target, String label, IconData icon) {
+    final selected = _view == target;
+    if (selected) {
+      return FilledButton.icon(
+        onPressed: () => setState(() => _view = target),
+        icon: Icon(icon, size: 15),
+        label: Text(label),
+      );
+    }
+    return OutlinedButton.icon(
+      onPressed: () => setState(() => _view = target),
+      icon: Icon(icon, size: 15),
+      label: Text(label),
+    );
+  }
+
   Widget _queueRow(OfflineInvoiceRecord row) {
     final scheme = Theme.of(context).colorScheme;
     final serverNo = row.serverResponse?['sale_number']?.toString();
+    final total =
+        (row.payload['total'] as num?)?.toDouble() ??
+        double.tryParse('${row.payload['total']}') ??
+        0.0;
 
     return Container(
-      constraints: const BoxConstraints(minHeight: 50),
+      constraints: const BoxConstraints(minHeight: 52),
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
       decoration: BoxDecoration(
         border: Border(bottom: BorderSide(color: scheme.outlineVariant)),
@@ -357,14 +451,28 @@ class _OfflinePosSyncScreenState extends State<OfflinePosSyncScreen> {
                 ),
                 const SizedBox(width: 6),
                 Expanded(
-                  child: Text(
-                    row.localInvoiceNumber,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 10.5,
-                      fontWeight: FontWeight.w800,
-                    ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        serverNo?.isNotEmpty == true
+                            ? serverNo!
+                            : row.localInvoiceNumber,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      Text(
+                        '${widget.session.currencyCode} ${total.toStringAsFixed(2)}',
+                        style: TextStyle(
+                          fontSize: 9,
+                          color: scheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
@@ -373,7 +481,7 @@ class _OfflinePosSyncScreenState extends State<OfflinePosSyncScreen> {
           Expanded(
             flex: 3,
             child: Text(
-              '${row.createdAt.toString().split('.').first} | '
+              '${row.createdAt.toLocal().toString().split('.').first} | '
               '${row.attempts} attempt(s)',
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
@@ -386,15 +494,18 @@ class _OfflinePosSyncScreenState extends State<OfflinePosSyncScreen> {
               serverNo != null && serverNo.isNotEmpty
                   ? 'Server $serverNo'
                   : row.conflictCode != null
-                  ? '${row.conflictCode}: ${row.conflictMessage ?? ''}'
-                  : '-',
+                      ? '${row.conflictCode}: ${row.conflictMessage ?? ''}'
+                      : '-',
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(fontSize: 10, color: scheme.onSurfaceVariant),
+              style: TextStyle(
+                fontSize: 10,
+                color: scheme.onSurfaceVariant,
+              ),
             ),
           ),
           SizedBox(
-            width: 92,
+            width: 100,
             child: Center(
               child: Container(
                 height: 22,
@@ -411,7 +522,7 @@ class _OfflinePosSyncScreenState extends State<OfflinePosSyncScreen> {
                   row.status.toUpperCase(),
                   maxLines: 1,
                   style: TextStyle(
-                    fontSize: 10,
+                    fontSize: 9,
                     fontWeight: FontWeight.w900,
                     color: _statusColor(context, row.status),
                   ),
@@ -420,7 +531,7 @@ class _OfflinePosSyncScreenState extends State<OfflinePosSyncScreen> {
             ),
           ),
           SizedBox(
-            width: 64,
+            width: 70,
             child: Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [

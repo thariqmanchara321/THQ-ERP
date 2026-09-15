@@ -6,15 +6,22 @@ import '../models/client_session.dart';
 import '../models/customer.dart';
 import '../models/inventory_product.dart';
 import '../services/customer_service.dart';
+import '../services/commercial_pricing_service.dart';
 import '../services/inventory_service.dart';
 import '../services/restaurant_service.dart';
 import '../services/pos_completion_service.dart';
 import '../services/pos_hardware_service.dart';
+import '../widgets/multi_payment_editor.dart';
 
 class RestaurantScreen extends StatefulWidget {
   final ClientSession session;
+  final String workspace;
 
-  const RestaurantScreen({super.key, required this.session});
+  const RestaurantScreen({
+    super.key,
+    required this.session,
+    this.workspace = 'operations',
+  });
 
   @override
   State<RestaurantScreen> createState() => _RestaurantScreenState();
@@ -22,6 +29,7 @@ class RestaurantScreen extends StatefulWidget {
 
 class _RestaurantScreenState extends State<RestaurantScreen> {
   final RestaurantService _restaurant = RestaurantService();
+  final CommercialPricingService _commercial = CommercialPricingService();
   final InventoryService _inventory = InventoryService();
   final CustomerService _customers = CustomerService();
   final PosCompletionService _completion = PosCompletionService();
@@ -36,7 +44,11 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
   List<Customer> _customerRows = [];
 
   String? _restaurantFloorFilter;
-  int _restaurantAnalyticsDays = 30;
+  String _restaurantOrderFilter = 'all';
+  DateTime _restaurantReportFrom = DateTime.now().subtract(
+    const Duration(days: 30),
+  );
+  DateTime _restaurantReportTo = DateTime.now();
   Future<Map<String, dynamic>>? _restaurantAnalyticsFuture;
 
   String? get _locationId => widget.session.device?.locationId;
@@ -142,6 +154,19 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
         'tax_rate': line.product.taxRate,
         'item_note': '',
       };
+
+  Map<String, dynamic>? _tableOrder(String tableId) {
+    for (final order in _orders) {
+      if (order['table_id']?.toString() == tableId &&
+          !const {
+            'billed',
+            'cancelled',
+          }.contains(order['status']?.toString())) {
+        return order;
+      }
+    }
+    return null;
+  }
 
   Widget _restaurantDashboardStrip() {
     final locationId = _locationId;
@@ -320,28 +345,28 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                 '${count(tables['available'])} free / '
                 '${count(tables['occupied'])} occupied',
             detail:
-                '${count(tables['reserved'])} reserved â€¢ '
+                '${count(tables['reserved'])} reserved • '
                 '${count(tables['cleaning'])} cleaning',
           ),
           metric(
             icon: Icons.receipt_long_outlined,
             label: 'LIVE ORDERS',
             value:
-                '${count(orders['live'])} orders â€¢ '
+                '${count(orders['live'])} orders • '
                 '${count(orders['live_guests'])} guests',
             detail:
-                '${count(orders['dine_in'])} dine-in â€¢ '
-                '${count(orders['takeaway'])} takeaway â€¢ '
+                '${count(orders['dine_in'])} dine-in • '
+                '${count(orders['takeaway'])} takeaway • '
                 '${count(orders['delivery'])} delivery',
           ),
           metric(
             icon: Icons.soup_kitchen_outlined,
             label: 'KITCHEN',
             value:
-                '${count(kitchen['queued'])} queue â€¢ '
+                '${count(kitchen['queued'])} queue • '
                 '${count(kitchen['preparing'])} preparing',
             detail:
-                '${count(kitchen['ready'])} ready â€¢ '
+                '${count(kitchen['ready'])} ready • '
                 '${count(kitchen['avg_prep_minutes_today'])} min avg',
             alert: overdue > 0,
           ),
@@ -349,10 +374,10 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
             icon: Icons.groups_2_outlined,
             label: 'WAITLIST',
             value:
-                '${count(waitlist['waiting'])} waiting â€¢ '
+                '${count(waitlist['waiting'])} waiting • '
                 '${count(waitlist['notified'])} notified',
             detail:
-                '${count(waitlist['waiting_guests'])} guests waiting â€¢ '
+                '${count(waitlist['waiting_guests'])} guests waiting • '
                 '${count(reservations['next_24h'])} reservations / 24h',
           ),
           metric(
@@ -360,7 +385,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
             label: 'TODAY',
             value: _money(sales['sales_today']),
             detail:
-                '${count(sales['bills_today'])} bills â€¢ '
+                '${count(sales['bills_today'])} bills • '
                 'avg ${_money(sales['avg_ticket_today'])}',
           ),
         ];
@@ -491,26 +516,36 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
       _message('Restaurant order permission required.');
       return;
     }
+
     final locationId = _locationId;
     final deviceId = _deviceId;
     if (locationId == null || deviceId == null) {
       _message('This system must be activated before restaurant ordering.');
       return;
     }
+
     if (_products.isEmpty) {
       _message('Add products/menu items first.');
       return;
     }
 
     String orderType = 'dine_in';
+
     final activeTables = _tables
         .where((table) => table['active'] != false)
         .toList();
+
     String? tableId = activeTables.isEmpty
         ? null
         : activeTables.first['id']?.toString();
+
     String? customerId = _walkIn?.id;
     String waiterUserId = '';
+    String selectedCategory = 'All';
+    String productSort = 'name';
+    bool inStockOnly = false;
+    bool saving = false;
+
     final guests = TextEditingController(text: '1');
     final orderNote = TextEditingController();
     final prep = TextEditingController(text: '15');
@@ -519,461 +554,1216 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
     final search = TextEditingController();
     final cart = <_RestaurantLine>[];
 
+    final categories = <String>{
+      for (final product in _products)
+        if ((product.categoryName ?? '').trim().isNotEmpty)
+          product.categoryName!.trim(),
+    }.toList()..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+
     await showDialog<void>(
       context: context,
+      barrierDismissible: false,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setLocalState) {
-          List<InventoryProduct> filteredProducts() {
-            final query = search.text.trim().toLowerCase();
-            return _products
-                .where(
-                  (product) =>
-                      query.isEmpty ||
-                      product.productName.toLowerCase().contains(query) ||
-                      product.sku.toLowerCase().contains(query) ||
-                      (product.barcode ?? '').toLowerCase().contains(query),
-                )
-                .take(24)
-                .toList();
-          }
+          final scheme = Theme.of(context).colorScheme;
+          final media = MediaQuery.sizeOf(context);
 
-          double orderTotal() {
-            return cart.fold<double>(0.0, (sum, line) {
-              final taxable = line.quantity * line.unitPrice;
-              return sum + taxable + (taxable * line.product.taxRate / 100.0);
+          void addProduct(InventoryProduct product) {
+            setLocalState(() {
+              final index = cart.indexWhere(
+                (line) => line.product.variantId == product.variantId,
+              );
+              if (index >= 0) {
+                cart[index].quantity += cart[index].quantityStep;
+              } else {
+                cart.add(_RestaurantLine(product));
+              }
             });
           }
 
-          return AlertDialog(
-            title: const Text('New Restaurant Order'),
-            content: SizedBox(
-              width: 920,
-              height: 650,
-              child: Column(
+          List<InventoryProduct> filteredProducts() {
+            final query = search.text.trim().toLowerCase();
+
+            final rows = _products.where((product) {
+              final category = (product.categoryName ?? '').trim();
+              final categoryMatches =
+                  selectedCategory == 'All' || category == selectedCategory;
+              if (!categoryMatches) return false;
+
+              final stockMatches =
+                  !inStockOnly ||
+                  product.itemType != 'stock' ||
+                  product.stockQuantity > 0;
+              if (!stockMatches) return false;
+
+              if (query.isEmpty) return true;
+
+              return product.productName.toLowerCase().contains(query) ||
+                  product.variantName.toLowerCase().contains(query) ||
+                  product.sku.toLowerCase().contains(query) ||
+                  (product.barcode ?? '').toLowerCase().contains(query) ||
+                  (product.partNumber ?? '').toLowerCase().contains(query) ||
+                  (product.brandName ?? '').toLowerCase().contains(query) ||
+                  product.searchCodes.toLowerCase().contains(query);
+            }).toList();
+
+            rows.sort((a, b) {
+              if (productSort == 'price_low') {
+                final ap =
+                    a.defaultSaleUnit?.salePriceFor(a.sellingPrice) ??
+                    a.sellingPrice;
+                final bp =
+                    b.defaultSaleUnit?.salePriceFor(b.sellingPrice) ??
+                    b.sellingPrice;
+                return ap.compareTo(bp);
+              }
+              if (productSort == 'price_high') {
+                final ap =
+                    a.defaultSaleUnit?.salePriceFor(a.sellingPrice) ??
+                    a.sellingPrice;
+                final bp =
+                    b.defaultSaleUnit?.salePriceFor(b.sellingPrice) ??
+                    b.sellingPrice;
+                return bp.compareTo(ap);
+              }
+              return a.productName.toLowerCase().compareTo(
+                b.productName.toLowerCase(),
+              );
+            });
+
+            return rows;
+          }
+
+          double lineNet(_RestaurantLine line) {
+            return line.quantity * line.unitPrice;
+          }
+
+          double lineTax(_RestaurantLine line) {
+            return lineNet(line) * line.product.taxRate / 100.0;
+          }
+
+          double subtotal() {
+            return cart.fold<double>(0, (sum, line) => sum + lineNet(line));
+          }
+
+          double taxTotal() {
+            return cart.fold<double>(0, (sum, line) => sum + lineTax(line));
+          }
+
+          double orderTotal() => subtotal() + taxTotal();
+
+          String quantityText(double value) {
+            if ((value - value.roundToDouble()).abs() < 0.000001) {
+              return value.toStringAsFixed(0);
+            }
+            return value.toStringAsFixed(2);
+          }
+
+          Widget fieldBox({required double width, required Widget child}) {
+            return SizedBox(width: width, child: child);
+          }
+
+          Widget buildSetupBar() {
+            return Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: scheme.surfaceContainerLowest,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: scheme.outlineVariant),
+              ),
+              child: Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                crossAxisAlignment: WrapCrossAlignment.center,
                 children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: DropdownButtonFormField<String>(
-                          initialValue: orderType,
-                          decoration: const InputDecoration(
-                            labelText: 'Order type',
-                          ),
-                          items: const [
-                            DropdownMenuItem(
-                              value: 'dine_in',
-                              child: Text('Dine In'),
-                            ),
-                            DropdownMenuItem(
-                              value: 'takeaway',
-                              child: Text('Take Away'),
-                            ),
-                            DropdownMenuItem(
-                              value: 'delivery',
-                              child: Text('Delivery'),
-                            ),
-                          ],
-                          onChanged: (value) {
-                            if (value != null) {
-                              setLocalState(() => orderType = value);
-                            }
-                          },
-                        ),
+                  fieldBox(
+                    width: 180,
+                    child: DropdownButtonFormField<String>(
+                      initialValue: orderType,
+                      isExpanded: true,
+                      decoration: const InputDecoration(
+                        labelText: 'Order type',
+                        isDense: true,
                       ),
-                      if (orderType == 'dine_in') ...[
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: DropdownButtonFormField<String?>(
-                            initialValue: tableId,
-                            isExpanded: true,
-                            decoration: const InputDecoration(
-                              labelText: 'Table',
-                            ),
-                            items: activeTables
-                                .map(
-                                  (table) => DropdownMenuItem<String?>(
-                                    value: table['id']?.toString(),
-                                    child: Text(
-                                      '${table['table_code']} • ${table['name']}',
-                                    ),
-                                  ),
-                                )
-                                .toList(),
-                            onChanged: (value) =>
-                                setLocalState(() => tableId = value),
-                          ),
+                      items: const [
+                        DropdownMenuItem(
+                          value: 'dine_in',
+                          child: Text('Dine In'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'takeaway',
+                          child: Text('Take Away'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'delivery',
+                          child: Text('Delivery'),
                         ),
                       ],
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: DropdownButtonFormField<String?>(
-                          initialValue: customerId,
-                          isExpanded: true,
-                          decoration: const InputDecoration(
-                            labelText: 'Customer',
-                          ),
-                          items: _customerRows
-                              .map(
-                                (customer) => DropdownMenuItem<String?>(
-                                  value: customer.id,
-                                  child: Text(
-                                    customer.isWalkIn
-                                        ? '${customer.name} (Default)'
-                                        : customer.name,
-                                  ),
-                                ),
-                              )
-                              .toList(),
-                          onChanged: (value) =>
-                              setLocalState(() => customerId = value),
-                        ),
-                      ),
-                    ],
+                      onChanged: (value) {
+                        if (value != null) {
+                          setLocalState(() => orderType = value);
+                        }
+                      },
+                    ),
                   ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      SizedBox(
-                        width: 120,
-                        child: TextField(
-                          controller: guests,
-                          keyboardType: TextInputType.number,
-                          decoration: const InputDecoration(
-                            labelText: 'Guests',
-                          ),
+                  if (orderType == 'dine_in')
+                    fieldBox(
+                      width: 220,
+                      child: DropdownButtonFormField<String?>(
+                        initialValue: tableId,
+                        isExpanded: true,
+                        decoration: const InputDecoration(
+                          labelText: 'Table',
+                          isDense: true,
                         ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: DropdownButtonFormField<String>(
-                          initialValue: waiterUserId,
-                          isExpanded: true,
-                          decoration: const InputDecoration(
-                            labelText: 'Waiter / server',
-                          ),
-                          items: [
-                            const DropdownMenuItem(
-                              value: '',
-                              child: Text('Unassigned'),
-                            ),
-                            ..._waiters.map(
-                              (waiter) => DropdownMenuItem<String>(
-                                value: waiter['user_id']?.toString() ?? '',
+                        items: activeTables
+                            .map(
+                              (table) => DropdownMenuItem<String?>(
+                                value: table['id']?.toString(),
                                 child: Text(
-                                  waiter['display_name']?.toString() ??
-                                      waiter['user_id']?.toString() ??
-                                      'Staff',
+                                  '${table['table_code'] ?? ''} - '
+                                  '${table['name'] ?? ''}',
                                   overflow: TextOverflow.ellipsis,
                                 ),
                               ),
-                            ),
-                          ],
-                          onChanged: (value) =>
-                              setLocalState(() => waiterUserId = value ?? ''),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: TextField(
-                          controller: orderNote,
-                          decoration: const InputDecoration(
-                            labelText: 'Order / guest note',
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      SizedBox(
-                        width: 190,
-                        child: TextField(
-                          controller: prep,
-                          keyboardType: TextInputType.number,
-                          decoration: const InputDecoration(
-                            labelText: 'Preparation minutes',
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: TextField(
-                          controller: chefNote,
-                          decoration: const InputDecoration(
-                            labelText: 'Chef / kitchen note',
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  if (orderType == 'delivery')
-                    Padding(
-                      padding: const EdgeInsets.only(top: 8),
-                      child: TextField(
-                        controller: deliveryAddress,
-                        decoration: const InputDecoration(
-                          labelText: 'Delivery address',
-                        ),
+                            )
+                            .toList(),
+                        onChanged: (value) =>
+                            setLocalState(() => tableId = value),
                       ),
                     ),
-                  const SizedBox(height: 10),
-                  TextField(
-                    controller: search,
-                    onChanged: (_) => setLocalState(() {}),
-                    decoration: const InputDecoration(
-                      prefixIcon: Icon(Icons.search),
-                      labelText: 'Search menu/product / SKU / barcode',
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  SizedBox(
-                    height: 120,
-                    child: ListView(
-                      scrollDirection: Axis.horizontal,
-                      children: filteredProducts()
+                  fieldBox(
+                    width: 240,
+                    child: DropdownButtonFormField<String?>(
+                      initialValue: customerId,
+                      isExpanded: true,
+                      decoration: const InputDecoration(
+                        labelText: 'Customer',
+                        isDense: true,
+                      ),
+                      items: _customerRows
                           .map(
-                            (product) => Padding(
-                              padding: const EdgeInsets.only(right: 8),
-                              child: ActionChip(
-                                label: ConstrainedBox(
-                                  constraints: const BoxConstraints(
-                                    maxWidth: 180,
-                                  ),
-                                  child: Text(
-                                    '${product.productName}\n${_money(product.defaultSaleUnit?.salePriceFor(product.sellingPrice) ?? product.sellingPrice)}',
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                                onPressed: () {
-                                  setLocalState(() {
-                                    final index = cart.indexWhere(
-                                      (line) =>
-                                          line.product.variantId ==
-                                          product.variantId,
-                                    );
-                                    if (index >= 0) {
-                                      cart[index].quantity +=
-                                          cart[index].quantityStep;
-                                    } else {
-                                      cart.add(_RestaurantLine(product));
-                                    }
-                                  });
-                                },
+                            (customer) => DropdownMenuItem<String?>(
+                              value: customer.id,
+                              child: Text(
+                                customer.isWalkIn
+                                    ? '${customer.name} (Default)'
+                                    : customer.name,
+                                overflow: TextOverflow.ellipsis,
                               ),
                             ),
                           )
                           .toList(),
+                      onChanged: (value) =>
+                          setLocalState(() => customerId = value),
                     ),
                   ),
-                  const Divider(),
+                  if (orderType == 'dine_in')
+                    fieldBox(
+                      width: 105,
+                      child: TextField(
+                        controller: guests,
+                        keyboardType: TextInputType.number,
+                        decoration: const InputDecoration(
+                          labelText: 'Guests',
+                          isDense: true,
+                        ),
+                      ),
+                    ),
+                  fieldBox(
+                    width: 210,
+                    child: DropdownButtonFormField<String>(
+                      initialValue: waiterUserId,
+                      isExpanded: true,
+                      decoration: const InputDecoration(
+                        labelText: 'Waiter / server',
+                        isDense: true,
+                      ),
+                      items: [
+                        const DropdownMenuItem(
+                          value: '',
+                          child: Text('Unassigned'),
+                        ),
+                        ..._waiters.map(
+                          (waiter) => DropdownMenuItem<String>(
+                            value: waiter['user_id']?.toString() ?? '',
+                            child: Text(
+                              waiter['display_name']?.toString() ??
+                                  waiter['user_id']?.toString() ??
+                                  'Staff',
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ),
+                      ],
+                      onChanged: (value) =>
+                          setLocalState(() => waiterUserId = value ?? ''),
+                    ),
+                  ),
+                  fieldBox(
+                    width: 115,
+                    child: TextField(
+                      controller: prep,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(
+                        labelText: 'Prep min',
+                        isDense: true,
+                      ),
+                    ),
+                  ),
+                  fieldBox(
+                    width: 260,
+                    child: TextField(
+                      controller: orderNote,
+                      decoration: const InputDecoration(
+                        labelText: 'Order / guest note',
+                        isDense: true,
+                      ),
+                    ),
+                  ),
+                  fieldBox(
+                    width: 260,
+                    child: TextField(
+                      controller: chefNote,
+                      decoration: const InputDecoration(
+                        labelText: 'Chef / kitchen note',
+                        isDense: true,
+                      ),
+                    ),
+                  ),
+                  if (orderType == 'delivery')
+                    fieldBox(
+                      width: 360,
+                      child: TextField(
+                        controller: deliveryAddress,
+                        decoration: const InputDecoration(
+                          labelText: 'Delivery address',
+                          isDense: true,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            );
+          }
+
+          Widget buildProductBrowser() {
+            final products = filteredProducts();
+
+            return Container(
+              decoration: BoxDecoration(
+                color: scheme.surface,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: scheme.outlineVariant),
+              ),
+              child: Column(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(10, 10, 10, 7),
+                    child: TextField(
+                      controller: search,
+                      autofocus: true,
+                      onChanged: (_) => setLocalState(() {}),
+                      onSubmitted: (_) {
+                        if (products.length == 1) {
+                          addProduct(products.first);
+                          search.clear();
+                          setLocalState(() {});
+                        }
+                      },
+                      decoration: InputDecoration(
+                        prefixIcon: const Icon(Icons.search_rounded),
+                        hintText:
+                            'Product, SKU, barcode, part number or code...',
+                        suffixIcon: search.text.isEmpty
+                            ? null
+                            : IconButton(
+                                tooltip: 'Clear search',
+                                onPressed: () {
+                                  search.clear();
+                                  setLocalState(() {});
+                                },
+                                icon: const Icon(Icons.close_rounded),
+                              ),
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(10, 0, 10, 8),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: DropdownButtonFormField<String>(
+                            initialValue: selectedCategory,
+                            isExpanded: true,
+                            decoration: const InputDecoration(
+                              labelText: 'Category',
+                              isDense: true,
+                            ),
+                            items: [
+                              const DropdownMenuItem(
+                                value: 'All',
+                                child: Text('All'),
+                              ),
+                              ...categories.map(
+                                (category) => DropdownMenuItem(
+                                  value: category,
+                                  child: Text(
+                                    category,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ),
+                            ],
+                            onChanged: (value) {
+                              if (value != null) {
+                                setLocalState(() => selectedCategory = value);
+                              }
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: DropdownButtonFormField<String>(
+                            initialValue: productSort,
+                            isExpanded: true,
+                            decoration: const InputDecoration(
+                              labelText: 'Sort',
+                              isDense: true,
+                            ),
+                            items: const [
+                              DropdownMenuItem(
+                                value: 'name',
+                                child: Text('Name A-Z'),
+                              ),
+                              DropdownMenuItem(
+                                value: 'price_low',
+                                child: Text('Price low-high'),
+                              ),
+                              DropdownMenuItem(
+                                value: 'price_high',
+                                child: Text('Price high-low'),
+                              ),
+                            ],
+                            onChanged: (value) {
+                              if (value != null) {
+                                setLocalState(() => productSort = value);
+                              }
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        FilterChip(
+                          selected: inStockOnly,
+                          label: const Text('In stock'),
+                          avatar: const Icon(
+                            Icons.inventory_2_outlined,
+                            size: 15,
+                          ),
+                          onSelected: (value) =>
+                              setLocalState(() => inStockOnly = value),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Divider(height: 1, color: scheme.outlineVariant),
                   Expanded(
-                    child: cart.isEmpty
-                        ? const Center(child: Text('Add menu items'))
-                        : ListView.separated(
-                            itemCount: cart.length,
-                            separatorBuilder: (_, _) => const Divider(),
-                            itemBuilder: (context, index) {
-                              final line = cart[index];
-                              return Row(
-                                children: [
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          line.product.productName,
-                                          style: const TextStyle(
-                                            fontWeight: FontWeight.bold,
+                    child: products.isEmpty
+                        ? Center(
+                            child: Text(
+                              'No matching products.',
+                              style: TextStyle(
+                                color: scheme.onSurfaceVariant,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          )
+                        : LayoutBuilder(
+                            builder: (context, constraints) {
+                              final columns = constraints.maxWidth >= 900
+                                  ? 4
+                                  : constraints.maxWidth >= 650
+                                  ? 3
+                                  : constraints.maxWidth >= 420
+                                  ? 2
+                                  : 1;
+
+                              return GridView.builder(
+                                padding: const EdgeInsets.all(8),
+                                itemCount: products.length,
+                                gridDelegate:
+                                    SliverGridDelegateWithFixedCrossAxisCount(
+                                      crossAxisCount: columns,
+                                      mainAxisSpacing: 8,
+                                      crossAxisSpacing: 8,
+                                      childAspectRatio: 1.45,
+                                    ),
+                                itemBuilder: (context, index) {
+                                  final product = products[index];
+                                  final price =
+                                      product.defaultSaleUnit?.salePriceFor(
+                                        product.sellingPrice,
+                                      ) ??
+                                      product.sellingPrice;
+                                  final stockBlocked =
+                                      product.itemType == 'stock' &&
+                                      product.stockQuantity <= 0;
+                                  final category = (product.categoryName ?? '')
+                                      .trim();
+
+                                  return Material(
+                                    color: stockBlocked
+                                        ? scheme.surfaceContainerHighest
+                                              .withValues(alpha: .45)
+                                        : scheme.surface,
+                                    borderRadius: BorderRadius.circular(10),
+                                    child: InkWell(
+                                      onTap: stockBlocked
+                                          ? null
+                                          : () => addProduct(product),
+                                      borderRadius: BorderRadius.circular(10),
+                                      child: Container(
+                                        padding: const EdgeInsets.all(9),
+                                        decoration: BoxDecoration(
+                                          borderRadius: BorderRadius.circular(
+                                            10,
+                                          ),
+                                          border: Border.all(
+                                            color: stockBlocked
+                                                ? scheme.error.withValues(
+                                                    alpha: .35,
+                                                  )
+                                                : scheme.outlineVariant,
                                           ),
                                         ),
-                                        Text(
-                                          '${line.product.sku} • tax ${line.product.taxRate.toStringAsFixed(0)}%',
-                                        ),
-                                        if (line.product.saleUnits.length > 1)
-                                          SizedBox(
-                                            width: 180,
-                                            child:
-                                                DropdownButton<
-                                                  ProductUnitOption
-                                                >(
-                                                  value: line.unit,
-                                                  isExpanded: true,
-                                                  items: line.product.saleUnits
-                                                      .map(
-                                                        (
-                                                          unit,
-                                                        ) => DropdownMenuItem(
-                                                          value: unit,
-                                                          child: Text(
-                                                            '${unit.code} • ${_money(unit.salePriceFor(line.product.sellingPrice))}',
-                                                          ),
-                                                        ),
-                                                      )
-                                                      .toList(),
-                                                  onChanged: (unit) {
-                                                    if (unit == null) return;
-                                                    setLocalState(() {
-                                                      line.unit = unit;
-                                                      line.quantity =
-                                                          unit.quantityStep > 0
-                                                          ? unit.quantityStep
-                                                          : 1;
-                                                    });
-                                                  },
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Row(
+                                              children: [
+                                                Expanded(
+                                                  child: Text(
+                                                    category.isEmpty
+                                                        ? 'Product'
+                                                        : category,
+                                                    maxLines: 1,
+                                                    overflow:
+                                                        TextOverflow.ellipsis,
+                                                    style: TextStyle(
+                                                      fontSize: 9,
+                                                      color: scheme
+                                                          .onSurfaceVariant,
+                                                      fontWeight:
+                                                          FontWeight.w700,
+                                                    ),
+                                                  ),
                                                 ),
-                                          ),
-                                      ],
+                                                Text(
+                                                  product.itemType == 'stock'
+                                                      ? '${quantityText(product.stockQuantity)} ${product.baseUnitCode}'
+                                                      : 'SERVICE',
+                                                  maxLines: 1,
+                                                  style: TextStyle(
+                                                    fontSize: 9,
+                                                    fontWeight: FontWeight.w900,
+                                                    color: stockBlocked
+                                                        ? scheme.error
+                                                        : scheme.primary,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                            const SizedBox(height: 5),
+                                            Expanded(
+                                              child: Text(
+                                                product.productName,
+                                                maxLines: 3,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: TextStyle(
+                                                  color: scheme.onSurface,
+                                                  fontSize: 12,
+                                                  fontWeight: FontWeight.w900,
+                                                ),
+                                              ),
+                                            ),
+                                            Text(
+                                              'SKU ${product.sku}',
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: TextStyle(
+                                                color: scheme.onSurfaceVariant,
+                                                fontSize: 9,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 4),
+                                            Row(
+                                              children: [
+                                                Expanded(
+                                                  child: Text(
+                                                    _money(price),
+                                                    style: TextStyle(
+                                                      color: scheme.onSurface,
+                                                      fontSize: 12.5,
+                                                      fontWeight:
+                                                          FontWeight.w900,
+                                                    ),
+                                                  ),
+                                                ),
+                                                Container(
+                                                  width: 28,
+                                                  height: 28,
+                                                  decoration: BoxDecoration(
+                                                    color: stockBlocked
+                                                        ? scheme
+                                                              .surfaceContainerHighest
+                                                        : scheme.primary,
+                                                    shape: BoxShape.circle,
+                                                  ),
+                                                  child: Icon(
+                                                    stockBlocked
+                                                        ? Icons.block
+                                                        : Icons.add_rounded,
+                                                    size: 18,
+                                                    color: stockBlocked
+                                                        ? scheme.error
+                                                        : scheme.onPrimary,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ],
+                                        ),
+                                      ),
                                     ),
-                                  ),
-                                  IconButton(
-                                    onPressed: () {
-                                      setLocalState(() {
-                                        line.quantity -= line.quantityStep;
-                                        if (line.quantity <= 0) {
-                                          cart.removeAt(index);
-                                        }
-                                      });
-                                    },
-                                    icon: const Icon(
-                                      Icons.remove_circle_outline,
-                                    ),
-                                  ),
-                                  Text(line.quantity.toStringAsFixed(0)),
-                                  IconButton(
-                                    onPressed: () => setLocalState(
-                                      () => line.quantity += line.quantityStep,
-                                    ),
-                                    icon: const Icon(Icons.add_circle_outline),
-                                  ),
-                                  SizedBox(
-                                    width: 110,
-                                    child: Text(
-                                      _money(line.quantity * line.unitPrice),
-                                      textAlign: TextAlign.end,
-                                    ),
-                                  ),
-                                ],
+                                  );
+                                },
                               );
                             },
                           ),
                   ),
-                  const Divider(),
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: Text(
-                      'Order total ${_money(orderTotal())}',
-                      style: const TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
+                ],
+              ),
+            );
+          }
+
+          Widget buildCart() {
+            return Container(
+              decoration: BoxDecoration(
+                color: scheme.surface,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: scheme.outlineVariant),
+              ),
+              child: Column(
+                children: [
+                  Container(
+                    height: 48,
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    decoration: BoxDecoration(
+                      color: scheme.surfaceContainerLowest,
+                      borderRadius: const BorderRadius.vertical(
+                        top: Radius.circular(12),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.shopping_basket_outlined,
+                          size: 18,
+                          color: scheme.primary,
+                        ),
+                        const SizedBox(width: 7),
+                        Expanded(
+                          child: Text(
+                            'Order Cart | ${cart.length} item(s)',
+                            style: TextStyle(
+                              color: scheme.onSurface,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                        ),
+                        if (cart.isNotEmpty)
+                          TextButton(
+                            onPressed: () => setLocalState(() => cart.clear()),
+                            child: const Text('Clear'),
+                          ),
+                      ],
+                    ),
+                  ),
+                  Divider(height: 1, color: scheme.outlineVariant),
+                  Expanded(
+                    child: cart.isEmpty
+                        ? Center(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.shopping_basket_outlined,
+                                  size: 42,
+                                  color: scheme.outlineVariant,
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  'Search or tap a product',
+                                  style: TextStyle(
+                                    color: scheme.onSurfaceVariant,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          )
+                        : ListView.separated(
+                            padding: const EdgeInsets.all(8),
+                            itemCount: cart.length,
+                            separatorBuilder: (_, _) =>
+                                const SizedBox(height: 7),
+                            itemBuilder: (context, index) {
+                              final line = cart[index];
+                              final lineTotal = lineNet(line) + lineTax(line);
+
+                              return Container(
+                                padding: const EdgeInsets.all(9),
+                                decoration: BoxDecoration(
+                                  color: scheme.surfaceContainerLowest,
+                                  borderRadius: BorderRadius.circular(9),
+                                  border: Border.all(
+                                    color: scheme.outlineVariant,
+                                  ),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                line.product.productName,
+                                                maxLines: 2,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: TextStyle(
+                                                  color: scheme.onSurface,
+                                                  fontSize: 11,
+                                                  fontWeight: FontWeight.w900,
+                                                ),
+                                              ),
+                                              Text(
+                                                '${line.product.sku} | '
+                                                'Tax ${line.product.taxRate.toStringAsFixed(0)}%',
+                                                style: TextStyle(
+                                                  color:
+                                                      scheme.onSurfaceVariant,
+                                                  fontSize: 9,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        IconButton(
+                                          tooltip: 'Remove item',
+                                          visualDensity: VisualDensity.compact,
+                                          onPressed: () => setLocalState(
+                                            () => cart.removeAt(index),
+                                          ),
+                                          icon: Icon(
+                                            Icons.close_rounded,
+                                            size: 16,
+                                            color: scheme.error,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    if (line.product.saleUnits.length > 1) ...[
+                                      const SizedBox(height: 5),
+                                      DropdownButtonFormField<
+                                        ProductUnitOption
+                                      >(
+                                        initialValue: line.unit,
+                                        isExpanded: true,
+                                        decoration: const InputDecoration(
+                                          labelText: 'Unit',
+                                          isDense: true,
+                                        ),
+                                        items: line.product.saleUnits
+                                            .map(
+                                              (unit) => DropdownMenuItem(
+                                                value: unit,
+                                                child: Text(
+                                                  '${unit.code} | '
+                                                  '${_money(unit.salePriceFor(line.product.sellingPrice))}',
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
+                                                ),
+                                              ),
+                                            )
+                                            .toList(),
+                                        onChanged: (unit) {
+                                          if (unit == null) return;
+                                          setLocalState(() {
+                                            line.unit = unit;
+                                            line.quantity =
+                                                unit.quantityStep > 0
+                                                ? unit.quantityStep
+                                                : 1;
+                                          });
+                                        },
+                                      ),
+                                    ],
+                                    const SizedBox(height: 7),
+                                    Row(
+                                      children: [
+                                        IconButton.filledTonal(
+                                          tooltip: 'Decrease quantity',
+                                          visualDensity: VisualDensity.compact,
+                                          onPressed: () {
+                                            setLocalState(() {
+                                              line.quantity -=
+                                                  line.quantityStep;
+                                              if (line.quantity <= 0) {
+                                                cart.removeAt(index);
+                                              }
+                                            });
+                                          },
+                                          icon: const Icon(
+                                            Icons.remove_rounded,
+                                            size: 16,
+                                          ),
+                                        ),
+                                        SizedBox(
+                                          width: 48,
+                                          child: Text(
+                                            quantityText(line.quantity),
+                                            textAlign: TextAlign.center,
+                                            style: TextStyle(
+                                              color: scheme.onSurface,
+                                              fontWeight: FontWeight.w900,
+                                            ),
+                                          ),
+                                        ),
+                                        IconButton.filled(
+                                          tooltip: 'Increase quantity',
+                                          visualDensity: VisualDensity.compact,
+                                          onPressed: () => setLocalState(
+                                            () => line.quantity +=
+                                                line.quantityStep,
+                                          ),
+                                          icon: const Icon(
+                                            Icons.add_rounded,
+                                            size: 16,
+                                          ),
+                                        ),
+                                        const Spacer(),
+                                        Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.end,
+                                          children: [
+                                            Text(
+                                              _money(
+                                                line.quantity * line.unitPrice,
+                                              ),
+                                              style: TextStyle(
+                                                color: scheme.onSurfaceVariant,
+                                                fontSize: 9,
+                                              ),
+                                            ),
+                                            Text(
+                                              _money(lineTotal),
+                                              style: TextStyle(
+                                                color: scheme.onSurface,
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.w900,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              );
+                            },
+                          ),
+                  ),
+                  Divider(height: 1, color: scheme.outlineVariant),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(12, 9, 12, 12),
+                    child: Column(
+                      children: [
+                        Row(
+                          children: [
+                            Text(
+                              'Subtotal',
+                              style: TextStyle(color: scheme.onSurfaceVariant),
+                            ),
+                            const Spacer(),
+                            Text(
+                              _money(subtotal()),
+                              style: TextStyle(
+                                color: scheme.onSurface,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            Text(
+                              'Tax',
+                              style: TextStyle(color: scheme.onSurfaceVariant),
+                            ),
+                            const Spacer(),
+                            Text(
+                              _money(taxTotal()),
+                              style: TextStyle(
+                                color: scheme.onSurface,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const Divider(height: 16),
+                        Row(
+                          children: [
+                            Text(
+                              'Total',
+                              style: TextStyle(
+                                color: scheme.onSurface,
+                                fontSize: 15,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                            const Spacer(),
+                            Text(
+                              _money(orderTotal()),
+                              style: TextStyle(
+                                color: scheme.onSurface,
+                                fontSize: 18,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 10),
+                        SizedBox(
+                          width: double.infinity,
+                          height: 44,
+                          child: FilledButton.icon(
+                            onPressed: saving || cart.isEmpty
+                                ? null
+                                : () async {
+                                    if (orderType == 'dine_in' &&
+                                        (tableId == null || tableId!.isEmpty)) {
+                                      ThqNotify.showSnackBar(
+                                        dialogContext,
+                                        const SnackBar(
+                                          content: Text(
+                                            'Choose a table for dine-in.',
+                                          ),
+                                        ),
+                                      );
+                                      return;
+                                    }
+
+                                    setLocalState(() => saving = true);
+
+                                    try {
+                                      final result = await _restaurant
+                                          .createOrder(
+                                            tenantId:
+                                                widget.session.business.id,
+                                            locationId: locationId,
+                                            deviceId: deviceId,
+                                            orderType: orderType,
+                                            tableId: orderType == 'dine_in'
+                                                ? tableId
+                                                : null,
+                                            customerId: customerId,
+                                            preparationMinutes:
+                                                int.tryParse(prep.text) ?? 15,
+                                            chefNote: chefNote.text,
+                                            deliveryAddress:
+                                                deliveryAddress.text,
+                                            guestCount:
+                                                (int.tryParse(
+                                                          guests.text.trim(),
+                                                        ) ??
+                                                        1)
+                                                    .clamp(1, 999),
+                                            waiterUserId: waiterUserId.isEmpty
+                                                ? null
+                                                : waiterUserId,
+                                            orderNote: orderNote.text,
+                                            items: cart
+                                                .map(_restaurantItemPayload)
+                                                .toList(),
+                                          );
+
+                                      final kot = await _restaurant.sendKot(
+                                        widget.session.business.id,
+                                        result['order_id'].toString(),
+                                        deviceId,
+                                        chefNote.text,
+                                      );
+
+                                      String? kotPrintWarning;
+
+                                      if (kot['kot_created'] == true) {
+                                        try {
+                                          final profiles = await _completion
+                                              .printerProfiles(
+                                                tenantId:
+                                                    widget.session.business.id,
+                                                deviceId: deviceId,
+                                              );
+
+                                          final kotProfiles = profiles
+                                              .where(
+                                                (row) =>
+                                                    row['purpose']
+                                                            ?.toString() ==
+                                                        'kot' &&
+                                                    row['active'] != false &&
+                                                    row['auto_print'] == true,
+                                              )
+                                              .toList();
+
+                                          String? tableName;
+                                          if (orderType == 'dine_in' &&
+                                              tableId != null) {
+                                            for (final table in activeTables) {
+                                              if (table['id']?.toString() ==
+                                                  tableId) {
+                                                tableName =
+                                                    '${table['table_code'] ?? ''} '
+                                                            '${table['name'] ?? ''}'
+                                                        .trim();
+                                                break;
+                                              }
+                                            }
+                                          }
+
+                                          final kotItems =
+                                              (kot['items'] as List? ??
+                                                      const [])
+                                                  .map(
+                                                    (raw) =>
+                                                        Map<
+                                                          String,
+                                                          dynamic
+                                                        >.from(raw as Map),
+                                                  )
+                                                  .map(
+                                                    (item) => <String, dynamic>{
+                                                      'name':
+                                                          item['product_name']
+                                                              ?.toString() ??
+                                                          item['variant_name']
+                                                              ?.toString() ??
+                                                          item['sku']
+                                                              ?.toString() ??
+                                                          'Item',
+                                                      'quantity':
+                                                          item['quantity'] ?? 1,
+                                                    },
+                                                  )
+                                                  .toList();
+
+                                          await _hardware.printKot(
+                                            profiles: kotProfiles,
+                                            orderNumber:
+                                                kot['kot_number']?.toString() ??
+                                                result['order_number']
+                                                    ?.toString() ??
+                                                result['order_id'].toString(),
+                                            orderType: orderType,
+                                            tableName: tableName,
+                                            prepMinutes:
+                                                int.tryParse(prep.text) ?? 15,
+                                            chefNote: chefNote.text,
+                                            items: kotItems.isEmpty
+                                                ? cart
+                                                      .map(
+                                                        (line) =>
+                                                            <String, dynamic>{
+                                                              'name': line
+                                                                  .product
+                                                                  .productName,
+                                                              'quantity':
+                                                                  line.quantity,
+                                                            },
+                                                      )
+                                                      .toList()
+                                                : kotItems,
+                                          );
+                                        } catch (error) {
+                                          kotPrintWarning = error.toString();
+                                        }
+                                      }
+
+                                      if (!dialogContext.mounted) return;
+                                      Navigator.pop(dialogContext);
+
+                                      if (kotPrintWarning == null) {
+                                        _message(
+                                          '${result['order_number']} sent to kitchen.',
+                                        );
+                                      } else {
+                                        _message(
+                                          '${result['order_number']} saved and KOT queued. '
+                                          'Printer: $kotPrintWarning',
+                                        );
+                                      }
+
+                                      await _load();
+                                    } catch (error) {
+                                      if (dialogContext.mounted) {
+                                        ThqNotify.showSnackBar(
+                                          dialogContext,
+                                          SnackBar(
+                                            content: Text(error.toString()),
+                                          ),
+                                        );
+                                        setLocalState(() => saving = false);
+                                      }
+                                    }
+                                  },
+                            icon: saving
+                                ? const SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : const Icon(Icons.soup_kitchen_outlined),
+                            label: Text(
+                              saving ? 'Placing Order...' : 'Place Order + KOT',
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }
+
+          final dialogWidth = (media.width * .94)
+              .clamp(840.0, 1360.0)
+              .toDouble();
+          final dialogHeight = (media.height * .90)
+              .clamp(620.0, 900.0)
+              .toDouble();
+
+          return Dialog(
+            insetPadding: const EdgeInsets.all(18),
+            clipBehavior: Clip.antiAlias,
+            child: SizedBox(
+              width: dialogWidth,
+              height: dialogHeight,
+              child: Column(
+                children: [
+                  Container(
+                    height: 58,
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    decoration: BoxDecoration(
+                      color: scheme.surface,
+                      border: Border(
+                        bottom: BorderSide(color: scheme.outlineVariant),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 4,
+                          height: 28,
+                          decoration: BoxDecoration(
+                            color: scheme.primary,
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Restaurant POS Order Entry',
+                                style: TextStyle(
+                                  color: scheme.onSurface,
+                                  fontSize: 17,
+                                  fontWeight: FontWeight.w900,
+                                ),
+                              ),
+                              Text(
+                                'Select products like normal POS billing, then send the confirmed order to the kitchen.',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: scheme.onSurfaceVariant,
+                                  fontSize: 10,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        IconButton(
+                          tooltip: 'Close',
+                          onPressed: saving
+                              ? null
+                              : () => Navigator.pop(dialogContext),
+                          icon: const Icon(Icons.close_rounded),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(10, 9, 10, 8),
+                    child: buildSetupBar(),
+                  ),
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(10, 0, 10, 10),
+                      child: LayoutBuilder(
+                        builder: (context, constraints) {
+                          if (constraints.maxWidth >= 980) {
+                            return Row(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                Expanded(
+                                  flex: 64,
+                                  child: buildProductBrowser(),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(flex: 36, child: buildCart()),
+                              ],
+                            );
+                          }
+
+                          return Column(
+                            children: [
+                              Expanded(flex: 58, child: buildProductBrowser()),
+                              const SizedBox(height: 8),
+                              Expanded(flex: 42, child: buildCart()),
+                            ],
+                          );
+                        },
                       ),
                     ),
                   ),
                 ],
               ),
             ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(dialogContext),
-                child: const Text('Cancel'),
-              ),
-              FilledButton.icon(
-                onPressed: cart.isEmpty
-                    ? null
-                    : () async {
-                        try {
-                          final result = await _restaurant.createOrder(
-                            tenantId: widget.session.business.id,
-                            locationId: locationId,
-                            deviceId: deviceId,
-                            orderType: orderType,
-                            tableId: orderType == 'dine_in' ? tableId : null,
-                            customerId: customerId,
-                            preparationMinutes: int.tryParse(prep.text) ?? 15,
-                            chefNote: chefNote.text,
-                            deliveryAddress: deliveryAddress.text,
-                            guestCount: (int.tryParse(guests.text.trim()) ?? 1)
-                                .clamp(1, 999),
-                            waiterUserId: waiterUserId.isEmpty
-                                ? null
-                                : waiterUserId,
-                            orderNote: orderNote.text,
-                            items: cart.map(_restaurantItemPayload).toList(),
-                          );
-                          await _restaurant.sendKot(
-                            widget.session.business.id,
-                            result['order_id'].toString(),
-                            deviceId,
-                            chefNote.text,
-                          );
-                          String? kotPrintWarning;
-                          try {
-                            final profiles = await _completion.printerProfiles(
-                              tenantId: widget.session.business.id,
-                              deviceId: deviceId,
-                            );
-                            final kotProfiles = profiles
-                                .where(
-                                  (row) =>
-                                      row['purpose']?.toString() == 'kot' &&
-                                      row['active'] != false &&
-                                      row['auto_print'] == true,
-                                )
-                                .toList();
-                            String? tableName;
-                            if (orderType == 'dine_in' && tableId != null) {
-                              for (final table in activeTables) {
-                                if (table['id']?.toString() == tableId) {
-                                  tableName =
-                                      '${table['table_code'] ?? ''} ${table['name'] ?? ''}'
-                                          .trim();
-                                  break;
-                                }
-                              }
-                            }
-                            await _hardware.printKot(
-                              profiles: kotProfiles,
-                              orderNumber:
-                                  result['order_number']?.toString() ??
-                                  result['order_id'].toString(),
-                              orderType: orderType,
-                              tableName: tableName,
-                              prepMinutes: int.tryParse(prep.text) ?? 15,
-                              chefNote: chefNote.text,
-                              items: cart
-                                  .map(
-                                    (line) => <String, dynamic>{
-                                      'name': line.product.productName,
-                                      'quantity': line.quantity,
-                                    },
-                                  )
-                                  .toList(),
-                            );
-                          } catch (error) {
-                            kotPrintWarning = error.toString();
-                          }
-                          if (dialogContext.mounted) {
-                            Navigator.pop(dialogContext);
-                          }
-                          if (kotPrintWarning == null) {
-                            _message(
-                              '${result['order_number']} sent to kitchen.',
-                            );
-                          } else {
-                            _message(
-                              '${result['order_number']} saved and KOT queued. Printer: $kotPrintWarning',
-                            );
-                          }
-                          await _load();
-                        } catch (error) {
-                          _message(error.toString());
-                        }
-                      },
-                icon: const Icon(Icons.soup_kitchen_outlined),
-                label: const Text('Place Order + KOT'),
-              ),
-            ],
           );
         },
       ),
@@ -1060,7 +1850,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                                   (table) => DropdownMenuItem<String?>(
                                     value: table['id']?.toString(),
                                     child: Text(
-                                      '${table['table_code']} â€¢ ${table['name']}',
+                                      '${table['table_code']} • ${table['name']}',
                                     ),
                                   ),
                                 )
@@ -1264,7 +2054,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
 
           return AlertDialog(
             title: Text(
-              'Add Items â€¢ ${order['order_number'] ?? 'Restaurant Order'}',
+              'Add Items • ${order['order_number'] ?? 'Restaurant Order'}',
             ),
             content: SizedBox(
               width: 760,
@@ -1584,7 +2374,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
 
           return AlertDialog(
             title: Text(
-              'Reserve ${table['table_code'] ?? ''} â€¢ ${table['name'] ?? 'Table'}',
+              'Reserve ${table['table_code'] ?? ''} • ${table['name'] ?? 'Table'}',
             ),
             content: SizedBox(
               width: 600,
@@ -1763,11 +2553,11 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                 contentPadding: EdgeInsets.zero,
                 leading: const Icon(Icons.table_restaurant_outlined),
                 title: Text(
-                  '${table['table_code'] ?? ''} â€¢ ${table['name'] ?? 'Table'}',
+                  '${table['table_code'] ?? ''} • ${table['name'] ?? 'Table'}',
                 ),
                 subtitle: Text(
                   'Status: ${status.replaceAll('_', ' ')}'
-                  '${hasReservation ? ' â€¢ Reserved for ${table['reservation_name'] ?? ''}' : ''}',
+                  '${hasReservation ? ' • Reserved for ${table['reservation_name'] ?? ''}' : ''}',
                 ),
               ),
               if (_tableOrder(table['id']?.toString() ?? '') == null &&
@@ -1986,7 +2776,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
 
     if (saved == true) {
       _message('Guest added to restaurant waitlist.');
-      setState(() {});
+      await _load();
     }
   }
 
@@ -2067,7 +2857,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setLocalState) => AlertDialog(
           title: Text(
-            'Seat ${entry['guest_name'] ?? 'Guest'} â€¢ $guests guest(s)',
+            'Seat ${entry['guest_name'] ?? 'Guest'} • $guests guest(s)',
           ),
           content: SizedBox(
             width: 560,
@@ -2080,8 +2870,8 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                     (table) => DropdownMenuItem<String>(
                       value: table['id'].toString(),
                       child: Text(
-                        '${table['table_code'] ?? ''} â€¢ '
-                        '${table['name'] ?? ''} â€¢ '
+                        '${table['table_code'] ?? ''} • '
+                        '${table['name'] ?? ''} • '
                         '${table['capacity'] ?? 0} seats',
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -3251,7 +4041,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setLocalState) {
           final targetLabel =
-              '${targetOrder['table_name'] ?? 'Table'} â€¢ '
+              '${targetOrder['table_name'] ?? 'Table'} • '
               '${targetOrder['order_number'] ?? 'Order'}';
 
           return AlertDialog(
@@ -3280,8 +4070,8 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                           (order) => DropdownMenuItem<String>(
                             value: order['id'].toString(),
                             child: Text(
-                              '${order['table_name'] ?? 'Table'} â€¢ '
-                              '${order['order_number'] ?? 'Order'} â€¢ '
+                              '${order['table_name'] ?? 'Table'} • '
+                              '${order['order_number'] ?? 'Order'} • '
                               '${_money(order['total'])}',
                               overflow: TextOverflow.ellipsis,
                             ),
@@ -3415,7 +4205,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setLocalState) => AlertDialog(
           title: Text(
-            'Move Table â€¢ ${order['order_number'] ?? 'Restaurant Order'}',
+            'Move Table • ${order['order_number'] ?? 'Restaurant Order'}',
           ),
           content: SizedBox(
             width: 560,
@@ -3431,7 +4221,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                         (table) => DropdownMenuItem<String>(
                           value: table['id'].toString(),
                           child: Text(
-                            '${table['table_code'] ?? ''} â€¢ '
+                            '${table['table_code'] ?? ''} • '
                             '${table['name'] ?? ''} '
                             '(Capacity ${table['capacity'] ?? '-'})',
                             overflow: TextOverflow.ellipsis,
@@ -3588,7 +4378,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
 
             return AlertDialog(
               title: Text(
-                'Void / Cancel Item â€¢ ${order['order_number'] ?? 'Order'}',
+                'Void / Cancel Item • ${order['order_number'] ?? 'Order'}',
               ),
               content: SizedBox(
                 width: 620,
@@ -3607,7 +4397,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                               value: row['id'].toString(),
                               child: Text(
                                 '${_restaurantProductLabel(row['variant_id']?.toString())} '
-                                'â€¢ Remaining ${remainingFor(row).toStringAsFixed(2)}',
+                                '• Remaining ${remainingFor(row).toStringAsFixed(2)}',
                                 overflow: TextOverflow.ellipsis,
                               ),
                             ),
@@ -3629,7 +4419,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                     Align(
                       alignment: Alignment.centerLeft,
                       child: Text(
-                        '$productName â€¢ Active quantity ${remaining.toStringAsFixed(2)}',
+                        '$productName • Active quantity ${remaining.toStringAsFixed(2)}',
                         style: const TextStyle(fontWeight: FontWeight.w700),
                       ),
                     ),
@@ -3834,10 +4624,215 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
     }
   }
 
+  Future<List<Map<String, dynamic>>?> _restaurantTrackingAssignments(
+    List<Map<String, dynamic>> itemRows,
+  ) async {
+    final locationId = _locationId;
+    final deviceId = _deviceId;
+    if (locationId == null || deviceId == null) {
+      _message('This POS is not registered to a restaurant location.');
+      return null;
+    }
+
+    final assignments = <Map<String, dynamic>>[];
+
+    for (final item in itemRows) {
+      final variantId = item['variant_id']?.toString() ?? '';
+      if (variantId.isEmpty) continue;
+
+      InventoryProduct? product;
+      for (final row in _products) {
+        if (row.variantId == variantId) {
+          product = row;
+          break;
+        }
+      }
+      if (product == null || product.trackingMode != 'serial') continue;
+
+      final quantity =
+          (item['quantity'] as num?)?.toDouble() ??
+          double.tryParse('${item['quantity']}') ??
+          0;
+      final cancelled =
+          (item['cancelled_quantity'] as num?)?.toDouble() ??
+          double.tryParse('${item['cancelled_quantity']}') ??
+          0;
+      final factor =
+          (item['conversion_to_base'] as num?)?.toDouble() ??
+          double.tryParse('${item['conversion_to_base']}') ??
+          1;
+
+      final requiredDouble =
+          ((quantity - cancelled).clamp(0.0, double.infinity) * factor)
+              .toDouble();
+
+      if ((requiredDouble - requiredDouble.roundToDouble()).abs() > .000001) {
+        _message(
+          '${product.productName} is serial tracked and requires whole units.',
+        );
+        return null;
+      }
+
+      final required = requiredDouble.round();
+      if (required <= 0) continue;
+
+      final available = await _restaurant.availableSerials(
+        tenantId: widget.session.business.id,
+        locationId: locationId,
+        deviceId: deviceId,
+        variantId: variantId,
+        limit: 500,
+      );
+
+      if (available.length < required) {
+        _message(
+          '${product.productName} requires $required serial number(s), '
+          'but only ${available.length} are available at this store.',
+        );
+        return null;
+      }
+
+      final search = TextEditingController();
+      final selected = <String>{};
+
+      if (!mounted) {
+        search.dispose();
+        return null;
+      }
+
+      final chosen = await showDialog<List<String>>(
+        context: context,
+        barrierDismissible: false,
+        builder: (dialogContext) => StatefulBuilder(
+          builder: (context, setLocalState) {
+            final query = search.text.trim().toLowerCase();
+            final visible = available.where((row) {
+              final serial = row['serial_number']?.toString() ?? '';
+              return query.isEmpty || serial.toLowerCase().contains(query);
+            }).toList();
+
+            return AlertDialog(
+              title: Text('Select Serial Number${required == 1 ? '' : 's'}'),
+              content: SizedBox(
+                width: 560,
+                height: 480,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(
+                      product!.productName,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      'Select exactly $required available serial '
+                      'number${required == 1 ? '' : 's'}.',
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                    const SizedBox(height: 9),
+                    TextField(
+                      controller: search,
+                      onChanged: (_) => setLocalState(() {}),
+                      decoration: const InputDecoration(
+                        labelText: 'Search serial number',
+                        prefixIcon: Icon(Icons.search_rounded),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Expanded(
+                      child: ListView.builder(
+                        itemCount: visible.length,
+                        itemBuilder: (context, index) {
+                          final serial =
+                              visible[index]['serial_number']?.toString() ?? '';
+                          final checked = selected.contains(serial);
+                          final blocked =
+                              !checked && selected.length >= required;
+                          return CheckboxListTile(
+                            dense: true,
+                            value: checked,
+                            onChanged: blocked
+                                ? null
+                                : (value) {
+                                    setLocalState(() {
+                                      if (value == true) {
+                                        selected.add(serial);
+                                      } else {
+                                        selected.remove(serial);
+                                      }
+                                    });
+                                  },
+                            title: Text(
+                              serial,
+                              style: const TextStyle(
+                                fontSize: 10.5,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      '${selected.length} / $required selected',
+                      textAlign: TextAlign.right,
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                        color: selected.length == required
+                            ? const Color(0xFF198754)
+                            : Theme.of(context).colorScheme.error,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(dialogContext),
+                  child: const Text('Cancel'),
+                ),
+                FilledButton.icon(
+                  onPressed: selected.length == required
+                      ? () => Navigator.pop(
+                          dialogContext,
+                          selected.toList(growable: false),
+                        )
+                      : null,
+                  icon: const Icon(Icons.check_rounded, size: 16),
+                  label: const Text('Use Selected Serials'),
+                ),
+              ],
+            );
+          },
+        ),
+      );
+
+      search.dispose();
+
+      if (chosen == null) return null;
+
+      assignments.add({
+        'order_item_id': item['id']?.toString(),
+        'serial_numbers': chosen,
+        'batches': const <Map<String, dynamic>>[],
+      });
+    }
+
+    return assignments;
+  }
+
   Future<void> _bill(Map<String, dynamic> order) async {
     final deviceId = _deviceId;
     if (deviceId == null) {
-      _message('This system is not registered.');
+      _message('This POS is not registered.');
       return;
     }
 
@@ -3848,90 +4843,156 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
         deviceId,
       );
       if (!mounted) return;
-      final orderMap = Map<String, dynamic>.from(detail['order'] as Map);
-      final itemRows = detail['items'] as List? ?? const [];
 
-      double storedTotal = 0;
-      for (final raw in itemRows) {
-        final item = Map<String, dynamic>.from(raw as Map);
+      final orderMap = Map<String, dynamic>.from(detail['order'] as Map);
+      final itemRows = (detail['items'] as List? ?? const [])
+          .whereType<Map>()
+          .map((row) => Map<String, dynamic>.from(row))
+          .toList();
+
+      double subtotal = 0;
+      double discount = 0;
+      double tax = 0;
+
+      for (final item in itemRows) {
         final quantity =
             (item['quantity'] as num?)?.toDouble() ??
             double.tryParse('${item['quantity']}') ??
             0;
-        final cancelledQuantity =
+        final cancelled =
             (item['cancelled_quantity'] as num?)?.toDouble() ??
             double.tryParse('${item['cancelled_quantity']}') ??
             0;
-        final activeQuantity = (quantity - cancelledQuantity)
-            .clamp(0, double.infinity)
+        final activeQuantity = (quantity - cancelled)
+            .clamp(0.0, double.infinity)
             .toDouble();
         final unitPrice =
             (item['unit_price'] as num?)?.toDouble() ??
             double.tryParse('${item['unit_price']}') ??
             0;
-        final discount =
+        final storedDiscount =
             (item['discount_amount'] as num?)?.toDouble() ??
             double.tryParse('${item['discount_amount']}') ??
             0;
-        final activeDiscount = quantity > 0
-            ? discount * (activeQuantity / quantity)
-            : 0.0;
         final taxRate =
             (item['tax_rate'] as num?)?.toDouble() ??
             double.tryParse('${item['tax_rate']}') ??
             0;
-        final taxable = (activeQuantity * unitPrice - activeDiscount).clamp(
-          0,
-          double.infinity,
-        );
-        storedTotal += taxable * (1 + taxRate / 100);
+
+        final activeDiscount = quantity <= 0
+            ? 0.0
+            : storedDiscount * (activeQuantity / quantity);
+        final gross = activeQuantity * unitPrice;
+        final taxable = (gross - activeDiscount)
+            .clamp(0.0, double.infinity)
+            .toDouble();
+
+        subtotal += gross;
+        discount += activeDiscount;
+        tax += taxable * taxRate / 100.0;
       }
-      storedTotal = double.parse(storedTotal.toStringAsFixed(2));
+
+      subtotal = double.parse(subtotal.toStringAsFixed(2));
+      discount = double.parse(discount.toStringAsFixed(2));
+      tax = double.parse(tax.toStringAsFixed(2));
+      final storedTotal = double.parse(
+        (subtotal - discount + tax).toStringAsFixed(2),
+      );
+
+      final initialCustomerId =
+          orderMap['customer_id']?.toString() ?? _walkIn?.id;
+      if (initialCustomerId == null) {
+        throw Exception('Choose a customer before billing.');
+      }
 
       final choice = await _restaurantBillingDialog(
+        order: orderMap,
         orderNumber: order['order_number']?.toString() ?? 'Restaurant Order',
+        itemRows: itemRows,
+        subtotal: subtotal,
+        discount: discount,
+        tax: tax,
         total: storedTotal,
+        initialCustomerId: initialCustomerId,
+        initialNote: orderMap['order_note']?.toString() ?? '',
       );
       if (choice == null || !mounted) return;
 
-      final customerId = orderMap['customer_id']?.toString() ?? _walkIn?.id;
-      if (customerId == null) {
-        throw Exception('No customer is available for billing.');
-      }
-      Customer? customer;
-      for (final value in _customerRows) {
-        if (value.id == customerId) {
-          customer = value;
-          break;
-        }
-      }
-      if (choice.paymentMethod == 'credit' && customer?.isWalkIn == true) {
-        throw Exception('Walk-in Customer cannot use credit.');
+      final trackingAssignments = await _restaurantTrackingAssignments(
+        itemRows,
+      );
+      if (trackingAssignments == null || !mounted) return;
+
+      if (choice.customerId != initialCustomerId ||
+          choice.note.trim() !=
+              (orderMap['order_note']?.toString().trim() ?? '')) {
+        await _restaurant.updateOrder(
+          tenantId: widget.session.business.id,
+          orderId: order['id'].toString(),
+          deviceId: deviceId,
+          customerId: choice.customerId,
+          orderNote: choice.note.trim(),
+        );
       }
 
-      final finalTotal = double.parse(
-        (storedTotal + choice.roundOff).toStringAsFixed(2),
-      );
-      if (finalTotal < 0) throw Exception('Rounded total cannot be negative.');
-      final sale = await _restaurant.billOrder(
+      final sale = await _restaurant.billOrderCommercialV610(
         tenantId: widget.session.business.id,
         orderId: order['id'].toString(),
         deviceId: deviceId,
-        customerId: customerId,
-        dueDate: choice.paymentMethod == 'credit'
-            ? DateTime.now().add(const Duration(days: 30))
-            : null,
-        initialPayment: choice.paymentMethod == 'credit' ? 0 : finalTotal,
-        paymentMethod: choice.paymentMethod,
-        paymentReference: '',
-        roundOff: choice.roundOff,
+        customerId: choice.customerId,
+        dueDate: choice.dueDate,
+        paymentAllocations: choice.paymentAllocations,
+        trackingAssignments: trackingAssignments,
+        discountType: choice.discountType,
+        discountValue: choice.discountValue,
+        chargeSelections: choice.chargeSelections,
+        notes: choice.note,
       );
+
       final saleNumber =
-          sale['sale_number']?.toString() ?? sale['number']?.toString();
-      if (saleNumber == null || saleNumber.isEmpty) {
-        throw Exception('Sale created but number was not returned.');
+          sale['sale_number']?.toString() ?? sale['number']?.toString() ?? '';
+      final saleId = sale['sale_id']?.toString() ?? '';
+      final snapshotId = sale['gst_snapshot_id']?.toString() ?? '';
+      final journalId = sale['journal_id']?.toString() ?? '';
+
+      if (saleNumber.isEmpty ||
+          saleId.isEmpty ||
+          snapshotId.isEmpty ||
+          journalId.isEmpty) {
+        throw Exception(
+          'Restaurant sale did not return complete Sales / GST / '
+          'Accounting evidence.',
+        );
       }
-      _message('$saleNumber billed successfully.');
+
+      final payments = sale['payments'] is Map
+          ? Map<String, dynamic>.from(sale['payments'] as Map)
+          : <String, dynamic>{};
+
+      final settled =
+          (payments['settled_amount'] as num?)?.toDouble() ??
+          double.tryParse('${payments['settled_amount']}') ??
+          0;
+      final credit =
+          (payments['credit_amount'] as num?)?.toDouble() ??
+          double.tryParse('${payments['credit_amount']}') ??
+          0;
+      final change =
+          (payments['change_amount'] as num?)?.toDouble() ??
+          double.tryParse('${payments['change_amount']}') ??
+          0;
+
+      if (!mounted) return;
+
+      _message(
+        credit > .005
+            ? '$saleNumber posted. Paid ${_money(settled)} | '
+                  'Credit ${_money(credit)}.'
+            : change > .005
+            ? '$saleNumber posted. Cash change ${_money(change)}.'
+            : '$saleNumber posted to Sales, GST and Accounts.',
+      );
+
       await _load();
     } catch (error) {
       _message(error.toString());
@@ -3939,308 +5000,1555 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
   }
 
   Future<_RestaurantBillingChoice?> _restaurantBillingDialog({
+    required Map<String, dynamic> order,
     required String orderNumber,
+    required List<Map<String, dynamic>> itemRows,
+    required double subtotal,
+    required double discount,
+    required double tax,
     required double total,
+    required String initialCustomerId,
+    required String initialNote,
   }) async {
-    final roundController = TextEditingController(text: '0.00');
-    String paymentMethod = 'cash';
+    final locationId = _locationId;
+    final deviceId = _deviceId;
+    if (locationId == null || deviceId == null) {
+      _message('This POS is not registered to a Restaurant location.');
+      return null;
+    }
+
+    double number(dynamic value, [double fallback = 0]) =>
+        (value as num?)?.toDouble() ?? double.tryParse('$value') ?? fallback;
+
+    double activeQuantity(Map<String, dynamic> item) {
+      final quantity = number(item['quantity']);
+      final cancelled = number(item['cancelled_quantity']);
+      return (quantity - cancelled).clamp(0.0, double.infinity).toDouble();
+    }
+
+    final commercialItems = <Map<String, dynamic>>[];
+    for (final item in itemRows) {
+      final quantity = activeQuantity(item);
+      if (quantity <= 0.000001) continue;
+
+      final originalQuantity = number(item['quantity']);
+      final originalDiscount = number(item['discount_amount']);
+      final proratedDiscount = originalQuantity <= 0
+          ? 0.0
+          : originalDiscount * (quantity / originalQuantity);
+
+      commercialItems.add(<String, dynamic>{
+        'variant_id': item['variant_id']?.toString(),
+        'quantity': quantity,
+        'unit_price': number(item['unit_price']),
+        'discount_amount': proratedDiscount,
+        'tax_rate': number(item['tax_rate']),
+      });
+    }
+
+    if (commercialItems.isEmpty) {
+      _message('Restaurant order has no billable items.');
+      return null;
+    }
+
+    String orderType =
+        order['order_type']?.toString().trim().toLowerCase() ?? 'dine_in';
+    if (!const {
+      'dine_in',
+      'takeaway',
+      'delivery',
+      'sale',
+    }.contains(orderType)) {
+      orderType = 'dine_in';
+    }
+
+    bool additionalChargesEnabled;
+    List<Map<String, dynamic>> catalog;
+    try {
+      additionalChargesEnabled = await _commercial.additionalChargesEnabled(
+        tenantId: widget.session.business.id,
+      );
+      catalog = additionalChargesEnabled
+          ? await _commercial.chargeCatalog(
+              tenantId: widget.session.business.id,
+              locationId: locationId,
+              deviceId: deviceId,
+            )
+          : const <Map<String, dynamic>>[];
+    } catch (error) {
+      _message('Commercial charge catalogue unavailable: $error');
+      return null;
+    }
+
+    if (!mounted) return null;
+
+    final noteController = TextEditingController(text: initialNote);
+    final discountController = TextEditingController(text: '0.00');
+    final chargeAmountController = TextEditingController(text: '0.00');
+
+    String customerId = initialCustomerId;
+    DateTime dueDate = DateTime.now().add(const Duration(days: 30));
+    List<Map<String, dynamic>> allocations = const [];
+
+    String discountType = 'none';
+    List<Map<String, dynamic>> chargeSelections = const [];
+    String? chargeToAdd = catalog.isNotEmpty
+        ? catalog.first['id']?.toString()
+        : null;
+    if (catalog.isNotEmpty) {
+      chargeAmountController.text = number(
+        catalog.first['selling_price'],
+      ).toStringAsFixed(2);
+    }
+
+    Map<String, dynamic>? quote;
+    String? quoteError;
+    var quoteBusy = false;
+    var quoteToken = 0;
+
+    String quantityText(double value) {
+      if ((value - value.roundToDouble()).abs() < .000001) {
+        return value.toStringAsFixed(0);
+      }
+      return value.toStringAsFixed(2);
+    }
+
+    Customer? selectedCustomer() {
+      for (final customer in _customerRows) {
+        if (customer.id == customerId) return customer;
+      }
+      return null;
+    }
+
+    Future<Map<String, dynamic>> fetchQuote() async {
+      final result = await _commercial.quote(
+        tenantId: widget.session.business.id,
+        locationId: locationId,
+        deviceId: deviceId,
+        orderType: orderType,
+        items: commercialItems,
+        discountType: discountType,
+        discountValue: double.tryParse(discountController.text.trim()) ?? 0.0,
+        chargeSelections: chargeSelections,
+      );
+      return result;
+    }
+
+    try {
+      quote = await fetchQuote();
+    } catch (error) {
+      quoteError = error.toString();
+    }
+
+    if (!mounted) {
+      noteController.dispose();
+      discountController.dispose();
+      chargeAmountController.dispose();
+      return null;
+    }
+
     final result = await showDialog<_RestaurantBillingChoice>(
       context: context,
+      barrierDismissible: false,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setDialogState) {
-          final roundOff = double.tryParse(roundController.text.trim()) ?? 0;
-          final finalTotal = total + roundOff;
-          return AlertDialog(
-            title: Text('Finalize $orderNumber'),
-            content: SizedBox(
-              width: 440,
+          final scheme = Theme.of(context).colorScheme;
+          final media = MediaQuery.sizeOf(context);
+
+          Future<void> refreshQuote() async {
+            final token = ++quoteToken;
+            setDialogState(() {
+              quoteBusy = true;
+              quoteError = null;
+            });
+
+            try {
+              final next = await fetchQuote();
+              if (!dialogContext.mounted || token != quoteToken) return;
+              setDialogState(() {
+                quote = next;
+                quoteBusy = false;
+                allocations = const [];
+              });
+            } catch (error) {
+              if (!dialogContext.mounted || token != quoteToken) return;
+              setDialogState(() {
+                quoteBusy = false;
+                quoteError = error.toString();
+              });
+            }
+          }
+
+          bool selectedCharge(String id) =>
+              chargeSelections.any((row) => row['charge_id']?.toString() == id);
+
+          void addSelectedCharge() {
+            final id = chargeToAdd;
+            if (id == null || id.isEmpty || selectedCharge(id)) return;
+
+            final amount =
+                double.tryParse(chargeAmountController.text.trim()) ?? -1;
+            if (amount < 0) {
+              ScaffoldMessenger.of(dialogContext).showSnackBar(
+                const SnackBar(
+                  content: Text(
+                    'Enter a valid non-negative additional charge amount.',
+                  ),
+                ),
+              );
+              return;
+            }
+
+            final next = chargeSelections
+                .map((row) => Map<String, dynamic>.from(row))
+                .toList();
+            next.add(<String, dynamic>{
+              'charge_id': id,
+              'quantity': 1.0,
+              'amount': amount,
+            });
+
+            setDialogState(() => chargeSelections = next);
+            refreshQuote();
+          }
+
+          void removeCharge(String id) {
+            setDialogState(() {
+              chargeSelections = chargeSelections
+                  .where((row) => row['charge_id']?.toString() != id)
+                  .map((row) => Map<String, dynamic>.from(row))
+                  .toList(growable: false);
+            });
+            refreshQuote();
+          }
+
+          final totalsRaw = quote?['totals'];
+          final quoteTotals = totalsRaw is Map
+              ? Map<String, dynamic>.from(totalsRaw)
+              : const <String, dynamic>{};
+
+          final currentSubtotal = number(quoteTotals['subtotal'], subtotal);
+          final currentDiscount = number(quoteTotals['discount'], discount);
+          final currentTax = number(quoteTotals['tax'], tax);
+          final beforeRoundOff = number(quoteTotals['before_round_off'], total);
+          final roundOff = number(
+            quoteTotals['automatic_round_off'],
+            double.parse(
+              (beforeRoundOff.roundToDouble() - beforeRoundOff).toStringAsFixed(
+                2,
+              ),
+            ),
+          );
+          final finalTotal = number(
+            quoteTotals['grand_total'],
+            double.parse((beforeRoundOff + roundOff).toStringAsFixed(2)),
+          );
+
+          final classifiedChargeTotal = number(
+            quote?['classified_charge_total'],
+          );
+          final documentDiscount = number(quote?['document_discount_total']);
+          final chargeBreakdown =
+              (quote?['charge_breakdown'] as List? ?? const [])
+                  .whereType<Map>()
+                  .map((row) => Map<String, dynamic>.from(row))
+                  .toList(growable: false);
+
+          final customer = selectedCustomer();
+
+          var remaining = finalTotal;
+          var cashChange = 0.0;
+          var creditAmount = 0.0;
+          var nonCashOverpayment = false;
+
+          for (final allocation in allocations) {
+            final method = allocation['method_code']?.toString() ?? '';
+            final tendered =
+                (allocation['tendered_amount'] as num?)?.toDouble() ??
+                double.tryParse('${allocation['tendered_amount']}') ??
+                0;
+            if (tendered <= 0) continue;
+
+            final used = tendered > remaining ? remaining : tendered;
+            if (method == 'cash' && tendered > used) {
+              cashChange += tendered - used;
+            } else if (method != 'cash' &&
+                method != 'credit' &&
+                tendered > remaining + .005) {
+              nonCashOverpayment = true;
+            }
+            if (method == 'credit') creditAmount += used;
+            remaining = (remaining - used).clamp(0.0, finalTotal).toDouble();
+          }
+
+          final creditBlocked =
+              creditAmount > .005 && (customer?.isWalkIn ?? true);
+          final canConfirm =
+              quote != null &&
+              !quoteBusy &&
+              quoteError == null &&
+              finalTotal >= 0 &&
+              allocations.isNotEmpty &&
+              remaining <= .005 &&
+              !creditBlocked &&
+              !nonCashOverpayment;
+
+          Future<void> chooseDueDate() async {
+            final picked = await showDatePicker(
+              context: dialogContext,
+              initialDate: dueDate,
+              firstDate: DateTime.now(),
+              lastDate: DateTime.now().add(const Duration(days: 3650)),
+              helpText: 'Credit due date',
+            );
+            if (picked != null) {
+              setDialogState(() => dueDate = picked);
+            }
+          }
+
+          String dueText() {
+            final day = dueDate.day.toString().padLeft(2, '0');
+            final month = dueDate.month.toString().padLeft(2, '0');
+            return '$day/$month/${dueDate.year}';
+          }
+
+          Widget amountRow(
+            String label,
+            double value, {
+            bool strong = false,
+            Color? valueColor,
+          }) {
+            return Padding(
+              padding: const EdgeInsets.symmetric(vertical: 3),
+              child: Row(
+                children: [
+                  Text(
+                    label,
+                    style: TextStyle(
+                      color: strong
+                          ? scheme.onSurface
+                          : scheme.onSurfaceVariant,
+                      fontSize: strong ? 12 : 10.5,
+                      fontWeight: strong ? FontWeight.w900 : FontWeight.w600,
+                    ),
+                  ),
+                  const Spacer(),
+                  Text(
+                    _money(value),
+                    style: TextStyle(
+                      color: valueColor ?? scheme.onSurface,
+                      fontSize: strong ? 15 : 10.5,
+                      fontWeight: strong ? FontWeight.w900 : FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }
+
+          Widget itemPanel() {
+            return Container(
+              decoration: BoxDecoration(
+                color: scheme.surface,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: scheme.outlineVariant),
+              ),
+              clipBehavior: Clip.antiAlias,
               child: Column(
-                mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Text('Order total: ${_money(total)}'),
-                  const SizedBox(height: 12),
-                  TextField(
-                    controller: roundController,
-                    keyboardType: const TextInputType.numberWithOptions(
-                      decimal: true,
-                      signed: true,
+                  Container(
+                    height: 46,
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    color: scheme.surfaceContainerLowest,
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.receipt_long_outlined,
+                          size: 18,
+                          color: scheme.primary,
+                        ),
+                        const SizedBox(width: 7),
+                        Expanded(
+                          child: Text(
+                            'Order $orderNumber',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: scheme.onSurface,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                    decoration: InputDecoration(
-                      labelText: 'Round Off',
-                      helperText: 'Allowed range: -1.00 to +1.00',
-                      suffixIcon: TextButton(
-                        onPressed: () {
-                          final rounded = total.roundToDouble();
-                          roundController.text = (rounded - total)
-                              .toStringAsFixed(2);
-                          setDialogState(() {});
-                        },
-                        child: const Text('Round'),
+                  ),
+                  Divider(height: 1, color: scheme.outlineVariant),
+                  Expanded(
+                    child: ListView.separated(
+                      padding: const EdgeInsets.all(10),
+                      itemCount: itemRows.length,
+                      separatorBuilder: (_, _) =>
+                          Divider(height: 12, color: scheme.outlineVariant),
+                      itemBuilder: (context, index) {
+                        final item = itemRows[index];
+                        final quantity = number(item['quantity']);
+                        final cancelled = number(item['cancelled_quantity']);
+                        final activeQty = (quantity - cancelled)
+                            .clamp(0.0, double.infinity)
+                            .toDouble();
+                        final unitPrice = number(item['unit_price']);
+                        final storedDiscount = number(item['discount_amount']);
+                        final activeDiscount = quantity <= 0
+                            ? 0.0
+                            : storedDiscount * (activeQty / quantity);
+                        final taxRate = number(item['tax_rate']);
+                        final taxable = (activeQty * unitPrice - activeDiscount)
+                            .clamp(0.0, double.infinity)
+                            .toDouble();
+                        final lineTotal = taxable * (1 + taxRate / 100.0);
+
+                        final name =
+                            item['product_name']?.toString() ??
+                            item['variant_name']?.toString() ??
+                            _restaurantProductLabel(
+                              item['variant_id']?.toString(),
+                            );
+
+                        return Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Container(
+                              width: 42,
+                              height: 42,
+                              alignment: Alignment.center,
+                              decoration: BoxDecoration(
+                                color: scheme.primaryContainer,
+                                borderRadius: BorderRadius.circular(9),
+                              ),
+                              child: Text(
+                                '${quantityText(activeQty)}x',
+                                style: TextStyle(
+                                  color: scheme.onPrimaryContainer,
+                                  fontSize: 9.5,
+                                  fontWeight: FontWeight.w900,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 9),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    name,
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      color: scheme.onSurface,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w900,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    '${_money(unitPrice)} | '
+                                    'Tax ${taxRate.toStringAsFixed(0)}%',
+                                    style: TextStyle(
+                                      color: scheme.onSurfaceVariant,
+                                      fontSize: 9,
+                                    ),
+                                  ),
+                                  if (activeDiscount > .005)
+                                    Text(
+                                      'Line discount ${_money(activeDiscount)}',
+                                      style: TextStyle(
+                                        color: scheme.primary,
+                                        fontSize: 9,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              _money(lineTotal),
+                              style: TextStyle(
+                                color: scheme.onSurface,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                          ],
+                        );
+                      },
+                    ),
+                  ),
+                  Divider(height: 1, color: scheme.outlineVariant),
+                  Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Column(
+                      children: [
+                        amountRow('Subtotal', currentSubtotal),
+                        if (currentDiscount > .005)
+                          amountRow(
+                            'Total discount',
+                            -currentDiscount,
+                            valueColor: scheme.primary,
+                          ),
+                        if (documentDiscount > .005)
+                          amountRow(
+                            'Order discount',
+                            -documentDiscount,
+                            valueColor: scheme.primary,
+                          ),
+                        if (classifiedChargeTotal > .005)
+                          amountRow(
+                            'Additional charges',
+                            classifiedChargeTotal,
+                            valueColor: scheme.tertiary,
+                          ),
+                        amountRow('Tax', currentTax),
+                        if (roundOff.abs() > .0001)
+                          amountRow('Round off', roundOff),
+                        const Divider(height: 16),
+                        amountRow('Final Total', finalTotal, strong: true),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }
+
+          Widget pricingSection() {
+            String chargeLabel(Map<String, dynamic> charge) {
+              final kind = (charge['charge_kind']?.toString() ?? 'other')
+                  .replaceAll('_', ' ')
+                  .toUpperCase();
+              final name =
+                  charge['name']?.toString() ??
+                  charge['code']?.toString() ??
+                  'Charge';
+              final price = number(charge['selling_price']);
+              return '$kind â€¢ $name â€¢ ${_money(price)}';
+            }
+
+            void selectCharge(String? value) {
+              Map<String, dynamic>? charge;
+              for (final row in catalog) {
+                if (row['id']?.toString() == value) {
+                  charge = row;
+                  break;
+                }
+              }
+              setDialogState(() {
+                chargeToAdd = value;
+                chargeAmountController.text = charge == null
+                    ? '0.00'
+                    : number(charge['selling_price']).toStringAsFixed(2);
+              });
+            }
+
+            return Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: scheme.surfaceContainerLowest,
+                borderRadius: BorderRadius.circular(9),
+                border: Border.all(color: scheme.outlineVariant),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.price_change_outlined,
+                        size: 17,
+                        color: scheme.primary,
+                      ),
+                      const SizedBox(width: 7),
+                      const Expanded(
+                        child: Text(
+                          'Discount & Additional Charges',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ),
+                      if (quoteBusy)
+                        const SizedBox(
+                          width: 15,
+                          height: 15,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      else
+                        Text(
+                          'GST CLASSIFIED',
+                          style: TextStyle(
+                            fontSize: 8,
+                            fontWeight: FontWeight.w900,
+                            color: scheme.primary,
+                          ),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      SizedBox(
+                        width: 132,
+                        child: DropdownButtonFormField<String>(
+                          initialValue: discountType,
+                          dropdownColor: scheme.surface,
+                          style: TextStyle(color: scheme.onSurface),
+                          decoration: const InputDecoration(
+                            labelText: 'Discount',
+                            isDense: true,
+                          ),
+                          items: const [
+                            DropdownMenuItem(
+                              value: 'none',
+                              child: Text('None'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'fixed',
+                              child: Text('Fixed â‚¹'),
+                            ),
+                            DropdownMenuItem(
+                              value: 'percent',
+                              child: Text('Percent %'),
+                            ),
+                          ],
+                          onChanged: quoteBusy
+                              ? null
+                              : (value) {
+                                  if (value == null) return;
+                                  setDialogState(() {
+                                    discountType = value;
+                                    allocations = const [];
+                                    if (value == 'none') {
+                                      discountController.text = '0.00';
+                                    }
+                                  });
+                                  refreshQuote();
+                                },
+                        ),
+                      ),
+                      const SizedBox(width: 7),
+                      Expanded(
+                        child: TextField(
+                          controller: discountController,
+                          enabled: !quoteBusy && discountType != 'none',
+                          keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true,
+                          ),
+                          decoration: InputDecoration(
+                            labelText: discountType == 'percent'
+                                ? 'Discount %'
+                                : 'Discount amount',
+                            isDense: true,
+                          ),
+                          onSubmitted: (_) => refreshQuote(),
+                        ),
+                      ),
+                      const SizedBox(width: 7),
+                      IconButton.filledTonal(
+                        tooltip: 'Recalculate',
+                        onPressed: quoteBusy ? null : refreshQuote,
+                        icon: const Icon(Icons.calculate_outlined, size: 17),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  DropdownButtonFormField<String>(
+                    key: ValueKey(
+                      'restaurant-additional-${chargeToAdd ?? ''}-'
+                      '${catalog.length}',
+                    ),
+                    initialValue: chargeToAdd,
+                    isExpanded: true,
+                    dropdownColor: scheme.surface,
+                    style: TextStyle(
+                      color: scheme.onSurface,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    decoration: const InputDecoration(
+                      labelText: 'Additional charge',
+                      hintText: 'Packaging / Delivery / Service...',
+                      isDense: true,
+                    ),
+                    items: catalog
+                        .map(
+                          (charge) => DropdownMenuItem<String>(
+                            value: charge['id']?.toString(),
+                            child: Text(
+                              chargeLabel(charge),
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(color: scheme.onSurface),
+                            ),
+                          ),
+                        )
+                        .toList(),
+                    onChanged: catalog.isEmpty || quoteBusy
+                        ? null
+                        : selectCharge,
+                  ),
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: chargeAmountController,
+                          enabled: !quoteBusy && catalog.isNotEmpty,
+                          keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true,
+                          ),
+                          decoration: const InputDecoration(
+                            labelText: 'Charge amount before GST',
+                            prefixIcon: Icon(Icons.currency_rupee, size: 16),
+                            isDense: true,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 7),
+                      FilledButton.tonalIcon(
+                        onPressed:
+                            catalog.isEmpty ||
+                                quoteBusy ||
+                                chargeToAdd == null ||
+                                selectedCharge(chargeToAdd!)
+                            ? null
+                            : addSelectedCharge,
+                        icon: const Icon(Icons.add, size: 16),
+                        label: const Text('Add'),
+                      ),
+                    ],
+                  ),
+                  if (catalog.isEmpty) ...[
+                    const SizedBox(height: 5),
+                    Text(
+                      additionalChargesEnabled
+                          ? 'No additional charge is configured yet. Add one '
+                                'from Products â†’ Additional Charges.'
+                          : 'Additional Charges are disabled in Business Settings.',
+                      style: TextStyle(
+                        fontSize: 8.8,
+                        color: scheme.onSurfaceVariant,
                       ),
                     ),
-                    onChanged: (_) => setDialogState(() {}),
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    'Final total: ${_money(finalTotal)}',
-                    style: const TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w800,
+                  ],
+                  if (chargeSelections.isNotEmpty) ...[
+                    const SizedBox(height: 7),
+                    Wrap(
+                      spacing: 5,
+                      runSpacing: 5,
+                      children: chargeSelections.map((selection) {
+                        final id = selection['charge_id']?.toString() ?? '';
+                        Map<String, dynamic>? charge;
+                        for (final row in catalog) {
+                          if (row['id']?.toString() == id) {
+                            charge = row;
+                            break;
+                          }
+                        }
+                        final label =
+                            charge?['name']?.toString() ??
+                            charge?['code']?.toString() ??
+                            'Charge';
+                        final amount =
+                            (selection['amount'] as num?)?.toDouble() ??
+                            double.tryParse('${selection['amount']}') ??
+                            0.0;
+                        return InputChip(
+                          visualDensity: VisualDensity.compact,
+                          label: Text(
+                            '$label ${_money(amount)}',
+                            style: TextStyle(color: scheme.onSurface),
+                          ),
+                          onDeleted: quoteBusy ? null : () => removeCharge(id),
+                        );
+                      }).toList(),
                     ),
-                  ),
-                  const SizedBox(height: 16),
-                  DropdownButtonFormField<String>(
-                    initialValue: paymentMethod,
-                    decoration: const InputDecoration(
-                      labelText: 'Payment method',
+                  ],
+                  if (chargeBreakdown.isNotEmpty) ...[
+                    const SizedBox(height: 7),
+                    Text(
+                      'Applied including GST: ${chargeBreakdown.map((row) {
+                        final name = row['name']?.toString() ?? row['code']?.toString() ?? 'Charge';
+                        return '$name ${_money(row['line_total'])}';
+                      }).join(' â€¢ ')}',
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 8.8,
+                        fontWeight: FontWeight.w700,
+                        color: scheme.onSurfaceVariant,
+                      ),
                     ),
-                    items: const [
-                      DropdownMenuItem(value: 'cash', child: Text('CASH')),
-                      DropdownMenuItem(value: 'upi', child: Text('UPI')),
-                      DropdownMenuItem(value: 'card', child: Text('CARD')),
-                      DropdownMenuItem(value: 'credit', child: Text('CREDIT')),
+                  ],
+                  if (quoteError != null) ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      quoteError!,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 8.8,
+                        fontWeight: FontWeight.w700,
+                        color: scheme.error,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            );
+          }
+
+          Widget paymentPanel() {
+            return Container(
+              decoration: BoxDecoration(
+                color: scheme.surface,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: scheme.outlineVariant),
+              ),
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(
+                      'Customer & Payment',
+                      style: TextStyle(
+                        color: scheme.onSurface,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    DropdownButtonFormField<String>(
+                      initialValue: customerId,
+                      isExpanded: true,
+                      decoration: const InputDecoration(
+                        labelText: 'Customer',
+                        prefixIcon: Icon(Icons.person_outline),
+                      ),
+                      items: _customerRows
+                          .map(
+                            (row) => DropdownMenuItem<String>(
+                              value: row.id,
+                              child: Text(
+                                row.isWalkIn
+                                    ? '${row.name} (Default)'
+                                    : row.name,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: (value) {
+                        if (value == null) return;
+                        setDialogState(() {
+                          customerId = value;
+                          allocations = const [];
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 9),
+                    pricingSection(),
+                    const SizedBox(height: 9),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 11,
+                        vertical: 9,
+                      ),
+                      decoration: BoxDecoration(
+                        color: scheme.surfaceContainerLowest,
+                        borderRadius: BorderRadius.circular(9),
+                        border: Border.all(color: scheme.outlineVariant),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.exposure_zero_outlined,
+                            size: 17,
+                            color: scheme.primary,
+                          ),
+                          const SizedBox(width: 8),
+                          const Expanded(
+                            child: Text(
+                              'Automatic Round Off',
+                              style: TextStyle(
+                                fontSize: 10.5,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ),
+                          Text(
+                            _money(roundOff),
+                            style: TextStyle(
+                              color: scheme.onSurface,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    MultiPaymentEditor(
+                      key: ValueKey(
+                        'restaurant-pay-'
+                        '${customerId}_${finalTotal.toStringAsFixed(2)}',
+                      ),
+                      tenantId: widget.session.business.id,
+                      total: finalTotal,
+                      customerIsWalkIn: customer?.isWalkIn ?? true,
+                      customerName: customer?.name ?? '',
+                      initialAllocations: allocations,
+                      onChanged: (value) {
+                        setDialogState(() {
+                          allocations = value
+                              .map((row) => Map<String, dynamic>.from(row))
+                              .toList(growable: false);
+                        });
+                      },
+                    ),
+                    if (creditAmount > .005) ...[
+                      const SizedBox(height: 10),
+                      OutlinedButton.icon(
+                        onPressed: chooseDueDate,
+                        icon: const Icon(Icons.event_outlined, size: 16),
+                        label: Text('Credit due: ${dueText()}'),
+                      ),
                     ],
-                    onChanged: (value) {
-                      if (value != null) {
-                        setDialogState(() => paymentMethod = value);
-                      }
-                    },
+                    const SizedBox(height: 10),
+                    TextField(
+                      controller: noteController,
+                      minLines: 2,
+                      maxLines: 3,
+                      decoration: const InputDecoration(
+                        labelText: 'Invoice / order notes',
+                        prefixIcon: Icon(Icons.sticky_note_2_outlined),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: scheme.surfaceContainerLowest,
+                        borderRadius: BorderRadius.circular(9),
+                        border: Border.all(color: scheme.outlineVariant),
+                      ),
+                      child: Column(
+                        children: [
+                          amountRow('Invoice total', finalTotal, strong: true),
+                          if (creditAmount > .005)
+                            amountRow(
+                              'Account credit',
+                              creditAmount,
+                              valueColor: scheme.primary,
+                            ),
+                          if (cashChange > .005)
+                            amountRow(
+                              'Cash change',
+                              cashChange,
+                              valueColor: const Color(0xFF198754),
+                            ),
+                          if (remaining > .005)
+                            amountRow(
+                              'Remaining',
+                              remaining,
+                              valueColor: scheme.error,
+                            ),
+                        ],
+                      ),
+                    ),
+                    if (creditBlocked) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        'Credit requires a named customer.',
+                        style: TextStyle(
+                          color: scheme.error,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ],
+                    if (nonCashOverpayment) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        'Electronic payment cannot exceed the remaining total.',
+                        style: TextStyle(
+                          color: scheme.error,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            );
+          }
+
+          return Dialog(
+            insetPadding: const EdgeInsets.all(18),
+            clipBehavior: Clip.antiAlias,
+            child: SizedBox(
+              width: (media.width * .94).clamp(920.0, 1450.0).toDouble(),
+              height: (media.height * .90).clamp(650.0, 920.0).toDouble(),
+              child: Column(
+                children: [
+                  Container(
+                    height: 62,
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    decoration: BoxDecoration(
+                      color: scheme.surface,
+                      border: Border(
+                        bottom: BorderSide(color: scheme.outlineVariant),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 4,
+                          height: 30,
+                          decoration: BoxDecoration(
+                            color: scheme.primary,
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            'Restaurant POS Checkout',
+                            style: TextStyle(
+                              color: scheme.onSurface,
+                              fontSize: 17,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                        ),
+                        _RestaurantCheckoutStep(
+                          number: '1',
+                          label: 'Order',
+                          active: false,
+                          complete: true,
+                        ),
+                        const SizedBox(width: 6),
+                        _RestaurantCheckoutStep(
+                          number: '2',
+                          label: 'Bill & Pay',
+                          active: true,
+                          complete: false,
+                        ),
+                        const SizedBox(width: 6),
+                        _RestaurantCheckoutStep(
+                          number: '3',
+                          label: 'Confirm',
+                          active: false,
+                          complete: false,
+                        ),
+                        const SizedBox(width: 10),
+                        IconButton(
+                          tooltip: 'Close',
+                          onPressed: () => Navigator.pop(dialogContext),
+                          icon: const Icon(Icons.close_rounded),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.all(10),
+                      child: LayoutBuilder(
+                        builder: (context, constraints) {
+                          if (constraints.maxWidth >= 980) {
+                            return Row(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                Expanded(flex: 54, child: itemPanel()),
+                                const SizedBox(width: 9),
+                                Expanded(flex: 46, child: paymentPanel()),
+                              ],
+                            );
+                          }
+
+                          return Column(
+                            children: [
+                              Expanded(flex: 43, child: itemPanel()),
+                              const SizedBox(height: 8),
+                              Expanded(flex: 57, child: paymentPanel()),
+                            ],
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.fromLTRB(14, 9, 14, 12),
+                    decoration: BoxDecoration(
+                      color: scheme.surface,
+                      border: Border(
+                        top: BorderSide(color: scheme.outlineVariant),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(dialogContext),
+                          child: const Text('Cancel'),
+                        ),
+                        const Spacer(),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Text(
+                              'Final total',
+                              style: TextStyle(
+                                color: scheme.onSurfaceVariant,
+                                fontSize: 9.5,
+                              ),
+                            ),
+                            Text(
+                              _money(finalTotal),
+                              style: TextStyle(
+                                color: scheme.onSurface,
+                                fontSize: 17,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(width: 12),
+                        FilledButton.icon(
+                          onPressed: canConfirm
+                              ? () => Navigator.pop(
+                                  dialogContext,
+                                  _RestaurantBillingChoice(
+                                    customerId: customerId,
+                                    paymentAllocations: allocations
+                                        .map(
+                                          (row) =>
+                                              Map<String, dynamic>.from(row),
+                                        )
+                                        .toList(growable: false),
+                                    dueDate: creditAmount > .005
+                                        ? dueDate
+                                        : null,
+                                    roundOff: roundOff,
+                                    note: noteController.text,
+                                    discountType: discountType,
+                                    discountValue:
+                                        double.tryParse(
+                                          discountController.text.trim(),
+                                        ) ??
+                                        0.0,
+                                    chargeSelections: chargeSelections
+                                        .map(
+                                          (row) =>
+                                              Map<String, dynamic>.from(row),
+                                        )
+                                        .toList(growable: false),
+                                  ),
+                                )
+                              : null,
+                          icon: const Icon(
+                            Icons.check_circle_outline,
+                            size: 17,
+                          ),
+                          label: const Text('Confirm & Create Sales Invoice'),
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),
             ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(dialogContext),
-                child: const Text('Cancel'),
-              ),
-              FilledButton(
-                onPressed: () {
-                  final roundOff =
-                      double.tryParse(roundController.text.trim()) ?? 0;
-                  if (roundOff.abs() > 1.000001) {
-                    ThqNotify.showSnackBar(
-                      dialogContext,
-                      const SnackBar(
-                        content: Text(
-                          'Round off must be between -1.00 and +1.00.',
-                        ),
-                      ),
-                    );
-                    return;
-                  }
-                  if (total + roundOff < 0) {
-                    ThqNotify.showSnackBar(
-                      dialogContext,
-                      const SnackBar(
-                        content: Text('Rounded total cannot be negative.'),
-                      ),
-                    );
-                    return;
-                  }
-                  Navigator.pop(
-                    dialogContext,
-                    _RestaurantBillingChoice(paymentMethod, roundOff),
-                  );
-                },
-                child: const Text('Create Sales Invoice'),
-              ),
-            ],
           );
         },
       ),
     );
-    roundController.dispose();
-    return result;
-  }
 
-  Map<String, dynamic>? _tableOrder(String tableId) {
-    for (final order in _orders) {
-      if (order['table_id']?.toString() == tableId &&
-          !const {
-            'billed',
-            'cancelled',
-          }.contains(order['status']?.toString())) {
-        return order;
-      }
-    }
-    return null;
+    noteController.dispose();
+    discountController.dispose();
+    chargeAmountController.dispose();
+    return result;
   }
 
   Widget _orderCard(Map<String, dynamic> order, {bool compact = false}) {
     final scheme = Theme.of(context).colorScheme;
     final status = (order['status'] ?? 'open').toString();
-    final title =
-        '${order['order_number']} | ${order['table_name'] ?? order['order_type']}';
+    final orderType = order['order_type']?.toString() ?? 'dine_in';
+    final isClosed = status == 'billed' || status == 'cancelled';
+    final tableName = order['table_name']?.toString().trim() ?? '';
+    final tableOrType = tableName.isNotEmpty
+        ? tableName
+        : orderType.replaceAll('_', ' ');
+
+    Color statusColor() {
+      switch (status) {
+        case 'preparing':
+          return const Color(0xFFE58A00);
+        case 'ready':
+          return const Color(0xFF198754);
+        case 'served':
+          return const Color(0xFF0F8B8D);
+        case 'cancelled':
+          return scheme.error;
+        case 'billed':
+          return scheme.outline;
+        case 'sent_to_kitchen':
+          return const Color(0xFF3D63DD);
+        default:
+          return scheme.primary;
+      }
+    }
+
+    String statusLabel() => status.replaceAll('_', ' ').toUpperCase();
+
+    String nextActionLabel() {
+      if (status == 'open' || status == 'sent_to_kitchen') {
+        return 'Start Prep';
+      }
+      if (status == 'preparing') return 'Mark Ready';
+      if (status == 'ready') return 'Mark Served';
+      return '';
+    }
+
+    IconData nextActionIcon() {
+      if (status == 'open' || status == 'sent_to_kitchen') {
+        return Icons.soup_kitchen_outlined;
+      }
+      if (status == 'preparing') return Icons.task_alt_rounded;
+      return Icons.room_service_outlined;
+    }
+
+    Future<void> advanceStatus() async {
+      if (status == 'open' || status == 'sent_to_kitchen') {
+        await _setStatus(order, 'preparing');
+      } else if (status == 'preparing') {
+        await _setStatus(order, 'ready');
+      } else if (status == 'ready') {
+        await _setStatus(order, 'served');
+      }
+    }
+
+    final waiter = order['waiter_name']?.toString().trim() ?? '';
+    final customer = order['customer_name']?.toString().trim() ?? '';
+    final guests =
+        (order['guest_count'] as num?)?.toInt() ??
+        int.tryParse('${order['guest_count']}') ??
+        1;
+    final prep =
+        (order['preparation_minutes'] as num?)?.toInt() ??
+        int.tryParse('${order['preparation_minutes']}') ??
+        0;
+    final note = order['order_note']?.toString().trim() ?? '';
+    final color = statusColor();
+
+    if (compact) {
+      return Container(
+        margin: const EdgeInsets.only(bottom: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+        decoration: BoxDecoration(
+          color: scheme.surface,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: scheme.outlineVariant),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                '${order['order_number'] ?? 'Order'} - $tableOrType',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: scheme.onSurface,
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: .12),
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: Text(
+                statusLabel(),
+                style: TextStyle(
+                  color: color,
+                  fontSize: 8.7,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ),
+            const SizedBox(width: 7),
+            Text(
+              _money(order['total']),
+              style: TextStyle(
+                color: scheme.onSurface,
+                fontSize: 10,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
 
     return Container(
-      constraints: BoxConstraints(minHeight: compact ? 54 : 60),
-      margin: EdgeInsets.only(bottom: compact ? 4 : 5),
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+      margin: const EdgeInsets.only(bottom: 8),
       decoration: BoxDecoration(
         color: scheme.surface,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(color: scheme.outlineVariant),
+        boxShadow: const [
+          BoxShadow(
+            blurRadius: 5,
+            offset: Offset(0, 1),
+            color: Color(0x10000000),
+          ),
+        ],
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Container(
-            width: 28,
-            height: 28,
+            padding: const EdgeInsets.fromLTRB(12, 10, 12, 9),
             decoration: BoxDecoration(
-              color: scheme.primary.withValues(alpha: .08),
-              borderRadius: BorderRadius.circular(7),
+              color: color.withValues(alpha: .055),
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(12),
+              ),
             ),
-            child: Icon(
-              order['order_type'] == 'dine_in'
-                  ? Icons.table_restaurant
-                  : order['order_type'] == 'delivery'
-                  ? Icons.delivery_dining
-                  : Icons.takeout_dining,
-              size: 15,
-              color: scheme.primary,
-            ),
-          ),
-          const SizedBox(width: 7),
-          Expanded(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
+            child: Row(
               children: [
-                Text(
-                  title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w800,
+                Container(
+                  width: 34,
+                  height: 34,
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: .12),
+                    borderRadius: BorderRadius.circular(9),
+                  ),
+                  child: Icon(
+                    orderType == 'dine_in'
+                        ? Icons.table_restaurant_outlined
+                        : orderType == 'delivery'
+                        ? Icons.delivery_dining_outlined
+                        : Icons.takeout_dining_outlined,
+                    size: 18,
+                    color: color,
                   ),
                 ),
+                const SizedBox(width: 9),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Flexible(
+                            child: Text(
+                              '${order['order_number'] ?? 'Order'}',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: scheme.onSurface,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 7),
+                          Flexible(
+                            child: Text(
+                              tableOrType,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: scheme.onSurfaceVariant,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        [
+                          if (customer.isNotEmpty) customer,
+                          '$guests guest${guests == 1 ? '' : 's'}',
+                          if (waiter.isNotEmpty) 'Waiter $waiter',
+                          'Prep $prep min',
+                        ].join(' | '),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: scheme.onSurfaceVariant,
+                          fontSize: 9.2,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 9,
+                    vertical: 5,
+                  ),
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: .13),
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(color: color.withValues(alpha: .25)),
+                  ),
+                  child: Text(
+                    statusLabel(),
+                    style: TextStyle(
+                      color: color,
+                      fontSize: 9,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
                 Text(
-                  '${order['customer_name'] ?? 'Walk-in'} | '
-                  'Prep ${order['preparation_minutes'] ?? 0} min',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                  _money(order['total']),
                   style: TextStyle(
-                    fontSize: 10,
-                    color: scheme.onSurfaceVariant,
+                    color: scheme.onSurface,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w900,
                   ),
                 ),
               ],
             ),
           ),
-          const SizedBox(width: 6),
-          Container(
-            height: 22,
-            padding: const EdgeInsets.symmetric(horizontal: 6),
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: scheme.surfaceContainerHighest,
-              borderRadius: BorderRadius.circular(999),
+          if (note.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 7, 12, 0),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(
+                    Icons.sticky_note_2_outlined,
+                    size: 14,
+                    color: scheme.onSurfaceVariant,
+                  ),
+                  const SizedBox(width: 5),
+                  Expanded(
+                    child: Text(
+                      note,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: scheme.onSurfaceVariant,
+                        fontSize: 9.2,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
-            child: Text(
-              status.replaceAll('_', ' ').toUpperCase(),
-              style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w900),
+          if (!isClosed)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
+              child: Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  OutlinedButton.icon(
+                    onPressed: () => _editOrder(order),
+                    icon: const Icon(Icons.edit_outlined, size: 15),
+                    label: const Text('Edit'),
+                  ),
+                  FilledButton.tonalIcon(
+                    onPressed: () => _addItemsToOrder(order),
+                    icon: const Icon(
+                      Icons.add_shopping_cart_outlined,
+                      size: 15,
+                    ),
+                    label: const Text('Add Items'),
+                  ),
+                  if (nextActionLabel().isNotEmpty)
+                    FilledButton.tonalIcon(
+                      onPressed: advanceStatus,
+                      icon: Icon(nextActionIcon(), size: 15),
+                      label: Text(nextActionLabel()),
+                    ),
+                  FilledButton.icon(
+                    onPressed: () => _bill(order),
+                    icon: const Icon(Icons.point_of_sale_outlined, size: 15),
+                    label: const Text('Bill'),
+                  ),
+                  PopupMenuButton<String>(
+                    tooltip: 'More order actions',
+                    onSelected: (value) {
+                      if (value == 'transfer_table') {
+                        _transferOrderTable(order);
+                      } else if (value == 'merge_order') {
+                        _mergeRestaurantOrder(order);
+                      } else if (value == 'split_order') {
+                        _splitRestaurantOrder(order);
+                      } else if (value == 'move_items') {
+                        _moveItemsToExistingOrder(order);
+                      } else if (value == 'void_item') {
+                        _voidOrderItem(order);
+                      } else if (value == 'cancelled') {
+                        _setStatus(order, 'cancelled');
+                      }
+                    },
+                    itemBuilder: (_) => [
+                      if (orderType == 'dine_in')
+                        const PopupMenuItem(
+                          value: 'transfer_table',
+                          child: Text('Move to Another Table'),
+                        ),
+                      if (orderType == 'dine_in')
+                        const PopupMenuItem(
+                          value: 'merge_order',
+                          child: Text('Merge Tables / Orders'),
+                        ),
+                      if (orderType == 'dine_in')
+                        const PopupMenuItem(
+                          value: 'split_order',
+                          child: Text('Split Table / Order'),
+                        ),
+                      if (orderType == 'dine_in')
+                        const PopupMenuItem(
+                          value: 'move_items',
+                          child: Text('Move Selected Items'),
+                        ),
+                      const PopupMenuItem(
+                        value: 'void_item',
+                        child: Text('Void / Cancel Item'),
+                      ),
+                      const PopupMenuDivider(),
+                      const PopupMenuItem(
+                        value: 'cancelled',
+                        child: Text('Cancel Order'),
+                      ),
+                    ],
+                    child: IgnorePointer(
+                      child: OutlinedButton.icon(
+                        onPressed: () {},
+                        icon: const Icon(Icons.more_horiz_rounded, size: 16),
+                        label: const Text('More'),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-          const SizedBox(width: 7),
-          Text(
-            _money(order['total']),
-            style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w900),
-          ),
-          PopupMenuButton<String>(
-            tooltip: 'Order actions',
-            onSelected: (value) {
-              if (value == 'edit') {
-                _editOrder(order);
-              } else if (value == 'add_items') {
-                _addItemsToOrder(order);
-              } else if (value == 'void_item') {
-                _voidOrderItem(order);
-              } else if (value == 'transfer_table') {
-                _transferOrderTable(order);
-              } else if (value == 'merge_order') {
-                _mergeRestaurantOrder(order);
-              } else if (value == 'split_order') {
-                _splitRestaurantOrder(order);
-              } else if (value == 'move_items') {
-                _moveItemsToExistingOrder(order);
-              } else if (value == 'bill') {
-                _bill(order);
-              } else {
-                _setStatus(order, value);
-              }
-            },
-            itemBuilder: (_) => [
-              if (status != 'billed' && status != 'cancelled')
-                const PopupMenuItem(
-                  value: 'edit',
-                  child: Text('Edit Order / Guest / Waiter'),
-                ),
-              if (status != 'billed' && status != 'cancelled')
-                const PopupMenuItem(
-                  value: 'add_items',
-                  child: Text('Add Items'),
-                ),
-              if (status != 'billed' &&
-                  status != 'cancelled' &&
-                  order['order_type']?.toString() == 'dine_in')
-                const PopupMenuItem(
-                  value: 'transfer_table',
-                  child: Text('Move to Another Table'),
-                ),
-              if (status != 'billed' &&
-                  status != 'cancelled' &&
-                  order['order_type']?.toString() == 'dine_in')
-                const PopupMenuItem(
-                  value: 'merge_order',
-                  child: Text('Merge Tables / Orders'),
-                ),
-              if (status != 'billed' &&
-                  status != 'cancelled' &&
-                  order['order_type']?.toString() == 'dine_in')
-                const PopupMenuItem(
-                  value: 'split_order',
-                  child: Text('Split Table / Order'),
-                ),
-              if (status != 'billed' &&
-                  status != 'cancelled' &&
-                  order['order_type']?.toString() == 'dine_in')
-                const PopupMenuItem(
-                  value: 'move_items',
-                  child: Text('Move Selected Items to Existing Table'),
-                ),
-              if (status != 'billed' && status != 'cancelled')
-                const PopupMenuItem(
-                  value: 'void_item',
-                  child: Text('Void / Cancel Item'),
-                ),
-              if (status == 'open' || status == 'sent_to_kitchen')
-                const PopupMenuItem(
-                  value: 'preparing',
-                  child: Text('Start Preparing'),
-                ),
-              if (status == 'preparing' || status == 'sent_to_kitchen')
-                const PopupMenuItem(value: 'ready', child: Text('Mark Ready')),
-              if (status == 'ready')
-                const PopupMenuItem(
-                  value: 'served',
-                  child: Text('Mark Served'),
-                ),
-              if (status != 'billed' && status != 'cancelled')
-                const PopupMenuItem(
-                  value: 'bill',
-                  child: Text('Finalize / Bill'),
-                ),
-              if (status != 'billed' && status != 'cancelled')
-                const PopupMenuItem(
-                  value: 'cancelled',
-                  child: Text('Cancel Order'),
-                ),
-            ],
-            icon: const Icon(Icons.more_vert, size: 15),
-          ),
         ],
       ),
     );
@@ -4263,6 +6571,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
 
     final working = sourceTables
         .map((table) => Map<String, dynamic>.from(table))
+        .where((table) => table['active'] != false)
         .toList();
 
     String floorOf(Map<String, dynamic> table) {
@@ -4275,6 +6584,27 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
     double number(dynamic value, double fallback) {
       if (value is num) return value.toDouble();
       return double.tryParse('$value') ?? fallback;
+    }
+
+    bool flag(dynamic value, {bool fallback = false}) {
+      if (value is bool) return value;
+      if (value?.toString().toLowerCase() == 'true') return true;
+      if (value?.toString().toLowerCase() == 'false') return false;
+      return fallback;
+    }
+
+    void ensureAdvancedDefaults(Map<String, dynamic> table) {
+      final shape = table['shape']?.toString() ?? 'rect';
+      final square = shape == 'square' || shape == 'round';
+      table['width_percent'] ??= square ? 11.0 : 14.0;
+      table['height_percent'] ??= square ? 11.0 : 12.0;
+      table['rotation_degrees'] ??= 0.0;
+      table['layout_locked'] ??= false;
+      table['layout_note'] ??= '';
+    }
+
+    for (final table in working) {
+      ensureAdvancedDefaults(table);
     }
 
     final knownFloors = <String>{
@@ -4291,6 +6621,10 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
         ? _restaurantFloorFilter!
         : knownFloors.first;
 
+    bool showGrid = true;
+    bool snapToGrid = true;
+    String? selectedId;
+
     void ensureDefaultsForFloor(String floor) {
       final rows = working.where((table) => floorOf(table) == floor).toList();
       if (rows.isEmpty) return;
@@ -4305,6 +6639,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
 
       for (var index = 0; index < rows.length; index++) {
         final table = rows[index];
+        ensureAdvancedDefaults(table);
         if (table['position_x'] != null && table['position_y'] != null) {
           continue;
         }
@@ -4323,7 +6658,6 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
       ensureDefaultsForFloor(floor);
     }
 
-    String? selectedId;
     final initialRows = working
         .where((table) => floorOf(table) == currentFloor)
         .toList();
@@ -4331,11 +6665,19 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
       selectedId = initialRows.first['id']?.toString();
     }
 
+    double snap(double value) {
+      final safe = value.clamp(0.0, 100.0).toDouble();
+      if (!snapToGrid) return safe;
+      return ((safe / 2).round() * 2).clamp(0, 100).toDouble();
+    }
+
     final saved = await showDialog<bool>(
       context: context,
       barrierDismissible: false,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setLocalState) {
+          final scheme = Theme.of(context).colorScheme;
+
           final floorRows =
               working.where((table) => floorOf(table) == currentFloor).toList()
                 ..sort((a, b) {
@@ -4357,6 +6699,35 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
               selectedTable = table;
               break;
             }
+          }
+
+          Future<void> refreshWorking({String? selectTableId}) async {
+            final rows = await _restaurant.tables(
+              widget.session.business.id,
+              locationId,
+              deviceId,
+            );
+            if (!dialogContext.mounted) return;
+            setLocalState(() {
+              working
+                ..clear()
+                ..addAll(
+                  rows
+                      .where((table) => table['active'] != false)
+                      .map((table) => Map<String, dynamic>.from(table)),
+                );
+              for (final table in working) {
+                ensureAdvancedDefaults(table);
+                final floor = floorOf(table);
+                if (!knownFloors.contains(floor)) knownFloors.add(floor);
+              }
+              knownFloors.sort();
+              if (selectTableId != null) selectedId = selectTableId;
+              if (!knownFloors.contains(currentFloor) &&
+                  knownFloors.isNotEmpty) {
+                currentFloor = knownFloors.first;
+              }
+            });
           }
 
           Future<void> createFloor() async {
@@ -4391,11 +6762,13 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
               ),
             );
             controller.dispose();
+
             if (!dialogContext.mounted ||
                 result == null ||
                 result.trim().isEmpty) {
               return;
             }
+
             final value = result.trim();
             setLocalState(() {
               if (!knownFloors.contains(value)) {
@@ -4407,368 +6780,148 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
             });
           }
 
-          void autoArrange() {
-            final rows = working
-                .where((table) => floorOf(table) == currentFloor)
-                .toList();
-            if (rows.isEmpty) return;
+          Future<void> editTableDetails(Map<String, dynamic>? table) async {
+            final creating = table == null;
+            final code = TextEditingController(
+              text: table?['table_code']?.toString() ?? '',
+            );
+            final name = TextEditingController(
+              text: table?['name']?.toString() ?? '',
+            );
+            final capacity = TextEditingController(
+              text: '${table?['capacity'] ?? 4}',
+            );
+            final area = TextEditingController(
+              text: table?['area']?.toString() ?? currentFloor,
+            );
+            final note = TextEditingController(
+              text: table?['layout_note']?.toString() ?? '',
+            );
 
-            final columns = rows.length <= 3
-                ? rows.length
-                : rows.length <= 8
-                ? 4
-                : 5;
-            final safeColumns = columns <= 0 ? 1 : columns;
-            final rowCount = (rows.length / safeColumns).ceil();
+            String floor = table == null ? currentFloor : floorOf(table);
+            String status =
+                table?['operational_status']?.toString() ?? 'available';
+            String shape = table?['shape']?.toString() ?? 'rect';
 
-            setLocalState(() {
-              for (var index = 0; index < rows.length; index++) {
-                final column = index % safeColumns;
-                final row = index ~/ safeColumns;
-                rows[index]['position_x'] = safeColumns == 1
-                    ? 50.0
-                    : 6.0 + (88.0 * column / (safeColumns - 1));
-                rows[index]['position_y'] = rowCount <= 1
-                    ? 45.0
-                    : 8.0 + (82.0 * row / (rowCount - 1));
-                rows[index]['sort_order'] = index;
-              }
-            });
-          }
-
-          return AlertDialog(
-            titlePadding: const EdgeInsets.fromLTRB(14, 12, 8, 4),
-            contentPadding: const EdgeInsets.fromLTRB(10, 6, 10, 8),
-            title: Row(
-              children: [
-                const Icon(Icons.grid_view_rounded, size: 19),
-                const SizedBox(width: 7),
-                const Expanded(
-                  child: Text(
-                    'Restaurant Floor Layout Editor',
-                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900),
-                  ),
-                ),
-                OutlinedButton.icon(
-                  onPressed: createFloor,
-                  icon: const Icon(Icons.layers_outlined, size: 14),
-                  label: const Text('New Floor'),
-                ),
-                const SizedBox(width: 6),
-                OutlinedButton.icon(
-                  onPressed: autoArrange,
-                  icon: const Icon(
-                    Icons.auto_awesome_mosaic_outlined,
-                    size: 14,
-                  ),
-                  label: const Text('Auto Arrange'),
-                ),
-              ],
-            ),
-            content: SizedBox(
-              width: 1040,
-              height: 650,
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        SizedBox(
-                          height: 38,
-                          child: ListView.separated(
-                            scrollDirection: Axis.horizontal,
-                            itemCount: knownFloors.length,
-                            separatorBuilder: (_, _) =>
-                                const SizedBox(width: 5),
-                            itemBuilder: (context, index) {
-                              final floor = knownFloors[index];
-                              return ChoiceChip(
-                                label: Text(floor),
-                                selected: floor == currentFloor,
-                                onSelected: (_) {
-                                  setLocalState(() {
-                                    currentFloor = floor;
-                                    ensureDefaultsForFloor(floor);
-                                    final rows = working
-                                        .where(
-                                          (table) =>
-                                              floorOf(table) == currentFloor,
-                                        )
-                                        .toList();
-                                    selectedId = rows.isEmpty
-                                        ? null
-                                        : rows.first['id']?.toString();
-                                  });
-                                },
-                              );
-                            },
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        Expanded(
-                          child: LayoutBuilder(
-                            builder: (context, constraints) {
-                              return Container(
-                                clipBehavior: Clip.antiAlias,
-                                decoration: BoxDecoration(
-                                  color: Theme.of(
-                                    context,
-                                  ).colorScheme.surfaceContainerLowest,
-                                  borderRadius: BorderRadius.circular(10),
-                                  border: Border.all(
-                                    color: Theme.of(
-                                      context,
-                                    ).colorScheme.outlineVariant,
+            final confirmed = await showDialog<bool>(
+              context: dialogContext,
+              builder: (detailsContext) => StatefulBuilder(
+                builder: (context, setDetailsState) => AlertDialog(
+                  title: Text(creating ? 'Add Restaurant Table' : 'Edit Table'),
+                  content: SizedBox(
+                    width: 620,
+                    child: SingleChildScrollView(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Row(
+                            children: [
+                              Expanded(
+                                child: TextField(
+                                  controller: code,
+                                  decoration: const InputDecoration(
+                                    labelText: 'Table code',
                                   ),
                                 ),
-                                child: Stack(
-                                  children: [
-                                    Positioned(
-                                      top: 8,
-                                      left: 10,
-                                      child: Text(
-                                        currentFloor,
-                                        style: TextStyle(
-                                          fontSize: 10,
-                                          fontWeight: FontWeight.w900,
-                                          color: Theme.of(
-                                            context,
-                                          ).colorScheme.onSurfaceVariant,
-                                        ),
-                                      ),
-                                    ),
-                                    for (final table in floorRows)
-                                      Builder(
-                                        builder: (context) {
-                                          final id =
-                                              table['id']?.toString() ?? '';
-                                          final shape =
-                                              table['shape']?.toString() ??
-                                              'rect';
-                                          final isRound = shape == 'round';
-                                          final isSquare =
-                                              shape == 'square' || isRound;
-                                          final width = isSquare ? 84.0 : 116.0;
-                                          const height = 72.0;
-                                          final maxLeft =
-                                              (constraints.maxWidth - width)
-                                                  .clamp(1.0, double.infinity)
-                                                  .toDouble();
-                                          final maxTop =
-                                              (constraints.maxHeight - height)
-                                                  .clamp(1.0, double.infinity)
-                                                  .toDouble();
-                                          final x = number(
-                                            table['position_x'],
-                                            50,
-                                          ).clamp(0.0, 100.0).toDouble();
-                                          final y = number(
-                                            table['position_y'],
-                                            50,
-                                          ).clamp(0.0, 100.0).toDouble();
-                                          final selected = selectedId == id;
-
-                                          return Positioned(
-                                            left: maxLeft * x / 100,
-                                            top: maxTop * y / 100,
-                                            child: GestureDetector(
-                                              onTap: () {
-                                                setLocalState(
-                                                  () => selectedId = id,
-                                                );
-                                              },
-                                              onPanUpdate: (details) {
-                                                setLocalState(() {
-                                                  final nextX =
-                                                      x +
-                                                      details.delta.dx /
-                                                          maxLeft *
-                                                          100;
-                                                  final nextY =
-                                                      y +
-                                                      details.delta.dy /
-                                                          maxTop *
-                                                          100;
-                                                  table['position_x'] = nextX
-                                                      .clamp(0.0, 100.0)
-                                                      .toDouble();
-                                                  table['position_y'] = nextY
-                                                      .clamp(0.0, 100.0)
-                                                      .toDouble();
-                                                  selectedId = id;
-                                                });
-                                              },
-                                              child: AnimatedContainer(
-                                                duration: const Duration(
-                                                  milliseconds: 100,
-                                                ),
-                                                width: width,
-                                                height: height,
-                                                padding: const EdgeInsets.all(
-                                                  7,
-                                                ),
-                                                decoration: BoxDecoration(
-                                                  color: selected
-                                                      ? Theme.of(context)
-                                                            .colorScheme
-                                                            .primaryContainer
-                                                      : Theme.of(
-                                                          context,
-                                                        ).colorScheme.surface,
-                                                  borderRadius:
-                                                      BorderRadius.circular(
-                                                        isRound ? 999 : 9,
-                                                      ),
-                                                  border: Border.all(
-                                                    width: selected ? 2 : 1,
-                                                    color: selected
-                                                        ? Theme.of(
-                                                            context,
-                                                          ).colorScheme.primary
-                                                        : Theme.of(context)
-                                                              .colorScheme
-                                                              .outlineVariant,
-                                                  ),
-                                                  boxShadow: const [
-                                                    BoxShadow(
-                                                      blurRadius: 3,
-                                                      offset: Offset(0, 1),
-                                                      color: Color(0x18000000),
-                                                    ),
-                                                  ],
-                                                ),
-                                                child: Column(
-                                                  mainAxisAlignment:
-                                                      MainAxisAlignment.center,
-                                                  children: [
-                                                    Text(
-                                                      '${table['table_code'] ?? ''}',
-                                                      maxLines: 1,
-                                                      overflow:
-                                                          TextOverflow.ellipsis,
-                                                      style: const TextStyle(
-                                                        fontSize: 10.5,
-                                                        fontWeight:
-                                                            FontWeight.w900,
-                                                      ),
-                                                    ),
-                                                    Text(
-                                                      '${table['name'] ?? ''}',
-                                                      maxLines: 1,
-                                                      overflow:
-                                                          TextOverflow.ellipsis,
-                                                      style: const TextStyle(
-                                                        fontSize: 9,
-                                                      ),
-                                                    ),
-                                                    Text(
-                                                      '${table['capacity'] ?? 0} seats',
-                                                      style: const TextStyle(
-                                                        fontSize: 8.5,
-                                                      ),
-                                                    ),
-                                                  ],
-                                                ),
-                                              ),
-                                            ),
-                                          );
-                                        },
-                                      ),
-                                  ],
-                                ),
-                              );
-                            },
-                          ),
-                        ),
-                        const SizedBox(height: 5),
-                        const Text(
-                          'Drag tables to position them. Coordinates are saved '
-                          'as percentages so the layout remains responsive.',
-                          style: TextStyle(fontSize: 8.5),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  SizedBox(
-                    width: 240,
-                    child: Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.surface,
-                        borderRadius: BorderRadius.circular(9),
-                        border: Border.all(
-                          color: Theme.of(context).colorScheme.outlineVariant,
-                        ),
-                      ),
-                      child: selectedTable == null
-                          ? const Center(
-                              child: Text(
-                                'Select a table to edit its floor and shape.',
-                                textAlign: TextAlign.center,
-                                style: TextStyle(fontSize: 10),
                               ),
-                            )
-                          : Column(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [
-                                Text(
-                                  '${selectedTable['table_code'] ?? ''} | '
-                                  '${selectedTable['name'] ?? ''}',
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w900,
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: TextField(
+                                  controller: name,
+                                  decoration: const InputDecoration(
+                                    labelText: 'Display name',
                                   ),
                                 ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  '${selectedTable['capacity'] ?? 0} seats â€¢ '
-                                  '${selectedTable['operational_status'] ?? 'available'}',
-                                  style: const TextStyle(fontSize: 9),
-                                ),
-                                const SizedBox(height: 14),
-                                DropdownButtonFormField<String>(
-                                  key: ValueKey(
-                                    'floor-${selectedTable['id']}-${floorOf(selectedTable)}',
+                              ),
+                              const SizedBox(width: 8),
+                              SizedBox(
+                                width: 120,
+                                child: TextField(
+                                  controller: capacity,
+                                  keyboardType: TextInputType.number,
+                                  decoration: const InputDecoration(
+                                    labelText: 'Capacity',
                                   ),
-                                  initialValue: floorOf(selectedTable),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 9),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: TextField(
+                                  controller: area,
+                                  decoration: const InputDecoration(
+                                    labelText: 'Area / section',
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: DropdownButtonFormField<String>(
+                                  initialValue: floor,
                                   isExpanded: true,
                                   decoration: const InputDecoration(
                                     labelText: 'Floor',
                                   ),
                                   items: knownFloors
                                       .map(
-                                        (floor) => DropdownMenuItem<String>(
-                                          value: floor,
-                                          child: Text(
-                                            floor,
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
+                                        (value) => DropdownMenuItem<String>(
+                                          value: value,
+                                          child: Text(value),
                                         ),
                                       )
                                       .toList(),
                                   onChanged: (value) {
-                                    if (value == null) return;
-                                    setLocalState(() {
-                                      selectedTable!['floor_name'] = value;
-                                      ensureDefaultsForFloor(value);
-                                      currentFloor = value;
-                                    });
+                                    if (value != null) {
+                                      setDetailsState(() => floor = value);
+                                    }
                                   },
                                 ),
-                                const SizedBox(height: 10),
-                                DropdownButtonFormField<String>(
-                                  key: ValueKey(
-                                    'shape-${selectedTable['id']}-${selectedTable['shape']}',
-                                  ),
-                                  initialValue:
-                                      selectedTable['shape']?.toString() ??
-                                      'rect',
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 9),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: DropdownButtonFormField<String>(
+                                  initialValue: status,
                                   decoration: const InputDecoration(
-                                    labelText: 'Table shape',
+                                    labelText: 'Operational status',
+                                  ),
+                                  items: const [
+                                    DropdownMenuItem(
+                                      value: 'available',
+                                      child: Text('Available'),
+                                    ),
+                                    DropdownMenuItem(
+                                      value: 'reserved',
+                                      child: Text('Reserved'),
+                                    ),
+                                    DropdownMenuItem(
+                                      value: 'cleaning',
+                                      child: Text('Cleaning'),
+                                    ),
+                                    DropdownMenuItem(
+                                      value: 'out_of_service',
+                                      child: Text('Out of service'),
+                                    ),
+                                  ],
+                                  onChanged: (value) {
+                                    if (value != null) {
+                                      setDetailsState(() => status = value);
+                                    }
+                                  },
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: DropdownButtonFormField<String>(
+                                  initialValue: shape,
+                                  decoration: const InputDecoration(
+                                    labelText: 'Shape',
                                   ),
                                   items: const [
                                     DropdownMenuItem(
@@ -4785,79 +6938,1066 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                                     ),
                                   ],
                                   onChanged: (value) {
-                                    if (value == null) return;
-                                    setLocalState(
-                                      () => selectedTable!['shape'] = value,
-                                    );
+                                    if (value != null) {
+                                      setDetailsState(() => shape = value);
+                                    }
                                   },
                                 ),
-                                const SizedBox(height: 12),
-                                Text(
-                                  'X ${number(selectedTable['position_x'], 0).toStringAsFixed(1)}%   '
-                                  'Y ${number(selectedTable['position_y'], 0).toStringAsFixed(1)}%',
-                                  style: const TextStyle(
-                                    fontSize: 9.5,
-                                    fontWeight: FontWeight.w700,
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 9),
+                          TextField(
+                            controller: note,
+                            minLines: 2,
+                            maxLines: 3,
+                            decoration: const InputDecoration(
+                              labelText: 'Layout / service note',
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(detailsContext, false),
+                      child: const Text('Cancel'),
+                    ),
+                    FilledButton.icon(
+                      onPressed: () {
+                        if (code.text.trim().isEmpty ||
+                            name.text.trim().isEmpty ||
+                            (int.tryParse(capacity.text.trim()) ?? 0) <= 0) {
+                          return;
+                        }
+                        Navigator.pop(detailsContext, true);
+                      },
+                      icon: const Icon(Icons.save_outlined, size: 16),
+                      label: Text(creating ? 'Add Table' : 'Save Changes'),
+                    ),
+                  ],
+                ),
+              ),
+            );
+
+            if (!dialogContext.mounted) {
+              code.dispose();
+              name.dispose();
+              capacity.dispose();
+              area.dispose();
+              note.dispose();
+              return;
+            }
+
+            if (confirmed == true) {
+              try {
+                final result = await _restaurant.saveAdvancedTable(
+                  tenantId: widget.session.business.id,
+                  tableId: table?['id']?.toString(),
+                  locationId: locationId,
+                  deviceId: deviceId,
+                  code: code.text,
+                  name: name.text,
+                  capacity: int.tryParse(capacity.text.trim()) ?? 4,
+                  area: area.text,
+                  floorName: floor,
+                  operationalStatus: status,
+                  shape: shape,
+                  positionX: table == null
+                      ? 50
+                      : number(table['position_x'], 50),
+                  positionY: table == null
+                      ? 50
+                      : number(table['position_y'], 50),
+                  widthPercent: table == null
+                      ? (shape == 'rect' ? 14 : 11)
+                      : number(table['width_percent'], 14),
+                  heightPercent: table == null
+                      ? (shape == 'rect' ? 12 : 11)
+                      : number(table['height_percent'], 12),
+                  rotationDegrees: table == null
+                      ? 0
+                      : number(table['rotation_degrees'], 0),
+                  layoutLocked: table == null
+                      ? false
+                      : flag(table['layout_locked']),
+                  layoutNote: note.text,
+                );
+
+                final savedTable = result['table'] is Map
+                    ? Map<String, dynamic>.from(result['table'] as Map)
+                    : <String, dynamic>{};
+                final savedId = savedTable['id']?.toString();
+
+                if (!dialogContext.mounted) return;
+                await refreshWorking(selectTableId: savedId);
+                if (!dialogContext.mounted) return;
+                setLocalState(() {
+                  currentFloor = floor;
+                  if (!knownFloors.contains(floor)) {
+                    knownFloors.add(floor);
+                    knownFloors.sort();
+                  }
+                });
+              } catch (error) {
+                if (!dialogContext.mounted) return;
+                ThqNotify.showSnackBar(
+                  dialogContext,
+                  SnackBar(content: Text(error.toString())),
+                );
+              }
+            }
+
+            code.dispose();
+            name.dispose();
+            capacity.dispose();
+            area.dispose();
+            note.dispose();
+          }
+
+          Future<void> duplicateSelected(Map<String, dynamic> table) async {
+            final code = TextEditingController(
+              text: '${table['table_code'] ?? 'TABLE'}_COPY',
+            );
+            final name = TextEditingController(
+              text: '${table['name'] ?? 'Table'} Copy',
+            );
+
+            final confirmed = await showDialog<bool>(
+              context: dialogContext,
+              builder: (copyContext) => AlertDialog(
+                title: const Text('Duplicate Table'),
+                content: SizedBox(
+                  width: 480,
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: code,
+                          decoration: const InputDecoration(
+                            labelText: 'New table code',
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: TextField(
+                          controller: name,
+                          decoration: const InputDecoration(
+                            labelText: 'New table name',
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(copyContext, false),
+                    child: const Text('Cancel'),
+                  ),
+                  FilledButton.icon(
+                    onPressed: () {
+                      if (code.text.trim().isNotEmpty &&
+                          name.text.trim().isNotEmpty) {
+                        Navigator.pop(copyContext, true);
+                      }
+                    },
+                    icon: const Icon(Icons.copy_all_outlined, size: 16),
+                    label: const Text('Duplicate'),
+                  ),
+                ],
+              ),
+            );
+
+            if (!dialogContext.mounted) {
+              code.dispose();
+              name.dispose();
+              return;
+            }
+
+            if (confirmed == true) {
+              try {
+                final result = await _restaurant.duplicateTable(
+                  tenantId: widget.session.business.id,
+                  tableId: table['id'].toString(),
+                  deviceId: deviceId,
+                  newCode: code.text,
+                  newName: name.text,
+                );
+
+                final copied = result['table'] is Map
+                    ? Map<String, dynamic>.from(result['table'] as Map)
+                    : <String, dynamic>{};
+
+                if (!dialogContext.mounted) return;
+                await refreshWorking(selectTableId: copied['id']?.toString());
+              } catch (error) {
+                if (!dialogContext.mounted) return;
+                ThqNotify.showSnackBar(
+                  dialogContext,
+                  SnackBar(content: Text(error.toString())),
+                );
+              }
+            }
+
+            code.dispose();
+            name.dispose();
+          }
+
+          Future<void> deactivateSelected(Map<String, dynamic> table) async {
+            final confirmed = await showDialog<bool>(
+              context: dialogContext,
+              builder: (confirmContext) => AlertDialog(
+                title: const Text('Delete / Deactivate Table?'),
+                content: Text(
+                  '${table['table_code']} - ${table['name']}\n\n'
+                  'This is a safe soft delete. Historical orders, invoices, '
+                  'GST and accounting links are preserved. The table cannot '
+                  'be deleted while it has a live order, reservation, or '
+                  'active waitlist assignment.',
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(confirmContext, false),
+                    child: const Text('Cancel'),
+                  ),
+                  FilledButton.icon(
+                    onPressed: () => Navigator.pop(confirmContext, true),
+                    icon: const Icon(Icons.delete_outline, size: 16),
+                    label: const Text('Deactivate Table'),
+                  ),
+                ],
+              ),
+            );
+
+            if (confirmed != true || !dialogContext.mounted) return;
+
+            try {
+              await _restaurant.deactivateTable(
+                tenantId: widget.session.business.id,
+                tableId: table['id'].toString(),
+                deviceId: deviceId,
+                reason: 'Deleted from advanced floor editor',
+              );
+              if (!dialogContext.mounted) return;
+              await refreshWorking();
+              if (!dialogContext.mounted) return;
+              setLocalState(() {
+                selectedId = floorRows.isEmpty
+                    ? null
+                    : floorRows.first['id']?.toString();
+              });
+            } catch (error) {
+              if (!dialogContext.mounted) return;
+              ThqNotify.showSnackBar(
+                dialogContext,
+                SnackBar(content: Text(error.toString())),
+              );
+            }
+          }
+
+          void autoArrange() {
+            final rows = working
+                .where((table) => floorOf(table) == currentFloor)
+                .toList();
+            final movable = rows
+                .where((table) => !flag(table['layout_locked']))
+                .toList();
+
+            if (movable.isEmpty) return;
+
+            final columns = movable.length <= 3
+                ? movable.length
+                : movable.length <= 8
+                ? 4
+                : 5;
+            final safeColumns = columns <= 0 ? 1 : columns;
+            final rowCount = (movable.length / safeColumns).ceil();
+
+            setLocalState(() {
+              for (var index = 0; index < movable.length; index++) {
+                final column = index % safeColumns;
+                final row = index ~/ safeColumns;
+                movable[index]['position_x'] = safeColumns == 1
+                    ? 50.0
+                    : snap(6.0 + (88.0 * column / (safeColumns - 1)));
+                movable[index]['position_y'] = rowCount <= 1
+                    ? 45.0
+                    : snap(8.0 + (82.0 * row / (rowCount - 1)));
+                movable[index]['sort_order'] = index;
+              }
+            });
+          }
+
+          return Dialog(
+            insetPadding: const EdgeInsets.all(18),
+            clipBehavior: Clip.antiAlias,
+            child: SizedBox(
+              width: 1320,
+              height: 820,
+              child: Column(
+                children: [
+                  Container(
+                    height: 58,
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    decoration: BoxDecoration(
+                      color: scheme.surface,
+                      border: Border(
+                        bottom: BorderSide(color: scheme.outlineVariant),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.dashboard_customize_outlined,
+                          color: scheme.primary,
+                        ),
+                        const SizedBox(width: 8),
+                        const Expanded(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Advanced Restaurant Floor Editor',
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w900,
+                                ),
+                              ),
+                              Text(
+                                'Drag, resize, rotate, lock, duplicate, edit or safely deactivate tables',
+                                style: TextStyle(fontSize: 9),
+                              ),
+                            ],
+                          ),
+                        ),
+                        FilterChip(
+                          selected: showGrid,
+                          label: const Text('Grid'),
+                          avatar: const Icon(Icons.grid_4x4, size: 15),
+                          onSelected: (value) {
+                            setLocalState(() => showGrid = value);
+                          },
+                        ),
+                        const SizedBox(width: 5),
+                        FilterChip(
+                          selected: snapToGrid,
+                          label: const Text('Snap'),
+                          avatar: const Icon(Icons.control_camera, size: 15),
+                          onSelected: (value) {
+                            setLocalState(() => snapToGrid = value);
+                          },
+                        ),
+                        const SizedBox(width: 5),
+                        OutlinedButton.icon(
+                          onPressed: createFloor,
+                          icon: const Icon(Icons.layers_outlined, size: 15),
+                          label: const Text('New Floor'),
+                        ),
+                        const SizedBox(width: 5),
+                        OutlinedButton.icon(
+                          onPressed: autoArrange,
+                          icon: const Icon(
+                            Icons.auto_awesome_mosaic_outlined,
+                            size: 15,
+                          ),
+                          label: const Text('Auto Arrange'),
+                        ),
+                        const SizedBox(width: 5),
+                        FilledButton.icon(
+                          onPressed: () => editTableDetails(null),
+                          icon: const Icon(Icons.add_rounded, size: 16),
+                          label: const Text('Add Table'),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.all(10),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              children: [
+                                SizedBox(
+                                  height: 40,
+                                  child: ListView.separated(
+                                    scrollDirection: Axis.horizontal,
+                                    itemCount: knownFloors.length,
+                                    separatorBuilder: (_, _) =>
+                                        const SizedBox(width: 5),
+                                    itemBuilder: (context, index) {
+                                      final floor = knownFloors[index];
+                                      return ChoiceChip(
+                                        label: Text(floor),
+                                        selected: floor == currentFloor,
+                                        onSelected: (_) {
+                                          setLocalState(() {
+                                            currentFloor = floor;
+                                            ensureDefaultsForFloor(floor);
+                                            final rows = working
+                                                .where(
+                                                  (table) =>
+                                                      floorOf(table) ==
+                                                      currentFloor,
+                                                )
+                                                .toList();
+                                            selectedId = rows.isEmpty
+                                                ? null
+                                                : rows.first['id']?.toString();
+                                          });
+                                        },
+                                      );
+                                    },
                                   ),
                                 ),
-                                const Spacer(),
-                                OutlinedButton.icon(
-                                  onPressed: () =>
-                                      _manageRestaurantTable(selectedTable!),
-                                  icon: const Icon(
-                                    Icons.settings_outlined,
-                                    size: 15,
+                                const SizedBox(height: 7),
+                                Expanded(
+                                  child: LayoutBuilder(
+                                    builder: (context, constraints) {
+                                      final gridColor = scheme.outlineVariant
+                                          .withValues(alpha: .35);
+                                      return Container(
+                                        clipBehavior: Clip.antiAlias,
+                                        decoration: BoxDecoration(
+                                          color: scheme.surfaceContainerLowest,
+                                          borderRadius: BorderRadius.circular(
+                                            10,
+                                          ),
+                                          border: Border.all(
+                                            color: scheme.outlineVariant,
+                                          ),
+                                        ),
+                                        child: Stack(
+                                          children: [
+                                            if (showGrid)
+                                              for (var i = 1; i < 10; i++)
+                                                Positioned(
+                                                  left:
+                                                      constraints.maxWidth *
+                                                      i /
+                                                      10,
+                                                  top: 0,
+                                                  bottom: 0,
+                                                  child: Container(
+                                                    width: 1,
+                                                    color: gridColor,
+                                                  ),
+                                                ),
+                                            if (showGrid)
+                                              for (var i = 1; i < 10; i++)
+                                                Positioned(
+                                                  top:
+                                                      constraints.maxHeight *
+                                                      i /
+                                                      10,
+                                                  left: 0,
+                                                  right: 0,
+                                                  child: Container(
+                                                    height: 1,
+                                                    color: gridColor,
+                                                  ),
+                                                ),
+                                            Positioned(
+                                              left: 10,
+                                              top: 8,
+                                              child: Text(
+                                                '$currentFloor | '
+                                                '${floorRows.length} table(s)',
+                                                style: TextStyle(
+                                                  fontSize: 9.5,
+                                                  fontWeight: FontWeight.w900,
+                                                  color:
+                                                      scheme.onSurfaceVariant,
+                                                ),
+                                              ),
+                                            ),
+                                            for (final table in floorRows)
+                                              Builder(
+                                                builder: (context) {
+                                                  ensureAdvancedDefaults(table);
+                                                  final id =
+                                                      table['id']?.toString() ??
+                                                      '';
+                                                  final shape =
+                                                      table['shape']
+                                                          ?.toString() ??
+                                                      'rect';
+                                                  final isRound =
+                                                      shape == 'round';
+                                                  final selected =
+                                                      selectedId == id;
+                                                  final locked = flag(
+                                                    table['layout_locked'],
+                                                  );
+
+                                                  final widthPercent = number(
+                                                    table['width_percent'],
+                                                    shape == 'rect' ? 14 : 11,
+                                                  ).clamp(4.0, 40.0).toDouble();
+                                                  final heightPercent = number(
+                                                    table['height_percent'],
+                                                    shape == 'rect' ? 12 : 11,
+                                                  ).clamp(4.0, 40.0).toDouble();
+
+                                                  final width =
+                                                      (constraints.maxWidth *
+                                                              widthPercent /
+                                                              100)
+                                                          .clamp(62.0, 260.0)
+                                                          .toDouble();
+                                                  final height =
+                                                      (constraints.maxHeight *
+                                                              heightPercent /
+                                                              100)
+                                                          .clamp(48.0, 210.0)
+                                                          .toDouble();
+
+                                                  final maxLeft =
+                                                      (constraints.maxWidth -
+                                                              width)
+                                                          .clamp(
+                                                            1.0,
+                                                            double.infinity,
+                                                          )
+                                                          .toDouble();
+                                                  final maxTop =
+                                                      (constraints.maxHeight -
+                                                              height)
+                                                          .clamp(
+                                                            1.0,
+                                                            double.infinity,
+                                                          )
+                                                          .toDouble();
+
+                                                  final x =
+                                                      number(
+                                                            table['position_x'],
+                                                            50,
+                                                          )
+                                                          .clamp(0.0, 100.0)
+                                                          .toDouble();
+                                                  final y =
+                                                      number(
+                                                            table['position_y'],
+                                                            50,
+                                                          )
+                                                          .clamp(0.0, 100.0)
+                                                          .toDouble();
+                                                  final rotation = number(
+                                                    table['rotation_degrees'],
+                                                    0,
+                                                  );
+
+                                                  return Positioned(
+                                                    left: maxLeft * x / 100,
+                                                    top: maxTop * y / 100,
+                                                    child: GestureDetector(
+                                                      onTap: () {
+                                                        setLocalState(
+                                                          () => selectedId = id,
+                                                        );
+                                                      },
+                                                      onPanUpdate: locked
+                                                          ? null
+                                                          : (details) {
+                                                              setLocalState(() {
+                                                                table['position_x'] = snap(
+                                                                  x +
+                                                                      details
+                                                                              .delta
+                                                                              .dx /
+                                                                          maxLeft *
+                                                                          100,
+                                                                );
+                                                                table['position_y'] = snap(
+                                                                  y +
+                                                                      details
+                                                                              .delta
+                                                                              .dy /
+                                                                          maxTop *
+                                                                          100,
+                                                                );
+                                                                selectedId = id;
+                                                              });
+                                                            },
+                                                      child: Transform.rotate(
+                                                        angle:
+                                                            rotation *
+                                                            3.141592653589793 /
+                                                            180,
+                                                        child: AnimatedContainer(
+                                                          duration:
+                                                              const Duration(
+                                                                milliseconds:
+                                                                    100,
+                                                              ),
+                                                          width: width,
+                                                          height: height,
+                                                          padding:
+                                                              const EdgeInsets.all(
+                                                                7,
+                                                              ),
+                                                          decoration: BoxDecoration(
+                                                            color: selected
+                                                                ? scheme
+                                                                      .primaryContainer
+                                                                : scheme
+                                                                      .surface,
+                                                            borderRadius:
+                                                                BorderRadius.circular(
+                                                                  isRound
+                                                                      ? 999
+                                                                      : 10,
+                                                                ),
+                                                            border: Border.all(
+                                                              width: selected
+                                                                  ? 2
+                                                                  : 1,
+                                                              color: selected
+                                                                  ? scheme
+                                                                        .primary
+                                                                  : scheme
+                                                                        .outlineVariant,
+                                                            ),
+                                                            boxShadow: const [
+                                                              BoxShadow(
+                                                                blurRadius: 3,
+                                                                offset: Offset(
+                                                                  0,
+                                                                  1,
+                                                                ),
+                                                                color: Color(
+                                                                  0x18000000,
+                                                                ),
+                                                              ),
+                                                            ],
+                                                          ),
+                                                          child: Stack(
+                                                            children: [
+                                                              Center(
+                                                                child: Column(
+                                                                  mainAxisSize:
+                                                                      MainAxisSize
+                                                                          .min,
+                                                                  children: [
+                                                                    Text(
+                                                                      '${table['table_code'] ?? ''}',
+                                                                      maxLines:
+                                                                          1,
+                                                                      overflow:
+                                                                          TextOverflow
+                                                                              .ellipsis,
+                                                                      style: const TextStyle(
+                                                                        fontSize:
+                                                                            10.5,
+                                                                        fontWeight:
+                                                                            FontWeight.w900,
+                                                                      ),
+                                                                    ),
+                                                                    Text(
+                                                                      '${table['name'] ?? ''}',
+                                                                      maxLines:
+                                                                          1,
+                                                                      overflow:
+                                                                          TextOverflow
+                                                                              .ellipsis,
+                                                                      style: const TextStyle(
+                                                                        fontSize:
+                                                                            8.7,
+                                                                      ),
+                                                                    ),
+                                                                    Text(
+                                                                      '${table['capacity'] ?? 0} seats',
+                                                                      style: TextStyle(
+                                                                        fontSize:
+                                                                            8,
+                                                                        color: scheme
+                                                                            .onSurfaceVariant,
+                                                                      ),
+                                                                    ),
+                                                                  ],
+                                                                ),
+                                                              ),
+                                                              if (locked)
+                                                                Positioned(
+                                                                  right: 0,
+                                                                  top: 0,
+                                                                  child: Icon(
+                                                                    Icons
+                                                                        .lock_outline,
+                                                                    size: 12,
+                                                                    color: scheme
+                                                                        .primary,
+                                                                  ),
+                                                                ),
+                                                            ],
+                                                          ),
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  );
+                                                },
+                                              ),
+                                          ],
+                                        ),
+                                      );
+                                    },
                                   ),
-                                  label: const Text('Table Settings'),
                                 ),
                               ],
                             ),
+                          ),
+                          const SizedBox(width: 10),
+                          SizedBox(
+                            width: 300,
+                            child: Container(
+                              padding: const EdgeInsets.all(11),
+                              decoration: BoxDecoration(
+                                color: scheme.surface,
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(
+                                  color: scheme.outlineVariant,
+                                ),
+                              ),
+                              child: selectedTable == null
+                                  ? Center(
+                                      child: Text(
+                                        'Select a table to edit its layout.',
+                                        textAlign: TextAlign.center,
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          color: scheme.onSurfaceVariant,
+                                        ),
+                                      ),
+                                    )
+                                  : SingleChildScrollView(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.stretch,
+                                        children: [
+                                          Text(
+                                            '${selectedTable['table_code']} | '
+                                            '${selectedTable['name']}',
+                                            maxLines: 2,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: const TextStyle(
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.w900,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 3),
+                                          Text(
+                                            '${selectedTable['capacity']} seats | '
+                                            '${selectedTable['operational_status'] ?? 'available'}',
+                                            style: TextStyle(
+                                              fontSize: 9,
+                                              color: scheme.onSurfaceVariant,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 12),
+                                          DropdownButtonFormField<String>(
+                                            key: ValueKey(
+                                              'floor-${selectedTable['id']}-'
+                                              '${floorOf(selectedTable)}',
+                                            ),
+                                            initialValue: floorOf(
+                                              selectedTable,
+                                            ),
+                                            isExpanded: true,
+                                            decoration: const InputDecoration(
+                                              labelText: 'Floor',
+                                            ),
+                                            items: knownFloors
+                                                .map(
+                                                  (floor) =>
+                                                      DropdownMenuItem<String>(
+                                                        value: floor,
+                                                        child: Text(floor),
+                                                      ),
+                                                )
+                                                .toList(),
+                                            onChanged: (value) {
+                                              if (value == null) return;
+                                              setLocalState(() {
+                                                selectedTable!['floor_name'] =
+                                                    value;
+                                                currentFloor = value;
+                                              });
+                                            },
+                                          ),
+                                          const SizedBox(height: 9),
+                                          DropdownButtonFormField<String>(
+                                            key: ValueKey(
+                                              'shape-${selectedTable['id']}-'
+                                              '${selectedTable['shape']}',
+                                            ),
+                                            initialValue:
+                                                selectedTable['shape']
+                                                    ?.toString() ??
+                                                'rect',
+                                            decoration: const InputDecoration(
+                                              labelText: 'Shape',
+                                            ),
+                                            items: const [
+                                              DropdownMenuItem(
+                                                value: 'rect',
+                                                child: Text('Rectangle'),
+                                              ),
+                                              DropdownMenuItem(
+                                                value: 'square',
+                                                child: Text('Square'),
+                                              ),
+                                              DropdownMenuItem(
+                                                value: 'round',
+                                                child: Text('Round'),
+                                              ),
+                                            ],
+                                            onChanged: (value) {
+                                              if (value == null) return;
+                                              setLocalState(
+                                                () => selectedTable!['shape'] =
+                                                    value,
+                                              );
+                                            },
+                                          ),
+                                          const SizedBox(height: 10),
+                                          Text(
+                                            'Width '
+                                            '${number(selectedTable['width_percent'], 14).toStringAsFixed(0)}%',
+                                            style: const TextStyle(
+                                              fontSize: 9.5,
+                                              fontWeight: FontWeight.w800,
+                                            ),
+                                          ),
+                                          Slider(
+                                            min: 4,
+                                            max: 30,
+                                            divisions: 26,
+                                            value: number(
+                                              selectedTable['width_percent'],
+                                              14,
+                                            ).clamp(4, 30).toDouble(),
+                                            onChanged: (value) {
+                                              setLocalState(
+                                                () =>
+                                                    selectedTable!['width_percent'] =
+                                                        value,
+                                              );
+                                            },
+                                          ),
+                                          Text(
+                                            'Height '
+                                            '${number(selectedTable['height_percent'], 12).toStringAsFixed(0)}%',
+                                            style: const TextStyle(
+                                              fontSize: 9.5,
+                                              fontWeight: FontWeight.w800,
+                                            ),
+                                          ),
+                                          Slider(
+                                            min: 4,
+                                            max: 30,
+                                            divisions: 26,
+                                            value: number(
+                                              selectedTable['height_percent'],
+                                              12,
+                                            ).clamp(4, 30).toDouble(),
+                                            onChanged: (value) {
+                                              setLocalState(
+                                                () =>
+                                                    selectedTable!['height_percent'] =
+                                                        value,
+                                              );
+                                            },
+                                          ),
+                                          Text(
+                                            'Rotation '
+                                            '${number(selectedTable['rotation_degrees'], 0).toStringAsFixed(0)}Â°',
+                                            style: const TextStyle(
+                                              fontSize: 9.5,
+                                              fontWeight: FontWeight.w800,
+                                            ),
+                                          ),
+                                          Slider(
+                                            min: 0,
+                                            max: 345,
+                                            divisions: 23,
+                                            value: number(
+                                              selectedTable['rotation_degrees'],
+                                              0,
+                                            ).clamp(0, 345).toDouble(),
+                                            onChanged: (value) {
+                                              setLocalState(
+                                                () =>
+                                                    selectedTable!['rotation_degrees'] =
+                                                        value,
+                                              );
+                                            },
+                                          ),
+                                          SwitchListTile(
+                                            contentPadding: EdgeInsets.zero,
+                                            dense: true,
+                                            value: flag(
+                                              selectedTable['layout_locked'],
+                                            ),
+                                            title: const Text(
+                                              'Lock position',
+                                              style: TextStyle(fontSize: 10),
+                                            ),
+                                            subtitle: const Text(
+                                              'Prevents accidental dragging',
+                                              style: TextStyle(fontSize: 8.5),
+                                            ),
+                                            onChanged: (value) {
+                                              setLocalState(
+                                                () =>
+                                                    selectedTable!['layout_locked'] =
+                                                        value,
+                                              );
+                                            },
+                                          ),
+                                          const SizedBox(height: 6),
+                                          Text(
+                                            'X ${number(selectedTable['position_x'], 0).toStringAsFixed(1)}%  |  '
+                                            'Y ${number(selectedTable['position_y'], 0).toStringAsFixed(1)}%',
+                                            style: TextStyle(
+                                              fontSize: 9,
+                                              color: scheme.onSurfaceVariant,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 12),
+                                          FilledButton.tonalIcon(
+                                            onPressed: () =>
+                                                editTableDetails(selectedTable),
+                                            icon: const Icon(
+                                              Icons.edit_outlined,
+                                              size: 15,
+                                            ),
+                                            label: const Text('Edit Details'),
+                                          ),
+                                          const SizedBox(height: 6),
+                                          OutlinedButton.icon(
+                                            onPressed: () => duplicateSelected(
+                                              selectedTable!,
+                                            ),
+                                            icon: const Icon(
+                                              Icons.copy_all_outlined,
+                                              size: 15,
+                                            ),
+                                            label: const Text('Duplicate'),
+                                          ),
+                                          const SizedBox(height: 6),
+                                          OutlinedButton.icon(
+                                            onPressed: () => deactivateSelected(
+                                              selectedTable!,
+                                            ),
+                                            icon: Icon(
+                                              Icons.delete_outline,
+                                              size: 15,
+                                              color: scheme.error,
+                                            ),
+                                            label: Text(
+                                              'Delete / Deactivate',
+                                              style: TextStyle(
+                                                color: scheme.error,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.fromLTRB(12, 9, 12, 11),
+                    decoration: BoxDecoration(
+                      color: scheme.surface,
+                      border: Border(
+                        top: BorderSide(color: scheme.outlineVariant),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Text(
+                          'Positions use responsive percentages. '
+                          'Delete is a safe soft-delete and preserves history.',
+                          style: TextStyle(
+                            fontSize: 9,
+                            color: scheme.onSurfaceVariant,
+                          ),
+                        ),
+                        const Spacer(),
+                        TextButton(
+                          onPressed: () => Navigator.pop(dialogContext, false),
+                          child: const Text('Cancel'),
+                        ),
+                        const SizedBox(width: 6),
+                        FilledButton.icon(
+                          onPressed: () async {
+                            final payload = <Map<String, dynamic>>[];
+                            for (
+                              var index = 0;
+                              index < working.length;
+                              index++
+                            ) {
+                              final table = working[index];
+                              payload.add({
+                                'table_id': table['id']?.toString(),
+                                'floor_name': floorOf(table),
+                                'position_x': number(table['position_x'], 50),
+                                'position_y': number(table['position_y'], 50),
+                                'shape': table['shape']?.toString() ?? 'rect',
+                                'sort_order': index,
+                                'width_percent': number(
+                                  table['width_percent'],
+                                  14,
+                                ),
+                                'height_percent': number(
+                                  table['height_percent'],
+                                  12,
+                                ),
+                                'rotation_degrees': number(
+                                  table['rotation_degrees'],
+                                  0,
+                                ),
+                                'layout_locked': flag(table['layout_locked']),
+                              });
+                            }
+
+                            try {
+                              await _restaurant.saveAdvancedTableLayoutBatch(
+                                tenantId: widget.session.business.id,
+                                locationId: locationId,
+                                deviceId: deviceId,
+                                tables: payload,
+                              );
+                              if (!dialogContext.mounted) return;
+                              Navigator.pop(dialogContext, true);
+                            } catch (error) {
+                              if (!dialogContext.mounted) return;
+                              ThqNotify.showSnackBar(
+                                dialogContext,
+                                SnackBar(content: Text(error.toString())),
+                              );
+                            }
+                          },
+                          icon: const Icon(Icons.save_outlined, size: 16),
+                          label: const Text('Save Advanced Layout'),
+                        ),
+                      ],
                     ),
                   ),
                 ],
               ),
             ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(dialogContext, false),
-                child: const Text('Cancel'),
-              ),
-              FilledButton.icon(
-                onPressed: () async {
-                  final payload = <Map<String, dynamic>>[];
-                  for (var index = 0; index < working.length; index++) {
-                    final table = working[index];
-                    payload.add({
-                      'table_id': table['id']?.toString(),
-                      'floor_name': floorOf(table),
-                      'position_x': number(table['position_x'], 50),
-                      'position_y': number(table['position_y'], 50),
-                      'shape': table['shape']?.toString() ?? 'rect',
-                      'sort_order': index,
-                    });
-                  }
-
-                  try {
-                    await _restaurant.saveTableLayoutBatch(
-                      tenantId: widget.session.business.id,
-                      locationId: locationId,
-                      deviceId: deviceId,
-                      tables: payload,
-                    );
-                    if (!dialogContext.mounted) return;
-                    Navigator.pop(dialogContext, true);
-                  } catch (error) {
-                    if (!dialogContext.mounted) return;
-                    ThqNotify.showSnackBar(
-                      dialogContext,
-                      SnackBar(content: Text(error.toString())),
-                    );
-                  }
-                },
-                icon: const Icon(Icons.save_outlined, size: 15),
-                label: const Text('Save Layout'),
-              ),
-            ],
           );
         },
       ),
@@ -4865,7 +8005,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
 
     if (saved == true && mounted) {
       _restaurantFloorFilter = currentFloor;
-      _message('Restaurant floor layout saved.');
+      _message('Advanced restaurant floor layout saved.');
       await _load();
     }
   }
@@ -4960,7 +8100,17 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                         horizontal: -2,
                         vertical: -3,
                       ),
-                      label: Text(floor),
+                      label: Text(
+                        floor,
+                        style: TextStyle(
+                          color: floor == selectedFloor
+                              ? Colors.white
+                              : scheme.onSurface,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      selectedColor: scheme.primary,
+                      backgroundColor: scheme.surfaceContainerHighest,
                       selected: floor == selectedFloor,
                       onSelected: (_) {
                         setState(() => _restaurantFloorFilter = floor);
@@ -5004,7 +8154,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                       top: 8,
                       left: 10,
                       child: Text(
-                        '$selectedFloor â€¢ ${visible.length} table(s)',
+                        '$selectedFloor • ${visible.length} table(s)',
                         style: TextStyle(
                           fontSize: 9.5,
                           fontWeight: FontWeight.w800,
@@ -5131,7 +8281,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                                       const SizedBox(height: 2),
                                       Text(
                                         occupied
-                                            ? '${order['order_number']} â€¢ ${_money(order['total'])}'
+                                            ? '${order['order_number']} • ${_money(order['total'])}'
                                             : reserved
                                             ? 'RESERVED'
                                             : operationalStatus
@@ -5175,22 +8325,207 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
   }
 
   Widget _ordersView() {
-    if (_orders.isEmpty) {
-      return const Center(
-        child: Text(
-          'No live restaurant orders.',
-          style: TextStyle(fontSize: 11),
+    final scheme = Theme.of(context).colorScheme;
+
+    bool matchesFilter(Map<String, dynamic> order) {
+      final status = order['status']?.toString() ?? 'open';
+      switch (_restaurantOrderFilter) {
+        case 'open':
+          return status == 'open' || status == 'sent_to_kitchen';
+        case 'preparing':
+          return status == 'preparing';
+        case 'ready':
+          return status == 'ready';
+        case 'served':
+          return status == 'served';
+        default:
+          return true;
+      }
+    }
+
+    final visibleOrders = _orders.where(matchesFilter).toList();
+
+    int countFor(String filter) {
+      return _orders.where((order) {
+        final status = order['status']?.toString() ?? 'open';
+        switch (filter) {
+          case 'open':
+            return status == 'open' || status == 'sent_to_kitchen';
+          case 'preparing':
+            return status == 'preparing';
+          case 'ready':
+            return status == 'ready';
+          case 'served':
+            return status == 'served';
+          default:
+            return true;
+        }
+      }).length;
+    }
+
+    Widget filterChip({
+      required String value,
+      required String label,
+      required IconData icon,
+    }) {
+      final selected = _restaurantOrderFilter == value;
+
+      return ChoiceChip(
+        selected: selected,
+        selectedColor: scheme.primary,
+        backgroundColor: scheme.surface,
+        avatar: Icon(
+          icon,
+          size: 15,
+          color: selected ? scheme.onPrimary : scheme.onSurfaceVariant,
         ),
+        label: Text(
+          '$label ${countFor(value)}',
+          style: TextStyle(
+            color: selected ? scheme.onPrimary : scheme.onSurface,
+            fontSize: 9.8,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        onSelected: (_) {
+          setState(() => _restaurantOrderFilter = value);
+        },
       );
     }
 
-    return RefreshIndicator(
-      onRefresh: _load,
-      child: ListView.builder(
-        padding: const EdgeInsets.all(5),
-        itemCount: _orders.length,
-        itemBuilder: (context, index) => _orderCard(_orders[index]),
-      ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Container(
+          margin: const EdgeInsets.fromLTRB(4, 0, 4, 5),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          decoration: BoxDecoration(
+            color: scheme.surface,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: scheme.outlineVariant),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                Icons.receipt_long_outlined,
+                size: 19,
+                color: scheme.primary,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Live Restaurant Orders',
+                      style: TextStyle(
+                        color: scheme.onSurface,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    Text(
+                      '${_orders.length} active order(s) - common actions are visible below',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: scheme.onSurfaceVariant,
+                        fontSize: 9.2,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              FilledButton.icon(
+                onPressed: _newOrder,
+                icon: const Icon(Icons.add_rounded, size: 16),
+                label: const Text('New Order'),
+              ),
+              const SizedBox(width: 5),
+              IconButton(
+                tooltip: 'Refresh orders',
+                visualDensity: VisualDensity.compact,
+                onPressed: _load,
+                icon: const Icon(Icons.refresh_rounded, size: 18),
+              ),
+            ],
+          ),
+        ),
+        SizedBox(
+          height: 42,
+          child: ListView(
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            scrollDirection: Axis.horizontal,
+            children: [
+              filterChip(
+                value: 'all',
+                label: 'All',
+                icon: Icons.view_list_outlined,
+              ),
+              const SizedBox(width: 5),
+              filterChip(
+                value: 'open',
+                label: 'Open',
+                icon: Icons.receipt_outlined,
+              ),
+              const SizedBox(width: 5),
+              filterChip(
+                value: 'preparing',
+                label: 'Preparing',
+                icon: Icons.soup_kitchen_outlined,
+              ),
+              const SizedBox(width: 5),
+              filterChip(
+                value: 'ready',
+                label: 'Ready',
+                icon: Icons.task_alt_rounded,
+              ),
+              const SizedBox(width: 5),
+              filterChip(
+                value: 'served',
+                label: 'Served',
+                icon: Icons.room_service_outlined,
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 4),
+        Expanded(
+          child: visibleOrders.isEmpty
+              ? Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.receipt_long_outlined,
+                        size: 38,
+                        color: scheme.outline,
+                      ),
+                      const SizedBox(height: 7),
+                      Text(
+                        _orders.isEmpty
+                            ? 'No live restaurant orders.'
+                            : 'No orders match this status filter.',
+                        style: TextStyle(
+                          color: scheme.onSurfaceVariant,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              : RefreshIndicator(
+                  onRefresh: _load,
+                  child: ListView.builder(
+                    padding: const EdgeInsets.fromLTRB(4, 2, 4, 8),
+                    itemCount: visibleOrders.length,
+                    itemBuilder: (context, index) =>
+                        _orderCard(visibleOrders[index]),
+                  ),
+                ),
+        ),
+      ],
     );
   }
 
@@ -5203,8 +8538,20 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
       );
     }
 
-    final to = DateTime.now();
-    final from = to.subtract(Duration(days: _restaurantAnalyticsDays));
+    final from = DateTime(
+      _restaurantReportFrom.year,
+      _restaurantReportFrom.month,
+      _restaurantReportFrom.day,
+    );
+    final to = DateTime(
+      _restaurantReportTo.year,
+      _restaurantReportTo.month,
+      _restaurantReportTo.day,
+      23,
+      59,
+      59,
+      999,
+    );
 
     return _restaurant.restaurantAnalytics(
       tenantId: widget.session.business.id,
@@ -5212,21 +8559,47 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
       deviceId: deviceId,
       from: from,
       to: to,
-      topLimit: 10,
+      topLimit: 25,
     );
   }
 
-  void _reloadRestaurantAnalytics({int? days}) {
-    if (days != null) {
-      _restaurantAnalyticsDays = days;
-    }
+  void _reloadRestaurantAnalytics() {
     setState(() {
+      _restaurantAnalyticsFuture = _fetchRestaurantAnalytics();
+    });
+  }
+
+  Future<void> _pickRestaurantReportRange() async {
+    final picked = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(2000, 1, 1),
+      lastDate: DateTime.now().add(const Duration(days: 1)),
+      initialDateRange: DateTimeRange(
+        start: _restaurantReportFrom,
+        end: _restaurantReportTo,
+      ),
+      helpText: 'Restaurant report date range',
+      confirmText: 'Search',
+      saveText: 'Search',
+    );
+
+    if (picked == null || !mounted) return;
+
+    setState(() {
+      _restaurantReportFrom = picked.start;
+      _restaurantReportTo = picked.end;
       _restaurantAnalyticsFuture = _fetchRestaurantAnalytics();
     });
   }
 
   Widget _restaurantAnalyticsView() {
     _restaurantAnalyticsFuture ??= _fetchRestaurantAnalytics();
+
+    String reportDate(DateTime value) {
+      final day = value.day.toString().padLeft(2, '0');
+      final month = value.month.toString().padLeft(2, '0');
+      return '$day/$month/${value.year}';
+    }
 
     Map<String, dynamic> asMap(dynamic value) {
       if (value is Map) return Map<String, dynamic>.from(value);
@@ -5433,34 +8806,57 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
     return Column(
       children: [
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
           decoration: BoxDecoration(
             color: scheme.surface,
             border: Border(bottom: BorderSide(color: scheme.outlineVariant)),
           ),
           child: Row(
             children: [
-              const Icon(Icons.analytics_outlined, size: 17),
-              const SizedBox(width: 6),
-              const Text(
-                'Restaurant Analytics',
-                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w900),
-              ),
-              const Spacer(),
-              for (final days in const [7, 30, 90]) ...[
-                ChoiceChip(
-                  visualDensity: const VisualDensity(
-                    horizontal: -3,
-                    vertical: -3,
-                  ),
-                  label: Text('${days}D'),
-                  selected: _restaurantAnalyticsDays == days,
-                  onSelected: (_) => _reloadRestaurantAnalytics(days: days),
+              Icon(Icons.assessment_outlined, size: 18, color: scheme.primary),
+              const SizedBox(width: 7),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Restaurant Reports',
+                      style: TextStyle(
+                        color: scheme.onSurface,
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    Text(
+                      'Sales, guests, orders, kitchen time, profit, voids, top items and table performance',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: scheme.onSurfaceVariant,
+                        fontSize: 8.8,
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 4),
-              ],
+              ),
+              const SizedBox(width: 8),
+              OutlinedButton.icon(
+                onPressed: _pickRestaurantReportRange,
+                icon: const Icon(Icons.date_range_outlined, size: 15),
+                label: Text(
+                  '${reportDate(_restaurantReportFrom)} - '
+                  '${reportDate(_restaurantReportTo)}',
+                ),
+              ),
+              const SizedBox(width: 4),
+              FilledButton.tonalIcon(
+                onPressed: _pickRestaurantReportRange,
+                icon: const Icon(Icons.search_rounded, size: 15),
+                label: const Text('Search Dates'),
+              ),
+              const SizedBox(width: 2),
               IconButton(
-                tooltip: 'Refresh analytics',
+                tooltip: 'Refresh report',
                 visualDensity: VisualDensity.compact,
                 onPressed: _reloadRestaurantAnalytics,
                 icon: const Icon(Icons.refresh, size: 17),
@@ -5525,7 +8921,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                           label: 'Sales',
                           value: _money(sales['sales']),
                           detail:
-                              '${compactNumber(sales['bills'])} bills â€¢ avg ${_money(sales['avg_ticket'])}',
+                              '${compactNumber(sales['bills'])} bills • avg ${_money(sales['avg_ticket'])}',
                         ),
                         metricCard(
                           icon: Icons.groups_2_outlined,
@@ -5539,7 +8935,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                           label: 'Orders',
                           value: compactNumber(orders['opened']),
                           detail:
-                              '${compactNumber(orders['billed'])} billed â€¢ ${compactNumber(orders['cancelled'])} cancelled',
+                              '${compactNumber(orders['billed'])} billed • ${compactNumber(orders['cancelled'])} cancelled',
                         ),
                         metricCard(
                           icon: Icons.timer_outlined,
@@ -5604,7 +9000,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                                     row['table_name']?.toString() ?? 'Table',
                                 valueFor: (row) => _money(row['sales']),
                                 subtitleFor: (row) =>
-                                    '${compactNumber(row['bills'])} bills â€¢ ${compactNumber(row['guests'])} guests',
+                                    '${compactNumber(row['bills'])} bills • ${compactNumber(row['guests'])} guests',
                               ),
                               rankingPanel(
                                 title: 'Waiter Performance',
@@ -5615,7 +9011,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                                     'Unassigned',
                                 valueFor: (row) => _money(row['sales']),
                                 subtitleFor: (row) =>
-                                    '${compactNumber(row['bills'])} bills â€¢ avg ${_money(row['avg_ticket'])}',
+                                    '${compactNumber(row['bills'])} bills • avg ${_money(row['avg_ticket'])}',
                               ),
                               rankingPanel(
                                 title: 'Order Types',
@@ -5627,7 +9023,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                                         .toUpperCase(),
                                 valueFor: (row) => _money(row['sales']),
                                 subtitleFor: (row) =>
-                                    '${compactNumber(row['bills'])} bills â€¢ avg ${_money(row['avg_ticket'])}',
+                                    '${compactNumber(row['bills'])} bills • avg ${_money(row['avg_ticket'])}',
                               ),
                             ],
                           );
@@ -5855,7 +9251,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                                                   .isNotEmpty ??
                                               false)
                                             entry['preferred_area'].toString(),
-                                        ].join(' â€¢ '),
+                                        ].join(' • '),
                                         style: TextStyle(
                                           fontSize: 9.8,
                                           color: scheme.onSurfaceVariant,
@@ -5873,7 +9269,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                                           ),
                                           const SizedBox(width: 4),
                                           Text(
-                                            'Waiting $waited min â€¢ estimate $estimate min',
+                                            'Waiting $waited min • estimate $estimate min',
                                             style: TextStyle(
                                               fontSize: 9.8,
                                               fontWeight: overdue
@@ -6094,7 +9490,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
             final quantity = item['quantity'] ?? 1;
             return '$quantity x $name';
           })
-          .join(' â€¢ ');
+          .join(' • ');
     }
 
     await showDialog<void>(
@@ -6198,7 +9594,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       Text(
-                        '${rows.length} historical KOT(s) â€¢ last $days day(s)',
+                        '${rows.length} historical KOT(s) • last $days day(s)',
                         style: const TextStyle(
                           fontSize: 9.5,
                           fontWeight: FontWeight.w800,
@@ -6282,7 +9678,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                                             Expanded(
                                               child: Text(
                                                 '${kot['order_number'] ?? 'Order'}'
-                                                '${table.isNotEmpty ? ' â€¢ $table' : ''}',
+                                                '${table.isNotEmpty ? ' • $table' : ''}',
                                                 maxLines: 1,
                                                 overflow: TextOverflow.ellipsis,
                                                 style: const TextStyle(
@@ -6327,7 +9723,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                                                     .isNotEmpty ??
                                                 false))
                                               'Note: ${kot['note']}',
-                                          ].join(' â€¢ '),
+                                          ].join(' • '),
                                           maxLines: 1,
                                           overflow: TextOverflow.ellipsis,
                                           style: TextStyle(
@@ -6368,6 +9764,53 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
             ],
           );
         },
+      ),
+    );
+  }
+
+  Widget _operationsView() {
+    final scheme = Theme.of(context).colorScheme;
+
+    return DefaultTabController(
+      length: 2,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Container(
+            height: 44,
+            margin: const EdgeInsets.fromLTRB(4, 0, 4, 5),
+            padding: const EdgeInsets.all(4),
+            decoration: BoxDecoration(
+              color: scheme.surfaceContainerLowest,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: scheme.outlineVariant),
+            ),
+            child: TabBar(
+              dividerColor: Colors.transparent,
+              indicator: BoxDecoration(
+                color: scheme.primary,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              labelColor: scheme.onPrimary,
+              unselectedLabelColor: scheme.onSurface,
+              labelStyle: const TextStyle(
+                fontSize: 10.5,
+                fontWeight: FontWeight.w900,
+              ),
+              tabs: const [
+                Tab(
+                  icon: Icon(Icons.table_restaurant_outlined, size: 15),
+                  text: 'Tables',
+                ),
+                Tab(
+                  icon: Icon(Icons.receipt_long_outlined, size: 15),
+                  text: 'Orders',
+                ),
+              ],
+            ),
+          ),
+          Expanded(child: TabBarView(children: [_floorView(), _ordersView()])),
+        ],
       ),
     );
   }
@@ -6519,7 +9962,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                       const SizedBox(width: 6),
                       Expanded(
                         child: Text(
-                          '${kot['kot_number'] ?? 'KOT'} â€¢ '
+                          '${kot['kot_number'] ?? 'KOT'} • '
                           '${kot['order_number'] ?? 'Order'}',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -6550,7 +9993,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                       if (orderType.isNotEmpty) orderType.toUpperCase(),
                       if ((kot['guest_count'] as num?) != null)
                         '${kot['guest_count']} guest(s)',
-                    ].join(' â€¢ '),
+                    ].join(' • '),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
@@ -6797,6 +10240,71 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
     );
   }
 
+  Future<void> _showRestaurantWaitlist() async {
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        final size = MediaQuery.sizeOf(dialogContext);
+        return Dialog(
+          insetPadding: const EdgeInsets.all(24),
+          clipBehavior: Clip.antiAlias,
+          child: SizedBox(
+            width: (size.width * .86).clamp(760.0, 1280.0).toDouble(),
+            height: (size.height * .82).clamp(540.0, 820.0).toDouble(),
+            child: Column(
+              children: [
+                Container(
+                  height: 52,
+                  padding: const EdgeInsets.symmetric(horizontal: 14),
+                  decoration: BoxDecoration(
+                    color: Theme.of(dialogContext).colorScheme.surface,
+                    border: Border(
+                      bottom: BorderSide(
+                        color: Theme.of(
+                          dialogContext,
+                        ).colorScheme.outlineVariant,
+                      ),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.groups_2_outlined,
+                        size: 18,
+                        color: Theme.of(dialogContext).colorScheme.primary,
+                      ),
+                      const SizedBox(width: 8),
+                      const Expanded(
+                        child: Text(
+                          'Restaurant Waitlist',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        tooltip: 'Close',
+                        onPressed: () => Navigator.pop(dialogContext),
+                        icon: const Icon(Icons.close_rounded),
+                      ),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.all(10),
+                    child: _waitlistView(),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_loading) return const Center(child: CircularProgressIndicator());
@@ -6804,64 +10312,86 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
     final scheme = Theme.of(context).colorScheme;
     final occupied = _tables
         .where(
-          (t) =>
-              t['active'] != false &&
-              _tableOrder(t['id']?.toString() ?? '') != null,
+          (table) =>
+              table['active'] != false &&
+              _tableOrder(table['id']?.toString() ?? '') != null,
         )
         .length;
     final ready = _orders
-        .where((o) => o['status']?.toString() == 'ready')
+        .where((order) => order['status']?.toString() == 'ready')
         .length;
 
-    return DefaultTabController(
-      length: 5,
-      child: Padding(
-        padding: const EdgeInsets.all(6),
-        child: Column(
-          children: [
-            Container(
-              height: 46,
-              padding: const EdgeInsets.symmetric(horizontal: 8),
-              decoration: BoxDecoration(
-                color: scheme.surface,
-                borderRadius: BorderRadius.circular(9),
-                border: Border.all(color: scheme.outlineVariant),
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    width: 4,
-                    height: 25,
-                    decoration: BoxDecoration(
-                      color: scheme.primary,
-                      borderRadius: BorderRadius.circular(999),
-                    ),
+    final workspace = widget.workspace;
+    final isKitchen = workspace == 'kitchen';
+    final isReports = workspace == 'reports';
+
+    final title = isKitchen
+        ? 'Restaurant Kitchen'
+        : isReports
+        ? 'Restaurant Reports'
+        : 'Restaurant Operations';
+
+    final subtitle = isKitchen
+        ? 'Live KOT queue and kitchen status'
+        : isReports
+        ? 'Custom-date restaurant performance and audit reporting'
+        : '${_orders.length} live | $occupied occupied | $ready ready';
+
+    Widget workspaceBody() {
+      if (isKitchen) return _kitchenView();
+      if (isReports) return _restaurantAnalyticsView();
+      return _operationsView();
+    }
+
+    return Padding(
+      padding: const EdgeInsets.all(6),
+      child: Column(
+        children: [
+          Container(
+            height: 48,
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            decoration: BoxDecoration(
+              color: scheme.surface,
+              borderRadius: BorderRadius.circular(9),
+              border: Border.all(color: scheme.outlineVariant),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 4,
+                  height: 25,
+                  decoration: BoxDecoration(
+                    color: scheme.primary,
+                    borderRadius: BorderRadius.circular(999),
                   ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Restaurant Operations',
-                          style: TextStyle(
-                            fontSize: 14.5,
-                            fontWeight: FontWeight.w900,
-                          ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: TextStyle(
+                          color: scheme.onSurface,
+                          fontSize: 14.5,
+                          fontWeight: FontWeight.w900,
                         ),
-                        Text(
-                          '${_orders.length} live | '
-                          '$occupied occupied | $ready ready',
-                          maxLines: 1,
-                          style: TextStyle(
-                            fontSize: 10.5,
-                            color: scheme.onSurfaceVariant,
-                          ),
+                      ),
+                      Text(
+                        subtitle,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 10.2,
+                          color: scheme.onSurfaceVariant,
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
+                ),
+                if (!isKitchen && !isReports) ...[
                   if (widget.session.hasPermission('restaurant.manage'))
                     OutlinedButton.icon(
                       onPressed: _addTable,
@@ -6872,102 +10402,134 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                       label: const Text('Tables'),
                     ),
                   const SizedBox(width: 4),
+                  OutlinedButton.icon(
+                    onPressed: _showRestaurantWaitlist,
+                    icon: const Icon(Icons.groups_2_outlined, size: 15),
+                    label: const Text('Waitlist'),
+                  ),
+                  const SizedBox(width: 4),
                   FilledButton.icon(
                     onPressed: _newOrder,
                     icon: const Icon(Icons.add, size: 15),
                     label: const Text('New Order'),
                   ),
-                  const SizedBox(width: 2),
-                  IconButton(
-                    tooltip: 'Refresh',
-                    visualDensity: VisualDensity.compact,
-                    onPressed: _load,
-                    icon: const Icon(Icons.refresh_rounded, size: 17),
-                  ),
                 ],
-              ),
+                const SizedBox(width: 2),
+                IconButton(
+                  tooltip: 'Refresh',
+                  visualDensity: VisualDensity.compact,
+                  onPressed: isReports ? _reloadRestaurantAnalytics : _load,
+                  icon: const Icon(Icons.refresh_rounded, size: 17),
+                ),
+              ],
             ),
+          ),
+          if (!isKitchen && !isReports) ...[
             const SizedBox(height: 5),
             _restaurantDashboardStrip(),
-            if (_error != null) ...[
-              const SizedBox(height: 5),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-                decoration: BoxDecoration(
-                  color: scheme.errorContainer,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  _error!,
-                  maxLines: 2,
-                  style: TextStyle(
-                    fontSize: 10.5,
-                    color: scheme.onErrorContainer,
-                  ),
-                ),
-              ),
-            ],
+          ],
+          if (_error != null) ...[
             const SizedBox(height: 5),
             Container(
-              height: 36,
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
               decoration: BoxDecoration(
-                color: scheme.surface,
+                color: scheme.errorContainer,
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: scheme.outlineVariant),
               ),
-              child: const TabBar(
-                labelStyle: TextStyle(
+              child: Text(
+                _error!,
+                maxLines: 2,
+                style: TextStyle(
                   fontSize: 10.5,
-                  fontWeight: FontWeight.w800,
+                  color: scheme.onErrorContainer,
                 ),
-                tabs: [
-                  Tab(
-                    icon: Icon(Icons.table_restaurant_outlined, size: 15),
-                    text: 'Floor',
-                  ),
-                  Tab(
-                    icon: Icon(Icons.receipt_long_outlined, size: 15),
-                    text: 'Orders',
-                  ),
-                  Tab(
-                    icon: Icon(Icons.soup_kitchen_outlined, size: 15),
-                    text: 'Kitchen',
-                  ),
-                  Tab(
-                    icon: Icon(Icons.groups_2_outlined, size: 15),
-                    text: 'Waitlist',
-                  ),
-
-                  Tab(icon: Icon(Icons.analytics_outlined), text: 'Reports'),
-                ],
-              ),
-            ),
-            const SizedBox(height: 5),
-            Expanded(
-              child: TabBarView(
-                children: [
-                  _floorView(),
-                  _ordersView(),
-                  _kitchenView(),
-                  _waitlistView(),
-
-                  _restaurantAnalyticsView(),
-                ],
               ),
             ),
           ],
-        ),
+          const SizedBox(height: 5),
+          Expanded(child: workspaceBody()),
+        ],
       ),
     );
   }
 }
 
 class _RestaurantBillingChoice {
-  final String paymentMethod;
+  final String customerId;
+  final List<Map<String, dynamic>> paymentAllocations;
+  final DateTime? dueDate;
   final double roundOff;
+  final String note;
+  final String discountType;
+  final double discountValue;
+  final List<Map<String, dynamic>> chargeSelections;
 
-  const _RestaurantBillingChoice(this.paymentMethod, this.roundOff);
+  const _RestaurantBillingChoice({
+    required this.customerId,
+    required this.paymentAllocations,
+    required this.dueDate,
+    required this.roundOff,
+    required this.note,
+    required this.discountType,
+    required this.discountValue,
+    required this.chargeSelections,
+  });
+}
+
+class _RestaurantCheckoutStep extends StatelessWidget {
+  final String number;
+  final String label;
+  final bool active;
+  final bool complete;
+
+  const _RestaurantCheckoutStep({
+    required this.number,
+    required this.label,
+    required this.active,
+    required this.complete,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final background = active || complete
+        ? scheme.primary
+        : scheme.surfaceContainerHighest;
+    final foreground = active || complete
+        ? scheme.onPrimary
+        : scheme.onSurfaceVariant;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            complete ? '\u2713' : number,
+            style: TextStyle(
+              color: foreground,
+              fontSize: 10,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(width: 5),
+          Text(
+            label,
+            style: TextStyle(
+              color: foreground,
+              fontSize: 10,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _RestaurantLine {

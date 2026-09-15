@@ -6,6 +6,8 @@ import '../models/client_session.dart';
 import '../models/inventory_product_detail.dart';
 import '../models/stock_movement.dart';
 import '../services/inventory_service.dart';
+import '../widgets/additional_charges_dialog.dart';
+import '../widgets/product_classification_picker.dart';
 import '../widgets/product_unit_editor.dart';
 import 'product_tracking_policy_screen.dart';
 
@@ -37,6 +39,34 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   List<StockMovement> _movements = [];
 
   bool get _canManage => widget.session.hasPermission('inventory.manage');
+
+  bool get _canManageAdditionalCharges =>
+      widget.session.hasRole('owner') ||
+      widget.session.hasPermission('sales.manage') ||
+      widget.session.hasPermission('restaurant.manage') ||
+      widget.session.hasPermission('inventory.manage');
+
+  Future<void> _additionalCharges() async {
+    final locationId = widget.session.device?.locationId;
+    if (locationId == null || locationId.isEmpty) {
+      ThqNotify.showSnackBar(
+        context,
+        const SnackBar(
+          content: Text('This POS is not activated to a location.'),
+        ),
+      );
+      return;
+    }
+
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => AdditionalChargesDialog(
+        session: widget.session,
+        locationId: locationId,
+      ),
+    );
+  }
 
   @override
   void initState() {
@@ -243,6 +273,12 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
         ),
 
         actions: [
+          if (_canManageAdditionalCharges && _product != null)
+            IconButton(
+              tooltip: 'Additional Charges',
+              onPressed: _additionalCharges,
+              icon: const Icon(Icons.price_change_outlined),
+            ),
           if (_canManage && _product != null)
             IconButton(
               tooltip: 'Edit Product',
@@ -592,10 +628,8 @@ class _EditProductDialogState extends State<_EditProductDialog> {
 
   late final TextEditingController _descriptionController;
 
-  late final TextEditingController _categoryController;
-
-  late final TextEditingController _brandController;
-
+  late String _categoryName;
+  late String _brandName;
   late final TextEditingController _skuController;
 
   late final TextEditingController _barcodeController;
@@ -630,12 +664,8 @@ class _EditProductDialogState extends State<_EditProductDialog> {
       text: product.description ?? '',
     );
 
-    _categoryController = TextEditingController(
-      text: product.categoryName ?? '',
-    );
-
-    _brandController = TextEditingController(text: product.brandName ?? '');
-
+    _categoryName = product.categoryName ?? '';
+    _brandName = product.brandName ?? '';
     _skuController = TextEditingController(text: product.sku);
 
     _barcodeController = TextEditingController(text: product.barcode ?? '');
@@ -780,8 +810,8 @@ class _EditProductDialogState extends State<_EditProductDialog> {
         variantId: widget.product.variantId,
         name: _nameController.text,
         description: _descriptionController.text,
-        categoryName: _categoryController.text,
-        brandName: _brandController.text,
+        categoryName: _categoryName,
+        brandName: _brandName,
         sku: _skuController.text,
         barcode: _barcodeController.text,
         partNumber: _partNumberController.text,
@@ -827,8 +857,6 @@ class _EditProductDialogState extends State<_EditProductDialog> {
   void dispose() {
     _nameController.dispose();
     _descriptionController.dispose();
-    _categoryController.dispose();
-    _brandController.dispose();
     _skuController.dispose();
     _barcodeController.dispose();
     _partNumberController.dispose();
@@ -891,23 +919,13 @@ class _EditProductDialogState extends State<_EditProductDialog> {
 
                 const SizedBox(height: 16),
 
-                _twoFields(
-                  TextFormField(
-                    controller: _categoryController,
-                    enabled: !_saving,
-                    decoration: const InputDecoration(
-                      labelText: 'Category',
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                  TextFormField(
-                    controller: _brandController,
-                    enabled: !_saving,
-                    decoration: const InputDecoration(
-                      labelText: 'Brand',
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
+                ProductClassificationPicker(
+                  session: widget.session,
+                  enabled: !_saving,
+                  initialCategory: _categoryName,
+                  initialBrand: _brandName,
+                  onCategoryChanged: (value) => _categoryName = value,
+                  onBrandChanged: (value) => _brandName = value,
                 ),
 
                 const SizedBox(height: 16),

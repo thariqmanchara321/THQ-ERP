@@ -13,6 +13,7 @@ class GstV520RouteGuard {
 
   static const _approved = <String>{
     'gst_mobile_pos_sale_sync_v522',
+    'gst_mobile_pos_purchase_create_v522',
     'mobile_pos_restaurant_bill_v520',
     'mobile_pos_api_contract_v520',
   };
@@ -70,9 +71,6 @@ class GstV520RouteGuard {
     final rules = rulesRaw is Map
         ? Map<String, dynamic>.from(rulesRaw)
         : <String, dynamic>{};
-
-    // v5.2.2 extends the v5.2 base contract, so both base safety guarantees
-    // and the Build 30 top-level fallback guarantee are required.
     if (rules['v520_route_requires_v520_writer'] != true ||
         rules['legacy_fallback_after_v520_route'] != false ||
         rules['tax_calculation'] != 'server_authoritative_only' ||

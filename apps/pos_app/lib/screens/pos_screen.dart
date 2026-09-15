@@ -10,6 +10,7 @@ import '../models/customer.dart';
 import '../models/inventory_product.dart';
 import '../models/sale_detail.dart';
 import '../services/cashier_shift_service.dart';
+import '../services/commercial_pricing_service.dart';
 import '../services/pricing_service.dart';
 import '../services/sales_service.dart';
 import '../services/tracking_service.dart';
@@ -38,6 +39,7 @@ enum _PosWorkspace { products, hold, heldInvoices, quantity }
 class _PosScreenState extends State<PosScreen> {
   final PricingService _pricing = PricingService();
   final CashierShiftService _shiftService = CashierShiftService();
+  final CommercialPricingService _commercial = CommercialPricingService();
   final SalesService _sales = SalesService();
   final TrackingService _tracking = TrackingService();
   final PosCompletionService _completion = PosCompletionService();
@@ -54,6 +56,19 @@ class _PosScreenState extends State<PosScreen> {
     text: '0.00',
   );
   final TextEditingController _roundOff = TextEditingController(text: '0.00');
+  final TextEditingController _commercialChargeAmount = TextEditingController(
+    text: '0.00',
+  );
+  Timer? _commercialQuoteDebounce;
+  String _orderDiscountType = 'fixed';
+  List<Map<String, dynamic>> _commercialChargeCatalog = const [];
+  bool _additionalChargesEnabled = true;
+  String? _commercialChargeToAdd;
+  List<Map<String, dynamic>> _commercialChargeSelections = const [];
+  Map<String, dynamic>? _commercialQuote;
+  bool _commercialQuoteLoading = false;
+  String? _commercialQuoteError;
+  int _commercialQuoteToken = 0;
   final TextEditingController _notes = TextEditingController();
   final TextEditingController _holdLabel = TextEditingController();
   final FocusNode _searchFocus = FocusNode();
@@ -73,6 +88,7 @@ class _PosScreenState extends State<PosScreen> {
   _PosLine? _editingLine;
   String _category = 'All';
   String _sort = 'name';
+  String _productFilter = 'all';
   String _paymentMethod = 'cash';
   List<Map<String, dynamic>> _paymentAllocations = const [];
   String _orderMode = 'counter';
@@ -80,6 +96,7 @@ class _PosScreenState extends State<PosScreen> {
   Timer? _searchDebounce;
   Timer? _offlineSyncTimer;
   bool _offlineMode = false;
+  bool _manualOffline = false;
   bool _offlineHeartbeatBusy = false;
 
   Map<String, Customer> _customerById = const {};
@@ -120,6 +137,39 @@ class _PosScreenState extends State<PosScreen> {
       return cached;
     }
 
+    final commercial = _commercialQuote;
+    if (commercial != null && !_offlineMode) {
+      final totalsRaw = commercial['totals'];
+      final totals = totalsRaw is Map
+          ? Map<String, dynamic>.from(totalsRaw)
+          : const <String, dynamic>{};
+      double number(String key) =>
+          (totals[key] as num?)?.toDouble() ??
+          double.tryParse('${totals[key]}') ??
+          0.0;
+
+      var baseSubtotal = 0.0;
+      for (final line in _cart) {
+        baseSubtotal += _lineGross(line);
+      }
+
+      final snapshot = _PosTotalsSnapshot(
+        subtotal: baseSubtotal,
+        manualOrderDiscount:
+            (commercial['document_discount_total'] as num?)?.toDouble() ??
+            double.tryParse('${commercial['document_discount_total']}') ??
+            0.0,
+        discount: number('discount'),
+        tax: number('tax'),
+        beforeRoundOff: number('before_round_off'),
+        roundOffAmount: number('automatic_round_off'),
+        total: number('grand_total'),
+      );
+      _totalsCache = snapshot;
+      _totalsCacheRevision = _totalsRevision;
+      return snapshot;
+    }
+
     var subtotal = 0.0;
     for (final line in _cart) {
       subtotal += _lineGross(line);
@@ -127,9 +177,14 @@ class _PosScreenState extends State<PosScreen> {
 
     final requestedDiscount =
         double.tryParse(_orderDiscount.text.trim()) ?? 0.0;
-    final manualOrderDiscount = requestedDiscount
-        .clamp(0.0, subtotal)
-        .toDouble();
+    final manualOrderDiscount = switch (_orderDiscountType) {
+      'none' => 0.0,
+      'percent' =>
+        (subtotal * requestedDiscount.clamp(0.0, 100.0) / 100.0)
+            .clamp(0.0, subtotal)
+            .toDouble(),
+      _ => requestedDiscount.clamp(0.0, subtotal).toDouble(),
+    };
 
     var discount = 0.0;
     var tax = 0.0;
@@ -166,6 +221,23 @@ class _PosScreenState extends State<PosScreen> {
   double get _subtotal => _totalsSnapshot.subtotal;
 
   double get _cuttingCharges => 0.0;
+
+  double get _classifiedChargeTotal {
+    final commercial = _commercialQuote;
+    if (commercial == null || _offlineMode) return 0.0;
+    return (commercial['classified_charge_total'] as num?)?.toDouble() ??
+        double.tryParse('${commercial['classified_charge_total']}') ??
+        0.0;
+  }
+
+  List<Map<String, dynamic>> get _commercialChargeBreakdown {
+    final commercial = _commercialQuote;
+    if (commercial == null || _offlineMode) return const [];
+    return (commercial['charge_breakdown'] as List? ?? const [])
+        .whereType<Map>()
+        .map((row) => Map<String, dynamic>.from(row))
+        .toList(growable: false);
+  }
 
   double _effectiveLineDiscount(_PosLine line) {
     final totals = _totalsSnapshot;
@@ -330,7 +402,7 @@ class _PosScreenState extends State<PosScreen> {
 
   List<InventoryProduct> get _filteredProducts {
     final query = _search.text.trim().toLowerCase();
-    final cacheKey = '$query\u0001$_category\u0001$_sort';
+    final cacheKey = '$query\u0001$_category\u0001$_productFilter\u0001$_sort';
     if (_filteredProductsCacheKey == cacheKey) {
       return _filteredProductsCache;
     }
@@ -339,11 +411,24 @@ class _PosScreenState extends State<PosScreen> {
       final categoryMatch =
           _category == 'All' || product.categoryName == _category;
       if (!categoryMatch) return false;
+
+      final filterMatch = switch (_productFilter) {
+        'stock' => product.itemType == 'stock',
+        'serial' => product.trackingMode == 'serial',
+        'batch' => product.trackingMode == 'batch',
+        'service' => product.itemType != 'stock',
+        _ => true,
+      };
+      if (!filterMatch) return false;
+
       if (query.isEmpty) return true;
       return (_productSearchIndex[product.variantId] ?? '').contains(query);
     }).toList();
 
     switch (_sort) {
+      case 'name_desc':
+        rows.sort((a, b) => b.productName.compareTo(a.productName));
+        break;
       case 'price_low':
         rows.sort((a, b) => a.sellingPrice.compareTo(b.sellingPrice));
         break;
@@ -352,6 +437,9 @@ class _PosScreenState extends State<PosScreen> {
         break;
       case 'stock_high':
         rows.sort((a, b) => b.stockQuantity.compareTo(a.stockQuantity));
+        break;
+      case 'stock_low':
+        rows.sort((a, b) => a.stockQuantity.compareTo(b.stockQuantity));
         break;
       case 'category':
         rows.sort(
@@ -375,8 +463,7 @@ class _PosScreenState extends State<PosScreen> {
             .setting('pos.default_payment_method', 'cash')
             ?.toString() ??
         'cash';
-    unawaited(_offlineLocal.initialize());
-    _load();
+    unawaited(_initializeOfflinePreference());
     _offlineSyncTimer = Timer.periodic(
       const Duration(seconds: 45),
       (_) => unawaited(_offlineHeartbeat()),
@@ -387,6 +474,7 @@ class _PosScreenState extends State<PosScreen> {
   void dispose() {
     _offlineSyncTimer?.cancel();
     _searchDebounce?.cancel();
+    _commercialQuoteDebounce?.cancel();
     for (final timer in _priceDebounce.values) {
       timer.cancel();
     }
@@ -396,10 +484,23 @@ class _PosScreenState extends State<PosScreen> {
     _paymentReference.dispose();
     _orderDiscount.dispose();
     _roundOff.dispose();
+    _commercialChargeAmount.dispose();
     _notes.dispose();
     _holdLabel.dispose();
     _searchFocus.dispose();
     super.dispose();
+  }
+
+  String get _manualOfflineKey {
+    final deviceId = widget.session.device?.deviceId ?? 'unknown';
+    return 'manual_offline:${widget.session.business.id}:$deviceId';
+  }
+
+  Future<void> _initializeOfflinePreference() async {
+    await _offlineLocal.initialize();
+    final stored = await _offlineLocal.getMeta(_manualOfflineKey);
+    _manualOffline = stored == true;
+    await _load();
   }
 
   Future<void> _load() async {
@@ -412,16 +513,25 @@ class _PosScreenState extends State<PosScreen> {
     try {
       await _offlineLocal.initialize();
       OfflineCatalogue catalogue;
-      var offline = false;
-      try {
-        catalogue = await _offlineSync.refreshCatalogue(widget.session);
-      } catch (onlineError) {
-        offline = true;
+      var offline = _manualOffline;
+      if (_manualOffline) {
         catalogue = await _offlineSync.cachedCatalogue(widget.session);
         if (catalogue.products.isEmpty || catalogue.customers.isEmpty) {
           throw StateError(
-            'POS is offline and no local product/customer cache is available yet. Connect once and refresh the POS before using offline billing. $onlineError',
+            'Manual offline mode needs a cached product/customer catalogue. Go online and Sync once first.',
           );
+        }
+      } else {
+        try {
+          catalogue = await _offlineSync.refreshCatalogue(widget.session);
+        } catch (onlineError) {
+          offline = true;
+          catalogue = await _offlineSync.cachedCatalogue(widget.session);
+          if (catalogue.products.isEmpty || catalogue.customers.isEmpty) {
+            throw StateError(
+              'POS is offline and no local product/customer cache is available yet. Connect once and refresh the POS before using offline billing. $onlineError',
+            );
+          }
         }
       }
       final products = catalogue.products
@@ -467,7 +577,8 @@ class _PosScreenState extends State<PosScreen> {
   }
 
   Future<void> _offlineHeartbeat() async {
-    if (_offlineHeartbeatBusy ||
+    if (_manualOffline ||
+        _offlineHeartbeatBusy ||
         _saving ||
         !mounted ||
         widget.session.device == null) {
@@ -497,6 +608,69 @@ class _PosScreenState extends State<PosScreen> {
     } finally {
       _offlineHeartbeatBusy = false;
     }
+  }
+
+  Future<void> _syncNow() async {
+    if (_offlineHeartbeatBusy || _saving || widget.session.device == null) {
+      return;
+    }
+    _offlineHeartbeatBusy = true;
+    if (mounted) setState(() => _error = null);
+    try {
+      final result = await _offlineSync.syncPending(widget.session);
+      final catalogue = await _offlineSync.refreshCatalogue(widget.session);
+      if (!mounted) return;
+      final products = catalogue.products
+          .where(
+            (product) =>
+                product.productStatus == 'active' &&
+                product.variantStatus == 'active',
+          )
+          .toList();
+      final customers = catalogue.customers
+          .where((customer) => customer.isActive)
+          .toList();
+      _rebuildCatalogueCaches(products, customers);
+      setState(() {
+        _products = products;
+        _customers = customers;
+        _offlineMode = _manualOffline;
+      });
+      _message(
+        'Sync complete: ${result.synced} synced, ${result.pending} pending, '
+        '${result.conflicts} conflict(s).',
+      );
+    } catch (error) {
+      if (mounted) {
+        setState(() => _offlineMode = true);
+        _message('Sync unavailable: $error');
+      }
+    } finally {
+      _offlineHeartbeatBusy = false;
+      if (mounted) setState(() {});
+    }
+  }
+
+  Future<void> _setManualOffline(bool enabled) async {
+    if (enabled) {
+      final catalogue = await _offlineSync.cachedCatalogue(widget.session);
+      if (catalogue.products.isEmpty || catalogue.customers.isEmpty) {
+        _message(
+          'Offline mode needs a cached product/customer catalogue. '
+          'Connect and sync once first.',
+        );
+        return;
+      }
+    }
+
+    await _offlineLocal.setMeta(_manualOfflineKey, enabled);
+    if (!mounted) return;
+    setState(() {
+      _manualOffline = enabled;
+      _offlineMode = enabled ? true : _offlineMode;
+    });
+    _message(enabled ? 'Manual offline mode enabled.' : 'Returning online...');
+    if (!enabled) await _syncNow();
   }
 
   String _money(double value) => widget.session.currencyCode == 'INR'
@@ -1012,8 +1186,14 @@ class _PosScreenState extends State<PosScreen> {
     }
   }
 
-  void _syncTendered() {
+  void _syncTendered({bool preserveCommercialQuote = false}) {
     _invalidateTotals();
+    if (!preserveCommercialQuote) {
+      _commercialQuote = null;
+      if (_step > 0 && !_offlineMode && !_manualOffline) {
+        _scheduleCommercialQuote();
+      }
+    }
     if (_paymentMethod != 'cash') {
       _tendered.text = _paymentMethod == 'credit'
           ? '0.00'
@@ -1110,6 +1290,7 @@ class _PosScreenState extends State<PosScreen> {
         if (_validateCart()) {
           _step = 1;
           _syncTendered();
+          unawaited(_loadCommercialPricing());
         }
       } else if (_step == 1) {
         if (_validatePayment()) _step = 2;
@@ -1124,7 +1305,9 @@ class _PosScreenState extends State<PosScreen> {
   Map<String, dynamic> _heldState() => <String, dynamic>{
     'customer_id': _customerId,
     'order_mode': _orderMode,
+    'order_discount_type': _orderDiscountType,
     'order_discount': _orderDiscount.text,
+    'commercial_charge_selections': _commercialChargeSelections,
     'round_off': _roundOff.text,
     'notes': _notes.text,
     'payment_method': _paymentMethod,
@@ -1323,7 +1506,15 @@ class _PosScreenState extends State<PosScreen> {
           _customerId = customerId;
         }
         _orderMode = state['order_mode']?.toString() ?? 'counter';
+        _orderDiscountType =
+            state['order_discount_type']?.toString() ?? 'fixed';
         _orderDiscount.text = state['order_discount']?.toString() ?? '0.00';
+        _commercialChargeSelections =
+            (state['commercial_charge_selections'] as List? ?? const [])
+                .whereType<Map>()
+                .map((row) => Map<String, dynamic>.from(row))
+                .toList(growable: false);
+        _commercialQuote = null;
         _roundOff.text = state['round_off']?.toString() ?? '0.00';
         _notes.text = state['notes']?.toString() ?? '';
         _paymentMethod = state['payment_method']?.toString() ?? 'cash';
@@ -1467,7 +1658,31 @@ class _PosScreenState extends State<PosScreen> {
   }
 
   Future<void> _checkout({bool printAfter = false}) async {
-    if (!_validateCart() || !_validatePayment()) {
+    if (!_validateCart()) {
+      setState(() {});
+      return;
+    }
+
+    if ((_offlineMode || _manualOffline) &&
+        _commercialChargeSelections.isNotEmpty) {
+      setState(
+        () => _error =
+            'Classified additional charges require an online authoritative quote. '
+            'Reconnect or remove the selected charge before confirming.',
+      );
+      return;
+    }
+
+    if (!_offlineMode && !_manualOffline) {
+      try {
+        await _refreshCommercialQuote(throwOnError: true);
+      } catch (error) {
+        if (mounted) setState(() => _error = error.toString());
+        return;
+      }
+    }
+
+    if (!_validatePayment()) {
       setState(() {});
       return;
     }
@@ -1523,25 +1738,9 @@ class _PosScreenState extends State<PosScreen> {
         'sale_date': now.toIso8601String().split('T').first,
         'sale_time': now.toUtc().toIso8601String(),
         'due_date': due?.toIso8601String().split('T').first,
-        'items': _cart
-            .map(
-              (line) => <String, dynamic>{
-                'variant_id': line.product.variantId,
-                'product_name': line.product.productName,
-                'sku': line.product.sku,
-                'quantity': line.quantity,
-                'unit_id': line.unit?.unitId,
-                'unit_code': line.unitCode,
-                'unit_price': line.unitPrice,
-                'discount_amount': _effectiveLineDiscount(line),
-                'tax_rate': line.product.taxRate,
-                'conversion_to_base': line.conversionToBase,
-                'base_quantity': line.baseQuantity,
-                if (line.serialNumbers.isNotEmpty)
-                  'serial_numbers': List<String>.from(line.serialNumbers),
-              },
-            )
-            .toList(),
+        'items': _checkoutItems(),
+        'order_type': _commercialOrderType,
+        'commercial_summary': _commercialSummaryPayload(),
         'payment_allocations': _paymentAllocations,
         'notes': [
           'POS • ${_orderMode.replaceAll('_', ' ')}',
@@ -1560,13 +1759,15 @@ class _PosScreenState extends State<PosScreen> {
         printRequested: printAfter,
       );
 
-      try {
-        await _offlineSync.syncPending(
-          widget.session,
-          onlyRequestId: requestId,
-        );
-      } catch (_) {
-        // The durable local queue is the source of truth during a network outage.
+      if (!_manualOffline) {
+        try {
+          await _offlineSync.syncPending(
+            widget.session,
+            onlyRequestId: requestId,
+          );
+        } catch (_) {
+          // The durable local queue is the source of truth during a network outage.
+        }
       }
       final record = await _offlineLocal.invoice(requestId);
       if (record == null) {
@@ -1576,7 +1777,7 @@ class _PosScreenState extends State<PosScreen> {
       String? printWarning;
       String completedNumber = localNumber;
       if (record.status == 'synced') {
-        _offlineMode = false;
+        _offlineMode = _manualOffline;
         final result = record.serverResponse ?? const <String, dynamic>{};
         final saleNumber =
             result['sale_number']?.toString() ??
@@ -1685,9 +1886,14 @@ class _PosScreenState extends State<PosScreen> {
       _search.clear();
       _category = 'All';
       _sort = 'name';
+      _productFilter = 'all';
       _step = 0;
       _paymentReference.clear();
+      _orderDiscountType = 'fixed';
       _orderDiscount.text = '0.00';
+      _commercialChargeSelections = const [];
+      _commercialQuote = null;
+      _commercialQuoteError = null;
       _roundOff.text = '0.00';
       _notes.clear();
       _tendered.clear();
@@ -1852,6 +2058,32 @@ class _PosScreenState extends State<PosScreen> {
               ],
               const Spacer(),
               _billingStatusPill(),
+              const SizedBox(width: 4),
+              IconButton(
+                tooltip: _manualOffline ? 'Go online' : 'Work offline',
+                visualDensity: VisualDensity.compact,
+                onPressed: _offlineHeartbeatBusy
+                    ? null
+                    : () => _setManualOffline(!_manualOffline),
+                icon: Icon(
+                  _manualOffline
+                      ? Icons.cloud_done_outlined
+                      : Icons.cloud_off_outlined,
+                  size: 17,
+                ),
+              ),
+              IconButton(
+                tooltip: 'Sync now',
+                visualDensity: VisualDensity.compact,
+                onPressed: _offlineHeartbeatBusy ? null : _syncNow,
+                icon: _offlineHeartbeatBusy
+                    ? const SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.sync_rounded, size: 17),
+              ),
               if (_step == 0) ...[
                 const SizedBox(width: 4),
                 if (compact)
@@ -1935,7 +2167,9 @@ class _PosScreenState extends State<PosScreen> {
           ),
           const SizedBox(width: 4),
           Text(
-            _offlineMode ? 'OFFLINE' : 'ONLINE',
+            _manualOffline
+                ? 'OFFLINE MANUAL'
+                : (_offlineMode ? 'OFFLINE' : 'ONLINE'),
             style: TextStyle(
               fontSize: 9.1,
               fontWeight: FontWeight.w900,
@@ -2602,12 +2836,34 @@ class _PosScreenState extends State<PosScreen> {
                   },
                 );
 
+                final filter = DropdownButtonFormField<String>(
+                  initialValue: _productFilter,
+                  isExpanded: true,
+                  decoration: const InputDecoration(labelText: 'Filter'),
+                  items: const [
+                    DropdownMenuItem(value: 'all', child: Text('All products')),
+                    DropdownMenuItem(value: 'stock', child: Text('Stock')),
+                    DropdownMenuItem(value: 'serial', child: Text('Serial')),
+                    DropdownMenuItem(value: 'batch', child: Text('Batch')),
+                    DropdownMenuItem(value: 'service', child: Text('Service')),
+                  ],
+                  onChanged: (value) {
+                    if (value != null) {
+                      setState(() => _productFilter = value);
+                    }
+                  },
+                );
+
                 final sort = DropdownButtonFormField<String>(
                   initialValue: _sort,
                   isExpanded: true,
                   decoration: const InputDecoration(labelText: 'Sort'),
                   items: const [
                     DropdownMenuItem(value: 'name', child: Text('Name A-Z')),
+                    DropdownMenuItem(
+                      value: 'name_desc',
+                      child: Text('Name Z-A'),
+                    ),
                     DropdownMenuItem(
                       value: 'category',
                       child: Text('Category'),
@@ -2623,6 +2879,10 @@ class _PosScreenState extends State<PosScreen> {
                     DropdownMenuItem(
                       value: 'stock_high',
                       child: Text('Stock high-low'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'stock_low',
+                      child: Text('Stock low-high'),
                     ),
                   ],
                   onChanged: (value) {
@@ -2686,11 +2946,13 @@ class _PosScreenState extends State<PosScreen> {
                         children: [
                           Expanded(child: category),
                           const SizedBox(width: 4),
-                          Expanded(child: sort),
+                          Expanded(child: filter),
                           const SizedBox(width: 4),
-                          Expanded(flex: 2, child: customer),
+                          Expanded(child: sort),
                         ],
                       ),
+                      const SizedBox(height: 4),
+                      SizedBox(height: 38, child: customer),
                     ],
                   );
                 }
@@ -2699,11 +2961,13 @@ class _PosScreenState extends State<PosScreen> {
                   children: [
                     Expanded(flex: 5, child: search),
                     const SizedBox(width: 4),
-                    SizedBox(width: 145, child: category),
+                    SizedBox(width: 128, child: category),
                     const SizedBox(width: 4),
-                    SizedBox(width: 145, child: sort),
+                    SizedBox(width: 128, child: filter),
                     const SizedBox(width: 4),
-                    SizedBox(width: 185, child: customer),
+                    SizedBox(width: 128, child: sort),
+                    const SizedBox(width: 4),
+                    SizedBox(width: 175, child: customer),
                     const SizedBox(width: 3),
                     IconButton.filledTonal(
                       tooltip: 'Customer balance / receive payment',
@@ -2858,9 +3122,33 @@ class _PosScreenState extends State<PosScreen> {
     final scheme = Theme.of(context).colorScheme;
     final outOfStock =
         product.itemType == 'stock' && product.stockQuantity <= 0;
+    final cartIndex = _cart.indexWhere(
+      (line) => line.product.variantId == product.variantId,
+    );
+    final inCart = cartIndex >= 0;
+    final focused = _selectedProduct?.variantId == product.variantId;
+    final cartQuantity = inCart ? _cart[cartIndex].displayQuantity : '';
+
+    final cardColor = inCart
+        ? Color.alphaBlend(
+            scheme.primary.withValues(alpha: .14),
+            design.surface,
+          )
+        : focused
+        ? Color.alphaBlend(
+            scheme.secondary.withValues(alpha: .09),
+            design.surface,
+          )
+        : design.surface;
+
+    final borderColor = inCart
+        ? scheme.primary
+        : focused
+        ? scheme.secondary
+        : design.border;
 
     return Material(
-      color: design.surface,
+      color: cardColor,
       borderRadius: BorderRadius.circular(9),
       child: InkWell(
         onTap: outOfStock ? null : () => _add(product),
@@ -2869,7 +3157,7 @@ class _PosScreenState extends State<PosScreen> {
         child: Container(
           padding: const EdgeInsets.all(7),
           decoration: BoxDecoration(
-            border: Border.all(color: design.border),
+            border: Border.all(color: borderColor, width: inCart ? 1.6 : 1),
             borderRadius: BorderRadius.circular(9),
           ),
           child: Column(
@@ -2889,21 +3177,44 @@ class _PosScreenState extends State<PosScreen> {
                       ),
                     ),
                   ),
-                  const SizedBox(width: 4),
-                  Text(
-                    product.itemType == 'stock'
-                        ? _formatStock(
-                            product.stockQuantity,
-                            product.baseUnitCode,
-                          )
-                        : product.itemType,
-                    maxLines: 1,
-                    style: TextStyle(
-                      fontSize: 10.1,
-                      fontWeight: FontWeight.w700,
-                      color: outOfStock ? scheme.error : scheme.primary,
+                  if (inCart) ...[
+                    const SizedBox(width: 4),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 5,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: scheme.primaryContainer,
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Text(
+                        '$cartQuantity in cart',
+                        maxLines: 1,
+                        style: TextStyle(
+                          fontSize: 7.8,
+                          fontWeight: FontWeight.w900,
+                          color: scheme.onPrimaryContainer,
+                        ),
+                      ),
                     ),
-                  ),
+                  ] else ...[
+                    const SizedBox(width: 4),
+                    Text(
+                      product.itemType == 'stock'
+                          ? _formatStock(
+                              product.stockQuantity,
+                              product.baseUnitCode,
+                            )
+                          : product.itemType,
+                      maxLines: 1,
+                      style: TextStyle(
+                        fontSize: 10.1,
+                        fontWeight: FontWeight.w700,
+                        color: outOfStock ? scheme.error : scheme.primary,
+                      ),
+                    ),
+                  ],
                 ],
               ),
               const SizedBox(height: 3),
@@ -2911,7 +3222,8 @@ class _PosScreenState extends State<PosScreen> {
                 product.productName,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
+                style: TextStyle(
+                  color: scheme.onSurface,
                   fontSize: 12.5,
                   fontWeight: FontWeight.w800,
                   height: 1.08,
@@ -2932,16 +3244,25 @@ class _PosScreenState extends State<PosScreen> {
                       _money(product.sellingPrice),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
+                      style: TextStyle(
+                        color: scheme.onSurface,
                         fontSize: 13,
                         fontWeight: FontWeight.w900,
                       ),
                     ),
                   ),
                   Icon(
-                    outOfStock ? Icons.block : Icons.add_circle,
+                    inCart
+                        ? Icons.check_circle
+                        : outOfStock
+                        ? Icons.block
+                        : Icons.add_circle,
                     size: 17,
-                    color: outOfStock ? scheme.error : scheme.primary,
+                    color: inCart
+                        ? scheme.primary
+                        : outOfStock
+                        ? scheme.error
+                        : scheme.primary,
                   ),
                 ],
               ),
@@ -3409,6 +3730,549 @@ class _PosScreenState extends State<PosScreen> {
     );
   }
 
+  String get _commercialOrderType {
+    final mode = _orderMode.trim().toLowerCase();
+    if (mode.contains('delivery')) return 'delivery';
+    if (mode.contains('take')) return 'takeaway';
+    if (mode.contains('dine')) return 'dine_in';
+    return 'sale';
+  }
+
+  List<Map<String, dynamic>> _commercialBaseItems() => _cart
+      .map(
+        (line) => <String, dynamic>{
+          'variant_id': line.product.variantId,
+          'product_name': line.product.productName,
+          'sku': line.product.sku,
+          'quantity': line.quantity,
+          'unit_id': line.unit?.unitId,
+          'unit_code': line.unitCode,
+          'unit_price': line.unitPrice,
+          'discount_amount': line.discount,
+          'tax_rate': line.product.taxRate,
+          'conversion_to_base': line.conversionToBase,
+          'base_quantity': line.baseQuantity,
+          if (line.serialNumbers.isNotEmpty)
+            'serial_numbers': List<String>.from(line.serialNumbers),
+        },
+      )
+      .toList(growable: false);
+
+  double get _commercialDiscountValue =>
+      double.tryParse(_orderDiscount.text.trim()) ?? 0.0;
+
+  Future<void> _loadCommercialPricing({bool force = false}) async {
+    final device = widget.session.device;
+    if (device == null || _offlineMode || _manualOffline || _cart.isEmpty) {
+      return;
+    }
+
+    try {
+      final enabled = await _commercial.additionalChargesEnabled(
+        tenantId: widget.session.business.id,
+      );
+      if (!mounted) return;
+
+      setState(() {
+        _additionalChargesEnabled = enabled;
+        if (!enabled) {
+          _commercialChargeCatalog = const [];
+          _commercialChargeSelections = const [];
+          _commercialChargeToAdd = null;
+          _commercialChargeAmount.text = '0.00';
+          _commercialQuote = null;
+          _commercialQuoteError = null;
+          _paymentAllocations = const [];
+          _invalidateTotals();
+        }
+      });
+
+      if (!enabled) {
+        _scheduleCommercialQuote();
+        return;
+      }
+
+      if (_commercialChargeCatalog.isNotEmpty && !force) {
+        _scheduleCommercialQuote();
+        return;
+      }
+
+      final rows = await _commercial.chargeCatalog(
+        tenantId: widget.session.business.id,
+        locationId: device.locationId,
+        deviceId: device.deviceId,
+      );
+      if (!mounted) return;
+
+      setState(() {
+        _commercialChargeCatalog = rows;
+        if (rows.isEmpty) {
+          _commercialChargeToAdd = null;
+          _commercialChargeAmount.text = '0.00';
+        } else if (_commercialChargeToAdd == null ||
+            !rows.any(
+              (row) => row['id']?.toString() == _commercialChargeToAdd,
+            )) {
+          _commercialChargeToAdd = rows.first['id']?.toString();
+          final amount =
+              (rows.first['selling_price'] as num?)?.toDouble() ??
+              double.tryParse('${rows.first['selling_price']}') ??
+              0.0;
+          _commercialChargeAmount.text = amount.toStringAsFixed(2);
+        }
+        _commercialQuoteError = null;
+      });
+      _scheduleCommercialQuote();
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _commercialQuoteError = error.toString());
+    }
+  }
+
+  void _scheduleCommercialQuote() {
+    _commercialQuoteDebounce?.cancel();
+    if (_offlineMode || _manualOffline || _cart.isEmpty) return;
+    _commercialQuoteDebounce = Timer(const Duration(milliseconds: 180), () {
+      if (mounted) unawaited(_refreshCommercialQuote());
+    });
+  }
+
+  Future<Map<String, dynamic>?> _refreshCommercialQuote({
+    bool throwOnError = false,
+  }) async {
+    final device = widget.session.device;
+    if (device == null || _offlineMode || _manualOffline || _cart.isEmpty) {
+      return null;
+    }
+
+    final token = ++_commercialQuoteToken;
+    if (mounted) {
+      setState(() {
+        _commercialQuoteLoading = true;
+        _commercialQuoteError = null;
+      });
+    }
+
+    try {
+      final quote = await _commercial.quote(
+        tenantId: widget.session.business.id,
+        locationId: device.locationId,
+        deviceId: device.deviceId,
+        orderType: _commercialOrderType,
+        items: _commercialBaseItems(),
+        discountType: _orderDiscountType,
+        discountValue: _commercialDiscountValue,
+        chargeSelections: _commercialChargeSelections,
+      );
+      if (!mounted || token != _commercialQuoteToken) return quote;
+
+      final oldTotal = _total;
+      setState(() {
+        _commercialQuote = quote;
+        _commercialQuoteLoading = false;
+        _invalidateTotals();
+        final newTotal = _total;
+        if ((oldTotal - newTotal).abs() > .005) {
+          _paymentAllocations = const [];
+        }
+        _syncTendered(preserveCommercialQuote: true);
+      });
+      return quote;
+    } catch (error) {
+      if (mounted && token == _commercialQuoteToken) {
+        setState(() {
+          _commercialQuoteLoading = false;
+          _commercialQuoteError = error.toString();
+        });
+      }
+      if (throwOnError) rethrow;
+      return null;
+    }
+  }
+
+  Map<String, dynamic>? _commercialCatalogCharge(String? id) {
+    if (id == null || id.isEmpty) return null;
+    for (final row in _commercialChargeCatalog) {
+      if (row['id']?.toString() == id) return row;
+    }
+    return null;
+  }
+
+  bool _commercialChargeSelected(String id) => _commercialChargeSelections.any(
+    (row) => row['charge_id']?.toString() == id,
+  );
+
+  void _selectCommercialCharge(String? id) {
+    final charge = _commercialCatalogCharge(id);
+    setState(() {
+      _commercialChargeToAdd = id;
+      if (charge == null) {
+        _commercialChargeAmount.text = '0.00';
+      } else {
+        final amount =
+            (charge['selling_price'] as num?)?.toDouble() ??
+            double.tryParse('${charge['selling_price']}') ??
+            0.0;
+        _commercialChargeAmount.text = amount.toStringAsFixed(2);
+      }
+    });
+  }
+
+  void _addCommercialCharge() {
+    final id = _commercialChargeToAdd;
+    if (id == null || id.isEmpty) return;
+
+    if (_commercialChargeSelected(id)) {
+      _message('This additional charge is already on the invoice.');
+      return;
+    }
+
+    final amount = double.tryParse(_commercialChargeAmount.text.trim());
+    if (amount == null || amount < 0) {
+      _message('Enter a valid non-negative additional charge amount.');
+      return;
+    }
+
+    setState(() {
+      _commercialChargeSelections = [
+        ..._commercialChargeSelections,
+        <String, dynamic>{'charge_id': id, 'quantity': 1.0, 'amount': amount},
+      ];
+      _commercialQuote = null;
+      _paymentAllocations = const [];
+      _invalidateTotals();
+    });
+    _scheduleCommercialQuote();
+  }
+
+  void _removeCommercialCharge(String id) {
+    setState(() {
+      _commercialChargeSelections = _commercialChargeSelections
+          .where((row) => row['charge_id']?.toString() != id)
+          .map((row) => Map<String, dynamic>.from(row))
+          .toList(growable: false);
+      _commercialQuote = null;
+      _paymentAllocations = const [];
+      _invalidateTotals();
+    });
+    _scheduleCommercialQuote();
+  }
+
+  List<Map<String, dynamic>> _checkoutItems() {
+    final quote = _commercialQuote;
+    if (quote != null && !_offlineMode && !_manualOffline) {
+      final rows = (quote['items'] as List? ?? const [])
+          .whereType<Map>()
+          .map((row) => Map<String, dynamic>.from(row))
+          .toList(growable: false);
+      if (rows.isNotEmpty) return rows;
+    }
+
+    return _cart
+        .map(
+          (line) => <String, dynamic>{
+            'variant_id': line.product.variantId,
+            'product_name': line.product.productName,
+            'sku': line.product.sku,
+            'quantity': line.quantity,
+            'unit_id': line.unit?.unitId,
+            'unit_code': line.unitCode,
+            'unit_price': line.unitPrice,
+            'discount_amount': _effectiveLineDiscount(line),
+            'tax_rate': line.product.taxRate,
+            'conversion_to_base': line.conversionToBase,
+            'base_quantity': line.baseQuantity,
+            if (line.serialNumbers.isNotEmpty)
+              'serial_numbers': List<String>.from(line.serialNumbers),
+          },
+        )
+        .toList(growable: false);
+  }
+
+  Map<String, dynamic> _commercialSummaryPayload() {
+    final quote = _commercialQuote;
+    if (quote != null && !_offlineMode && !_manualOffline) {
+      return <String, dynamic>{
+        'order_type': quote['order_type'] ?? _commercialOrderType,
+        'discount_type': quote['discount_type'] ?? _orderDiscountType,
+        'discount_value': quote['discount_value'] ?? _commercialDiscountValue,
+        'document_discount_total':
+            quote['document_discount_total'] ??
+            _totalsSnapshot.manualOrderDiscount,
+        'classified_charge_total':
+            quote['classified_charge_total'] ?? _classifiedChargeTotal,
+        'charge_breakdown': quote['charge_breakdown'] ?? const [],
+      };
+    }
+
+    return <String, dynamic>{
+      'order_type': _commercialOrderType,
+      'discount_type': _orderDiscountType,
+      'discount_value': _commercialDiscountValue,
+      'document_discount_total': _totalsSnapshot.manualOrderDiscount,
+      'classified_charge_total': 0.0,
+      'charge_breakdown': const <Map<String, dynamic>>[],
+    };
+  }
+
+  Widget _commercialPricingControls() {
+    final scheme = Theme.of(context).colorScheme;
+    final offline = _offlineMode || _manualOffline;
+
+    String chargeLabel(Map<String, dynamic> charge) {
+      final kind = (charge['charge_kind']?.toString() ?? 'other')
+          .replaceAll('_', ' ')
+          .toUpperCase();
+      final name =
+          charge['name']?.toString() ?? charge['code']?.toString() ?? 'Charge';
+      final amount =
+          (charge['selling_price'] as num?)?.toDouble() ??
+          double.tryParse('${charge['selling_price']}') ??
+          0.0;
+      return '$kind â€¢ $name â€¢ ${_money(amount)}';
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerHighest.withValues(alpha: .34),
+        borderRadius: BorderRadius.circular(9),
+        border: Border.all(color: scheme.outlineVariant),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.percent_rounded, size: 16, color: scheme.primary),
+              const SizedBox(width: 6),
+              const Text(
+                'Discount & Additional Charges',
+                style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w900),
+              ),
+              const Spacer(),
+              if (_commercialQuoteLoading)
+                const SizedBox(
+                  width: 14,
+                  height: 14,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              else
+                Text(
+                  offline ? 'OFFLINE SAFE' : 'GST CLASSIFIED',
+                  style: TextStyle(
+                    fontSize: 8.5,
+                    fontWeight: FontWeight.w800,
+                    color: offline ? scheme.tertiary : scheme.primary,
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 7),
+          Row(
+            children: [
+              SizedBox(
+                width: 118,
+                child: DropdownButtonFormField<String>(
+                  initialValue: _orderDiscountType,
+                  dropdownColor: scheme.surface,
+                  style: TextStyle(color: scheme.onSurface),
+                  decoration: const InputDecoration(
+                    labelText: 'Discount',
+                    isDense: true,
+                  ),
+                  items: const [
+                    DropdownMenuItem(value: 'none', child: Text('None')),
+                    DropdownMenuItem(value: 'fixed', child: Text('Fixed â‚¹')),
+                    DropdownMenuItem(
+                      value: 'percent',
+                      child: Text('Percent %'),
+                    ),
+                  ],
+                  onChanged: _saving
+                      ? null
+                      : (value) {
+                          if (value == null) return;
+                          setState(() {
+                            _orderDiscountType = value;
+                            if (value == 'none') _orderDiscount.text = '0.00';
+                            _paymentAllocations = const [];
+                            _syncTendered();
+                          });
+                        },
+                ),
+              ),
+              const SizedBox(width: 7),
+              Expanded(
+                child: TextField(
+                  controller: _orderDiscount,
+                  enabled: !_saving && _orderDiscountType != 'none',
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  decoration: InputDecoration(
+                    labelText: _orderDiscountType == 'percent'
+                        ? 'Discount %'
+                        : 'Discount amount',
+                    prefixIcon: const Icon(Icons.discount_outlined, size: 17),
+                    isDense: true,
+                  ),
+                  onChanged: (_) => setState(() {
+                    _paymentAllocations = const [];
+                    _syncTendered();
+                  }),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          if (offline)
+            Text(
+              'Discounts remain available offline. Additional charges require '
+              'an online authoritative quote.',
+              style: TextStyle(fontSize: 9.3, color: scheme.onSurfaceVariant),
+            )
+          else if (!_additionalChargesEnabled)
+            Text(
+              'Additional Charges are disabled in Business Settings.',
+              style: TextStyle(fontSize: 9.3, color: scheme.onSurfaceVariant),
+            )
+          else if (_commercialChargeCatalog.isEmpty)
+            Text(
+              'No additional charges are configured. Add them from Products â†’ '
+              'Additional Charges.',
+              style: TextStyle(fontSize: 9.3, color: scheme.onSurfaceVariant),
+            )
+          else ...[
+            DropdownButtonFormField<String>(
+              key: ValueKey(
+                'pos-additional-${_commercialChargeToAdd ?? ''}-'
+                '${_commercialChargeCatalog.length}',
+              ),
+              initialValue: _commercialChargeToAdd,
+              isExpanded: true,
+              dropdownColor: scheme.surface,
+              style: TextStyle(
+                color: scheme.onSurface,
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+              ),
+              decoration: const InputDecoration(
+                labelText: 'Additional charge',
+                hintText: 'Packaging / Delivery / Service...',
+                isDense: true,
+              ),
+              items: _commercialChargeCatalog
+                  .map(
+                    (charge) => DropdownMenuItem<String>(
+                      value: charge['id']?.toString(),
+                      child: Text(
+                        chargeLabel(charge),
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(color: scheme.onSurface),
+                      ),
+                    ),
+                  )
+                  .toList(),
+              onChanged: _saving ? null : _selectCommercialCharge,
+            ),
+            const SizedBox(height: 6),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _commercialChargeAmount,
+                    enabled: !_saving,
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    decoration: const InputDecoration(
+                      labelText: 'Charge amount before GST',
+                      prefixIcon: Icon(Icons.currency_rupee, size: 16),
+                      isDense: true,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 6),
+                FilledButton.tonalIcon(
+                  onPressed: _saving || _commercialChargeToAdd == null
+                      ? null
+                      : _addCommercialCharge,
+                  icon: const Icon(Icons.add, size: 16),
+                  label: const Text('Add'),
+                ),
+              ],
+            ),
+          ],
+          if (_commercialChargeSelections.isNotEmpty) ...[
+            const SizedBox(height: 7),
+            Wrap(
+              spacing: 5,
+              runSpacing: 5,
+              children: _commercialChargeSelections.map((selection) {
+                final id = selection['charge_id']?.toString() ?? '';
+                final charge = _commercialCatalogCharge(id);
+                final name =
+                    charge?['name']?.toString() ??
+                    charge?['code']?.toString() ??
+                    'Charge';
+                final amount =
+                    (selection['amount'] as num?)?.toDouble() ??
+                    double.tryParse('${selection['amount']}') ??
+                    0.0;
+                return InputChip(
+                  visualDensity: VisualDensity.compact,
+                  label: Text(
+                    '$name ${_money(amount)}',
+                    style: TextStyle(color: scheme.onSurface),
+                  ),
+                  onDeleted: _saving ? null : () => _removeCommercialCharge(id),
+                );
+              }).toList(),
+            ),
+          ],
+          if (_commercialChargeBreakdown.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Wrap(
+              spacing: 5,
+              runSpacing: 4,
+              children: _commercialChargeBreakdown.map((row) {
+                final name =
+                    row['name']?.toString() ??
+                    row['code']?.toString() ??
+                    'Charge';
+                final total =
+                    (row['line_total'] as num?)?.toDouble() ??
+                    double.tryParse('${row['line_total']}') ??
+                    0.0;
+                return Chip(
+                  visualDensity: VisualDensity.compact,
+                  label: Text(
+                    '$name incl. GST ${_money(total)}',
+                    style: TextStyle(color: scheme.onSurface),
+                  ),
+                );
+              }).toList(),
+            ),
+          ],
+          if (_commercialQuoteError != null) ...[
+            const SizedBox(height: 5),
+            Text(
+              _commercialQuoteError!,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: scheme.error,
+                fontSize: 9.2,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
   Widget _paymentControls() {
     final scheme = Theme.of(context).colorScheme;
 
@@ -3433,15 +4297,7 @@ class _PosScreenState extends State<PosScreen> {
           ],
         ),
         const SizedBox(height: 7),
-        TextField(
-          controller: _orderDiscount,
-          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          decoration: const InputDecoration(
-            labelText: 'Invoice Discount',
-            prefixIcon: Icon(Icons.discount_outlined, size: 17),
-          ),
-          onChanged: (_) => setState(_syncTendered),
-        ),
+        _commercialPricingControls(),
         const SizedBox(height: 7),
         MultiPaymentEditor(
           tenantId: widget.session.business.id,
@@ -3580,6 +4436,11 @@ class _PosScreenState extends State<PosScreen> {
               ),
               _paymentSummaryRow('Subtotal', _money(_subtotal)),
               _paymentSummaryRow('Discount', '- ${_money(_discount)}'),
+              if (_classifiedChargeTotal > .005)
+                _paymentSummaryRow(
+                  'Classified Charges',
+                  _money(_classifiedChargeTotal),
+                ),
               _paymentSummaryRow('Tax', _money(_tax)),
               if (_roundOffAmount.abs() > 0.000001)
                 _paymentSummaryRow('Round Off', _money(_roundOffAmount)),
@@ -3739,6 +4600,11 @@ class _PosScreenState extends State<PosScreen> {
                         _reviewRow('Items', '${_cart.length}'),
                         _reviewRow('Subtotal', _money(_subtotal)),
                         _reviewRow('Discount', '- ${_money(_discount)}'),
+                        if (_classifiedChargeTotal > .005)
+                          _reviewRow(
+                            'Classified Charges',
+                            _money(_classifiedChargeTotal),
+                          ),
                         _reviewRow('Tax', _money(_tax)),
                         if (_roundOffAmount.abs() > 0.000001)
                           _reviewRow('Round Off', _money(_roundOffAmount)),

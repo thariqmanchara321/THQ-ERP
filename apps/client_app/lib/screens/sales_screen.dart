@@ -9,6 +9,7 @@ import '../models/customer.dart';
 import '../models/inventory_product.dart';
 import '../models/sale.dart';
 import '../services/customer_service.dart';
+import '../services/commercial_pricing_service.dart';
 import '../services/inventory_service.dart';
 import '../services/location_scope_service.dart';
 import '../services/pricing_service.dart';
@@ -554,9 +555,23 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
   final PricingService _pricingService = PricingService();
 
   final InventoryService _inventoryService = InventoryService();
+  final CommercialPricingService _commercialPricing =
+      CommercialPricingService();
   final TransactionPrintService _printService = TransactionPrintService();
 
   final TextEditingController _notesController = TextEditingController();
+  final TextEditingController _commercialChargeAmount = TextEditingController(
+    text: '0.00',
+  );
+
+  bool _additionalChargesEnabled = true;
+  List<Map<String, dynamic>> _commercialChargeCatalog = const [];
+  String? _commercialChargeToAdd;
+  List<Map<String, dynamic>> _commercialChargeSelections = const [];
+  Map<String, dynamic>? _commercialQuote;
+  bool _commercialQuoteLoading = false;
+  String? _commercialQuoteError;
+  int _commercialQuoteToken = 0;
 
   bool _loading = true;
   bool _saving = false;
@@ -605,6 +620,22 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
       final customers = await customersFuture;
 
       final products = await productsFuture;
+
+      var additionalChargesEnabled = false;
+      var commercialChargeCatalog = <Map<String, dynamic>>[];
+      try {
+        additionalChargesEnabled = await _commercialPricing
+            .additionalChargesEnabled(tenantId: widget.session.business.id);
+        if (additionalChargesEnabled) {
+          commercialChargeCatalog = await _commercialPricing.chargeCatalog(
+            tenantId: widget.session.business.id,
+            locationId: widget.locationId,
+          );
+        }
+      } catch (_) {
+        additionalChargesEnabled = false;
+        commercialChargeCatalog = <Map<String, dynamic>>[];
+      }
 
       if (!mounted) {
         return;
@@ -667,6 +698,19 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
 
         _customerId = initialCustomer;
 
+        _additionalChargesEnabled = additionalChargesEnabled;
+        _commercialChargeCatalog = commercialChargeCatalog;
+        if (_commercialChargeCatalog.isNotEmpty) {
+          _commercialChargeToAdd = _commercialChargeCatalog.first['id']
+              ?.toString();
+          _commercialChargeAmount.text = _commercialNumber(
+            _commercialChargeCatalog.first['selling_price'],
+          ).toStringAsFixed(2);
+        } else {
+          _commercialChargeToAdd = null;
+          _commercialChargeAmount.text = '0.00';
+        }
+
         _loading = false;
       });
     } catch (error) {
@@ -682,27 +726,387 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
     }
   }
 
-  // ignore: unused_element
-  double _number(TextEditingController controller) {
-    return double.tryParse(controller.text.trim()) ?? 0;
+  List<Map<String, dynamic>> _commercialBaseItems() => _lines
+      .map(
+        (line) => <String, dynamic>{
+          'variant_id': line.product.variantId,
+          'quantity': line.quantity,
+          'unit_id': line.unit?.unitId,
+          'unit_price': line.unitPrice,
+          'discount_amount': line.discount,
+          'tax_rate': line.taxRate,
+          if (line.serialNumbers.isNotEmpty)
+            'serial_numbers': line.serialNumbers,
+        },
+      )
+      .toList(growable: false);
+
+  double _commercialNumber(dynamic value) =>
+      (value as num?)?.toDouble() ?? double.tryParse('$value') ?? 0.0;
+
+  Map<String, dynamic> get _commercialQuoteTotals {
+    final raw = _commercialQuote?['totals'];
+    return raw is Map
+        ? Map<String, dynamic>.from(raw)
+        : const <String, dynamic>{};
   }
 
-  double get _subtotal =>
+  double get _baseSubtotal =>
       _lines.fold(0, (total, line) => total + line.subtotal);
 
-  double get _discount =>
+  double get _baseDiscount =>
       _lines.fold(0, (total, line) => total + line.discount);
 
-  double get _tax => _lines.fold(0, (total, line) => total + line.tax);
+  double get _baseTax => _lines.fold(0, (total, line) => total + line.tax);
 
-  double get _beforeRoundOff => _subtotal - _discount + _tax;
+  double get _subtotal => _baseSubtotal;
+
+  double get _discount {
+    if (_commercialQuote == null) return _baseDiscount;
+    return _commercialNumber(_commercialQuoteTotals['discount']);
+  }
+
+  double get _classifiedChargeTotal => _commercialQuote == null
+      ? 0.0
+      : _commercialNumber(_commercialQuote?['classified_charge_total']);
+
+  double get _tax {
+    if (_commercialQuote == null) return _baseTax;
+    return _commercialNumber(_commercialQuoteTotals['tax']);
+  }
+
+  double get _beforeRoundOff {
+    if (_commercialQuote == null) return _subtotal - _discount + _tax;
+    return _commercialNumber(_commercialQuoteTotals['before_round_off']);
+  }
 
   double get _roundOff {
+    if (_commercialQuote != null) {
+      return _commercialNumber(_commercialQuoteTotals['automatic_round_off']);
+    }
     final delta = _beforeRoundOff.roundToDouble() - _beforeRoundOff;
     return delta.abs() < 0.000001 ? 0 : delta;
   }
 
-  double get _grandTotal => _beforeRoundOff + _roundOff;
+  double get _grandTotal {
+    if (_commercialQuote != null) {
+      return _commercialNumber(_commercialQuoteTotals['grand_total']);
+    }
+    return _beforeRoundOff + _roundOff;
+  }
+
+  Map<String, dynamic>? _commercialCatalogCharge(String? id) {
+    if (id == null || id.isEmpty) return null;
+    for (final row in _commercialChargeCatalog) {
+      if (row['id']?.toString() == id) return row;
+    }
+    return null;
+  }
+
+  bool _commercialChargeSelected(String id) => _commercialChargeSelections.any(
+    (row) => row['charge_id']?.toString() == id,
+  );
+
+  void _selectCommercialCharge(String? id) {
+    final charge = _commercialCatalogCharge(id);
+    setState(() {
+      _commercialChargeToAdd = id;
+      _commercialChargeAmount.text = charge == null
+          ? '0.00'
+          : _commercialNumber(charge['selling_price']).toStringAsFixed(2);
+    });
+  }
+
+  Future<Map<String, dynamic>?> _refreshCommercialQuote({
+    bool throwOnError = false,
+  }) async {
+    if (!_additionalChargesEnabled ||
+        _commercialChargeSelections.isEmpty ||
+        _lines.isEmpty) {
+      if (mounted && _commercialQuote != null) {
+        setState(() => _commercialQuote = null);
+      }
+      return null;
+    }
+
+    final token = ++_commercialQuoteToken;
+    if (mounted) {
+      setState(() {
+        _commercialQuoteLoading = true;
+        _commercialQuoteError = null;
+      });
+    }
+
+    try {
+      final previousTotal = _grandTotal;
+      final quote = await _commercialPricing.quote(
+        tenantId: widget.session.business.id,
+        locationId: widget.locationId,
+        items: _commercialBaseItems(),
+        chargeSelections: _commercialChargeSelections,
+      );
+
+      if (!mounted || token != _commercialQuoteToken) return quote;
+
+      setState(() {
+        _commercialQuote = quote;
+        _commercialQuoteLoading = false;
+        final nextTotal = _grandTotal;
+        if ((nextTotal - previousTotal).abs() > .005) {
+          _paymentAllocations = const [];
+        }
+      });
+
+      return quote;
+    } catch (error) {
+      if (mounted && token == _commercialQuoteToken) {
+        setState(() {
+          _commercialQuoteLoading = false;
+          _commercialQuoteError = error.toString();
+        });
+      }
+      if (throwOnError) rethrow;
+      return null;
+    }
+  }
+
+  void _addCommercialCharge() {
+    final id = _commercialChargeToAdd;
+    if (id == null || id.isEmpty) return;
+
+    if (_commercialChargeSelected(id)) {
+      ThqNotify.showSnackBar(
+        context,
+        const SnackBar(
+          content: Text('This additional charge is already on the invoice.'),
+        ),
+      );
+      return;
+    }
+
+    final amount = double.tryParse(_commercialChargeAmount.text.trim());
+    if (amount == null || amount < 0) {
+      ThqNotify.showSnackBar(
+        context,
+        const SnackBar(
+          content: Text('Enter a valid non-negative charge amount.'),
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _commercialChargeSelections = [
+        ..._commercialChargeSelections,
+        <String, dynamic>{'charge_id': id, 'quantity': 1.0, 'amount': amount},
+      ];
+      _commercialQuote = null;
+      _commercialQuoteError = null;
+      _paymentAllocations = const [];
+    });
+    unawaited(_refreshCommercialQuote());
+  }
+
+  void _removeCommercialCharge(String id) {
+    setState(() {
+      _commercialChargeSelections = _commercialChargeSelections
+          .where((row) => row['charge_id']?.toString() != id)
+          .map((row) => Map<String, dynamic>.from(row))
+          .toList(growable: false);
+      _commercialQuote = null;
+      _commercialQuoteError = null;
+      _paymentAllocations = const [];
+    });
+
+    if (_commercialChargeSelections.isNotEmpty) {
+      unawaited(_refreshCommercialQuote());
+    }
+  }
+
+  void _removeSaleLineAt(int index) {
+    setState(() {
+      _lines.removeAt(index);
+      _commercialQuote = null;
+      _commercialQuoteError = null;
+      _paymentAllocations = const [];
+    });
+
+    if (_commercialChargeSelections.isNotEmpty && _lines.isNotEmpty) {
+      unawaited(_refreshCommercialQuote());
+    }
+  }
+
+  Widget _additionalChargesPanel() {
+    final scheme = Theme.of(context).colorScheme;
+
+    if (!_additionalChargesEnabled) {
+      return const SizedBox.shrink();
+    }
+
+    if (_commercialChargeCatalog.isEmpty) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(9),
+        decoration: BoxDecoration(
+          color: scheme.surfaceContainerHighest.withValues(alpha: .45),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Text(
+          'No Additional Charges are configured. Open Settings â†’ '
+          'Additional Charges to add Packaging, Delivery or custom charges.',
+          style: TextStyle(fontSize: 10, color: scheme.onSurfaceVariant),
+        ),
+      );
+    }
+
+    String label(Map<String, dynamic> charge) {
+      final kind = (charge['charge_kind']?.toString() ?? 'other')
+          .replaceAll('_', ' ')
+          .toUpperCase();
+      final name =
+          charge['name']?.toString() ?? charge['code']?.toString() ?? 'Charge';
+      return '$kind â€¢ $name â€¢ ${_money(_commercialNumber(charge['selling_price']))}';
+    }
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(9),
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerHighest.withValues(alpha: .34),
+        borderRadius: BorderRadius.circular(9),
+        border: Border.all(color: scheme.outlineVariant),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.add_card_outlined, size: 16, color: scheme.primary),
+              const SizedBox(width: 6),
+              const Expanded(
+                child: Text(
+                  'Additional Charges',
+                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w900),
+                ),
+              ),
+              if (_commercialQuoteLoading)
+                const SizedBox(
+                  width: 14,
+                  height: 14,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              else
+                Text(
+                  'GST CLASSIFIED',
+                  style: TextStyle(
+                    fontSize: 8,
+                    fontWeight: FontWeight.w900,
+                    color: scheme.primary,
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 7),
+          DropdownButtonFormField<String>(
+            key: ValueKey(
+              'client-charge-${_commercialChargeToAdd ?? ''}-'
+              '${_commercialChargeCatalog.length}',
+            ),
+            initialValue: _commercialChargeToAdd,
+            isExpanded: true,
+            dropdownColor: scheme.surface,
+            style: TextStyle(color: scheme.onSurface),
+            decoration: const InputDecoration(
+              labelText: 'Additional charge',
+              hintText: 'Packaging / Delivery / Service...',
+              isDense: true,
+            ),
+            items: _commercialChargeCatalog
+                .map(
+                  (charge) => DropdownMenuItem<String>(
+                    value: charge['id']?.toString(),
+                    child: Text(
+                      label(charge),
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(color: scheme.onSurface),
+                    ),
+                  ),
+                )
+                .toList(),
+            onChanged: _saving ? null : _selectCommercialCharge,
+          ),
+          const SizedBox(height: 6),
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _commercialChargeAmount,
+                  enabled: !_saving,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  decoration: const InputDecoration(
+                    labelText: 'Charge amount before GST',
+                    prefixIcon: Icon(Icons.currency_rupee, size: 16),
+                    isDense: true,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 6),
+              FilledButton.tonalIcon(
+                onPressed: _saving || _commercialChargeToAdd == null
+                    ? null
+                    : _addCommercialCharge,
+                icon: const Icon(Icons.add, size: 16),
+                label: const Text('Add'),
+              ),
+            ],
+          ),
+          if (_commercialChargeSelections.isNotEmpty) ...[
+            const SizedBox(height: 7),
+            Wrap(
+              spacing: 5,
+              runSpacing: 5,
+              children: _commercialChargeSelections.map((selection) {
+                final id = selection['charge_id']?.toString() ?? '';
+                final charge = _commercialCatalogCharge(id);
+                final name =
+                    charge?['name']?.toString() ??
+                    charge?['code']?.toString() ??
+                    'Charge';
+                final amount =
+                    (selection['amount'] as num?)?.toDouble() ??
+                    double.tryParse('${selection['amount']}') ??
+                    0.0;
+
+                return InputChip(
+                  visualDensity: VisualDensity.compact,
+                  label: Text(
+                    '$name ${_money(amount)}',
+                    style: TextStyle(color: scheme.onSurface),
+                  ),
+                  onDeleted: _saving ? null : () => _removeCommercialCharge(id),
+                );
+              }).toList(),
+            ),
+          ],
+          if (_commercialQuoteError != null) ...[
+            const SizedBox(height: 6),
+            Text(
+              _commercialQuoteError!,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: scheme.error,
+                fontSize: 9.5,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
 
   double get _allocatedTotal {
     var remaining = _grandTotal;
@@ -757,7 +1161,9 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
       _paymentAllocations.isNotEmpty &&
       _balanceDue > 0.005;
 
-  double get _taxableAmount => _subtotal - _discount;
+  double get _taxableAmount => _commercialQuote == null
+      ? _subtotal - _discount
+      : _commercialNumber(_commercialQuoteTotals['taxable']);
 
   String get _placeOfSupply {
     final value = _selectedCustomer?.state?.trim() ?? '';
@@ -853,7 +1259,13 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
         _lines
           ..clear()
           ..addAll(repriced);
+        _commercialQuote = null;
+        _commercialQuoteError = null;
+        _paymentAllocations = const [];
       });
+      if (_commercialChargeSelections.isNotEmpty) {
+        await _refreshCommercialQuote();
+      }
     } catch (error) {
       if (!mounted) return;
       ThqNotify.showSnackBar(
@@ -897,71 +1309,18 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
       if (!mounted) return;
       setState(() {
         _lines.add(pricedLine);
+        _commercialQuote = null;
+        _commercialQuoteError = null;
+        _paymentAllocations = const [];
       });
+      if (_commercialChargeSelections.isNotEmpty) {
+        await _refreshCommercialQuote();
+      }
     } catch (error) {
       if (!mounted) return;
       ThqNotify.showSnackBar(
         context,
         SnackBar(content: Text('Could not resolve selling price: $error')),
-      );
-    }
-  }
-
-  Future<void> _addCharge() async {
-    final usedVariants = _lines.map((line) => line.product.variantId).toSet();
-    final available = _products
-        .where(
-          (product) =>
-              product.itemType != 'stock' &&
-              !usedVariants.contains(product.variantId),
-        )
-        .toList();
-
-    if (available.isEmpty) {
-      ThqNotify.showSnackBar(
-        context,
-        const SnackBar(
-          content: Text(
-            'No Service products are available for Add Charge. Create a product '
-            'with item type Service, then configure its SAC/GST profile under '
-            'GST & Compliance > Products.',
-          ),
-        ),
-      );
-      return;
-    }
-
-    final line = await showDialog<_SaleLine>(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => _AddSaleItemDialog(
-        products: available,
-        tenantId: widget.session.business.id,
-        locationId: widget.locationId,
-      ),
-    );
-
-    if (line == null || !mounted) {
-      return;
-    }
-
-    try {
-      final pricedLine = await _resolvedLine(line);
-      if (!mounted) {
-        return;
-      }
-
-      setState(() {
-        _lines.add(pricedLine);
-      });
-    } catch (error) {
-      if (!mounted) {
-        return;
-      }
-
-      ThqNotify.showSnackBar(
-        context,
-        SnackBar(content: Text('Could not add service charge: $error')),
       );
     }
   }
@@ -1001,6 +1360,17 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
       });
 
       return;
+    }
+
+    if (_additionalChargesEnabled && _commercialChargeSelections.isNotEmpty) {
+      try {
+        await _refreshCommercialQuote(throwOnError: true);
+      } catch (error) {
+        if (mounted) {
+          setState(() => _error = error.toString());
+        }
+        return;
+      }
     }
 
     if (_paymentAllocations.isEmpty) {
@@ -1081,6 +1451,9 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
 
         notes: _notesController.text,
         locationId: widget.locationId,
+        chargeSelections: _additionalChargesEnabled
+            ? _commercialChargeSelections
+            : const <Map<String, dynamic>>[],
       );
 
       String? printWarning;
@@ -1145,6 +1518,7 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
   @override
   void dispose() {
     _notesController.dispose();
+    _commercialChargeAmount.dispose();
 
     super.dispose();
   }
@@ -1538,12 +1912,7 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
                     ),
                   ),
                   const Spacer(),
-                  OutlinedButton.icon(
-                    onPressed: _saving ? null : _addCharge,
-                    icon: const Icon(Icons.add_card_outlined, size: 16),
-                    label: const Text('Charge'),
-                  ),
-                  const SizedBox(width: 6),
+
                   FilledButton.icon(
                     onPressed: _saving ? null : _addLine,
                     icon: const Icon(Icons.add, size: 16),
@@ -1611,7 +1980,7 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
                             money: _money,
                             onDelete: _saving
                                 ? null
-                                : () => setState(() => _lines.removeAt(index)),
+                                : () => _removeSaleLineAt(index),
                           ),
                         ),
                       ),
@@ -1656,6 +2025,11 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
               children: [
                 _desktopTotalRow('Subtotal', _money(_subtotal)),
                 _desktopTotalRow('Discount', '- ${_money(_discount)}'),
+                if (_classifiedChargeTotal > .005)
+                  _desktopTotalRow(
+                    'Additional Charges',
+                    _money(_classifiedChargeTotal),
+                  ),
                 _desktopTotalRow('Taxable', _money(_taxableAmount)),
                 if (_interstatePreview == false) ...[
                   _desktopTotalRow('CGST', _money(_cgstPreview)),
@@ -1687,6 +2061,10 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  if (_additionalChargesEnabled) ...[
+                    _additionalChargesPanel(),
+                    const SizedBox(height: 8),
+                  ],
                   MultiPaymentEditor(
                     tenantId: widget.session.business.id,
                     total: _grandTotal,
@@ -2019,11 +2397,6 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
       trailing: Wrap(
         spacing: 8,
         children: [
-          OutlinedButton.icon(
-            onPressed: _saving ? null : _addCharge,
-            icon: const Icon(Icons.add_card_outlined),
-            label: const Text('Add Charge'),
-          ),
           FilledButton.icon(
             onPressed: _saving ? null : _addLine,
             icon: const Icon(Icons.add),
@@ -2065,9 +2438,7 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
                     index: i + 1,
                     line: _lines[i],
                     money: _money,
-                    onDelete: _saving
-                        ? null
-                        : () => setState(() => _lines.removeAt(i)),
+                    onDelete: _saving ? null : () => _removeSaleLineAt(i),
                   ),
               ],
             ),
@@ -2089,6 +2460,11 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
       children: [
         _SaleTotalRow(label: 'Subtotal', value: _money(_subtotal)),
         _SaleTotalRow(label: 'Discount', value: '- ${_money(_discount)}'),
+        if (_classifiedChargeTotal > .005)
+          _SaleTotalRow(
+            label: 'Additional Charges',
+            value: _money(_classifiedChargeTotal),
+          ),
         _SaleTotalRow(label: 'Taxable Amount', value: _money(_taxableAmount)),
         if (_interstatePreview == false) ...[
           _SaleTotalRow(label: 'CGST', value: _money(_cgstPreview)),
@@ -2122,6 +2498,10 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
               final payment = Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  if (_additionalChargesEnabled) ...[
+                    _additionalChargesPanel(),
+                    const SizedBox(height: 12),
+                  ],
                   MultiPaymentEditor(
                     tenantId: widget.session.business.id,
                     total: _grandTotal,

@@ -252,9 +252,13 @@ class _TransportServiceScreenState extends State<TransportServiceScreen> {
               child: const Text('Cancel'),
             ),
             FilledButton(
-              onPressed: registration.text.trim().isEmpty
-                  ? null
-                  : () => Navigator.pop(dialogContext, true),
+              onPressed: () {
+                if (registration.text.trim().isEmpty) {
+                  _message('Registration number is required.');
+                  return;
+                }
+                Navigator.pop(dialogContext, true);
+              },
               child: const Text('Save'),
             ),
           ],

@@ -33,4 +33,6 @@ key.properties
 /thq_v*_hardening*.py
 
 .thq_*_backup_*/
-*.dart.before_*
+*.dart.before_**.bak
+.thq_patch_backup/
+.thq_patch_backups/

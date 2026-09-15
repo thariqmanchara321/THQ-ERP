@@ -268,6 +268,18 @@ class _PosHomeScreenState extends State<PosHomeScreen> {
         Icons.restaurant_outlined,
         RestaurantScreen(session: session),
       );
+      pages['restaurant_kitchen'] = _PosPage(
+        'restaurant_kitchen',
+        'Kitchen',
+        Icons.soup_kitchen_outlined,
+        RestaurantScreen(session: session, workspace: 'kitchen'),
+      );
+      pages['restaurant_reports'] = _PosPage(
+        'restaurant_reports',
+        'Restaurant Reports',
+        Icons.assessment_outlined,
+        RestaurantScreen(session: session, workspace: 'reports'),
+      );
     }
     if (_allowed('inventory')) {
       pages['inventory'] = _PosPage(
@@ -439,6 +451,31 @@ class _PosHomeScreenState extends State<PosHomeScreen> {
           );
           if (open) widgets.addAll(children);
         }
+
+        if (page.key == 'restaurant') {
+          final menuModuleKeys = _menu
+              .where((item) => item.isModule)
+              .map((item) => item.moduleKey)
+              .whereType<String>()
+              .toSet();
+
+          for (final extraKey in const [
+            'restaurant_kitchen',
+            'restaurant_reports',
+          ]) {
+            if (menuModuleKeys.contains(extraKey)) continue;
+            final extraPage = pages[extraKey];
+            if (extraPage == null) continue;
+
+            widgets.add(
+              Padding(
+                padding: EdgeInsets.only(left: (depth + 1) * 6.0),
+                child: _tile(extraPage, extraPage.fallbackLabel, true, profile),
+              ),
+            );
+          }
+        }
+
         continue;
       }
       if (children.isEmpty) continue;
