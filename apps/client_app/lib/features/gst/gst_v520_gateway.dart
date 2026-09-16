@@ -555,6 +555,7 @@ class GstV520Gateway {
       'gst_purchase_return_create_v520',
       'gst_service_job_bill_v520',
       'gst_restaurant_order_bill_v520',
+      'gst_restaurant_order_bill_v522',
       'gst_pos_offline_sale_sync_v520',
       'gst_mobile_pos_sale_sync_v520',
       'mobile_pos_restaurant_bill_v520',
