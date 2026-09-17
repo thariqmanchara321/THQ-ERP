@@ -33,7 +33,7 @@ class ClientModule {
 
   factory ClientModule.fromMap(Map<String, dynamic> map) {
     return ClientModule(
-      key: map['key']?.toString() ?? '',
+      key: (map['key']?.toString() ?? '').trim().toLowerCase(),
       name: map['name']?.toString() ?? '',
       description: map['description']?.toString(),
       category: map['category']?.toString() ?? 'general',

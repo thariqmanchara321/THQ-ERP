@@ -195,6 +195,18 @@ class StockTransferService {
     return Map<String, dynamic>.from(result as Map);
   }
 
+  Future<Map<String, dynamic>> logisticsTripContext({
+    required String tenantId,
+    required String transferId,
+  }) async {
+    final result = await _supabase.rpc(
+      'logistics_transfer_trip_context_v1',
+      params: {'p_tenant_id': tenantId, 'p_transfer_id': transferId},
+    );
+    if (result is Map) return Map<String, dynamic>.from(result);
+    throw Exception('Unexpected logistics trip context response.');
+  }
+
   Future<List<Map<String, dynamic>>> countSnapshot({
     required String tenantId,
     required String locationId,

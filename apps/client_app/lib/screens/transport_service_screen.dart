@@ -9,12 +9,16 @@ import '../services/inventory_service.dart';
 import '../services/location_scope_service.dart';
 import '../services/transport_service.dart';
 import '../widgets/searchable_select.dart';
-import 'logistics_screen.dart';
 
 class TransportServiceScreen extends StatefulWidget {
   final ClientSession session;
+  final bool startInCreate;
 
-  const TransportServiceScreen({super.key, required this.session});
+  const TransportServiceScreen({
+    super.key,
+    required this.session,
+    this.startInCreate = false,
+  });
 
   @override
   State<TransportServiceScreen> createState() => _TransportServiceScreenState();
@@ -45,7 +49,17 @@ class _TransportServiceScreenState extends State<TransportServiceScreen> {
   @override
   void initState() {
     super.initState();
-    _load();
+    _bootstrap();
+  }
+
+  Future<void> _bootstrap() async {
+    await _load();
+    if (!mounted || !widget.startInCreate || _error != null || !_canCreate) {
+      return;
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _jobDialog();
+    });
   }
 
   Future<void> _load() async {
@@ -101,13 +115,16 @@ class _TransportServiceScreenState extends State<TransportServiceScreen> {
   double _number(dynamic value) =>
       (value as num?)?.toDouble() ?? double.tryParse('$value') ?? 0;
 
+  Map<String, dynamic> _map(dynamic value) =>
+      value is Map ? Map<String, dynamic>.from(value) : <String, dynamic>{};
+
   DateTime _date(dynamic value) =>
       DateTime.tryParse(value?.toString() ?? '') ?? DateTime.now();
 
   String _money(dynamic value) {
     final number = _number(value);
     if (widget.session.currencyCode == 'INR') {
-      return 'â‚¹${number.toStringAsFixed(2)}';
+      return '₹${number.toStringAsFixed(2)}';
     }
     return '${widget.session.currencyCode} ${number.toStringAsFixed(2)}';
   }
@@ -378,7 +395,7 @@ class _TransportServiceScreenState extends State<TransportServiceScreen> {
                               (vehicle) => DropdownMenuItem<String?>(
                                 value: vehicle['id']?.toString(),
                                 child: Text(
-                                  '${vehicle['registration_number']} â€¢ ${vehicle['make_model'] ?? vehicle['vehicle_type'] ?? ''}',
+                                  '${vehicle['registration_number']} • ${vehicle['make_model'] ?? vehicle['vehicle_type'] ?? ''}',
                                 ),
                               ),
                             ),
@@ -438,7 +455,7 @@ class _TransportServiceScreenState extends State<TransportServiceScreen> {
                                     ]
                                     .whereType<String>()
                                     .where((v) => v.trim().isNotEmpty)
-                                    .join(' â€¢ '),
+                                    .join(' • '),
                             searchText:
                                 '${customer.name} ${customer.publicId} ${customer.phone ?? ''} ${customer.email ?? ''} ${customer.taxNumber ?? ''}',
                           ),
@@ -644,6 +661,10 @@ class _TransportServiceScreenState extends State<TransportServiceScreen> {
       );
       return;
     }
+    if (job['status'] == 'cancelled') {
+      _message('Cancelled service jobs cannot be billed.');
+      return;
+    }
     if (job['customer_id'] == null) {
       _message('Assign a customer to the service job before billing.');
       return;
@@ -657,123 +678,253 @@ class _TransportServiceScreenState extends State<TransportServiceScreen> {
     String paymentMethod = 'cash';
     String paymentReference = '';
     bool paidNow = true;
+    Map<String, dynamic> quote;
+    try {
+      quote = await _transport.quoteJobBill(
+        tenantId: _tenantId,
+        jobId: job['id'].toString(),
+        billingVariantId: selected.variantId,
+      );
+    } catch (error) {
+      _message(_clean(error));
+      return;
+    }
+    if (!mounted) return;
+
+    String? quoteError;
+    bool quoteLoading = false;
     final referenceController = TextEditingController();
 
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setLocalState) {
-          final taxable = _number(job['quantity']) * _number(job['rate']);
-          final invoiceTotal = taxable * (1 + selected.taxRate / 100);
+          final totals = _map(quote['totals']);
+          final taxable = _number(totals['taxable_value']);
+          final tax = _number(totals['tax_collected_total']);
+          final grandTotal = _number(totals['grand_total']);
+          final cgst = _number(totals['cgst']);
+          final sgst = _number(totals['sgst']);
+          final utgst = _number(totals['utgst']);
+          final igst = _number(totals['igst']);
+          final cess = _number(totals['cess']);
+          final ready = quote['ready_for_compliance'] == true;
+          final supply = quote['supply_type']?.toString() ?? '-';
+          final pos = quote['place_of_supply_code']?.toString() ?? '-';
+
+          Future<void> refreshQuote(InventoryProduct product) async {
+            setLocalState(() {
+              selected = product;
+              quoteLoading = true;
+              quoteError = null;
+            });
+            try {
+              final next = await _transport.quoteJobBill(
+                tenantId: _tenantId,
+                jobId: job['id'].toString(),
+                billingVariantId: product.variantId,
+              );
+              if (!dialogContext.mounted) return;
+              setLocalState(() {
+                quote = next;
+                quoteLoading = false;
+              });
+            } catch (error) {
+              if (!dialogContext.mounted) return;
+              setLocalState(() {
+                quoteError = _clean(error);
+                quoteLoading = false;
+              });
+            }
+          }
+
           return AlertDialog(
-            title: Text('Bill ${job['job_number']}'),
+            title: Row(
+              children: [
+                const Icon(Icons.receipt_long_outlined),
+                const SizedBox(width: 10),
+                Expanded(child: Text('Bill ${job['job_number']}')),
+              ],
+            ),
             content: SizedBox(
-              width: 600,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  SearchableSelect<String>(
-                    value: selected.variantId,
-                    labelText: 'Billing service item',
-                    isRequired: true,
-                    hintText: 'Search service, SKU, barcode or part number',
-                    prefixIcon: Icons.search_outlined,
-                    options: _billingProducts
-                        .map(
-                          (product) => SearchableSelectOption<String>(
-                            value: product.variantId,
-                            label: product.productName,
-                            subtitle:
-                                [
-                                      product.sku,
-                                      product.barcode,
-                                      product.partNumber,
-                                    ]
-                                    .where(
-                                      (v) =>
-                                          v != null &&
-                                          v.toString().trim().isNotEmpty,
-                                    )
-                                    .join(' â€¢ '),
-                            searchText:
-                                '${product.productName} ${product.variantName} ${product.sku} ${product.barcode ?? ''} ${product.partNumber ?? ''} ${product.searchCodes}',
-                          ),
-                        )
-                        .toList(),
-                    onChanged: (variantId) {
-                      if (variantId == null) return;
-                      setLocalState(() {
-                        selected = _billingProducts.firstWhere(
-                          (product) => product.variantId == variantId,
-                        );
-                      });
-                    },
-                  ),
-                  const SizedBox(height: 12),
-                  Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(12),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: Text('Job amount\n${_money(taxable)}'),
-                          ),
-                          Expanded(
-                            child: Text(
-                              'GST ${selected.taxRate.toStringAsFixed(2)}%',
-                            ),
-                          ),
-                          Expanded(
-                            child: Text(
-                              'Invoice total\n${_money(invoiceTotal)}',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        ],
+              width: 680,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(
+                      'Creates a posted Sale through the authoritative GST v5.2 service writer.',
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                     ),
-                  ),
-                  SwitchListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: const Text('Receive full payment now'),
-                    value: paidNow,
-                    onChanged: (value) => setLocalState(() => paidNow = value),
-                  ),
-                  if (paidNow) ...[
-                    DropdownButtonFormField<String>(
-                      initialValue: paymentMethod,
-                      decoration: const InputDecoration(
-                        labelText: 'Payment method',
-                        border: OutlineInputBorder(),
-                      ),
-                      items: const [
-                        DropdownMenuItem(value: 'cash', child: Text('Cash')),
-                        DropdownMenuItem(value: 'upi', child: Text('UPI')),
-                        DropdownMenuItem(value: 'card', child: Text('Card')),
-                        DropdownMenuItem(value: 'bank', child: Text('Bank')),
-                        DropdownMenuItem(
-                          value: 'cheque',
-                          child: Text('Cheque'),
+                    const SizedBox(height: 12),
+                    SearchableSelect<String>(
+                      value: selected.variantId,
+                      labelText: 'Billing service item',
+                      isRequired: true,
+                      hintText: 'Search service, SKU, barcode or part number',
+                      prefixIcon: Icons.search_outlined,
+                      options: _billingProducts
+                          .map(
+                            (product) => SearchableSelectOption<String>(
+                              value: product.variantId,
+                              label: product.productName,
+                              subtitle:
+                                  [
+                                        product.sku,
+                                        product.barcode,
+                                        product.partNumber,
+                                      ]
+                                      .where(
+                                        (v) =>
+                                            v != null &&
+                                            v.toString().trim().isNotEmpty,
+                                      )
+                                      .join(' • '),
+                              searchText:
+                                  '${product.productName} ${product.variantName} ${product.sku} ${product.barcode ?? ''} ${product.partNumber ?? ''} ${product.searchCodes}',
+                            ),
+                          )
+                          .toList(),
+                      onChanged: quoteLoading
+                          ? null
+                          : (variantId) {
+                              if (variantId == null ||
+                                  variantId == selected.variantId) {
+                                return;
+                              }
+                              final product = _billingProducts.firstWhere(
+                                (item) => item.variantId == variantId,
+                              );
+                              refreshQuote(product);
+                            },
+                    ),
+                    if (quoteLoading) ...[
+                      const SizedBox(height: 10),
+                      const LinearProgressIndicator(),
+                    ],
+                    if (quoteError != null) ...[
+                      const SizedBox(height: 10),
+                      Card(
+                        color: Theme.of(context).colorScheme.errorContainer,
+                        child: Padding(
+                          padding: const EdgeInsets.all(12),
+                          child: Text(quoteError!),
                         ),
-                        DropdownMenuItem(value: 'other', child: Text('Other')),
-                      ],
-                      onChanged: (value) => setLocalState(
-                        () => paymentMethod = value ?? paymentMethod,
+                      ),
+                    ],
+                    const SizedBox(height: 12),
+                    Card(
+                      margin: EdgeInsets.zero,
+                      child: Padding(
+                        padding: const EdgeInsets.all(14),
+                        child: Column(
+                          children: [
+                            Wrap(
+                              spacing: 24,
+                              runSpacing: 10,
+                              children: [
+                                _quoteValue('Taxable', _money(taxable)),
+                                _quoteValue('GST', _money(tax)),
+                                _quoteValue(
+                                  'Invoice total',
+                                  _money(grandTotal),
+                                  strong: true,
+                                ),
+                              ],
+                            ),
+                            const Divider(height: 22),
+                            Wrap(
+                              spacing: 18,
+                              runSpacing: 8,
+                              children: [
+                                if (cgst != 0)
+                                  _quoteValue('CGST', _money(cgst)),
+                                if (sgst != 0)
+                                  _quoteValue('SGST', _money(sgst)),
+                                if (utgst != 0)
+                                  _quoteValue('UTGST', _money(utgst)),
+                                if (igst != 0)
+                                  _quoteValue('IGST', _money(igst)),
+                                if (cess != 0)
+                                  _quoteValue('Cess', _money(cess)),
+                                _quoteValue(
+                                  'Supply',
+                                  supply.replaceAll('_', ' ').toUpperCase(),
+                                ),
+                                _quoteValue('POS', pos),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Align(
+                              alignment: Alignment.centerLeft,
+                              child: Text(
+                                'GST preview is calculated by the server. Flutter does not calculate tax.',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.onSurfaceVariant,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                     const SizedBox(height: 10),
-                    TextField(
-                      controller: referenceController,
-                      decoration: const InputDecoration(
-                        labelText: 'Payment reference (optional)',
-                        border: OutlineInputBorder(),
+                    SwitchListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('Receive full payment now'),
+                      subtitle: Text(
+                        paidNow
+                            ? 'Payment will use the authoritative invoice total above.'
+                            : 'Invoice will be created on credit with a 30-day due date.',
                       ),
-                      onChanged: (value) => paymentReference = value,
+                      value: paidNow,
+                      onChanged: quoteLoading || quoteError != null || !ready
+                          ? null
+                          : (value) => setLocalState(() => paidNow = value),
                     ),
+                    if (paidNow) ...[
+                      DropdownButtonFormField<String>(
+                        initialValue: paymentMethod,
+                        decoration: const InputDecoration(
+                          labelText: 'Payment method',
+                          border: OutlineInputBorder(),
+                        ),
+                        items: const [
+                          DropdownMenuItem(value: 'cash', child: Text('Cash')),
+                          DropdownMenuItem(value: 'upi', child: Text('UPI')),
+                          DropdownMenuItem(value: 'card', child: Text('Card')),
+                          DropdownMenuItem(value: 'bank', child: Text('Bank')),
+                          DropdownMenuItem(
+                            value: 'cheque',
+                            child: Text('Cheque'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'other',
+                            child: Text('Other'),
+                          ),
+                        ],
+                        onChanged: (value) => setLocalState(
+                          () => paymentMethod = value ?? paymentMethod,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      TextField(
+                        controller: referenceController,
+                        decoration: const InputDecoration(
+                          labelText: 'Payment reference (optional)',
+                          border: OutlineInputBorder(),
+                        ),
+                        onChanged: (value) => paymentReference = value,
+                      ),
+                    ],
                   ],
-                ],
+                ),
               ),
             ),
             actions: [
@@ -782,7 +933,13 @@ class _TransportServiceScreenState extends State<TransportServiceScreen> {
                 child: const Text('Cancel'),
               ),
               FilledButton.icon(
-                onPressed: () => Navigator.pop(dialogContext, true),
+                onPressed:
+                    quoteLoading ||
+                        quoteError != null ||
+                        !ready ||
+                        grandTotal < 0
+                    ? null
+                    : () => Navigator.pop(dialogContext, true),
                 icon: const Icon(Icons.receipt_long_outlined),
                 label: const Text('Create & Link Sale'),
               ),
@@ -794,8 +951,8 @@ class _TransportServiceScreenState extends State<TransportServiceScreen> {
 
     if (confirmed == true && mounted) {
       try {
-        final taxable = _number(job['quantity']) * _number(job['rate']);
-        final invoiceTotal = taxable * (1 + selected.taxRate / 100);
+        final totals = _map(quote['totals']);
+        final invoiceTotal = _number(totals['grand_total']);
         final result = await _transport.billJob(
           tenantId: _tenantId,
           jobId: job['id'].toString(),
@@ -807,9 +964,11 @@ class _TransportServiceScreenState extends State<TransportServiceScreen> {
           paymentMethod: paidNow ? paymentMethod : 'credit',
           paymentReference: paymentReference,
         );
-        _message(
-          '${result['sale_number']} created and linked to ${job['job_number']}.',
-        );
+        final invoiceNumber =
+            result['invoice_number']?.toString() ??
+            result['sale_number']?.toString() ??
+            'Sale';
+        _message('$invoiceNumber created and linked to ${job['job_number']}.');
         await _load();
       } catch (error) {
         _message(_clean(error));
@@ -896,16 +1055,16 @@ class _TransportServiceScreenState extends State<TransportServiceScreen> {
                 ],
               ),
               Text(
-                '${vehicle['vehicle_type'] ?? '-'} â€¢ ${vehicle['make_model'] ?? '-'}',
+                '${vehicle['vehicle_type'] ?? '-'} • ${vehicle['make_model'] ?? '-'}',
               ),
               Text(
-                'Driver: ${vehicle['driver_name'] ?? '-'} â€¢ ${vehicle['driver_phone'] ?? '-'}',
+                'Driver: ${vehicle['driver_name'] ?? '-'} • ${vehicle['driver_phone'] ?? '-'}',
               ),
               Text(
                 'Capacity: ${vehicle['capacity'] ?? 0} ${vehicle['capacity_unit'] ?? ''}',
               ),
               Text(
-                '${vehicle['open_jobs'] ?? 0} open jobs â€¢ ${active ? 'ACTIVE' : 'INACTIVE'}',
+                '${vehicle['open_jobs'] ?? 0} open jobs • ${active ? 'ACTIVE' : 'INACTIVE'}',
               ),
             ],
           ),
@@ -934,7 +1093,7 @@ class _TransportServiceScreenState extends State<TransportServiceScreen> {
                     crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
                       Text(
-                        '${job['job_number'] ?? ''} â€¢ ${job['registration_number'] ?? 'No vehicle'}',
+                        '${job['job_number'] ?? ''} • ${job['registration_number'] ?? 'No vehicle'}',
                         style: const TextStyle(fontWeight: FontWeight.bold),
                       ),
                       Chip(
@@ -948,14 +1107,14 @@ class _TransportServiceScreenState extends State<TransportServiceScreen> {
                     ],
                   ),
                   Text(
-                    '${job['from_location'] ?? '-'} â†’ ${job['to_location'] ?? '-'} â€¢ ${job['distance_km'] ?? 0} km â€¢ ${job['service_date'] ?? '-'}',
+                    '${job['from_location'] ?? '-'} → ${job['to_location'] ?? '-'} • ${job['distance_km'] ?? 0} km • ${job['service_date'] ?? '-'}',
                   ),
                   Text(
-                    'Qty ${job['quantity'] ?? 0} ${job['quantity_unit'] ?? ''} Ã— ${_money(job['rate'])} â€¢ Customer: ${job['customer_name'] ?? 'Not assigned'}',
+                    'Qty ${job['quantity'] ?? 0} ${job['quantity_unit'] ?? ''} × ${_money(job['rate'])} • Customer: ${job['customer_name'] ?? 'Not assigned'}',
                   ),
                   Text(
                     billed
-                        ? 'Sale: ${job['sale_number'] ?? job['sale_id']} â€¢ ${job['sale_status'] ?? ''}'
+                        ? 'Sale: ${job['sale_number'] ?? job['sale_id']} • ${job['sale_status'] ?? ''}'
                         : 'Tracking: ${job['tracking_code'] ?? '-'}',
                     style: TextStyle(
                       color: Theme.of(context).colorScheme.onSurfaceVariant,
@@ -1041,94 +1200,204 @@ class _TransportServiceScreenState extends State<TransportServiceScreen> {
     );
   }
 
+  Widget _summaryTile({
+    required IconData icon,
+    required String label,
+    required String value,
+  }) {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      width: 178,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerLowest,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: scheme.outlineVariant),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 36,
+            height: 36,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: scheme.primaryContainer.withValues(alpha: .65),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, size: 19, color: scheme.primary),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  value,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: scheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _quoteValue(String label, String value, {bool strong = false}) {
+    return SizedBox(
+      width: 145,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 11,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: strong ? 17 : 14,
+              fontWeight: strong ? FontWeight.w800 : FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_loading) return const Center(child: CircularProgressIndicator());
 
+    final scheme = Theme.of(context).colorScheme;
+    final activeVehicles = _vehicles.where((v) => v['active'] != false).length;
+    final unbilled = _jobs.where((j) => j['sale_id'] == null).length;
+    final scope = widget.session.device?.locationName.trim().isNotEmpty == true
+        ? widget.session.device!.locationName
+        : 'Current store scope';
+
     return RefreshIndicator(
       onRefresh: _load,
       child: ListView(
-        padding: const EdgeInsets.all(14),
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
         children: [
-          Row(
-            children: [
-              const Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Transport / Service',
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    Text(
-                      'Vehicles, jobs, route/distance, customer billing and linked Sales.',
-                    ),
-                  ],
-                ),
-              ),
-              FilledButton.tonalIcon(
-                onPressed: () => Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => LogisticsScreen(session: widget.session),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final actions = Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  OutlinedButton.icon(
+                    onPressed: _load,
+                    icon: const Icon(Icons.refresh_rounded, size: 18),
+                    label: const Text('Refresh'),
                   ),
-                ),
-                icon: const Icon(Icons.route_outlined),
-                label: const Text('Logistics'),
-              ),
-              const SizedBox(width: 8),
-              OutlinedButton.icon(
-                onPressed: _load,
-                icon: const Icon(Icons.refresh),
-                label: const Text('Refresh'),
-              ),
-              if (_canManage) ...[
-                const SizedBox(width: 8),
-                FilledButton.tonalIcon(
-                  onPressed: () => _vehicleDialog(),
-                  icon: const Icon(Icons.local_shipping_outlined),
-                  label: const Text('Add Vehicle'),
-                ),
-              ],
-              if (_canCreate) ...[
-                const SizedBox(width: 8),
-                FilledButton.icon(
-                  onPressed: () => _jobDialog(),
-                  icon: const Icon(Icons.add_road),
-                  label: const Text('New Service'),
-                ),
-              ],
-            ],
+                  if (_canManage)
+                    FilledButton.tonalIcon(
+                      onPressed: () => _vehicleDialog(),
+                      icon: const Icon(Icons.local_shipping_outlined, size: 18),
+                      label: const Text('Add Vehicle'),
+                    ),
+                  if (_canCreate)
+                    FilledButton.icon(
+                      onPressed: () => _jobDialog(),
+                      icon: const Icon(Icons.add_road, size: 18),
+                      label: const Text('New Service Job'),
+                    ),
+                ],
+              );
+
+              final title = Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Transport / Service',
+                    style: TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -.25,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'Customer transport jobs, vehicle assignment, route tracking and GST-linked Sales billing.',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: scheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              );
+
+              if (constraints.maxWidth < 850) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [title, const SizedBox(height: 10), actions],
+                );
+              }
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(child: title),
+                  const SizedBox(width: 12),
+                  actions,
+                ],
+              );
+            },
           ),
           if (_error != null) ...[
-            const SizedBox(height: 12),
-            Text(
-              _error!,
-              style: TextStyle(color: Theme.of(context).colorScheme.error),
+            const SizedBox(height: 10),
+            Card(
+              color: scheme.errorContainer,
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Text(_error!),
+              ),
             ),
           ],
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
           Wrap(
             spacing: 8,
             runSpacing: 8,
             children: [
-              Chip(
-                label: Text(
-                  '${_vehicles.where((v) => v['active'] != false).length} active vehicles',
-                ),
+              _summaryTile(
+                icon: Icons.local_shipping_outlined,
+                label: 'Active vehicles',
+                value: '$activeVehicles',
               ),
-              Chip(label: Text('${_jobs.length} visible jobs')),
-              Chip(
-                label: Text(
-                  '${_jobs.where((j) => j['sale_id'] == null).length} unbilled',
-                ),
+              _summaryTile(
+                icon: Icons.route_outlined,
+                label: 'Visible jobs',
+                value: '${_jobs.length}',
               ),
-              Chip(
-                label: Text(
-                  widget.session.device?.locationName ?? 'Selected location',
-                ),
+              _summaryTile(
+                icon: Icons.receipt_long_outlined,
+                label: 'Unbilled',
+                value: '$unbilled',
+              ),
+              _summaryTile(
+                icon: Icons.store_outlined,
+                label: 'Scope',
+                value: scope,
               ),
             ],
           ),
@@ -1136,58 +1405,87 @@ class _TransportServiceScreenState extends State<TransportServiceScreen> {
           Row(
             children: [
               const Expanded(
-                child: Text(
-                  'Vehicles',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Fleet',
+                      style: TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    Text(
+                      'Shared vehicle master used by Transport / Service and Logistics Operations.',
+                      style: TextStyle(fontSize: 11),
+                    ),
+                  ],
                 ),
               ),
-              if (_vehicles.isEmpty)
-                const Text(
-                  'No vehicles yet. Vehicles are optional for service jobs.',
-                ),
+              Text(
+                '${_vehicles.length} vehicle${_vehicles.length == 1 ? '' : 's'}',
+                style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant),
+              ),
             ],
           ),
-          if (_vehicles.isNotEmpty) ...[
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: _vehicles.map(_vehicleCard).toList(),
+          const SizedBox(height: 8),
+          if (_vehicles.isEmpty)
+            const Card(
+              child: Padding(
+                padding: EdgeInsets.all(18),
+                child: Text(
+                  'No vehicles yet. A vehicle is optional for a service job.',
+                ),
+              ),
+            )
+          else
+            SizedBox(
+              height: 164,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: _vehicles.length,
+                separatorBuilder: (_, _) => const SizedBox(width: 8),
+                itemBuilder: (_, index) => _vehicleCard(_vehicles[index]),
+              ),
             ),
-          ],
-          const SizedBox(height: 22),
+          const SizedBox(height: 18),
           Row(
             children: [
               const Expanded(
                 child: Text(
                   'Service Jobs',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800),
                 ),
               ),
-              SegmentedButton<String>(
-                segments: const [
-                  ButtonSegment(value: 'all', label: Text('All')),
-                  ButtonSegment(value: 'planned', label: Text('Planned')),
-                  ButtonSegment(
-                    value: 'in_progress',
-                    label: Text('In progress'),
-                  ),
-                  ButtonSegment(value: 'completed', label: Text('Completed')),
-                  ButtonSegment(value: 'cancelled', label: Text('Cancelled')),
-                ],
-                selected: {_statusFilter},
-                onSelectionChanged: (value) {
-                  setState(() => _statusFilter = value.first);
-                  _load();
-                },
+              Text(
+                '${_jobs.length} shown',
+                style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant),
               ),
             ],
+          ),
+          const SizedBox(height: 8),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: SegmentedButton<String>(
+              segments: const [
+                ButtonSegment(value: 'all', label: Text('All')),
+                ButtonSegment(value: 'planned', label: Text('Planned')),
+                ButtonSegment(value: 'in_progress', label: Text('In progress')),
+                ButtonSegment(value: 'completed', label: Text('Completed')),
+                ButtonSegment(value: 'cancelled', label: Text('Cancelled')),
+              ],
+              selected: {_statusFilter},
+              onSelectionChanged: (value) {
+                setState(() => _statusFilter = value.first);
+                _load();
+              },
+            ),
           ),
           const SizedBox(height: 8),
           if (_jobs.isEmpty)
             const Card(
               child: Padding(
-                padding: EdgeInsets.all(24),
+                padding: EdgeInsets.all(22),
                 child: Center(
                   child: Text('No service jobs found for this filter.'),
                 ),

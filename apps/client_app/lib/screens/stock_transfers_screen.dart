@@ -7,6 +7,7 @@ import '../services/inventory_service.dart';
 import '../services/location_scope_service.dart';
 import '../services/stock_transfer_service.dart';
 import '../widgets/searchable_select.dart';
+import 'logistics_screen.dart';
 
 class StockTransfersScreen extends StatefulWidget {
   final ClientSession session;
@@ -726,6 +727,51 @@ class _StockTransfersScreenState extends State<StockTransfersScreen> {
     return result;
   }
 
+  Future<void> _openVehicleLogistics(Map<String, dynamic> row) async {
+    try {
+      final transferId = row['id']?.toString() ?? '';
+      if (transferId.isEmpty) {
+        _message('Stock transfer could not be resolved.');
+        return;
+      }
+
+      final trip = await _service.logisticsTripContext(
+        tenantId: _tenantId,
+        transferId: transferId,
+      );
+      if (!mounted) return;
+
+      final assigned = trip['assigned'] == true;
+      final transferStatus =
+          trip['transfer_status']?.toString() ??
+          row['status']?.toString() ??
+          '';
+
+      if (!assigned && transferStatus != 'approved') {
+        _message(
+          transferStatus == 'in_transit'
+              ? 'This transfer was dispatched without a Vehicle Logistics trip. '
+                    'Receive this legacy transfer from Stock Transfers.'
+              : 'No Vehicle Logistics trip is linked to this transfer.',
+        );
+        return;
+      }
+
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => LogisticsScreen(
+            session: widget.session,
+            initialTripId: assigned ? trip['trip_id']?.toString() : null,
+            initialTransferId: assigned ? null : transferId,
+          ),
+        ),
+      );
+      if (mounted) await _refresh();
+    } catch (error) {
+      _message(_cleanError(error));
+    }
+  }
+
   Future<void> _action(Map<String, dynamic> row, String action) async {
     try {
       final id = row['id'].toString();
@@ -1180,7 +1226,17 @@ class _StockTransfersScreenState extends State<StockTransfersScreen> {
                         onPressed: () => _action(row, 'reject'),
                         child: const Text('Reject'),
                       ),
-                    if (_canManage && status == 'approved')
+                    if (_canManage &&
+                        status == 'approved' &&
+                        widget.session.hasModule('vehicle_logistics'))
+                      FilledButton.tonalIcon(
+                        onPressed: () => _openVehicleLogistics(row),
+                        icon: const Icon(Icons.local_shipping_outlined),
+                        label: const Text('Plan Trip'),
+                      ),
+                    if (_canManage &&
+                        status == 'approved' &&
+                        !widget.session.hasModule('vehicle_logistics'))
                       FilledButton.tonal(
                         onPressed: () => _action(row, 'dispatch'),
                         child: const Text('Dispatch'),
@@ -1190,6 +1246,14 @@ class _StockTransfersScreenState extends State<StockTransfersScreen> {
                       TextButton(
                         onPressed: () => _action(row, 'cancel'),
                         child: const Text('Cancel'),
+                      ),
+                    if (_canManage &&
+                        status == 'in_transit' &&
+                        widget.session.hasModule('vehicle_logistics'))
+                      OutlinedButton.icon(
+                        onPressed: () => _openVehicleLogistics(row),
+                        icon: const Icon(Icons.route_outlined),
+                        label: const Text('Open Trip'),
                       ),
                     if (_canManage && status == 'in_transit')
                       FilledButton(

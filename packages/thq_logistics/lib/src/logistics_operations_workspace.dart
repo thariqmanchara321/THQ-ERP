@@ -5,11 +5,13 @@ import 'logistics_api.dart';
 class LogisticsOperationsWorkspace extends StatefulWidget {
   final String tenantId;
   final String? locationId;
+  final bool startInCreate;
 
   const LogisticsOperationsWorkspace({
     super.key,
     required this.tenantId,
     this.locationId,
+    this.startInCreate = false,
   });
 
   @override
@@ -30,7 +32,15 @@ class _LogisticsOperationsWorkspaceState
   @override
   void initState() {
     super.initState();
-    load();
+    bootstrap();
+  }
+
+  Future<void> bootstrap() async {
+    await load();
+    if (!mounted || !widget.startInCreate || error != null) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) newOperation();
+    });
   }
 
   @override
@@ -327,143 +337,211 @@ class _LogisticsOperationsWorkspaceState
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(
-      title: const Text('Logistics Operations'),
-      actions: [
-        IconButton(
-          tooltip: 'Fleet, drivers & destinations',
-          onPressed: openMasters,
-          icon: const Icon(Icons.local_shipping_outlined),
-        ),
-        IconButton(
-          tooltip: 'Refresh',
-          onPressed: load,
-          icon: const Icon(Icons.refresh),
-        ),
-      ],
-    ),
-    floatingActionButton: FloatingActionButton.extended(
-      onPressed: newOperation,
-      icon: const Icon(Icons.add_road),
-      label: const Text('New Operation'),
-    ),
-    body: loading
-        ? const Center(child: CircularProgressIndicator())
-        : RefreshIndicator(
-            onRefresh: load,
-            child: ListView(
-              padding: const EdgeInsets.fromLTRB(12, 12, 12, 88),
-              children: [
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    metric(
-                      'Active',
-                      dashboard['operations_active'],
-                      Icons.route,
-                    ),
-                    metric(
-                      'Trucks on road',
-                      dashboard['runs_on_road'],
-                      Icons.local_shipping,
-                    ),
-                    metric(
-                      'Pickup today',
-                      qty(dashboard['pickup_primary_qty']),
-                      Icons.call_received,
-                    ),
-                    metric(
-                      'Delivered today',
-                      qty(dashboard['delivery_primary_qty']),
-                      Icons.call_made,
-                    ),
-                    metric(
-                      'Variance',
-                      qty(dashboard['variance_primary_qty']),
-                      Icons.warning_amber,
-                    ),
-                  ],
-                ),
-                if (error != null) ...[
-                  const SizedBox(height: 8),
-                  Text(
-                    error!,
+  Widget build(BuildContext context) {
+    if (loading) return const Center(child: CircularProgressIndicator());
+
+    final scheme = Theme.of(context).colorScheme;
+    return RefreshIndicator(
+      onRefresh: load,
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+        children: [
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final title = Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Logistics Operations',
                     style: TextStyle(
-                      color: Theme.of(context).colorScheme.error,
+                      fontSize: 22,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -.25,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'Execute multi-vehicle, multi-run pickup and delivery operations with live load reconciliation.',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: scheme.onSurfaceVariant,
                     ),
                   ),
                 ],
-                const SizedBox(height: 10),
-                Row(
+              );
+              final actions = Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  OutlinedButton.icon(
+                    onPressed: openMasters,
+                    icon: const Icon(Icons.local_shipping_outlined, size: 18),
+                    label: const Text('Fleet & Masters'),
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: load,
+                    icon: const Icon(Icons.refresh_rounded, size: 18),
+                    label: const Text('Refresh'),
+                  ),
+                  FilledButton.icon(
+                    onPressed: newOperation,
+                    icon: const Icon(Icons.add_road, size: 18),
+                    label: const Text('New Operation'),
+                  ),
+                ],
+              );
+              if (constraints.maxWidth < 850) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [title, const SizedBox(height: 10), actions],
+                );
+              }
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(child: title),
+                  const SizedBox(width: 12),
+                  actions,
+                ],
+              );
+            },
+          ),
+          if (error != null) ...[
+            const SizedBox(height: 10),
+            Card(
+              color: scheme.errorContainer,
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Text(error!),
+              ),
+            ),
+          ],
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              metric(
+                'Active operations',
+                dashboard['operations_active'],
+                Icons.route_outlined,
+              ),
+              metric(
+                'Trucks on road',
+                dashboard['runs_on_road'],
+                Icons.local_shipping_outlined,
+              ),
+              metric(
+                'Pickup today',
+                qty(dashboard['pickup_primary_qty']),
+                Icons.call_received_outlined,
+              ),
+              metric(
+                'Delivered today',
+                qty(dashboard['delivery_primary_qty']),
+                Icons.call_made_outlined,
+              ),
+              metric(
+                'Variance',
+                qty(dashboard['variance_primary_qty']),
+                Icons.warning_amber_rounded,
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final searchBox = TextField(
+                controller: search,
+                onSubmitted: (_) => load(),
+                decoration: InputDecoration(
+                  hintText: 'Search operation, truck, driver or reference',
+                  prefixIcon: const Icon(Icons.search_rounded),
+                  suffixIcon: IconButton(
+                    tooltip: 'Search',
+                    onPressed: load,
+                    icon: const Icon(Icons.arrow_forward_rounded),
+                  ),
+                  border: const OutlineInputBorder(),
+                  isDense: true,
+                ),
+              );
+              final statusFilter = DropdownButtonFormField<String>(
+                initialValue: status,
+                isDense: true,
+                decoration: const InputDecoration(
+                  labelText: 'Status',
+                  border: OutlineInputBorder(),
+                ),
+                items: const [
+                  DropdownMenuItem(value: 'all', child: Text('All')),
+                  DropdownMenuItem(value: 'planned', child: Text('Planned')),
+                  DropdownMenuItem(value: 'active', child: Text('Active')),
+                  DropdownMenuItem(
+                    value: 'completed',
+                    child: Text('Completed'),
+                  ),
+                  DropdownMenuItem(value: 'closed', child: Text('Closed')),
+                  DropdownMenuItem(
+                    value: 'cancelled',
+                    child: Text('Cancelled'),
+                  ),
+                ],
+                onChanged: (value) {
+                  setState(() => status = value ?? 'all');
+                  load();
+                },
+              );
+              if (constraints.maxWidth < 620) {
+                return Column(
                   children: [
-                    Expanded(
-                      child: TextField(
-                        controller: search,
-                        onSubmitted: (_) => load(),
-                        decoration: InputDecoration(
-                          hintText:
-                              'Search operation, truck, driver or reference',
-                          prefixIcon: const Icon(Icons.search),
-                          suffixIcon: IconButton(
-                            onPressed: load,
-                            icon: const Icon(Icons.arrow_forward),
-                          ),
-                          border: const OutlineInputBorder(),
-                          isDense: true,
-                        ),
-                      ),
+                    searchBox,
+                    const SizedBox(height: 8),
+                    statusFilter,
+                  ],
+                );
+              }
+              return Row(
+                children: [
+                  Expanded(child: searchBox),
+                  const SizedBox(width: 8),
+                  SizedBox(width: 170, child: statusFilter),
+                ],
+              );
+            },
+          ),
+          const SizedBox(height: 10),
+          if (rows.isEmpty)
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  children: [
+                    Icon(Icons.route_outlined, size: 34, color: scheme.primary),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'No logistics operations found.',
+                      style: TextStyle(fontWeight: FontWeight.w700),
                     ),
-                    const SizedBox(width: 8),
-                    DropdownButton<String>(
-                      value: status,
-                      items: const [
-                        DropdownMenuItem(value: 'all', child: Text('All')),
-                        DropdownMenuItem(
-                          value: 'planned',
-                          child: Text('Planned'),
-                        ),
-                        DropdownMenuItem(
-                          value: 'active',
-                          child: Text('Active'),
-                        ),
-                        DropdownMenuItem(
-                          value: 'completed',
-                          child: Text('Completed'),
-                        ),
-                        DropdownMenuItem(
-                          value: 'closed',
-                          child: Text('Closed'),
-                        ),
-                        DropdownMenuItem(
-                          value: 'cancelled',
-                          child: Text('Cancelled'),
-                        ),
-                      ],
-                      onChanged: (value) {
-                        setState(() => status = value ?? 'all');
-                        load();
-                      },
+                    const SizedBox(height: 4),
+                    Text(
+                      'Create an operation, then add one or more vehicle runs and ordered pickup/delivery stops.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: scheme.onSurfaceVariant,
+                      ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 10),
-                if (rows.isEmpty)
-                  const Card(
-                    child: Padding(
-                      padding: EdgeInsets.all(28),
-                      child: Center(
-                        child: Text('No logistics operations found.'),
-                      ),
-                    ),
-                  )
-                else
-                  ...rows.map(operationCard),
-              ],
-            ),
-          ),
-  );
+              ),
+            )
+          else
+            ...rows.map(operationCard),
+        ],
+      ),
+    );
+  }
 }
 
 class LogisticsOperationDialog extends StatefulWidget {

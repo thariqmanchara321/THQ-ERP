@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:thq_ui/thq_ui.dart';
+import 'package:thq_logistics/thq_logistics.dart';
 
 import '../models/client_session.dart';
 import '../services/location_scope_service.dart';
@@ -8,13 +9,21 @@ import 'logistics_operations_screen.dart';
 import 'logistics_reports_screen.dart';
 import 'logistics_receipt_dialog.dart';
 import 'vehicle_fleet_screen.dart';
+import 'transport_service_screen.dart';
 import '../services/stock_transfer_service.dart';
 import '../services/transport_service.dart';
 
 class LogisticsScreen extends StatefulWidget {
   final ClientSession session;
+  final String? initialTransferId;
+  final String? initialTripId;
 
-  const LogisticsScreen({super.key, required this.session});
+  const LogisticsScreen({
+    super.key,
+    required this.session,
+    this.initialTransferId,
+    this.initialTripId,
+  });
 
   @override
   State<LogisticsScreen> createState() => _LogisticsScreenState();
@@ -32,6 +41,7 @@ class _LogisticsScreenState extends State<LogisticsScreen> {
   List<Map<String, dynamic>> _trips = [];
   List<Map<String, dynamic>> _vehicles = [];
   List<Map<String, dynamic>> _approvedTransfers = [];
+  bool _initialIntentHandled = false;
 
   String get _tenantId => widget.session.business.id;
   String? get _locationId =>
@@ -92,6 +102,32 @@ class _LogisticsScreenState extends State<LogisticsScreen> {
         setState(() => _loading = false);
       }
     }
+    if (mounted &&
+        !_initialIntentHandled &&
+        (widget.initialTripId != null || widget.initialTransferId != null)) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _handleInitialIntent();
+      });
+    }
+  }
+
+  Future<void> _handleInitialIntent() async {
+    if (_initialIntentHandled || !mounted) return;
+    final tripId = widget.initialTripId;
+    final transferId = widget.initialTransferId;
+    if ((tripId == null || tripId.isEmpty) &&
+        (transferId == null || transferId.isEmpty)) {
+      return;
+    }
+
+    _initialIntentHandled = true;
+    if (tripId != null && tripId.isNotEmpty) {
+      await _openTrip(tripId);
+      return;
+    }
+    if (transferId != null && transferId.isNotEmpty) {
+      await _newTrip(preselectedTransferId: transferId);
+    }
   }
 
   String _clean(Object error) => error
@@ -127,11 +163,100 @@ class _LogisticsScreenState extends State<LogisticsScreen> {
   int _count(String status) =>
       _trips.where((trip) => trip['status']?.toString() == status).length;
 
-  Future<void> _newTrip() async {
+  Future<String?> _selectTripMode() async {
+    return showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Create Trip'),
+        content: SizedBox(
+          width: 620,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const CircleAvatar(child: Icon(Icons.route_outlined)),
+                title: const Text('Operational Trip'),
+                subtitle: const Text(
+                  'No stock movement and no GST. Use multi-vehicle / '
+                  'multi-stop Logistics Operations.',
+                ),
+                onTap: () => Navigator.pop(dialogContext, 'operational'),
+              ),
+              const Divider(height: 1),
+              ListTile(
+                leading: const CircleAvatar(
+                  child: Icon(Icons.swap_horiz_rounded),
+                ),
+                title: const Text('Stock Transfer Trip'),
+                subtitle: const Text(
+                  'Links approved Stock Transfers. Inventory remains '
+                  'authoritative; the trip itself does not touch GST.',
+                ),
+                onTap: () => Navigator.pop(dialogContext, 'stock_transfer'),
+              ),
+              const Divider(height: 1),
+              ListTile(
+                leading: const CircleAvatar(
+                  child: Icon(Icons.receipt_long_outlined),
+                ),
+                title: const Text('Billable Customer Transport'),
+                subtitle: const Text(
+                  'Creates a Transport / Service job. GST or Non-GST is '
+                  'applied only when the job is billed.',
+                ),
+                onTap: () => Navigator.pop(dialogContext, 'billable'),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancel'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _newTrip({String? preselectedTransferId}) async {
     if (!_canCreate) {
       _message('Logistics create permission required.');
       return;
     }
+
+    if (preselectedTransferId == null) {
+      final mode = await _selectTripMode();
+      if (mode == null || !mounted) return;
+
+      if (mode == 'operational') {
+        await Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => LogisticsOperationsWorkspace(
+              tenantId: _tenantId,
+              locationId: _locationId,
+              startInCreate: true,
+            ),
+          ),
+        );
+        if (mounted) await _load();
+        return;
+      }
+
+      if (mode == 'billable') {
+        await Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => TransportServiceScreen(
+              session: widget.session,
+              startInCreate: true,
+            ),
+          ),
+        );
+        if (mounted) await _load();
+        return;
+      }
+    }
+
     if (_vehicles.isEmpty) {
       _message(
         'Add an active vehicle from Vehicle Logistics > Vehicles first.',
@@ -139,14 +264,39 @@ class _LogisticsScreenState extends State<LogisticsScreen> {
       return;
     }
     if (_approvedTransfers.isEmpty) {
-      _message('There are no approved stock transfers waiting for dispatch.');
+      _message(
+        'No approved Stock Transfers are waiting for dispatch. '
+        'Use Operational Trip for a trip that does not move inventory.',
+      );
       return;
+    }
+
+    Map<String, dynamic>? preselectedTransfer;
+    if (preselectedTransferId != null) {
+      for (final transfer in _approvedTransfers) {
+        if (transfer['id']?.toString() == preselectedTransferId) {
+          preselectedTransfer = transfer;
+          break;
+        }
+      }
+      if (preselectedTransfer == null) {
+        _message(
+          'This Stock Transfer must be approved and waiting for dispatch '
+          'before a trip can be planned.',
+        );
+        return;
+      }
     }
 
     String vehicleId = _vehicles.first['id'].toString();
     final selectedTransferIds = <String>{};
     String? selectedFrom;
     String? selectedTo;
+    if (preselectedTransfer != null) {
+      selectedTransferIds.add(preselectedTransfer['id'].toString());
+      selectedFrom = preselectedTransfer['from_location_id']?.toString();
+      selectedTo = preselectedTransfer['to_location_id']?.toString();
+    }
     final driver = TextEditingController(
       text: _vehicles.first['driver_name']?.toString() ?? '',
     );
@@ -555,14 +705,14 @@ class _LogisticsScreenState extends State<LogisticsScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'Stock Movement',
+                              'Trips & Stock Movement',
                               style: TextStyle(
                                 fontSize: 22,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
                             Text(
-                              'Trip -> dispatch -> arrival -> receipt, with stock remaining authoritative in Inventory.',
+                              'Operational trips, Stock Transfer movement and customer transport in one control center.',
                             ),
                           ],
                         ),

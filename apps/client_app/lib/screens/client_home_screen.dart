@@ -1312,7 +1312,8 @@ class _ModulePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return switch (module.key) {
+    final moduleKey = module.key.trim().toLowerCase();
+    return switch (moduleKey) {
       'dashboard' => DashboardScreen(session: session),
       'operations_intelligence' => OperationsIntelligenceScreen(
         session: session,

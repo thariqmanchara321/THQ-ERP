@@ -127,6 +127,31 @@ class TransportService {
         : <String, dynamic>{};
   }
 
+  Future<Map<String, dynamic>> quoteJobBill({
+    required String tenantId,
+    required String jobId,
+    required String billingVariantId,
+    String? supplyType,
+    String? placeOfSupplyCode,
+  }) async {
+    final result = await _supabase.rpc(
+      'gst_service_job_quote_v520',
+      params: {
+        'p_tenant_id': tenantId,
+        'p_job_id': jobId,
+        'p_billing_variant_id': billingVariantId,
+        'p_supply_type': supplyType,
+        'p_place_of_supply_code': placeOfSupplyCode,
+      },
+    );
+    if (result is! Map) {
+      throw StateError(
+        'Unexpected response from authoritative GST service quote.',
+      );
+    }
+    return Map<String, dynamic>.from(result);
+  }
+
   Future<Map<String, dynamic>> billJob({
     required String tenantId,
     required String jobId,
@@ -135,6 +160,8 @@ class TransportService {
     required double initialPayment,
     required String paymentMethod,
     required String paymentReference,
+    String? supplyType,
+    String? placeOfSupplyCode,
   }) async {
     final activation = await DeviceInstallationService().readActivation();
     if (activation == null || activation.tenantId != tenantId) {
@@ -149,6 +176,8 @@ class TransportService {
       'payment_method': paymentMethod,
       'payment_reference': paymentReference.trim(),
       'device_id': activation.deviceId,
+      'supply_type': supplyType,
+      'place_of_supply_code': placeOfSupplyCode,
     };
     final lease = await _requestIds.acquire(
       tenantId: tenantId,
@@ -178,6 +207,8 @@ class TransportService {
           'p_payment_reference': paymentReference.trim(),
           'p_device_id': activation.deviceId,
           'p_request_id': lease.requestId,
+          'p_supply_type': supplyType,
+          'p_place_of_supply_code': placeOfSupplyCode,
         },
       );
       if (result is! Map) throw StateError('Unexpected response from $rpc.');
