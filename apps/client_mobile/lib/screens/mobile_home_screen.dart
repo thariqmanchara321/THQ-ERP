@@ -2,6 +2,7 @@
 import 'package:erp_core/erp_core.dart';
 import 'package:flutter/material.dart';
 import 'package:thq_ui/thq_ui.dart';
+import 'package:thq_logistics/thq_logistics.dart';
 import '../models/mobile_session.dart';
 import '../services/device_installation_service.dart';
 import '../services/mobile_auth_service.dart';
@@ -224,6 +225,26 @@ class _MobileHomeScreenState extends State<MobileHomeScreen> {
             'days_90_plus',
             'status',
           ],
+        );
+        break;
+      case 'logistics_operations':
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => LogisticsOperationsWorkspace(
+              tenantId: widget.session.tenantId,
+              locationId: _locationId,
+            ),
+          ),
+        );
+        break;
+      case 'vehicle_logistics':
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => VehicleLogisticsReportWorkspace(
+              tenantId: widget.session.tenantId,
+              locationId: _locationId,
+            ),
+          ),
         );
         break;
       case 'stores':
@@ -887,6 +908,8 @@ class _BusinessTab extends StatelessWidget {
       ('sales', 'Sales Status', Icons.point_of_sale),
       ('purchases', 'Purchases', Icons.shopping_cart_outlined),
       ('inventory', 'Inventory', Icons.inventory_2_outlined),
+      ('logistics_operations', 'Logistics Operations', Icons.route_outlined),
+      ('vehicle_logistics', 'Vehicle Logistics', Icons.local_shipping_outlined),
       ('customers', 'Customer Outstanding', Icons.people_outline),
       ('suppliers', 'Supplier Outstanding', Icons.local_shipping_outlined),
     ];

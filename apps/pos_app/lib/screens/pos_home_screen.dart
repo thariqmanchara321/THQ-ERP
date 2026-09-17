@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:thq_ui/thq_ui.dart';
+import 'package:thq_logistics/thq_logistics.dart';
 import 'package:erp_core/erp_core.dart';
 
 import '../models/app_menu_node.dart';
@@ -181,6 +182,14 @@ class _PosHomeScreenState extends State<PosHomeScreen> {
     return device.allowedModules.contains(key) && _session.hasModule(key);
   }
 
+  bool _logisticsAllowed(String key) {
+    final device = _session.device;
+    if (device == null || !_session.hasModule(key)) return false;
+    return device.allowedModules.contains(key) ||
+        device.allowedModules.contains('transport_service') ||
+        device.allowedModules.contains('inventory');
+  }
+
   bool _nodeAllowed(AppMenuNode node) {
     final roles = (node.metadata['roles'] as List? ?? const [])
         .map((e) => e.toString())
@@ -279,6 +288,28 @@ class _PosHomeScreenState extends State<PosHomeScreen> {
         'Restaurant Reports',
         Icons.assessment_outlined,
         RestaurantScreen(session: session, workspace: 'reports'),
+      );
+    }
+    if (_logisticsAllowed('logistics_operations')) {
+      pages['logistics_operations'] = _PosPage(
+        'logistics_operations',
+        'Logistics Operations',
+        Icons.route_outlined,
+        LogisticsOperationsWorkspace(
+          tenantId: session.business.id,
+          locationId: LocationScopeService.currentForRead(session),
+        ),
+      );
+    }
+    if (_logisticsAllowed('vehicle_logistics')) {
+      pages['vehicle_logistics'] = _PosPage(
+        'vehicle_logistics',
+        'Vehicle Logistics',
+        Icons.local_shipping_outlined,
+        VehicleLogisticsReportWorkspace(
+          tenantId: session.business.id,
+          locationId: LocationScopeService.currentForRead(session),
+        ),
       );
     }
     if (_allowed('inventory')) {
