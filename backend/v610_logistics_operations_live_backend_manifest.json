@@ -1,0 +1,46 @@
+{
+  "release": "v6.1",
+  "module": "logistics_operations",
+  "backend_project": "flexi-erp-dev",
+  "live_migrations": [
+    {
+      "version": "20260916084702",
+      "name": "v610_logistics_operations_multirun_foundation",
+      "note": "initial foundation"
+    },
+    {
+      "version": "20260916084913",
+      "name": "v610_logistics_pos_device_enablement"
+    },
+    {
+      "version": "20260916102757",
+      "name": "v610_logistics_operations_multirun_foundation",
+      "note": "final v61 app contract"
+    },
+    {
+      "version": "20260916131215",
+      "name": "v610_logistics_operations_contract_hardening"
+    }
+  ],
+  "canonical_source_migrations": [
+    "278_v610_logistics_operations_multirun_foundation.sql",
+    "279_v610_logistics_pos_device_enablement.sql",
+    "280_v610_logistics_operations_contract_hardening.sql"
+  ],
+  "modules": [
+    "logistics_operations",
+    "vehicle_logistics"
+  ],
+  "tables": [
+    "logistics_operations_v61",
+    "logistics_vehicle_runs_v61",
+    "logistics_run_stops_v61",
+    "logistics_drivers_v61",
+    "logistics_destinations_v61",
+    "logistics_operation_events_v61"
+  ],
+  "inventory_rule": "Standalone logistics operations do not change inventory or accounting. Optional linked documents are references only; authoritative business documents remain authoritative.",
+  "dependency_rule": "Logistics Operations is independent. Vehicle Logistics is the reporting/control layer and depends on Logistics Operations.",
+  "security_rule": "RLS enabled on logistics tables; direct anon/authenticated table access revoked; SECURITY DEFINER RPCs executable only by authenticated/service_role.",
+  "quantity_rule": "Truck current load is starting load + completed pickups - completed deliveries - variances. Run completion requires primary and secondary quantities to reconcile within 0.001."
+}

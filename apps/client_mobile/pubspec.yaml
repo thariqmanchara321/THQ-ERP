@@ -5,6 +5,8 @@ version: 6.0.1+2
 environment:
   sdk: ^3.12.2
 dependencies:
+  thq_logistics:
+    path: ../../packages/thq_logistics
   flutter:
     sdk: flutter
   thq_ui:

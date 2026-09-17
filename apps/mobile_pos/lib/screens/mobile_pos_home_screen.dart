@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:erp_core/erp_core.dart';
 import 'package:flutter/material.dart';
 import 'package:thq_ui/thq_ui.dart';
+import 'package:thq_logistics/thq_logistics.dart';
 import 'package:intl/intl.dart';
 
 import 'package:uuid/uuid.dart';
@@ -1335,6 +1336,36 @@ class _State extends State<MobilePosHomeScreen> {
                         onTap: () {
                           if (inDrawer) Navigator.of(context).pop();
                           chooseCustomer();
+                        },
+                      ),
+                      _navItem(
+                        icon: Icons.route_outlined,
+                        label: 'Logistics Operations',
+                        onTap: () {
+                          if (inDrawer) Navigator.of(context).pop();
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => LogisticsOperationsWorkspace(
+                                tenantId: widget.session.tenantId,
+                                locationId: widget.session.locationId,
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                      _navItem(
+                        icon: Icons.local_shipping_outlined,
+                        label: 'Vehicle Logistics',
+                        onTap: () {
+                          if (inDrawer) Navigator.of(context).pop();
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => VehicleLogisticsReportWorkspace(
+                                tenantId: widget.session.tenantId,
+                                locationId: widget.session.locationId,
+                              ),
+                            ),
+                          );
                         },
                       ),
                       _navItem(

@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:thq_ui/thq_ui.dart';
+import 'package:thq_logistics/thq_logistics.dart';
 import 'package:erp_core/erp_core.dart';
 
 import '../models/client_session.dart';
@@ -367,6 +368,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
     'users' => Icons.manage_accounts_outlined,
     'production' => Icons.factory_outlined,
     'transport_service' => Icons.local_shipping_outlined,
+    'logistics_operations' => Icons.route_outlined,
     'vehicle_logistics' => Icons.route_outlined,
     'restaurant' || 'restaurant_orders' => Icons.restaurant_outlined,
     'stock_transfers' => Icons.swap_horiz_outlined,
@@ -1355,7 +1357,15 @@ class _ModulePage extends StatelessWidget {
       'users' => TeamAccessScreen(session: session),
       'production' => ProductionScreen(session: session),
       'transport_service' => TransportServiceScreen(session: session),
-      'vehicle_logistics' => LogisticsScreen(session: session),
+      'logistics_operations' => LogisticsOperationsWorkspace(
+        tenantId: session.business.id,
+        locationId: LocationScopeService.currentForRead(session),
+      ),
+      'vehicle_logistics' => VehicleLogisticsReportWorkspace(
+        tenantId: session.business.id,
+        locationId: LocationScopeService.currentForRead(session),
+        legacyTransferBuilder: (_) => LogisticsScreen(session: session),
+      ),
       'restaurant' || 'restaurant_orders' => RestaurantScreen(session: session),
       'workshop' => WorkshopScreen(session: session),
       'healthcare' ||
