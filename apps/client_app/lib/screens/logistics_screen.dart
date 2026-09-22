@@ -231,11 +231,17 @@ class _LogisticsScreenState extends State<LogisticsScreen> {
 
       if (mode == 'operational') {
         await Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (_) => LogisticsOperationsWorkspace(
-              tenantId: _tenantId,
-              locationId: _locationId,
-              startInCreate: true,
+          MaterialPageRoute<void>(
+            builder: (_) => Scaffold(
+              appBar: AppBar(title: const Text('Operational Trip')),
+              body: Material(
+                color: Colors.transparent,
+                child: LogisticsOperationsWorkspace(
+                  tenantId: _tenantId,
+                  locationId: _locationId,
+                  startInCreate: true,
+                ),
+              ),
             ),
           ),
         );
@@ -245,10 +251,16 @@ class _LogisticsScreenState extends State<LogisticsScreen> {
 
       if (mode == 'billable') {
         await Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (_) => TransportServiceScreen(
-              session: widget.session,
-              startInCreate: true,
+          MaterialPageRoute<void>(
+            builder: (_) => Scaffold(
+              appBar: AppBar(title: const Text('Customer Transport')),
+              body: Material(
+                color: Colors.transparent,
+                child: TransportServiceScreen(
+                  session: widget.session,
+                  startInCreate: true,
+                ),
+              ),
             ),
           ),
         );

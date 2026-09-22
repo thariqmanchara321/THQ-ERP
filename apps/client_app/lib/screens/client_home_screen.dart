@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:thq_ui/thq_ui.dart';
-import 'package:thq_logistics/thq_logistics.dart';
 import 'package:erp_core/erp_core.dart';
 
 import '../models/client_session.dart';
@@ -53,8 +52,7 @@ import 'sales_screen.dart';
 import 'suppliers_screen.dart';
 import 'support_screen.dart';
 import 'team_access_screen.dart';
-import 'transport_service_screen.dart';
-import 'logistics_screen.dart';
+import 'transport_logistics_hub_screen.dart';
 
 class ClientHomeScreen extends StatefulWidget {
   final ClientSession session;
@@ -102,10 +100,59 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
   List<ClientModule> get _modules => _moduleCache;
 
   void _rebuildSessionCaches() {
-    final modules = _session.modules
+    const transportKeys = <String>{
+      'transport_service',
+      'logistics_operations',
+      'vehicle_logistics',
+    };
+    final source = _session.modules
         .where((module) => module.key != 'pos')
         .toList(growable: false);
-    _moduleCache = modules;
+    final transport = source
+        .where((module) => transportKeys.contains(module.key))
+        .toList(growable: false);
+    final modules = source
+        .where((module) => !transportKeys.contains(module.key))
+        .toList();
+
+    if (transport.isNotEmpty) {
+      var representative = transport.first;
+      for (final preferredKey in const [
+        'vehicle_logistics',
+        'logistics_operations',
+        'transport_service',
+      ]) {
+        final matches = transport.where((module) => module.key == preferredKey);
+        if (matches.isNotEmpty) {
+          representative = matches.first;
+          break;
+        }
+      }
+
+      var sortOrder = transport.first.sortOrder;
+      for (final module in transport.skip(1)) {
+        if (module.sortOrder < sortOrder) sortOrder = module.sortOrder;
+      }
+
+      modules.add(
+        ClientModule(
+          key: representative.key,
+          name: 'Transport & Logistics',
+          description:
+              'Unified trips, logistics operations, Stock Transfer movement '
+              'and customer transport billing',
+          category: 'Operations',
+          sortOrder: sortOrder,
+        ),
+      );
+    }
+
+    modules.sort((a, b) {
+      final byOrder = a.sortOrder.compareTo(b.sortOrder);
+      return byOrder != 0 ? byOrder : a.name.compareTo(b.name);
+    });
+
+    _moduleCache = List<ClientModule>.unmodifiable(modules);
     _moduleMap = {for (final module in modules) module.key: module};
   }
 
@@ -979,6 +1026,9 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
     UiDesignProfile? profile, {
     bool nested = false,
   }) {
+    final displayLabel = module.name == 'Transport & Logistics'
+        ? module.name
+        : label;
     final active = module.key == _selectedModuleKey;
     final scheme = Theme.of(context).colorScheme;
     final primary = profile?.primary ?? scheme.primary;
@@ -1022,7 +1072,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    label,
+                    displayLabel,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
@@ -1041,7 +1091,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
     );
 
     return Tooltip(
-      message: collapsed ? label : '',
+      message: collapsed ? displayLabel : '',
       child: Padding(
         padding: EdgeInsets.only(bottom: 2, left: nested && !collapsed ? 8 : 0),
         child: tile,
@@ -1357,16 +1407,9 @@ class _ModulePage extends StatelessWidget {
       'locations' => LocationsScreen(session: session),
       'users' => TeamAccessScreen(session: session),
       'production' => ProductionScreen(session: session),
-      'transport_service' => TransportServiceScreen(session: session),
-      'logistics_operations' => LogisticsOperationsWorkspace(
-        tenantId: session.business.id,
-        locationId: LocationScopeService.currentForRead(session),
-      ),
-      'vehicle_logistics' => VehicleLogisticsReportWorkspace(
-        tenantId: session.business.id,
-        locationId: LocationScopeService.currentForRead(session),
-        legacyTransferBuilder: (_) => LogisticsScreen(session: session),
-      ),
+      'transport_service' ||
+      'logistics_operations' ||
+      'vehicle_logistics' => TransportLogisticsHubScreen(session: session),
       'restaurant' || 'restaurant_orders' => RestaurantScreen(session: session),
       'workshop' => WorkshopScreen(session: session),
       'healthcare' ||
