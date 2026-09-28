@@ -1432,7 +1432,7 @@ class _State extends State<MobilePosHomeScreen> {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      '${widget.session.deviceCode}  •  v${ThqReleaseContract.appVersion} B${ThqReleaseContract.buildNumber}',
+                      '${widget.session.deviceCode}  •  v${ThqPosMobileReleaseContract.appVersion} B${ThqPosMobileReleaseContract.buildNumber}',
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(

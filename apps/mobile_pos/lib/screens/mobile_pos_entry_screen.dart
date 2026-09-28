@@ -6,7 +6,7 @@ import 'package:thq_ui/thq_ui.dart';
 import '../services/device_installation_service.dart';
 import '../services/mobile_pos_auth_service.dart';
 import '../services/mobile_pos_session_service.dart';
-import 'mobile_pos_home_screen.dart';
+import 'mobile_pos_workspace_screen.dart';
 
 class MobilePosEntryScreen extends StatefulWidget {
   const MobilePosEntryScreen({super.key});
@@ -110,7 +110,7 @@ class _ActivationViewState extends State<_ActivationView> {
       subtitle:
           'Activate once with the POS terminal code issued from THQ Admin. Sales remain bound to this authorized device and store.',
       icon: Icons.point_of_sale_rounded,
-      versionLabel: ThqMobileReleaseContract.versionLabel,
+      versionLabel: ThqPosMobileReleaseContract.versionLabel,
       footer: const Text(
         'THQ ERP • Mobile POS',
         style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700),
@@ -220,7 +220,7 @@ class _LoginViewState extends State<_LoginView> {
       subtitle:
           'Sign in to this activated terminal. Store, terminal and module permissions are enforced before the POS workspace opens.',
       icon: Icons.point_of_sale_rounded,
-      versionLabel: ThqMobileReleaseContract.versionLabel,
+      versionLabel: ThqPosMobileReleaseContract.versionLabel,
       footer: const Text(
         'Offline-ready • GST-authoritative sync',
         style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700),
@@ -344,7 +344,7 @@ class _SessionLoaderState extends State<_SessionLoader> {
             notes: session.release.releaseNotes,
           );
         }
-        return MobilePosHomeScreen(session: session);
+        return MobilePosWorkspaceScreen(session: session);
       },
     );
   }
@@ -364,7 +364,7 @@ class _MandatoryUpdateView extends StatelessWidget {
     return ThqMobileFailurePage(
       title: 'THQ update required',
       message:
-          'This terminal is running ${ThqMobileReleaseContract.versionLabel}. Required version: ${latestVersion.isEmpty ? 'latest release' : latestVersion}.${notes.isEmpty ? '' : '\n\n$notes'}',
+          'This terminal is running ${ThqPosMobileReleaseContract.versionLabel}. Required version: ${latestVersion.isEmpty ? 'latest release' : latestVersion}.${notes.isEmpty ? '' : '\n\n$notes'}',
       secondaryAction: TextButton(
         onPressed: () async {
           await MobilePosAuthService().signOut();

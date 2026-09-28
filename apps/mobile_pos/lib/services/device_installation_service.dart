@@ -83,8 +83,8 @@ class DeviceInstallationService {
         'activation_code': activationCode.trim().toUpperCase(),
         'installation_id': await installationId(),
         'app_key': 'pos',
-        'platform_hint': ThqMobileReleaseContract.platform,
-        'app_version': ThqMobileReleaseContract.appVersion,
+        'platform_hint': ThqPosMobileReleaseContract.platform,
+        'app_version': ThqPosMobileReleaseContract.appVersion,
       },
     );
     if (response.data is! Map) {

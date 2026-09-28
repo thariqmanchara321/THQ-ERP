@@ -35,12 +35,12 @@ class MobilePosSessionService {
         'p_tenant_id': activation.tenantId,
         'p_device_id': activation.deviceId,
         'p_app_key': 'pos',
-        'p_platform': ThqMobileReleaseContract.platform,
-        'p_version': ThqMobileReleaseContract.appVersion,
-        'p_build': ThqMobileReleaseContract.buildNumber,
+        'p_platform': ThqPosMobileReleaseContract.platform,
+        'p_version': ThqPosMobileReleaseContract.appVersion,
+        'p_build': ThqPosMobileReleaseContract.buildNumber,
         'p_metadata': {
           'channel': 'mobile_pos',
-          'release': ThqMobileReleaseContract.releaseName,
+          'release': ThqPosMobileReleaseContract.releaseName,
         },
       },
     );

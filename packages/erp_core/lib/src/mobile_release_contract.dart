@@ -1,8 +1,9 @@
-/// Mobile release contracts for THQ Client Mobile and THQ Mobile POS.
+/// Independent mobile release contracts for THQ Client Mobile and Mobile POS.
 ///
-/// The original shared contract remains pinned to Build 5 so Mobile POS keeps
-/// reporting the release it actually runs. Client Mobile can now advance on an
-/// independent release train without making Mobile POS report the wrong build.
+/// [ThqMobileReleaseContract] remains pinned to the Build 5 shared foundation
+/// for compatibility with any older references. New app code should use the
+/// app-specific contract so Client Mobile and Mobile POS can advance safely on
+/// independent release trains.
 abstract final class ThqMobileReleaseContract {
   static const String appVersion = '6.2.0';
   static const int buildNumber = 5;
@@ -16,6 +17,15 @@ abstract final class ThqClientMobileReleaseContract {
   static const String appVersion = '6.2.1';
   static const int buildNumber = 6;
   static const String releaseName = 'Client Mobile Workspace';
+  static const String platform = 'android';
+
+  static const String versionLabel = 'v$appVersion • Build $buildNumber';
+}
+
+abstract final class ThqPosMobileReleaseContract {
+  static const String appVersion = '6.2.2';
+  static const int buildNumber = 7;
+  static const String releaseName = 'Mobile POS Workspace';
   static const String platform = 'android';
 
   static const String versionLabel = 'v$appVersion • Build $buildNumber';
