@@ -47,8 +47,11 @@ class ThqClientMobileApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'THQ Client Mobile',
-      builder: (context, child) =>
-          ThqNotificationHost(child: child ?? const SizedBox.shrink()),
+      builder: (context, child) => ThqMobileProductionFrame(
+        child: ThqNotificationHost(
+          child: child ?? const SizedBox.shrink(),
+        ),
+      ),
       theme: ThqMobileTheme.client(),
       home: const MobileEntryScreen(),
     );

@@ -18,6 +18,7 @@ export 'src/foundations/thq_typography.dart';
 export 'src/layout/thq_page_frame.dart';
 export 'src/layout/thq_split_pane.dart';
 export 'src/mobile/thq_mobile_components.dart';
+export 'src/mobile/thq_mobile_production.dart';
 export 'src/mobile/thq_mobile_theme.dart';
 export 'src/navigation/thq_desktop_shell.dart';
 export 'src/navigation/thq_top_bar.dart';

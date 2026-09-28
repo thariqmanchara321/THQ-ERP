@@ -47,8 +47,11 @@ class ThqMobilePosApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'THQ Mobile POS',
-      builder: (context, child) =>
-          ThqNotificationHost(child: child ?? const SizedBox.shrink()),
+      builder: (context, child) => ThqMobileProductionFrame(
+        child: ThqNotificationHost(
+          child: child ?? const SizedBox.shrink(),
+        ),
+      ),
       theme: ThqMobileTheme.pos(),
       home: const MobilePosEntryScreen(),
     );

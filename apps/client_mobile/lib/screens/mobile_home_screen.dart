@@ -778,6 +778,14 @@ class _MoreTab extends StatelessWidget {
               subtitle: locationLabel,
               onTap: onLocation,
             ),
+          if (session.release.updateAvailable) ...[
+            ThqMobileReleaseBanner(
+              currentVersion: ThqClientMobileReleaseContract.appVersion,
+              latestVersion: session.release.latestVersion,
+              notes: session.release.releaseNotes,
+            ),
+            const SizedBox(height: 10),
+          ],
           const SizedBox(height: 14),
           const ThqMobileSectionHeader(
             title: 'Device',

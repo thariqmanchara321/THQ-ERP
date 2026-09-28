@@ -4,6 +4,7 @@ import 'package:erp_core/erp_core.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:thq_logistics/thq_logistics.dart';
+import 'package:thq_ui/thq_ui.dart';
 
 import '../models/pos_models.dart';
 import '../models/pos_session.dart';
@@ -19,7 +20,7 @@ import 'mobile_pos_purchase_screen.dart';
 import 'mobile_pos_report_screen.dart';
 import 'offline_queue_screen.dart';
 
-/// Build 7 shell around the proven Mobile POS sale workspace.
+/// Production shell around the proven Mobile POS sale workspace.
 ///
 /// Transaction posting remains owned by the existing v5.2 sale sync, purchase,
 /// expense, restaurant and logistics services. This screen only orchestrates
@@ -803,6 +804,14 @@ class _MoreWorkspace extends StatelessWidget {
       subtitle: 'Identity, release, sync and secure terminal actions.',
       icon: Icons.more_horiz_rounded,
       children: [
+        if (release.updateAvailable) ...[
+          ThqMobileReleaseBanner(
+            currentVersion: ThqPosMobileReleaseContract.appVersion,
+            latestVersion: release.latestVersion,
+            notes: release.releaseNotes,
+          ),
+          const SizedBox(height: 10),
+        ],
         _IdentityCard(
           title: session.businessName,
           rows: [
