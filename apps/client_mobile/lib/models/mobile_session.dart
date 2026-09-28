@@ -1,10 +1,17 @@
+import 'package:erp_core/erp_core.dart';
+
 class MobileLocation {
   final String id;
   final String code;
   final String name;
   final String accessLevel;
 
-  const MobileLocation({required this.id, required this.code, required this.name, required this.accessLevel});
+  const MobileLocation({
+    required this.id,
+    required this.code,
+    required this.name,
+    required this.accessLevel,
+  });
 
   factory MobileLocation.fromMap(Map<String, dynamic> map) => MobileLocation(
         id: map['id']?.toString() ?? '',
@@ -27,6 +34,7 @@ class MobileSession {
   final String username;
   final bool canViewAllLocations;
   final List<MobileLocation> locations;
+  final ThqMobileReleaseStatus release;
 
   const MobileSession({
     required this.tenantId,
@@ -41,5 +49,6 @@ class MobileSession {
     required this.username,
     required this.canViewAllLocations,
     required this.locations,
+    required this.release,
   });
 }

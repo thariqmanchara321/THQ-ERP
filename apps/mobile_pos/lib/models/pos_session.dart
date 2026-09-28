@@ -1,3 +1,5 @@
+import 'package:erp_core/erp_core.dart';
+
 class PosSession {
   final String tenantId;
   final String businessName;
@@ -11,6 +13,7 @@ class PosSession {
   final String username;
   final bool restaurantEnabled;
   final Set<String> allowedModules;
+  final ThqMobileReleaseStatus release;
 
   const PosSession({
     required this.tenantId,
@@ -24,6 +27,7 @@ class PosSession {
     required this.currencyCode,
     required this.username,
     required this.restaurantEnabled,
+    required this.release,
     this.allowedModules = const <String>{},
   });
 

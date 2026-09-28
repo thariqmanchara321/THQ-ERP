@@ -1,5 +1,7 @@
+import 'package:erp_core/erp_core.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:thq_ui/thq_ui.dart';
 
 import '../services/device_installation_service.dart';
 import '../services/mobile_pos_auth_service.dart';
@@ -10,10 +12,10 @@ class MobilePosEntryScreen extends StatefulWidget {
   const MobilePosEntryScreen({super.key});
 
   @override
-  State<MobilePosEntryScreen> createState() => _State();
+  State<MobilePosEntryScreen> createState() => _MobilePosEntryScreenState();
 }
 
-class _State extends State<MobilePosEntryScreen> {
+class _MobilePosEntryScreenState extends State<MobilePosEntryScreen> {
   late Future<DeviceActivation?> _activation;
 
   @override
@@ -22,104 +24,140 @@ class _State extends State<MobilePosEntryScreen> {
     _activation = DeviceInstallationService().readActivation();
   }
 
+  void _reloadActivation() {
+    setState(() {
+      _activation = DeviceInstallationService().readActivation();
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<DeviceActivation?>(
       future: _activation,
-      builder: (context, s) {
-        if (s.connectionState != ConnectionState.done) {
-          return const Scaffold(
-            body: Center(child: CircularProgressIndicator()),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState != ConnectionState.done) {
+          return const ThqMobileLoadingPage(label: 'Checking this terminal…');
+        }
+        if (snapshot.hasError) {
+          return ThqMobileFailurePage(
+            title: 'Terminal check failed',
+            message: snapshot.error.toString(),
+            onRetry: _reloadActivation,
           );
         }
-        if (s.data == null) {
-          return _Activation(
-            onDone: () => setState(
-              () => _activation = DeviceInstallationService().readActivation(),
-            ),
-          );
+        if (snapshot.data == null) {
+          return _ActivationView(onDone: _reloadActivation);
         }
         if (Supabase.instance.client.auth.currentSession == null) {
-          return _Login(onDone: () => setState(() {}));
+          return _LoginView(onDone: () => setState(() {}));
         }
-        return const _Session();
+        return const _SessionLoader();
       },
     );
   }
 }
 
-class _Activation extends StatefulWidget {
+class _ActivationView extends StatefulWidget {
   final VoidCallback onDone;
-  const _Activation({required this.onDone});
+
+  const _ActivationView({required this.onDone});
 
   @override
-  State<_Activation> createState() => _ActivationState();
+  State<_ActivationView> createState() => _ActivationViewState();
 }
 
-class _ActivationState extends State<_Activation> {
-  final b = TextEditingController();
-  final c = TextEditingController();
-  bool busy = false;
-  String? error;
+class _ActivationViewState extends State<_ActivationView> {
+  final _business = TextEditingController();
+  final _code = TextEditingController();
+  bool _busy = false;
+  String? _error;
 
   @override
   void dispose() {
-    b.dispose();
-    c.dispose();
+    _business.dispose();
+    _code.dispose();
     super.dispose();
   }
 
-  Future<void> go() async {
-    if (busy) return;
-    setState(() => busy = true);
+  Future<void> _activate() async {
+    if (_busy) return;
+    if (_business.text.trim().isEmpty || _code.text.trim().isEmpty) {
+      setState(() => _error = 'Enter both the business code and activation code.');
+      return;
+    }
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
     try {
       await DeviceInstallationService().activate(
-        businessCode: b.text,
-        activationCode: c.text,
+        businessCode: _business.text,
+        activationCode: _code.text,
       );
       widget.onDone();
-    } catch (e) {
-      if (mounted) setState(() => error = e.toString());
+    } catch (error) {
+      if (mounted) setState(() => _error = error.toString());
     } finally {
-      if (mounted) setState(() => busy = false);
+      if (mounted) setState(() => _busy = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return _AccessShell(
-      icon: Icons.point_of_sale_rounded,
-      title: 'THQ Mobile POS',
+    return ThqMobileAccessScaffold(
+      eyebrow: 'THQ POS • SECURE TERMINAL',
+      title: 'Connect this counter',
       subtitle:
-          'Activate this phone with a POS terminal code issued from THQ Admin.',
+          'Activate once with the POS terminal code issued from THQ Admin. Sales remain bound to this authorized device and store.',
+      icon: Icons.point_of_sale_rounded,
+      versionLabel: ThqMobileReleaseContract.versionLabel,
+      footer: const Text(
+        'THQ ERP • Mobile POS',
+        style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700),
+      ),
       child: Column(
         children: [
           TextField(
-            controller: b,
+            controller: _business,
+            enabled: !_busy,
             textCapitalization: TextCapitalization.characters,
+            textInputAction: TextInputAction.next,
+            autocorrect: false,
             decoration: const InputDecoration(
               labelText: 'Business code',
-              prefixIcon: Icon(Icons.business_outlined),
+              hintText: 'Example: THQ001',
+              prefixIcon: Icon(Icons.domain_outlined),
             ),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 11),
           TextField(
-            controller: c,
+            controller: _code,
+            enabled: !_busy,
             textCapitalization: TextCapitalization.characters,
-            onSubmitted: (_) => go(),
+            textInputAction: TextInputAction.done,
+            autocorrect: false,
+            onSubmitted: (_) => _activate(),
             decoration: const InputDecoration(
               labelText: 'Activation code',
               prefixIcon: Icon(Icons.key_outlined),
             ),
           ),
-          if (error != null) ...[const SizedBox(height: 10), _ErrorBox(error!)],
-          const SizedBox(height: 12),
+          if (_error != null) ...[
+            const SizedBox(height: 11),
+            ThqMobileInlineMessage(message: _error!, error: true),
+          ],
+          const SizedBox(height: 14),
           SizedBox(
             width: double.infinity,
             child: FilledButton.icon(
-              onPressed: busy ? null : go,
-              icon: const Icon(Icons.phonelink_lock),
-              label: Text(busy ? 'Activating...' : 'Activate Mobile POS'),
+              onPressed: _busy ? null : _activate,
+              icon: _busy
+                  ? const SizedBox.square(
+                      dimension: 17,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.phonelink_lock_rounded),
+              label: Text(_busy ? 'Activating…' : 'Activate Mobile POS'),
             ),
           ),
         ],
@@ -128,198 +166,217 @@ class _ActivationState extends State<_Activation> {
   }
 }
 
-class _Login extends StatefulWidget {
+class _LoginView extends StatefulWidget {
   final VoidCallback onDone;
-  const _Login({required this.onDone});
+
+  const _LoginView({required this.onDone});
 
   @override
-  State<_Login> createState() => _LoginState();
+  State<_LoginView> createState() => _LoginViewState();
 }
 
-class _LoginState extends State<_Login> {
-  final u = TextEditingController();
-  final p = TextEditingController();
-  bool busy = false;
-  String? error;
+class _LoginViewState extends State<_LoginView> {
+  final _username = TextEditingController();
+  final _password = TextEditingController();
+  bool _busy = false;
+  bool _showPassword = false;
+  String? _error;
 
   @override
   void dispose() {
-    u.dispose();
-    p.dispose();
+    _username.dispose();
+    _password.dispose();
     super.dispose();
   }
 
-  Future<void> go() async {
-    if (busy) return;
-    setState(() => busy = true);
+  Future<void> _login() async {
+    if (_busy) return;
+    if (_username.text.trim().isEmpty || _password.text.isEmpty) {
+      setState(() => _error = 'Enter your username and password.');
+      return;
+    }
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
     try {
-      await MobilePosAuthService().signIn(username: u.text, password: p.text);
+      await MobilePosAuthService().signIn(
+        username: _username.text,
+        password: _password.text,
+      );
       widget.onDone();
-    } catch (e) {
-      if (mounted) setState(() => error = e.toString());
+    } catch (error) {
+      if (mounted) setState(() => _error = error.toString());
     } finally {
-      if (mounted) setState(() => busy = false);
+      if (mounted) setState(() => _busy = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return _AccessShell(
-      icon: Icons.badge_outlined,
-      title: 'POS sign in',
-      subtitle: 'Fast counter access for this activated mobile terminal.',
-      child: Column(
-        children: [
-          TextField(
-            controller: u,
-            autocorrect: false,
-            decoration: const InputDecoration(
-              labelText: 'Username',
-              prefixIcon: Icon(Icons.person_outline),
-            ),
-          ),
-          const SizedBox(height: 10),
-          TextField(
-            controller: p,
-            obscureText: true,
-            onSubmitted: (_) => go(),
-            decoration: const InputDecoration(
-              labelText: 'Password',
-              prefixIcon: Icon(Icons.lock_outline),
-            ),
-          ),
-          if (error != null) ...[const SizedBox(height: 10), _ErrorBox(error!)],
-          const SizedBox(height: 12),
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton(
-              onPressed: busy ? null : go,
-              child: Text(busy ? 'Signing in...' : 'Sign in'),
-            ),
-          ),
-        ],
+    return ThqMobileAccessScaffold(
+      eyebrow: 'THQ POS • FAST COUNTER ACCESS',
+      title: 'Ready to sell',
+      subtitle:
+          'Sign in to this activated terminal. Store, terminal and module permissions are enforced before the POS workspace opens.',
+      icon: Icons.point_of_sale_rounded,
+      versionLabel: ThqMobileReleaseContract.versionLabel,
+      footer: const Text(
+        'Offline-ready • GST-authoritative sync',
+        style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700),
       ),
-    );
-  }
-}
-
-class _AccessShell extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final Widget child;
-
-  const _AccessShell({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.child,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Scaffold(
-      body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(18),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 460),
-              child: Column(
-                children: [
-                  Container(
-                    width: 58,
-                    height: 58,
-                    decoration: BoxDecoration(
-                      color: scheme.primaryContainer,
-                      borderRadius: BorderRadius.circular(18),
-                    ),
-                    child: Icon(icon, size: 30, color: scheme.primary),
-                  ),
-                  const SizedBox(height: 14),
-                  Text(
-                    title,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    subtitle,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 12.5,
-                      height: 1.35,
-                      color: scheme.onSurfaceVariant,
-                    ),
-                  ),
-                  const SizedBox(height: 18),
-                  Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(14),
-                      child: child,
-                    ),
-                  ),
-                ],
+      child: AutofillGroup(
+        child: Column(
+          children: [
+            TextField(
+              controller: _username,
+              enabled: !_busy,
+              autocorrect: false,
+              autofillHints: const [AutofillHints.username],
+              textInputAction: TextInputAction.next,
+              decoration: const InputDecoration(
+                labelText: 'Username',
+                prefixIcon: Icon(Icons.person_outline_rounded),
               ),
             ),
-          ),
+            const SizedBox(height: 11),
+            TextField(
+              controller: _password,
+              enabled: !_busy,
+              obscureText: !_showPassword,
+              autofillHints: const [AutofillHints.password],
+              textInputAction: TextInputAction.done,
+              onSubmitted: (_) => _login(),
+              decoration: InputDecoration(
+                labelText: 'Password',
+                prefixIcon: const Icon(Icons.lock_outline_rounded),
+                suffixIcon: IconButton(
+                  tooltip: _showPassword ? 'Hide password' : 'Show password',
+                  onPressed: () =>
+                      setState(() => _showPassword = !_showPassword),
+                  icon: Icon(
+                    _showPassword
+                        ? Icons.visibility_off_outlined
+                        : Icons.visibility_outlined,
+                  ),
+                ),
+              ),
+            ),
+            if (_error != null) ...[
+              const SizedBox(height: 11),
+              ThqMobileInlineMessage(message: _error!, error: true),
+            ],
+            const SizedBox(height: 14),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: _busy ? null : _login,
+                icon: _busy
+                    ? const SizedBox.square(
+                        dimension: 17,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.login_rounded),
+                label: Text(_busy ? 'Signing in…' : 'Open POS'),
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
 }
 
-class _ErrorBox extends StatelessWidget {
-  final String message;
-  const _ErrorBox(this.message);
+class _SessionLoader extends StatefulWidget {
+  const _SessionLoader();
 
   @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: scheme.errorContainer,
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Text(
-        message,
-        style: TextStyle(fontSize: 11, color: scheme.onErrorContainer),
-      ),
-    );
-  }
+  State<_SessionLoader> createState() => _SessionLoaderState();
 }
 
-class _Session extends StatelessWidget {
-  const _Session();
+class _SessionLoaderState extends State<_SessionLoader> {
+  late Future _future;
+
+  @override
+  void initState() {
+    super.initState();
+    _future = MobilePosSessionService().load();
+  }
+
+  void _retry() {
+    setState(() => _future = MobilePosSessionService().load());
+  }
 
   @override
   Widget build(BuildContext context) {
     return FutureBuilder(
-      future: MobilePosSessionService().load(),
-      builder: (context, s) {
-        if (s.connectionState != ConnectionState.done) {
-          return const Scaffold(
-            body: Center(child: CircularProgressIndicator()),
-          );
+      future: _future,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState != ConnectionState.done) {
+          return const ThqMobileLoadingPage(label: 'Preparing the POS…');
         }
-        if (s.hasError) {
-          return Scaffold(
-            body: Center(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Text(s.error.toString()),
-              ),
+        if (snapshot.hasError) {
+          return ThqMobileFailurePage(
+            title: 'Could not open Mobile POS',
+            message: snapshot.error.toString(),
+            onRetry: _retry,
+            secondaryAction: TextButton(
+              onPressed: () async {
+                await MobilePosAuthService().signOut();
+                if (context.mounted) {
+                  Navigator.of(context).pushAndRemoveUntil(
+                    MaterialPageRoute(
+                      builder: (_) => const MobilePosEntryScreen(),
+                    ),
+                    (_) => false,
+                  );
+                }
+              },
+              child: const Text('Sign out'),
             ),
           );
         }
-        return MobilePosHomeScreen(session: s.data!);
+
+        final session = snapshot.data!;
+        if (session.release.updateRequired) {
+          return _MandatoryUpdateView(
+            latestVersion: session.release.latestVersion,
+            notes: session.release.releaseNotes,
+          );
+        }
+        return MobilePosHomeScreen(session: session);
       },
+    );
+  }
+}
+
+class _MandatoryUpdateView extends StatelessWidget {
+  final String latestVersion;
+  final String notes;
+
+  const _MandatoryUpdateView({
+    required this.latestVersion,
+    required this.notes,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ThqMobileFailurePage(
+      title: 'THQ update required',
+      message:
+          'This terminal is running ${ThqMobileReleaseContract.versionLabel}. Required version: ${latestVersion.isEmpty ? 'latest release' : latestVersion}.${notes.isEmpty ? '' : '\n\n$notes'}',
+      secondaryAction: TextButton(
+        onPressed: () async {
+          await MobilePosAuthService().signOut();
+          if (context.mounted) {
+            Navigator.of(context).pushAndRemoveUntil(
+              MaterialPageRoute(builder: (_) => const MobilePosEntryScreen()),
+              (_) => false,
+            );
+          }
+        },
+        child: const Text('Sign out'),
+      ),
     );
   }
 }

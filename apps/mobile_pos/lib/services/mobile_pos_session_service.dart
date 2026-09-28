@@ -1,7 +1,9 @@
+import 'package:erp_core/erp_core.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/pos_session.dart';
 import 'device_installation_service.dart';
+import 'mobile_app_log_service.dart';
 
 class MobilePosSessionService {
   SupabaseClient get _supabase => Supabase.instance.client;
@@ -25,6 +27,29 @@ class MobilePosSessionService {
       throw StateError('You do not have access to this business.');
     }
 
+    MobileAppLogService.activeTenantId = activation.tenantId;
+
+    final heartbeatRaw = await _supabase.rpc(
+      'device_heartbeat_v4',
+      params: {
+        'p_tenant_id': activation.tenantId,
+        'p_device_id': activation.deviceId,
+        'p_app_key': 'pos',
+        'p_platform': ThqMobileReleaseContract.platform,
+        'p_version': ThqMobileReleaseContract.appVersion,
+        'p_build': ThqMobileReleaseContract.buildNumber,
+        'p_metadata': {
+          'channel': 'mobile_pos',
+          'release': ThqMobileReleaseContract.releaseName,
+        },
+      },
+    );
+    final release = ThqMobileReleaseStatus.fromMap(
+      heartbeatRaw is Map
+          ? Map<String, dynamic>.from(heartbeatRaw)
+          : const <String, dynamic>{},
+    );
+
     final settings = await _supabase
         .from('tenant_settings')
         .select('currency_code')
@@ -32,7 +57,7 @@ class MobilePosSessionService {
         .maybeSingle();
 
     final raw = await _supabase.rpc(
-      'mobile_pos_terminal_context_v488',
+      'mobile_pos_terminal_context_v520',
       params: {
         'p_tenant_id': activation.tenantId,
         'p_device_id': activation.deviceId,
@@ -53,14 +78,13 @@ class MobilePosSessionService {
       deviceCode: map['device_code']?.toString() ?? activation.deviceCode,
       deviceName: map['device_name']?.toString() ?? activation.deviceName,
       locationId: map['location_id']?.toString() ?? activation.locationId,
-      locationCode:
-          map['location_code']?.toString() ?? activation.locationCode,
-      locationName:
-          map['location_name']?.toString() ?? activation.locationName,
+      locationCode: map['location_code']?.toString() ?? activation.locationCode,
+      locationName: map['location_name']?.toString() ?? activation.locationName,
       currencyCode: settings?['currency_code']?.toString() ?? 'INR',
       username: map['username']?.toString() ?? user.email ?? 'User',
       restaurantEnabled: map['restaurant_enabled'] == true,
       allowedModules: Set<String>.unmodifiable(modules),
+      release: release,
     );
   }
 }
