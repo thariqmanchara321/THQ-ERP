@@ -49,6 +49,9 @@ class _State extends State<MobilePosHomeScreen> {
   String _category = 'All';
   String _sort = 'name';
   bool _manualOffline = false;
+  Set<String> _favoriteVariantIds = <String>{};
+  List<String> _recentVariantIds = <String>[];
+  int _heldCount = 0;
   Timer? timer;
   @override
   void initState() {
@@ -93,6 +96,17 @@ class _State extends State<MobilePosHomeScreen> {
       widget.session.locationId,
     );
     customers = await local.customers(widget.session.tenantId);
+    _favoriteVariantIds = await local.favoriteVariantIds(
+      widget.session.tenantId,
+      widget.session.deviceId,
+    );
+    _recentVariantIds = await local.recentVariantIds(
+      widget.session.tenantId,
+      widget.session.deviceId,
+    );
+    _heldCount = (
+      await local.heldCarts(widget.session.tenantId, widget.session.deviceId)
+    ).length;
     customer = customer ?? _walkIn(customers);
     if (mounted) setState(() {});
   }
@@ -148,6 +162,10 @@ class _State extends State<MobilePosHomeScreen> {
 
   bool _matchesProductFilter(MobileProduct product) {
     switch (_productSection) {
+      case 'Favorites':
+        return _favoriteVariantIds.contains(product.variantId);
+      case 'Recent':
+        return _recentVariantIds.contains(product.variantId);
       case 'Stock':
         return product.itemType == 'stock';
       case 'Serial':
@@ -176,24 +194,32 @@ class _State extends State<MobilePosHomeScreen> {
           product.brandName.toLowerCase().contains(q);
     }).toList();
 
-    switch (_sort) {
-      case 'name_desc':
-        rows.sort((a, b) => b.name.compareTo(a.name));
-        break;
-      case 'price_low':
-        rows.sort((a, b) => a.sellingPrice.compareTo(b.sellingPrice));
-        break;
-      case 'price_high':
-        rows.sort((a, b) => b.sellingPrice.compareTo(a.sellingPrice));
-        break;
-      case 'stock_high':
-        rows.sort((a, b) => b.stockQuantity.compareTo(a.stockQuantity));
-        break;
-      case 'stock_low':
-        rows.sort((a, b) => a.stockQuantity.compareTo(b.stockQuantity));
-        break;
-      default:
-        rows.sort((a, b) => a.name.compareTo(b.name));
+    if (_productSection == 'Recent') {
+      rows.sort(
+        (a, b) => _recentVariantIds
+            .indexOf(a.variantId)
+            .compareTo(_recentVariantIds.indexOf(b.variantId)),
+      );
+    } else {
+      switch (_sort) {
+        case 'name_desc':
+          rows.sort((a, b) => b.name.compareTo(a.name));
+          break;
+        case 'price_low':
+          rows.sort((a, b) => a.sellingPrice.compareTo(b.sellingPrice));
+          break;
+        case 'price_high':
+          rows.sort((a, b) => b.sellingPrice.compareTo(a.sellingPrice));
+          break;
+        case 'stock_high':
+          rows.sort((a, b) => b.stockQuantity.compareTo(a.stockQuantity));
+          break;
+        case 'stock_low':
+          rows.sort((a, b) => a.stockQuantity.compareTo(b.stockQuantity));
+          break;
+        default:
+          rows.sort((a, b) => a.name.compareTo(b.name));
+      }
     }
 
     return rows.take(200).toList();
@@ -375,6 +401,7 @@ class _State extends State<MobilePosHomeScreen> {
             return;
           }
           setState(() => l.quantity = next);
+          unawaited(_recordRecent(p.variantId));
           unawaited(_resolvePrice(l));
           return;
         }
@@ -387,9 +414,272 @@ class _State extends State<MobilePosHomeScreen> {
       serialNumbers: serial == null ? null : [serial],
     );
     setState(() => cart.add(line));
+    unawaited(_recordRecent(p.variantId));
     unawaited(_resolvePrice(line));
   }
 
+  Future<void> _recordRecent(String variantId) async {
+    await local.recordRecentProduct(
+      widget.session.tenantId,
+      widget.session.deviceId,
+      variantId,
+    );
+    final recent = await local.recentVariantIds(
+      widget.session.tenantId,
+      widget.session.deviceId,
+    );
+    if (mounted) setState(() => _recentVariantIds = recent);
+  }
+
+  Future<void> _toggleFavorite(MobileProduct product) async {
+    final enabled = !_favoriteVariantIds.contains(product.variantId);
+    await local.setFavorite(
+      widget.session.tenantId,
+      widget.session.deviceId,
+      product.variantId,
+      enabled,
+    );
+    if (!mounted) return;
+    setState(() {
+      if (enabled) {
+        _favoriteVariantIds = {..._favoriteVariantIds, product.variantId};
+      } else {
+        _favoriteVariantIds = {..._favoriteVariantIds}..remove(product.variantId);
+      }
+    });
+  }
+
+  Future<void> _holdCurrentCart() async {
+    if (cart.isEmpty) return;
+    final controller = TextEditingController(
+      text: '${customer?.name ?? 'Walk-in'} â€¢ ${DateFormat('HH:mm').format(DateTime.now())}',
+    );
+    final label = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Hold current order'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          decoration: const InputDecoration(labelText: 'Hold name'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(
+              dialogContext,
+              controller.text.trim().isEmpty ? 'Held order' : controller.text.trim(),
+            ),
+            child: const Text('Hold'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (label == null || !mounted) return;
+
+    final payload = <String, dynamic>{
+      'customer_id': customer?.id,
+      'customer_name': customer?.name,
+      'round_off': roundOff,
+      'items': cart
+          .map(
+            (line) => <String, dynamic>{
+              'variant_id': line.product.variantId,
+              'unit_id': line.unit.unitId,
+              'unit_code': line.unit.code,
+              'quantity': line.quantity,
+              'serial_numbers': List<String>.from(line.serialNumbers),
+              'resolved_unit_price': line.resolvedUnitPrice,
+              'pricing_source': line.pricingSource,
+            },
+          )
+          .toList(growable: false),
+    };
+    await local.saveHeldCart(
+      holdId: const Uuid().v4(),
+      tenantId: widget.session.tenantId,
+      locationId: widget.session.locationId,
+      deviceId: widget.session.deviceId,
+      label: label,
+      payload: payload,
+    );
+    if (!mounted) return;
+    setState(() {
+      cart.clear();
+      roundOff = 0;
+      customer = _walkIn(customers);
+      _heldCount++;
+    });
+    ThqNotify.showSnackBar(
+      context,
+      const SnackBar(
+        content: Text('Order held on this device. Stock is validated again when resumed.'),
+      ),
+    );
+  }
+
+  Future<void> _resumeHeldCart() async {
+    final holds = await local.heldCarts(
+      widget.session.tenantId,
+      widget.session.deviceId,
+    );
+    if (!mounted) return;
+    if (holds.isEmpty) {
+      ThqNotify.showSnackBar(
+        context,
+        const SnackBar(content: Text('No held orders on this terminal.')),
+      );
+      return;
+    }
+    if (cart.isNotEmpty) {
+      final replace = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('Replace current order?'),
+          content: const Text(
+            'Resuming a held order will replace the current cart. Hold the current cart first if you need to keep it.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('Replace'),
+            ),
+          ],
+        ),
+      );
+      if (replace != true || !mounted) return;
+    }
+    final chosen = await showModalBottomSheet<Map<String, dynamic>>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) => SafeArea(
+        child: ListView.separated(
+          shrinkWrap: true,
+          padding: const EdgeInsets.fromLTRB(12, 0, 12, 18),
+          itemCount: holds.length,
+          separatorBuilder: (_, _) => const Divider(),
+          itemBuilder: (_, index) {
+            final hold = holds[index];
+            final payload = hold['payload'] is Map
+                ? Map<String, dynamic>.from(hold['payload'] as Map)
+                : <String, dynamic>{};
+            final itemCount = (payload['items'] as List? ?? const []).length;
+            return ListTile(
+              leading: const Icon(Icons.pause_circle_outline_rounded),
+              title: Text(hold['label']?.toString() ?? 'Held order'),
+              subtitle: Text('$itemCount line(s) â€¢ ${hold['updated_at'] ?? ''}'),
+              trailing: const Icon(Icons.chevron_right_rounded),
+              onTap: () => Navigator.pop(sheetContext, hold),
+            );
+          },
+        ),
+      ),
+    );
+    if (chosen == null || !mounted) return;
+
+    try {
+      final payload = chosen['payload'] is Map
+          ? Map<String, dynamic>.from(chosen['payload'] as Map)
+          : <String, dynamic>{};
+      final rebuilt = <CartLine>[];
+      for (final raw in (payload['items'] as List? ?? const []).whereType<Map>()) {
+        final item = Map<String, dynamic>.from(raw);
+        final variantId = item['variant_id']?.toString() ?? '';
+        MobileProduct? product;
+        for (final candidate in products) {
+          if (candidate.variantId == variantId) {
+            product = candidate;
+            break;
+          }
+        }
+        if (product == null) {
+          throw StateError('A held product is no longer available in the local catalogue. Sync and retry.');
+        }
+        var unit = product.defaultUnit;
+        for (final candidate in product.saleUnits) {
+          if ((item['unit_id']?.toString().isNotEmpty == true &&
+                  candidate.unitId == item['unit_id']?.toString()) ||
+              candidate.code == item['unit_code']?.toString()) {
+            unit = candidate;
+            break;
+          }
+        }
+        final quantity = numberValue(item['quantity'], unit.quantityStep);
+        if (quantity <= 0) throw StateError('Held quantity is invalid.');
+        if (product.itemType == 'stock' &&
+            quantity * unit.conversionToBase > product.stockQuantity + 0.000001) {
+          throw StateError('Not enough current stock to resume ${product.name}.');
+        }
+        final serials = (item['serial_numbers'] as List? ?? const [])
+            .map((value) => value.toString())
+            .where((value) => value.isNotEmpty)
+            .toList();
+        for (final serial in serials) {
+          final found = await local.findSerial(
+            widget.session.tenantId,
+            widget.session.locationId,
+            serial,
+          );
+          if (found == null || found['variant_id']?.toString() != product.variantId) {
+            throw StateError('Serial $serial is no longer available.');
+          }
+        }
+        final resolvedRaw = item['resolved_unit_price'];
+        rebuilt.add(
+          CartLine(
+            product: product,
+            unit: unit,
+            quantity: quantity,
+            serialNumbers: serials,
+            resolvedUnitPrice:
+                resolvedRaw == null ? null : numberValue(resolvedRaw),
+            pricingSource: item['pricing_source']?.toString() ?? 'cached',
+          ),
+        );
+      }
+      if (rebuilt.isEmpty) throw StateError('Held order has no usable items.');
+
+      MobileCustomer? restoredCustomer;
+      final customerId = payload['customer_id']?.toString() ?? '';
+      for (final candidate in customers) {
+        if (candidate.id == customerId) {
+          restoredCustomer = candidate;
+          break;
+        }
+      }
+      await local.deleteHeldCart(chosen['hold_id']?.toString() ?? '');
+      if (!mounted) return;
+      setState(() {
+        cart
+          ..clear()
+          ..addAll(rebuilt);
+        customer = restoredCustomer ?? _walkIn(customers);
+        roundOff = numberValue(payload['round_off']);
+        _heldCount = (_heldCount - 1).clamp(0, 999).toInt();
+      });
+      await _resolveAllPrices();
+      if (!mounted) return;
+      ThqNotify.showSnackBar(
+        context,
+        const SnackBar(content: Text('Held order resumed and revalidated.')),
+      );
+    } catch (error) {
+      if (mounted) {
+        ThqNotify.showSnackBar(
+          context,
+          SnackBar(content: Text('Could not resume held order: $error')),
+        );
+      }
+    }
+  }
   void _qty(CartLine line, double delta) {
     if (line.product.trackingMode == 'serial') return;
     final step = line.unit.quantityStep > 0 ? line.unit.quantityStep : 1.0;
@@ -899,6 +1189,8 @@ class _State extends State<MobilePosHomeScreen> {
       await _setManualOffline(true);
     } else if (value == 'go_online') {
       await _setManualOffline(false);
+    } else if (value == 'held') {
+      await _resumeHeldCart();
     } else if (value == 'queue') {
       await Navigator.of(context).push(
         MaterialPageRoute(
@@ -1169,6 +1461,15 @@ class _State extends State<MobilePosHomeScreen> {
             ),
             icon: const Icon(Icons.qr_code_scanner_rounded),
           ),
+          if (_heldCount > 0)
+            Badge(
+              label: Text('$_heldCount'),
+              child: IconButton(
+                tooltip: 'Resume held order',
+                onPressed: _resumeHeldCart,
+                icon: const Icon(Icons.pause_circle_outline_rounded),
+              ),
+            ),
           PopupMenuButton<String>(
             tooltip: 'POS menu',
             onSelected: menu,
@@ -1195,6 +1496,15 @@ class _State extends State<MobilePosHomeScreen> {
                   contentPadding: EdgeInsets.zero,
                   leading: Icon(Icons.sync_alt_rounded),
                   title: Text('Synced / Not Synced'),
+                ),
+              ),
+              const PopupMenuItem(
+                value: 'held',
+                child: ListTile(
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  leading: Icon(Icons.pause_circle_outline_rounded),
+                  title: Text('Held orders'),
                 ),
               ),
               const PopupMenuItem(
@@ -1524,6 +1834,13 @@ class _State extends State<MobilePosHomeScreen> {
         accent: const Color(0xFF14A765),
       ),
       _metricCard(
+        icon: Icons.pause_circle_outline_rounded,
+        label: 'Held orders',
+        value: '$_heldCount',
+        accent: const Color(0xFFCC7A00),
+        onTap: _resumeHeldCart,
+      ),
+      _metricCard(
         icon: Icons.person_outline_rounded,
         label: 'Customer',
         value: customer?.name ?? 'Select',
@@ -1740,6 +2057,8 @@ class _State extends State<MobilePosHomeScreen> {
                   ),
                   items: const [
                     DropdownMenuItem(value: 'All', child: Text('All products')),
+                    DropdownMenuItem(value: 'Favorites', child: Text('Favorites')),
+                    DropdownMenuItem(value: 'Recent', child: Text('Recent')),
                     DropdownMenuItem(value: 'Stock', child: Text('Stock')),
                     DropdownMenuItem(value: 'Serial', child: Text('Serial')),
                     DropdownMenuItem(value: 'Batch', child: Text('Batch')),
@@ -1854,6 +2173,23 @@ class _State extends State<MobilePosHomeScreen> {
                     ),
                   ),
                   const Spacer(),
+                  IconButton(
+                    tooltip: _favoriteVariantIds.contains(product.variantId)
+                        ? 'Remove favorite'
+                        : 'Add favorite',
+                    onPressed: () => _toggleFavorite(product),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints.tightFor(width: 30, height: 30),
+                    iconSize: 18,
+                    icon: Icon(
+                      _favoriteVariantIds.contains(product.variantId)
+                          ? Icons.star_rounded
+                          : Icons.star_border_rounded,
+                      color: _favoriteVariantIds.contains(product.variantId)
+                          ? const Color(0xFFD28A00)
+                          : const Color(0xFF8C98A8),
+                    ),
+                  ),
                   if (product.trackingMode == 'serial' ||
                       product.trackingMode == 'batch')
                     Container(
@@ -1983,6 +2319,15 @@ class _State extends State<MobilePosHomeScreen> {
                     },
                     icon: const Icon(Icons.person_outline_rounded, size: 19),
                   ),
+                  if (cart.isNotEmpty)
+                    IconButton(
+                      tooltip: 'Hold order',
+                      onPressed: () async {
+                        await _holdCurrentCart();
+                        refreshOverlay?.call();
+                      },
+                      icon: const Icon(Icons.pause_circle_outline_rounded, size: 19),
+                    ),
                   if (cart.isNotEmpty)
                     IconButton(
                       tooltip: 'Clear cart',
@@ -2361,7 +2706,18 @@ class _State extends State<MobilePosHomeScreen> {
               ),
             ),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 6),
+          IconButton(
+            tooltip: 'Hold order',
+            onPressed: cart.isEmpty ? null : _holdCurrentCart,
+            style: IconButton.styleFrom(
+              minimumSize: const Size.square(50),
+              backgroundColor: const Color(0xFFFFF4E5),
+              foregroundColor: const Color(0xFFB56B00),
+            ),
+            icon: const Icon(Icons.pause_circle_outline_rounded),
+          ),
+          const SizedBox(width: 6),
           FilledButton.icon(
             onPressed: cart.isEmpty ? null : checkout,
             icon: const Icon(Icons.payments_outlined, size: 18),

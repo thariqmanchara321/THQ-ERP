@@ -23,9 +23,9 @@ abstract final class ThqClientMobileReleaseContract {
 }
 
 abstract final class ThqPosMobileReleaseContract {
-  static const String appVersion = '6.2.2';
-  static const int buildNumber = 7;
-  static const String releaseName = 'Mobile POS Workspace';
+  static const String appVersion = '6.2.3';
+  static const int buildNumber = 8;
+  static const String releaseName = 'Mobile POS Operations & Speed';
   static const String platform = 'android';
 
   static const String versionLabel = 'v$appVersion • Build $buildNumber';

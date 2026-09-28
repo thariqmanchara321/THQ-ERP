@@ -11,6 +11,7 @@ import '../services/device_installation_service.dart';
 import '../services/mobile_pos_auth_service.dart';
 import '../services/mobile_pos_local_store.dart';
 import '../services/mobile_pos_sync_service.dart';
+import 'mobile_cashier_shift_screen.dart';
 import 'mobile_pos_entry_screen.dart';
 import 'mobile_pos_expense_screen.dart';
 import 'mobile_pos_home_screen.dart';
@@ -137,6 +138,9 @@ class _MobilePosWorkspaceScreenState extends State<MobilePosWorkspaceScreen> {
             session: widget.session,
             offlineMode: false,
           ),
+        ),
+        onCashier: () => _push(
+          MobileCashierShiftScreen(session: widget.session),
         ),
         onLogistics: () => _push(
           LogisticsOperationsWorkspace(
@@ -360,6 +364,7 @@ class _OrdersWorkspace extends StatefulWidget {
 
 class _OrdersWorkspaceState extends State<_OrdersWorkspace> {
   late Future<List<LocalInvoice>> _future;
+  String _filter = 'all';
 
   @override
   void initState() {
@@ -393,6 +398,20 @@ class _OrdersWorkspaceState extends State<_OrdersWorkspace> {
             .length;
         final conflicts = rows.where((row) => row.status == 'conflict').length;
         final synced = rows.where((row) => row.status == 'synced').length;
+        final visibleRows = rows.where((row) {
+          switch (_filter) {
+            case 'waiting':
+              return row.status == 'pending' ||
+                  row.status == 'error' ||
+                  row.status == 'syncing';
+            case 'conflict':
+              return row.status == 'conflict';
+            case 'synced':
+              return row.status == 'synced';
+            default:
+              return true;
+          }
+        }).toList(growable: false);
 
         return _WorkspacePage(
           eyebrow: 'Mobile POS',
@@ -458,6 +477,21 @@ class _OrdersWorkspaceState extends State<_OrdersWorkspace> {
                 ),
               ],
             ),
+            const SizedBox(height: 12),
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: SegmentedButton<String>(
+                segments: const [
+                  ButtonSegment(value: 'all', label: Text('All')),
+                  ButtonSegment(value: 'waiting', label: Text('Waiting')),
+                  ButtonSegment(value: 'conflict', label: Text('Conflicts')),
+                  ButtonSegment(value: 'synced', label: Text('Synced')),
+                ],
+                selected: <String>{_filter},
+                onSelectionChanged: (value) => setState(() => _filter = value.first),
+                showSelectedIcon: false,
+              ),
+            ),
             const SizedBox(height: 16),
             _SectionHeading(
               title: 'Recent terminal orders',
@@ -471,14 +505,14 @@ class _OrdersWorkspaceState extends State<_OrdersWorkspace> {
               const _LoadingCard()
             else if (snapshot.hasError)
               _ErrorCard(message: snapshot.error.toString())
-            else if (rows.isEmpty)
+            else if (visibleRows.isEmpty)
               const _EmptyCard(
                 icon: Icons.receipt_long_outlined,
                 title: 'No local orders yet',
                 message: 'New Mobile POS sales will appear here immediately.',
               )
             else
-              ...rows.take(20).map(
+              ...visibleRows.take(20).map(
                     (row) => Padding(
                       padding: const EdgeInsets.only(bottom: 8),
                       child: _OrderCard(
@@ -498,6 +532,7 @@ class _OperationsWorkspace extends StatelessWidget {
   final PosSession session;
   final VoidCallback onPurchase;
   final VoidCallback onExpense;
+  final VoidCallback onCashier;
   final VoidCallback onLogistics;
   final VoidCallback onVehicleLogistics;
   final VoidCallback onQueue;
@@ -507,6 +542,7 @@ class _OperationsWorkspace extends StatelessWidget {
     required this.session,
     required this.onPurchase,
     required this.onExpense,
+    required this.onCashier,
     required this.onLogistics,
     required this.onVehicleLogistics,
     required this.onQueue,
@@ -540,6 +576,13 @@ class _OperationsWorkspace extends StatelessWidget {
               ? 'Record an expense with accounting checks.'
               : 'Expenses is not enabled for this terminal.',
           onTap: _allowed('expenses') ? onExpense : null,
+        ),
+        const SizedBox(height: 8),
+        _OperationCard(
+          icon: Icons.badge_outlined,
+          title: 'Cashier shift',
+          subtitle: 'Open, review and close the active terminal cash shift.',
+          onTap: onCashier,
         ),
         const SizedBox(height: 8),
         if (session.restaurantEnabled) ...[
