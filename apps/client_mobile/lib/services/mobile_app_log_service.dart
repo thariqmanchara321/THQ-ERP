@@ -22,12 +22,12 @@ class MobileAppLogService {
           'p_stack_trace': stack?.toString(),
           'p_context': {
             'channel': 'client_mobile',
-            'build': ThqMobileReleaseContract.buildNumber,
+            'build': ThqClientMobileReleaseContract.buildNumber,
             ...?context,
           },
           'p_tenant_id': activeTenantId,
           'p_severity': severity,
-          'p_app_version': ThqMobileReleaseContract.appVersion,
+          'p_app_version': ThqClientMobileReleaseContract.appVersion,
         },
       );
     } catch (_) {

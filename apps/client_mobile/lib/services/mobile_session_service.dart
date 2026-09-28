@@ -14,7 +14,9 @@ class MobileSessionService {
       throw StateError('Client Mobile is not activated.');
     }
     final user = _supabase.auth.currentUser;
-    if (user == null) throw StateError('User is not signed in.');
+    if (user == null) {
+      throw StateError('User is not signed in.');
+    }
 
     final membership = await _supabase
         .from('tenant_memberships')
@@ -35,12 +37,12 @@ class MobileSessionService {
         'p_tenant_id': activation.tenantId,
         'p_device_id': activation.deviceId,
         'p_app_key': 'client',
-        'p_platform': ThqMobileReleaseContract.platform,
-        'p_version': ThqMobileReleaseContract.appVersion,
-        'p_build': ThqMobileReleaseContract.buildNumber,
+        'p_platform': ThqClientMobileReleaseContract.platform,
+        'p_version': ThqClientMobileReleaseContract.appVersion,
+        'p_build': ThqClientMobileReleaseContract.buildNumber,
         'p_metadata': {
           'channel': 'client_mobile',
-          'release': ThqMobileReleaseContract.releaseName,
+          'release': ThqClientMobileReleaseContract.releaseName,
         },
       },
     );
@@ -67,6 +69,18 @@ class MobileSessionService {
     final runtime = runtimeRaw is Map
         ? Map<String, dynamic>.from(runtimeRaw)
         : <String, dynamic>{};
+
+    final clientContextRaw = await _supabase.rpc(
+      'mobile_client_context_v621',
+      params: {
+        'p_tenant_id': activation.tenantId,
+        'p_device_id': activation.deviceId,
+      },
+    );
+    final clientContext = clientContextRaw is Map
+        ? Map<String, dynamic>.from(clientContextRaw)
+        : <String, dynamic>{};
+
     final locations = (runtime['locations'] as List? ?? const [])
         .whereType<Map>()
         .map((row) => MobileLocation.fromMap(Map<String, dynamic>.from(row)))
@@ -86,6 +100,15 @@ class MobileSessionService {
       currencyCode: settingsRaw?['currency_code']?.toString() ?? 'INR',
       username: runtime['username']?.toString() ?? user.email ?? 'User',
       canViewAllLocations: runtime['can_view_all_locations'] == true,
+      canApprove: clientContext['can_approve'] == true,
+      canReceiveCustomerPayment:
+          clientContext['can_receive_customer_payment'] == true,
+      canViewNotifications:
+          clientContext['can_view_notifications'] == true,
+      canViewAudit: clientContext['can_view_audit'] == true,
+      canViewTraceability:
+          clientContext['can_view_traceability'] == true,
+      canViewWarranty: clientContext['can_view_warranty'] == true,
       locations: locations,
       release: release,
     );

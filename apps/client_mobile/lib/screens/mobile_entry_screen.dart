@@ -36,7 +36,7 @@ class _MobileEntryScreenState extends State<MobileEntryScreen> {
       future: _activation,
       builder: (context, snapshot) {
         if (snapshot.connectionState != ConnectionState.done) {
-          return const ThqMobileLoadingPage(label: 'Checking this device…');
+          return const ThqMobileLoadingPage(label: 'Checking this deviceâ€¦');
         }
         if (snapshot.hasError) {
           return ThqMobileFailurePage(
@@ -105,14 +105,14 @@ class _ActivationViewState extends State<_ActivationView> {
   @override
   Widget build(BuildContext context) {
     return ThqMobileAccessScaffold(
-      eyebrow: 'THQ BUSINESS • SECURE MOBILE',
+      eyebrow: 'THQ BUSINESS â€¢ SECURE MOBILE',
       title: 'Connect this phone',
       subtitle:
           'Activate once with the Client system code issued from THQ Admin. The device identity is stored securely on this phone.',
       icon: Icons.business_center_rounded,
-      versionLabel: ThqMobileReleaseContract.versionLabel,
+      versionLabel: ThqClientMobileReleaseContract.versionLabel,
       footer: const Text(
-        'THQ ERP • Client Mobile',
+        'THQ ERP â€¢ Client Mobile',
         style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700),
       ),
       child: AutofillGroup(
@@ -158,7 +158,7 @@ class _ActivationViewState extends State<_ActivationView> {
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
                     : const Icon(Icons.verified_user_outlined),
-                label: Text(_busy ? 'Activating…' : 'Activate Client Mobile'),
+                label: Text(_busy ? 'Activatingâ€¦' : 'Activate Client Mobile'),
               ),
             ),
           ],
@@ -217,12 +217,12 @@ class _LoginViewState extends State<_LoginView> {
   @override
   Widget build(BuildContext context) {
     return ThqMobileAccessScaffold(
-      eyebrow: 'THQ BUSINESS • CLIENT MOBILE',
+      eyebrow: 'THQ BUSINESS â€¢ CLIENT MOBILE',
       title: 'Welcome back',
       subtitle:
           'Sign in to the business already assigned to this device. Access remains controlled by your THQ role and store permissions.',
       icon: Icons.business_center_rounded,
-      versionLabel: ThqMobileReleaseContract.versionLabel,
+      versionLabel: ThqClientMobileReleaseContract.versionLabel,
       footer: const Text(
         'Secure role-based access',
         style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700),
@@ -279,7 +279,7 @@ class _LoginViewState extends State<_LoginView> {
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
                     : const Icon(Icons.login_rounded),
-                label: Text(_busy ? 'Signing in…' : 'Sign in'),
+                label: Text(_busy ? 'Signing inâ€¦' : 'Sign in'),
               ),
             ),
           ],
@@ -364,7 +364,7 @@ class _MandatoryUpdateView extends StatelessWidget {
     return ThqMobileFailurePage(
       title: 'THQ update required',
       message:
-          'This device is running ${ThqMobileReleaseContract.versionLabel}. Required version: ${latestVersion.isEmpty ? 'latest release' : latestVersion}.${notes.isEmpty ? '' : '\n\n$notes'}',
+          'This device is running ${ThqClientMobileReleaseContract.versionLabel}. Required version: ${latestVersion.isEmpty ? 'latest release' : latestVersion}.${notes.isEmpty ? '' : '\n\n$notes'}',
       secondaryAction: TextButton(
         onPressed: () async {
           await MobileAuthService().signOut();

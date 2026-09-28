@@ -1,17 +1,22 @@
-// ignore_for_file: curly_braces_in_flow_control_structures
 import 'package:erp_core/erp_core.dart';
 import 'package:flutter/material.dart';
-import 'package:thq_ui/thq_ui.dart';
 import 'package:thq_logistics/thq_logistics.dart';
+import 'package:thq_ui/thq_ui.dart';
+
 import '../models/mobile_session.dart';
 import '../services/device_installation_service.dart';
 import '../services/mobile_auth_service.dart';
 import '../services/mobile_client_service.dart';
+import '../widgets/mobile_workspace_widgets.dart';
 import 'mobile_entry_screen.dart';
+import 'workspace/mobile_primary_tabs.dart';
+import 'workspace/mobile_tools_pages.dart';
 
 class MobileHomeScreen extends StatefulWidget {
   final MobileSession session;
+
   const MobileHomeScreen({super.key, required this.session});
+
   @override
   State<MobileHomeScreen> createState() => _MobileHomeScreenState();
 }
@@ -21,6 +26,7 @@ class _MobileHomeScreenState extends State<MobileHomeScreen> {
   int _index = 0;
   String? _locationId;
   late Future<Map<String, dynamic>> _dashboard;
+
   @override
   void initState() {
     super.initState();
@@ -30,113 +36,233 @@ class _MobileHomeScreenState extends State<MobileHomeScreen> {
     _dashboard = _service.dashboard(widget.session, locationId: _locationId);
   }
 
-  void _refresh() {
-    setState(
-      () => _dashboard = _service.dashboard(
-        widget.session,
-        locationId: _locationId,
+  String get _locationLabel {
+    if (_locationId == null) {
+      return 'All accessible stores';
+    }
+    for (final location in widget.session.locations) {
+      if (location.id == _locationId) {
+        return location.name;
+      }
+    }
+    if (_locationId == widget.session.locationId) {
+      return widget.session.locationName;
+    }
+    return 'Selected store';
+  }
+
+  void _refreshDashboard() {
+    setState(() {
+      _dashboard = _service.dashboard(widget.session, locationId: _locationId);
+    });
+  }
+
+  Future<void> _selectLocation() async {
+    if (!widget.session.canViewAllLocations) {
+      return;
+    }
+    final selected = await showModalBottomSheet<String>(
+      context: context,
+      useSafeArea: true,
+      builder: (context) => _LocationSheet(
+        selected: _locationId,
+        locations: widget.session.locations,
+      ),
+    );
+    if (!mounted || selected == null) {
+      return;
+    }
+    setState(() {
+      _locationId = selected == _LocationSheet.allSentinel ? null : selected;
+      _dashboard = _service.dashboard(widget.session, locationId: _locationId);
+    });
+  }
+
+  void _openSearch() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => MobileGlobalSearchPage(
+          session: widget.session,
+          service: _service,
+          locationId: _locationId,
+        ),
       ),
     );
   }
 
-  String money(dynamic v) {
-    final n = v is num
-        ? v.toDouble()
-        : double.tryParse(v?.toString() ?? '') ?? 0;
-    return '${widget.session.currencyCode} ${n.toStringAsFixed(2)}';
+  void _openNotifications() {
+    if (!widget.session.canViewNotifications) {
+      return;
+    }
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => MobileNotificationsPage(
+          session: widget.session,
+          service: _service,
+        ),
+      ),
+    );
+  }
+
+  void _openApprovals() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => MobileApprovalsPage(
+          session: widget.session,
+          service: _service,
+        ),
+      ),
+    );
+  }
+
+  void _openTraceability() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => MobileTraceabilityPage(
+          session: widget.session,
+          service: _service,
+          locationId: _locationId,
+        ),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final pages = [
-      _DashboardTab(
+    final pages = <Widget>[
+      _OverviewTab(
         session: widget.session,
-        future: _dashboard,
-        money: money,
-        onRefresh: _refresh,
-        locationId: _locationId,
-        onLocation: (v) {
-          setState(() => _locationId = v);
-          _refresh();
-        },
-        onOpen: _open,
+        dashboard: _dashboard,
+        locationLabel: _locationLabel,
+        onRefresh: _refreshDashboard,
+        onLocation: _selectLocation,
+        onSearch: _openSearch,
+        onNotifications:
+            widget.session.canViewNotifications ? _openNotifications : null,
+        onSales: () => setState(() => _index = 1),
+        onInventory: () => setState(() => _index = 2),
+        onMoney: () => setState(() => _index = 3),
+        onApprovals: _openApprovals,
+        onPurchases: () => Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => MobilePurchasesPage(
+              session: widget.session,
+              service: _service,
+              locationId: _locationId,
+            ),
+          ),
+        ),
+        onTraceability: _openTraceability,
       ),
-      _BusinessTab(open: _open),
-      _ApprovalsTab(session: widget.session, service: _service, money: money),
+      MobileSalesWorkspace(
+        session: widget.session,
+        service: _service,
+        locationId: _locationId,
+      ),
+      MobileInventoryWorkspace(
+        session: widget.session,
+        service: _service,
+        locationId: _locationId,
+        onOpenTraceability:
+            widget.session.canViewTraceability ? _openTraceability : null,
+      ),
+      MobileMoneyWorkspace(
+        session: widget.session,
+        service: _service,
+        locationId: _locationId,
+      ),
       _MoreTab(
         session: widget.session,
         service: _service,
-        money: money,
-        onOpen: _open,
+        locationId: _locationId,
+        locationLabel: _locationLabel,
+        onLocation: _selectLocation,
+        onSearch: _openSearch,
+        onNotifications: _openNotifications,
+        onApprovals: _openApprovals,
+        onTraceability: _openTraceability,
         onLogout: _logout,
+        onDeactivate: _deactivate,
       ),
     ];
 
-    final titles = ['Dashboard', 'Business', 'Approvals', 'More'];
+    const titles = ['Overview', 'Sales', 'Inventory', 'Money', 'More'];
 
     return Scaffold(
       appBar: _index == 0
           ? null
           : AppBar(
-              toolbarHeight: 56,
-              title: Text(titles[_index]),
+              title: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(titles[_index]),
+                  Text(
+                    _locationLabel,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                  ),
+                ],
+              ),
               actions: [
-                if (_index == 1)
+                if (widget.session.canViewAllLocations)
                   IconButton(
-                    tooltip: 'Refresh dashboard',
-                    onPressed: _refresh,
-                    icon: const Icon(Icons.refresh_rounded),
+                    tooltip: 'Change store scope',
+                    onPressed: _selectLocation,
+                    icon: const Icon(Icons.store_mall_directory_outlined),
+                  ),
+                IconButton(
+                  tooltip: 'Search business',
+                  onPressed: _openSearch,
+                  icon: const Icon(Icons.search_rounded),
+                ),
+                if (widget.session.canViewNotifications)
+                  IconButton(
+                    tooltip: 'Notifications',
+                    onPressed: _openNotifications,
+                    icon: const Icon(Icons.notifications_none_rounded),
                   ),
                 const SizedBox(width: 4),
               ],
             ),
-      body: _index == 0
-          ? pages[_index]
-          : SafeArea(top: false, child: pages[_index]),
+      body: IndexedStack(index: _index, children: pages),
       bottomNavigationBar: SafeArea(
         top: false,
-        minimum: const EdgeInsets.fromLTRB(12, 0, 12, 10),
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: const Color(0xFFE9E6F1)),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.07),
-                blurRadius: 18,
-                offset: const Offset(0, 6),
+        minimum: const EdgeInsets.fromLTRB(10, 0, 10, 8),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(20),
+          child: NavigationBar(
+            selectedIndex: _index,
+            onDestinationSelected: (value) => setState(() => _index = value),
+            destinations: const [
+              NavigationDestination(
+                icon: Icon(Icons.grid_view_outlined),
+                selectedIcon: Icon(Icons.grid_view_rounded),
+                label: 'Overview',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.receipt_long_outlined),
+                selectedIcon: Icon(Icons.receipt_long_rounded),
+                label: 'Sales',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.inventory_2_outlined),
+                selectedIcon: Icon(Icons.inventory_2_rounded),
+                label: 'Stock',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.account_balance_wallet_outlined),
+                selectedIcon: Icon(Icons.account_balance_wallet_rounded),
+                label: 'Money',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.more_horiz_rounded),
+                selectedIcon: Icon(Icons.more_horiz_rounded),
+                label: 'More',
               ),
             ],
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(20),
-            child: NavigationBar(
-              selectedIndex: _index,
-              onDestinationSelected: (v) => setState(() => _index = v),
-              destinations: const [
-                NavigationDestination(
-                  icon: Icon(Icons.grid_view_rounded),
-                  selectedIcon: Icon(Icons.grid_view_rounded),
-                  label: 'Overview',
-                ),
-                NavigationDestination(
-                  icon: Icon(Icons.business_center_outlined),
-                  selectedIcon: Icon(Icons.business_center_rounded),
-                  label: 'Business',
-                ),
-                NavigationDestination(
-                  icon: Icon(Icons.approval_outlined),
-                  selectedIcon: Icon(Icons.approval_rounded),
-                  label: 'Approvals',
-                ),
-                NavigationDestination(
-                  icon: Icon(Icons.more_horiz_rounded),
-                  selectedIcon: Icon(Icons.more_horiz_rounded),
-                  label: 'More',
-                ),
-              ],
-            ),
           ),
         ),
       ),
@@ -145,511 +271,319 @@ class _MobileHomeScreenState extends State<MobileHomeScreen> {
 
   Future<void> _logout() async {
     await MobileAuthService().signOut();
-    if (!mounted) return;
+    if (!mounted) {
+      return;
+    }
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(builder: (_) => const MobileEntryScreen()),
       (_) => false,
     );
   }
 
-  void _open(String key) {
-    switch (key) {
-      case 'sales':
-        _push(
-          'Sales Status',
-          () => _service.sales(widget.session, locationId: _locationId),
-          [
-            'sale_number',
-            'customer_name',
-            'status',
-            'grand_total',
-            'balance_due',
-          ],
-        );
-        break;
-      case 'purchases':
-        _push(
-          'Purchases',
-          () => _service.purchases(widget.session, locationId: _locationId),
-          [
-            'document_type',
-            'document_number',
-            'supplier_name',
-            'status',
-            'grand_total',
-            'balance_due',
-          ],
-        );
-        break;
-      case 'inventory':
-        _push(
-          'Inventory',
-          () => _service.inventory(widget.session, locationId: _locationId),
-          [
-            'product_name',
-            'sku',
-            'location_name',
-            'available',
-            'status',
-            'stock_value',
-          ],
-        );
-        break;
-      case 'customers':
-        _push(
-          'Customer Outstanding',
-          () => _service.customerOutstanding(
-            widget.session,
-            locationId: _locationId,
-          ),
-          [
-            'customer_name',
-            'phone',
-            'total_outstanding',
-            'days_90_plus',
-            'status',
-          ],
-        );
-        break;
-      case 'suppliers':
-        _push(
-          'Supplier Outstanding',
-          () => _service.supplierOutstanding(
-            widget.session,
-            locationId: _locationId,
-          ),
-          [
-            'supplier_name',
-            'phone',
-            'total_outstanding',
-            'days_90_plus',
-            'status',
-          ],
-        );
-        break;
-      case 'logistics_operations':
-        Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (_) => LogisticsOperationsWorkspace(
-              tenantId: widget.session.tenantId,
-              locationId: _locationId,
-            ),
-          ),
-        );
-        break;
-      case 'vehicle_logistics':
-        Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (_) => VehicleLogisticsReportWorkspace(
-              tenantId: widget.session.tenantId,
-              locationId: _locationId,
-            ),
-          ),
-        );
-        break;
-      case 'stores':
-        _push(
-          'Store Performance',
-          () => _service.storePerformance(widget.session),
-          [
-            'location_name',
-            'net_sales',
-            'gross_profit',
-            'invoice_count',
-            'inventory_value',
-            'receivables',
-            'payables',
-          ],
-        );
-        break;
-    }
-  }
-
-  void _push(
-    String title,
-    Future<List<Map<String, dynamic>>> Function() loader,
-    List<String> fields,
-  ) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => _DataListPage(
-          title: title,
-          loader: loader,
-          fields: fields,
-          currency: widget.session.currencyCode,
+  Future<void> _deactivate() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Deactivate this phone?'),
+        content: const Text(
+          'This removes the local activation from this phone. The business data in THQ is not deleted.',
         ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Deactivate'),
+          ),
+        ],
       ),
+    );
+    if (confirmed != true) {
+      return;
+    }
+    await MobileAuthService().signOut();
+    await DeviceInstallationService().clearActivation();
+    if (!mounted) {
+      return;
+    }
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const MobileEntryScreen()),
+      (_) => false,
     );
   }
 }
 
-class _DashboardTab extends StatelessWidget {
+class _OverviewTab extends StatelessWidget {
   final MobileSession session;
-  final Future<Map<String, dynamic>> future;
-  final String Function(dynamic) money;
+  final Future<Map<String, dynamic>> dashboard;
+  final String locationLabel;
   final VoidCallback onRefresh;
-  final String? locationId;
-  final ValueChanged<String?> onLocation;
-  final ValueChanged<String> onOpen;
+  final VoidCallback onLocation;
+  final VoidCallback onSearch;
+  final VoidCallback? onNotifications;
+  final VoidCallback onSales;
+  final VoidCallback onInventory;
+  final VoidCallback onMoney;
+  final VoidCallback onApprovals;
+  final VoidCallback onPurchases;
+  final VoidCallback onTraceability;
 
-  const _DashboardTab({
+  const _OverviewTab({
     required this.session,
-    required this.future,
-    required this.money,
+    required this.dashboard,
+    required this.locationLabel,
     required this.onRefresh,
-    required this.locationId,
     required this.onLocation,
-    required this.onOpen,
+    required this.onSearch,
+    required this.onNotifications,
+    required this.onSales,
+    required this.onInventory,
+    required this.onMoney,
+    required this.onApprovals,
+    required this.onPurchases,
+    required this.onTraceability,
   });
 
   @override
   Widget build(BuildContext context) => RefreshIndicator(
-    onRefresh: () async => onRefresh(),
-    child: FutureBuilder<Map<String, dynamic>>(
-      future: future,
-      builder: (context, s) {
-        if (s.connectionState != ConnectionState.done) {
-          return ListView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            children: const [
-              SizedBox(height: 280),
-              Center(child: CircularProgressIndicator(strokeWidth: 2.4)),
-            ],
-          );
-        }
+        onRefresh: () async => onRefresh(),
+        child: FutureBuilder<Map<String, dynamic>>(
+          future: dashboard,
+          builder: (context, snapshot) {
+            final data = snapshot.data ?? const <String, dynamic>{};
+            final attention = data['attention'] is Map
+                ? Map<String, dynamic>.from(data['attention'] as Map)
+                : <String, dynamic>{};
 
-        if (s.hasError) {
-          return ListView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.all(20),
-            children: [
-              const SizedBox(height: 120),
-              ThqErrorState(
-                title: 'Could not load dashboard',
-                message: 'Pull down to retry.',
-              ),
-            ],
-          );
-        }
-
-        final d = s.data ?? {};
-        final a = d['attention'] is Map
-            ? Map<String, dynamic>.from(d['attention'] as Map)
-            : <String, dynamic>{};
-
-        return ListView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          padding: EdgeInsets.zero,
-          children: [
-            _DashboardHero(
-              businessName: session.businessName,
-              netSales: money(d['net_sales']),
-              grossProfit: money(d['gross_profit']),
-              invoiceCount: '${d['invoice_count'] ?? 0}',
-              approvals: '${d['pending_approvals'] ?? 0}',
-              onRefresh: onRefresh,
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(14, 12, 14, 0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  if (session.canViewAllLocations) ...[
-                    DropdownButtonFormField<String?>(
-                      initialValue: locationId,
-                      decoration: const InputDecoration(
-                        labelText: 'Store scope',
-                        prefixIcon: Icon(Icons.store_mall_directory_outlined),
-                      ),
-                      items: [
-                        const DropdownMenuItem<String?>(
-                          value: null,
-                          child: Text('All accessible stores'),
+            return ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: EdgeInsets.zero,
+              children: [
+                WorkspaceHero(
+                  session: session,
+                  locationLabel: locationLabel,
+                  netSales: snapshot.hasData
+                      ? workspaceMoney(session, data['net_sales'])
+                      : '—',
+                  grossProfit: snapshot.hasData
+                      ? workspaceMoney(session, data['gross_profit'])
+                      : '—',
+                  invoices: snapshot.hasData ? '${data['invoice_count'] ?? 0}' : '—',
+                  approvals:
+                      snapshot.hasData ? '${data['pending_approvals'] ?? 0}' : '—',
+                  onSearch: onSearch,
+                  onNotifications: onNotifications,
+                  onRefresh: onRefresh,
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(14, 12, 14, 24),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      if (session.release.updateAvailable) ...[
+                        ThqMobileUpdateBanner(
+                          latestVersion: session.release.latestVersion,
+                          notes: session.release.releaseNotes,
+                          mandatory: session.release.updateRequired,
+                          onTap: () => _showRelease(context, session.release),
                         ),
-                        ...session.locations.map(
-                          (l) => DropdownMenuItem<String?>(
-                            value: l.id,
-                            child: Text(l.name),
+                        const SizedBox(height: 10),
+                      ],
+                      if (session.canViewAllLocations) ...[
+                        Card(
+                          clipBehavior: Clip.antiAlias,
+                          child: ListTile(
+                            leading: const Icon(Icons.store_mall_directory_outlined),
+                            title: const Text('Store scope'),
+                            subtitle: Text(locationLabel),
+                            trailing: const Icon(Icons.unfold_more_rounded),
+                            onTap: onLocation,
                           ),
                         ),
+                        const SizedBox(height: 12),
                       ],
-                      onChanged: onLocation,
-                    ),
-                    const SizedBox(height: 16),
-                  ],
-                  const _MobileSectionTitle(
-                    title: 'Quick actions',
-                    subtitle: 'Open the areas you use most.',
-                  ),
-                  const SizedBox(height: 10),
-                  GridView.count(
-                    crossAxisCount: 3,
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    mainAxisSpacing: 9,
-                    crossAxisSpacing: 9,
-                    childAspectRatio: 1.08,
-                    children: [
-                      _QuickActionTile(
-                        label: 'Sales',
-                        icon: Icons.point_of_sale_rounded,
-                        onTap: () => onOpen('sales'),
-                      ),
-                      _QuickActionTile(
-                        label: 'Purchases',
-                        icon: Icons.shopping_bag_outlined,
-                        onTap: () => onOpen('purchases'),
-                      ),
-                      _QuickActionTile(
-                        label: 'Inventory',
-                        icon: Icons.inventory_2_outlined,
-                        onTap: () => onOpen('inventory'),
-                      ),
-                      _QuickActionTile(
-                        label: 'Customers',
-                        icon: Icons.people_alt_outlined,
-                        onTap: () => onOpen('customers'),
-                      ),
-                      _QuickActionTile(
-                        label: 'Suppliers',
-                        icon: Icons.local_shipping_outlined,
-                        onTap: () => onOpen('suppliers'),
-                      ),
-                      _QuickActionTile(
-                        label: 'Stores',
-                        icon: Icons.storefront_outlined,
-                        onTap: () => onOpen('stores'),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 18),
-                  const _MobileSectionTitle(
-                    title: 'Outstanding',
-                    subtitle: 'Current receivable and payable position.',
-                  ),
-                  const SizedBox(height: 10),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _DueCard(
-                          label: 'Customer due',
-                          value: money(d['customer_outstanding']),
-                          icon: Icons.account_balance_wallet_outlined,
+                      if (snapshot.connectionState != ConnectionState.done) ...[
+                        const LinearProgressIndicator(minHeight: 2),
+                        const SizedBox(height: 12),
+                      ],
+                      if (snapshot.hasError) ...[
+                        ThqMobileInlineMessage(
+                          message: 'Dashboard could not refresh: ${snapshot.error}',
+                          error: true,
                         ),
+                        const SizedBox(height: 12),
+                      ],
+                      const ThqMobileSectionHeader(
+                        title: 'Workspaces',
+                        subtitle: 'Fast access to day-to-day business activity.',
                       ),
-                      const SizedBox(width: 9),
-                      Expanded(
-                        child: _DueCard(
-                          label: 'Supplier due',
-                          value: money(d['supplier_outstanding']),
-                          icon: Icons.payments_outlined,
-                        ),
+                      const SizedBox(height: 9),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: WorkspaceQuickAction(
+                              label: 'Sales',
+                              subtitle: 'Invoices & dues',
+                              icon: Icons.point_of_sale_rounded,
+                              onTap: onSales,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: WorkspaceQuickAction(
+                              label: 'Inventory',
+                              subtitle: 'Stock & value',
+                              icon: Icons.inventory_2_outlined,
+                              onTap: onInventory,
+                            ),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
-                  const SizedBox(height: 18),
-                  const _MobileSectionTitle(
-                    title: 'Attention',
-                    subtitle: 'Items that may need action.',
-                  ),
-                  const SizedBox(height: 10),
-                  Container(
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(18),
-                      border: Border.all(color: const Color(0xFFE9E6F1)),
-                    ),
-                    child: Column(
-                      children: [
-                        _AttentionRow(
-                          icon: Icons.warning_amber_rounded,
-                          label: 'Low stock',
-                          value: '${a['low_stock'] ?? 0}',
-                        ),
-                        const Divider(height: 1, indent: 52, endIndent: 14),
-                        _AttentionRow(
-                          icon: Icons.remove_shopping_cart_outlined,
-                          label: 'Out of stock',
-                          value: '${a['out_of_stock'] ?? 0}',
-                        ),
-                        const Divider(height: 1, indent: 52, endIndent: 14),
-                        _AttentionRow(
-                          icon: Icons.schedule_rounded,
-                          label: 'Overdue receivables',
-                          value: money(a['overdue_receivables']),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: WorkspaceQuickAction(
+                              label: 'Money',
+                              subtitle: 'Due & payments',
+                              icon: Icons.account_balance_wallet_outlined,
+                              onTap: onMoney,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: WorkspaceQuickAction(
+                              label: 'Purchases',
+                              subtitle: 'Supplier activity',
+                              icon: Icons.shopping_bag_outlined,
+                              onTap: onPurchases,
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (session.canApprove || session.canViewTraceability) ...[
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            if (session.canApprove)
+                              Expanded(
+                                child: WorkspaceQuickAction(
+                                  label: 'Approvals',
+                                  subtitle: 'Pending actions',
+                                  icon: Icons.approval_outlined,
+                                  onTap: onApprovals,
+                                ),
+                              ),
+                            if (session.canApprove && session.canViewTraceability)
+                              const SizedBox(width: 8),
+                            if (session.canViewTraceability)
+                              Expanded(
+                                child: WorkspaceQuickAction(
+                                  label: 'Traceability',
+                                  subtitle: 'Serial & batch',
+                                  icon: Icons.qr_code_scanner_rounded,
+                                  onTap: onTraceability,
+                                ),
+                              ),
+                          ],
                         ),
                       ],
-                    ),
-                  ),
-                  const SizedBox(height: 18),
-                ],
-              ),
-            ),
-          ],
-        );
-      },
-    ),
-  );
-}
-
-class _DashboardHero extends StatelessWidget {
-  final String businessName;
-  final String netSales;
-  final String grossProfit;
-  final String invoiceCount;
-  final String approvals;
-  final VoidCallback onRefresh;
-
-  const _DashboardHero({
-    required this.businessName,
-    required this.netSales,
-    required this.grossProfit,
-    required this.invoiceCount,
-    required this.approvals,
-    required this.onRefresh,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final topInset = MediaQuery.paddingOf(context).top;
-    return SizedBox(
-      height: 266 + topInset,
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          Container(
-            height: 216 + topInset,
-            padding: EdgeInsets.fromLTRB(18, topInset + 14, 14, 24),
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [Color(0xFF5E50D8), Color(0xFF8D7CF6)],
-              ),
-              borderRadius: BorderRadius.vertical(bottom: Radius.circular(30)),
-            ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const _ThqMobileMark(),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'THQ BUSINESS',
-                        style: TextStyle(
-                          color: Colors.white70,
-                          fontSize: 10.5,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 1.0,
-                        ),
+                      const SizedBox(height: 16),
+                      const ThqMobileSectionHeader(
+                        title: 'Outstanding',
+                        subtitle: 'Current receivable and payable position.',
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        businessName,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 20,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: -0.35,
+                      const SizedBox(height: 9),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: ThqMobileMetricCard(
+                              label: 'Customer due',
+                              value: workspaceMoney(
+                                session,
+                                data['customer_outstanding'],
+                              ),
+                              icon: Icons.account_balance_wallet_outlined,
+                              onTap: onMoney,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: ThqMobileMetricCard(
+                              label: 'Supplier due',
+                              value: workspaceMoney(
+                                session,
+                                data['supplier_outstanding'],
+                              ),
+                              icon: Icons.payments_outlined,
+                              onTap: onMoney,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      const ThqMobileSectionHeader(
+                        title: 'Attention',
+                        subtitle: 'Items that may need action today.',
+                      ),
+                      const SizedBox(height: 9),
+                      Card(
+                        child: Column(
+                          children: [
+                            _AttentionTile(
+                              icon: Icons.warning_amber_rounded,
+                              title: 'Low stock',
+                              value: '${attention['low_stock'] ?? 0}',
+                              onTap: onInventory,
+                            ),
+                            const Divider(indent: 52),
+                            _AttentionTile(
+                              icon: Icons.remove_shopping_cart_outlined,
+                              title: 'Out of stock',
+                              value: '${attention['out_of_stock'] ?? 0}',
+                              onTap: onInventory,
+                            ),
+                            const Divider(indent: 52),
+                            _AttentionTile(
+                              icon: Icons.schedule_rounded,
+                              title: 'Overdue receivables',
+                              value: workspaceMoney(
+                                session,
+                                attention['overdue_receivables'],
+                              ),
+                              onTap: onMoney,
+                            ),
+                          ],
                         ),
                       ),
                     ],
                   ),
-                ),
-                IconButton(
-                  tooltip: 'Refresh',
-                  onPressed: onRefresh,
-                  style: IconButton.styleFrom(
-                    foregroundColor: Colors.white,
-                    backgroundColor: Colors.white.withValues(alpha: 0.13),
-                  ),
-                  icon: const Icon(Icons.refresh_rounded),
                 ),
               ],
-            ),
-          ),
-          Positioned(
-            left: 14,
-            right: 14,
-            bottom: 0,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 15),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: const Color(0xFFE8E4F3)),
-                boxShadow: [
-                  BoxShadow(
-                    color: const Color(0xFF4E3DA8).withValues(alpha: 0.11),
-                    blurRadius: 24,
-                    offset: const Offset(0, 9),
-                  ),
-                ],
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Row(
-                    children: [
-                      Text(
-                        'TODAY',
-                        style: TextStyle(
-                          color: Color(0xFF77717F),
-                          fontSize: 10,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 0.9,
-                        ),
-                      ),
-                      Spacer(),
-                      Icon(
-                        Icons.auto_graph_rounded,
-                        size: 17,
-                        color: Color(0xFF6C5CE7),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 11),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _HeroMetric(label: 'Net sales', value: netSales),
-                      ),
-                      const _MetricDivider(),
-                      Expanded(
-                        child: _HeroMetric(
-                          label: 'Gross profit',
-                          value: grossProfit,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 11),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _HeroMetric(
-                          label: 'Invoices',
-                          value: invoiceCount,
-                        ),
-                      ),
-                      const _MetricDivider(),
-                      Expanded(
-                        child: _HeroMetric(
-                          label: 'Approvals',
-                          value: approvals,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
+            );
+          },
+        ),
+      );
+
+  static Future<void> _showRelease(
+    BuildContext context,
+    ThqMobileReleaseStatus release,
+  ) async {
+    await showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(release.updateRequired ? 'Update required' : 'Update available'),
+        content: Text(
+          release.releaseNotes.isEmpty
+              ? 'A newer Client Mobile build is available.'
+              : release.releaseNotes,
+        ),
+        actions: [
+          FilledButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('OK'),
           ),
         ],
       ),
@@ -657,844 +591,349 @@ class _DashboardHero extends StatelessWidget {
   }
 }
 
-class _ThqMobileMark extends StatelessWidget {
-  const _ThqMobileMark();
-
-  @override
-  Widget build(BuildContext context) => Container(
-    width: 38,
-    height: 38,
-    alignment: Alignment.center,
-    decoration: BoxDecoration(
-      color: Colors.white.withValues(alpha: 0.16),
-      borderRadius: BorderRadius.circular(12),
-      border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
-    ),
-    child: const Text(
-      'T',
-      style: TextStyle(
-        color: Colors.white,
-        fontSize: 18,
-        fontWeight: FontWeight.w900,
-      ),
-    ),
-  );
-}
-
-class _HeroMetric extends StatelessWidget {
-  final String label;
-  final String value;
-
-  const _HeroMetric({required this.label, required this.value});
-
-  @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.symmetric(horizontal: 6),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          value,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: const TextStyle(
-            color: Color(0xFF211F27),
-            fontSize: 15,
-            fontWeight: FontWeight.w800,
-            letterSpacing: -0.25,
-          ),
-        ),
-        const SizedBox(height: 2),
-        Text(
-          label,
-          style: const TextStyle(
-            color: Color(0xFF77717F),
-            fontSize: 10.5,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      ],
-    ),
-  );
-}
-
-class _MetricDivider extends StatelessWidget {
-  const _MetricDivider();
-
-  @override
-  Widget build(BuildContext context) =>
-      Container(width: 1, height: 34, color: const Color(0xFFEDEAF4));
-}
-
-class _MobileSectionTitle extends StatelessWidget {
-  final String title;
-  final String subtitle;
-
-  const _MobileSectionTitle({required this.title, required this.subtitle});
-
-  @override
-  Widget build(BuildContext context) => Row(
-    crossAxisAlignment: CrossAxisAlignment.end,
-    children: [
-      Expanded(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(title, style: Theme.of(context).textTheme.titleLarge),
-            const SizedBox(height: 2),
-            Text(
-              subtitle,
-              style: Theme.of(
-                context,
-              ).textTheme.bodySmall?.copyWith(color: const Color(0xFF77717F)),
-            ),
-          ],
-        ),
-      ),
-    ],
-  );
-}
-
-class _QuickActionTile extends StatelessWidget {
-  final String label;
-  final IconData icon;
-  final VoidCallback onTap;
-
-  const _QuickActionTile({
-    required this.label,
-    required this.icon,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) => Material(
-    color: Colors.white,
-    borderRadius: BorderRadius.circular(16),
-    child: InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 11),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFFE9E6F1)),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              width: 37,
-              height: 37,
-              decoration: BoxDecoration(
-                color: const Color(0xFFF0EDFF),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(icon, size: 20, color: const Color(0xFF6C5CE7)),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                fontSize: 11.5,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ],
-        ),
-      ),
-    ),
-  );
-}
-
-class _DueCard extends StatelessWidget {
-  final String label;
-  final String value;
-  final IconData icon;
-
-  const _DueCard({
-    required this.label,
-    required this.value,
-    required this.icon,
-  });
-
-  @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.all(13),
-    decoration: BoxDecoration(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(17),
-      border: Border.all(color: const Color(0xFFE9E6F1)),
-    ),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Icon(icon, size: 19, color: const Color(0xFF6C5CE7)),
-        const SizedBox(height: 10),
-        Text(
-          value,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w800),
-        ),
-        const SizedBox(height: 3),
-        Text(
-          label,
-          style: const TextStyle(
-            color: Color(0xFF77717F),
-            fontSize: 10.5,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      ],
-    ),
-  );
-}
-
-class _AttentionRow extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final String value;
-
-  const _AttentionRow({
-    required this.icon,
-    required this.label,
-    required this.value,
-  });
-
-  @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 11),
-    child: Row(
-      children: [
-        Container(
-          width: 31,
-          height: 31,
-          decoration: BoxDecoration(
-            color: const Color(0xFFFFF4DA),
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Icon(icon, size: 17, color: const Color(0xFFC88900)),
-        ),
-        const SizedBox(width: 9),
-        Expanded(
-          child: Text(
-            label,
-            style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600),
-          ),
-        ),
-        const SizedBox(width: 8),
-        Flexible(
-          child: Text(
-            value,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            textAlign: TextAlign.end,
-            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
-          ),
-        ),
-      ],
-    ),
-  );
-}
-
-class _BusinessTab extends StatelessWidget {
-  final ValueChanged<String> open;
-  const _BusinessTab({required this.open});
-  @override
-  Widget build(BuildContext context) {
-    final rows = [
-      ('sales', 'Sales Status', Icons.point_of_sale),
-      ('purchases', 'Purchases', Icons.shopping_cart_outlined),
-      ('inventory', 'Inventory', Icons.inventory_2_outlined),
-      ('logistics_operations', 'Logistics Operations', Icons.route_outlined),
-      ('vehicle_logistics', 'Vehicle Logistics', Icons.local_shipping_outlined),
-      ('customers', 'Customer Outstanding', Icons.people_outline),
-      ('suppliers', 'Supplier Outstanding', Icons.local_shipping_outlined),
-    ];
-    return ListView(
-      padding: const EdgeInsets.all(10),
-      children: [
-        Text('Business', style: Theme.of(context).textTheme.headlineSmall),
-        const SizedBox(height: 8),
-        ...rows.map(
-          (r) => Card(
-            child: ListTile(
-              leading: Icon(r.$3),
-              title: Text(r.$2),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () => open(r.$1),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _ApprovalsTab extends StatefulWidget {
+class _MoreTab extends StatelessWidget {
   final MobileSession session;
   final MobileClientService service;
-  final String Function(dynamic) money;
-  const _ApprovalsTab({
+  final String? locationId;
+  final String locationLabel;
+  final VoidCallback onLocation;
+  final VoidCallback onSearch;
+  final VoidCallback onNotifications;
+  final VoidCallback onApprovals;
+  final VoidCallback onTraceability;
+  final Future<void> Function() onLogout;
+  final Future<void> Function() onDeactivate;
+
+  const _MoreTab({
     required this.session,
     required this.service,
-    required this.money,
+    required this.locationId,
+    required this.locationLabel,
+    required this.onLocation,
+    required this.onSearch,
+    required this.onNotifications,
+    required this.onApprovals,
+    required this.onTraceability,
+    required this.onLogout,
+    required this.onDeactivate,
   });
-  @override
-  State<_ApprovalsTab> createState() => _ApprovalsTabState();
-}
-
-class _ApprovalsTabState extends State<_ApprovalsTab> {
-  late Future<List<Map<String, dynamic>>> _future;
-  @override
-  void initState() {
-    super.initState();
-    _future = widget.service.approvals(widget.session);
-  }
-
-  void _reload() =>
-      setState(() => _future = widget.service.approvals(widget.session));
-  Future<void> _decide(Map<String, dynamic> row, bool approve) async {
-    final note = await showDialog<String>(
-      context: context,
-      builder: (context) => _NoteDialog(
-        title: approve ? 'Approve' : 'Reject',
-        required: !approve,
-      ),
-    );
-    if (note == null) return;
-    await widget.service.decide(
-      widget.session,
-      type: row['approval_type']?.toString() ?? '',
-      id: row['id']?.toString() ?? '',
-      approve: approve,
-      note: note,
-    );
-    if (mounted) _reload();
-  }
 
   @override
-  Widget build(BuildContext context) =>
-      FutureBuilder<List<Map<String, dynamic>>>(
-        future: _future,
-        builder: (context, s) {
-          if (s.connectionState != ConnectionState.done)
-            return const Center(child: CircularProgressIndicator());
-          if (s.hasError)
-            return Center(
-              child: Padding(
-                padding: const EdgeInsets.all(10),
-                child: Text(s.error.toString()),
-              ),
-            );
-          final rows = s.data ?? [];
-          if (rows.isEmpty)
-            return const Center(child: Text('No pending approvals'));
-          return RefreshIndicator(
-            onRefresh: () async => _reload(),
-            child: ListView.builder(
-              padding: const EdgeInsets.all(10),
-              itemCount: rows.length,
-              itemBuilder: (context, i) {
-                final r = rows[i];
-                return Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(10),
+  Widget build(BuildContext context) => ListView(
+        padding: const EdgeInsets.fromLTRB(14, 10, 14, 96),
+        children: [
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(14),
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    child: Text(
+                      session.username.isEmpty
+                          ? 'U'
+                          : session.username.substring(0, 1).toUpperCase(),
+                    ),
+                  ),
+                  const SizedBox(width: 11),
+                  Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        Text(session.username, style: Theme.of(context).textTheme.titleMedium),
+                        const SizedBox(height: 2),
                         Text(
-                          r['reference']?.toString() ?? '',
-                          style: const TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                        Text(r['summary']?.toString() ?? ''),
-                        if (r['location_name'] != null)
-                          Text(r['location_name'].toString()),
-                        if (r['amount'] != null)
-                          Text(widget.money(r['amount'])),
-                        const SizedBox(height: 8),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: OutlinedButton(
-                                onPressed: () => _decide(r, false),
-                                child: const Text('Reject'),
+                          '${session.businessName} • $locationLabel',
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                color: Theme.of(context).colorScheme.onSurfaceVariant,
                               ),
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: FilledButton(
-                                onPressed: () => _decide(r, true),
-                                child: const Text('Approve'),
-                              ),
-                            ),
-                          ],
                         ),
                       ],
                     ),
                   ),
-                );
-              },
-            ),
-          );
-        },
-      );
-}
-
-class _NoteDialog extends StatefulWidget {
-  final String title;
-  final bool required;
-  const _NoteDialog({required this.title, required this.required});
-  @override
-  State<_NoteDialog> createState() => _NoteDialogState();
-}
-
-class _NoteDialogState extends State<_NoteDialog> {
-  final c = TextEditingController();
-  @override
-  void dispose() {
-    c.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) => AlertDialog(
-    title: Text(widget.title),
-    content: TextField(
-      controller: c,
-      maxLines: 3,
-      decoration: InputDecoration(
-        labelText: widget.required ? 'Reason required' : 'Note',
-      ),
-    ),
-    actions: [
-      TextButton(
-        onPressed: () => Navigator.pop(context),
-        child: const Text('Cancel'),
-      ),
-      FilledButton(
-        onPressed: () => Navigator.pop(
-          context,
-          (!widget.required || c.text.trim().isNotEmpty) ? c.text.trim() : null,
-        ),
-        child: Text(widget.title),
-      ),
-    ],
-  );
-}
-
-class _MoreTab extends StatelessWidget {
-  final MobileSession session;
-  final MobileClientService service;
-  final String Function(dynamic) money;
-  final ValueChanged<String> onOpen;
-  final Future<void> Function() onLogout;
-  const _MoreTab({
-    required this.session,
-    required this.service,
-    required this.money,
-    required this.onOpen,
-    required this.onLogout,
-  });
-  @override
-  Widget build(BuildContext context) => ListView(
-    padding: const EdgeInsets.all(10),
-    children: [
-      Card(
-        child: ListTile(
-          leading: const Icon(Icons.storefront),
-          title: const Text('Store Performance'),
-          trailing: const Icon(Icons.chevron_right),
-          onTap: () => onOpen('stores'),
-        ),
-      ),
-      Card(
-        child: ListTile(
-          leading: const Icon(Icons.analytics_outlined),
-          title: const Text('Reports'),
-          trailing: const Icon(Icons.chevron_right),
-          onTap: () => Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => _ReportsPage(
-                session: session,
-                service: service,
-                money: money,
+                ],
               ),
             ),
           ),
-        ),
-      ),
-      Card(
-        child: ListTile(
-          leading: const Icon(Icons.payments_outlined),
-          title: const Text('Customer Payment'),
-          trailing: const Icon(Icons.chevron_right),
-          onTap: () => Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => _CustomerPaymentPage(
-                session: session,
-                service: service,
-                money: money,
-              ),
-            ),
+          const SizedBox(height: 14),
+          const ThqMobileSectionHeader(
+            title: 'Business tools',
+            subtitle: 'Reports, controls and operational workspaces.',
           ),
-        ),
-      ),
-      const SizedBox(height: 12),
-      Card(
-        child: ListTile(
-          leading: const Icon(Icons.phone_android),
-          title: Text(session.deviceName),
-          subtitle: Text(
-            '${session.deviceCode} • ${session.locationName}\n'
-            'THQ ERP v${ThqReleaseContract.appVersion} • Build ${ThqReleaseContract.buildNumber}',
+          const SizedBox(height: 8),
+          _MoreAction(
+            icon: Icons.manage_search_rounded,
+            title: 'Search business',
+            subtitle: 'Sales, purchases, stock and parties',
+            onTap: onSearch,
           ),
-        ),
-      ),
-      Card(
-        child: ListTile(
-          leading: const Icon(Icons.logout),
-          title: const Text('Sign out'),
-          onTap: () => onLogout(),
-        ),
-      ),
-      Card(
-        child: ListTile(
-          leading: const Icon(Icons.delete_outline),
-          title: const Text('Deactivate this phone'),
-          onTap: () async {
-            await MobileAuthService().signOut();
-            await DeviceInstallationService().clearActivation();
-            if (context.mounted)
-              Navigator.of(context).pushAndRemoveUntil(
-                MaterialPageRoute(builder: (_) => const MobileEntryScreen()),
-                (_) => false,
-              );
-          },
-        ),
-      ),
-    ],
-  );
-}
-
-class _DataListPage extends StatefulWidget {
-  final String title;
-  final Future<List<Map<String, dynamic>>> Function() loader;
-  final List<String> fields;
-  final String currency;
-
-  const _DataListPage({
-    required this.title,
-    required this.loader,
-    required this.fields,
-    required this.currency,
-  });
-
-  @override
-  State<_DataListPage> createState() => _DataListPageState();
-}
-
-class _DataListPageState extends State<_DataListPage> {
-  late Future<List<Map<String, dynamic>>> future;
-
-  @override
-  void initState() {
-    super.initState();
-    future = widget.loader();
-  }
-
-  String label(String key) => key
-      .replaceAll('_', ' ')
-      .split(' ')
-      .map(
-        (word) => word.isEmpty
-            ? word
-            : '${word[0].toUpperCase()}${word.substring(1)}',
-      )
-      .join(' ');
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text(widget.title)),
-      body: FutureBuilder<List<Map<String, dynamic>>>(
-        future: future,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState != ConnectionState.done) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (snapshot.hasError) {
-            return Center(child: Text(snapshot.error.toString()));
-          }
-
-          final rows = snapshot.data ?? const <Map<String, dynamic>>[];
-          return RefreshIndicator(
-            onRefresh: () async {
-              final next = widget.loader();
-              setState(() => future = next);
-              await next;
-            },
-            child: rows.isEmpty
-                ? ListView(
-                    children: const [
-                      SizedBox(height: 200),
-                      Center(child: Text('No data')),
-                    ],
-                  )
-                : ListView.separated(
-                    padding: const EdgeInsets.all(12),
-                    itemCount: rows.length,
-                    separatorBuilder: (_, _) => const SizedBox(height: 6),
-                    itemBuilder: (context, index) {
-                      final row = rows[index];
-                      return Card(
-                        child: Padding(
-                          padding: const EdgeInsets.all(12),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: widget.fields
-                                .where((key) => row[key] != null)
-                                .map(
-                                  (key) => Padding(
-                                    padding: const EdgeInsets.symmetric(
-                                      vertical: 2,
-                                    ),
-                                    child: Row(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        SizedBox(
-                                          width: 120,
-                                          child: Text(
-                                            label(key),
-                                            style: Theme.of(
-                                              context,
-                                            ).textTheme.bodySmall,
-                                          ),
-                                        ),
-                                        Expanded(
-                                          child: Text(
-                                            row[key].toString(),
-                                            style: TextStyle(
-                                              fontWeight:
-                                                  key.contains('name') ||
-                                                      key.contains('number')
-                                                  ? FontWeight.w600
-                                                  : null,
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                )
-                                .toList(),
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-          );
-        },
-      ),
-    );
-  }
-}
-
-class _ReportsPage extends StatefulWidget {
-  final MobileSession session;
-  final MobileClientService service;
-  final String Function(dynamic) money;
-  const _ReportsPage({
-    required this.session,
-    required this.service,
-    required this.money,
-  });
-  @override
-  State<_ReportsPage> createState() => _ReportsPageState();
-}
-
-class _ReportsPageState extends State<_ReportsPage> {
-  late DateTime from;
-  late Future<Map<String, dynamic>> f;
-  @override
-  void initState() {
-    super.initState();
-    final now = DateTime.now();
-    from = DateTime(now.year, now.month, 1);
-    f = widget.service.report(widget.session, from: from, to: now);
-  }
-
-  @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Reports')),
-    body: FutureBuilder<Map<String, dynamic>>(
-      future: f,
-      builder: (context, s) {
-        if (s.connectionState != ConnectionState.done)
-          return const Center(child: CircularProgressIndicator());
-        if (s.hasError) return Center(child: Text(s.error.toString()));
-        final d = s.data ?? {};
-        return ListView(
-          padding: const EdgeInsets.all(10),
-          children: [
-            Text(
-              'Month to date',
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
-            const SizedBox(height: 10),
-            ...d.entries.map(
-              (e) => Card(
-                child: ListTile(
-                  title: Text(e.key.replaceAll('_', ' ')),
-                  trailing: Text(e.value.toString()),
+          _MoreAction(
+            icon: Icons.shopping_bag_outlined,
+            title: 'Purchases',
+            subtitle: 'Recent supplier documents and balances',
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => MobilePurchasesPage(
+                  session: session,
+                  service: service,
+                  locationId: locationId,
                 ),
               ),
             ),
-          ],
-        );
-      },
-    ),
-  );
-}
-
-class _CustomerPaymentPage extends StatefulWidget {
-  final MobileSession session;
-  final MobileClientService service;
-  final String Function(dynamic) money;
-  const _CustomerPaymentPage({
-    required this.session,
-    required this.service,
-    required this.money,
-  });
-  @override
-  State<_CustomerPaymentPage> createState() => _CustomerPaymentPageState();
-}
-
-class _CustomerPaymentPageState extends State<_CustomerPaymentPage> {
-  late Future<List<Map<String, dynamic>>> f;
-  String? customerId;
-  final amount = TextEditingController();
-  final reference = TextEditingController();
-  String method = 'cash';
-  bool busy = false;
-  @override
-  void initState() {
-    super.initState();
-    f = widget.service.customerOutstanding(widget.session);
-  }
-
-  @override
-  void dispose() {
-    amount.dispose();
-    reference.dispose();
-    super.dispose();
-  }
-
-  Future<void> submit() async {
-    final v = double.tryParse(amount.text.trim()) ?? 0;
-    if (customerId == null || v <= 0) return;
-    setState(() => busy = true);
-    try {
-      await widget.service.receiveCustomerPayment(
-        widget.session,
-        customerId: customerId!,
-        amount: v,
-        method: method,
-        reference: reference.text,
-      );
-      if (!mounted) return;
-      ThqNotify.showSnackBar(
-        context,
-        const SnackBar(content: Text('Customer payment recorded.')),
-      );
-      Navigator.pop(context);
-    } catch (e) {
-      if (mounted)
-        ThqNotify.showSnackBar(context, SnackBar(content: Text(e.toString())));
-    } finally {
-      if (mounted) setState(() => busy = false);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Customer Payment')),
-    body: FutureBuilder<List<Map<String, dynamic>>>(
-      future: f,
-      builder: (context, s) {
-        if (s.connectionState != ConnectionState.done)
-          return const Center(child: CircularProgressIndicator());
-        final rows = s.data ?? [];
-        return ListView(
-          padding: const EdgeInsets.all(10),
-          children: [
-            DropdownButtonFormField<String>(
-              initialValue: customerId,
-              decoration: const InputDecoration(
-                labelText: 'Customer',
-                border: OutlineInputBorder(),
+          ),
+          _MoreAction(
+            icon: Icons.storefront_outlined,
+            title: 'Store performance',
+            subtitle: 'Sales, profit, stock and dues by store',
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => MobileStorePerformancePage(
+                  session: session,
+                  service: service,
+                ),
               ),
-              items: rows
-                  .map(
-                    (r) => DropdownMenuItem(
-                      value: r['customer_id']?.toString() ?? '',
-                      child: Text(
-                        '${r['customer_name']} • ${widget.money(r['total_outstanding'])}',
-                        overflow: TextOverflow.ellipsis,
-                      ),
+            ),
+          ),
+          _MoreAction(
+            icon: Icons.analytics_outlined,
+            title: 'Reports',
+            subtitle: 'Business summary by date range',
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => MobileReportsPage(
+                  session: session,
+                  service: service,
+                  locationId: locationId,
+                ),
+              ),
+            ),
+          ),
+          if (session.canApprove)
+            _MoreAction(
+              icon: Icons.approval_outlined,
+              title: 'Approvals',
+              subtitle: 'Review and decide pending requests',
+              onTap: onApprovals,
+            ),
+          if (session.canViewNotifications)
+            _MoreAction(
+              icon: Icons.notifications_none_rounded,
+              title: 'Notifications',
+              subtitle: 'Business alerts and reminders',
+              onTap: onNotifications,
+            ),
+          if (session.canViewAudit)
+            _MoreAction(
+              icon: Icons.shield_outlined,
+              title: 'Audit Center',
+              subtitle: 'High risk, review and normal activity',
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => MobileAuditPage(
+                    session: session,
+                    service: service,
+                    locationId: locationId,
+                  ),
+                ),
+              ),
+            ),
+          if (session.canViewTraceability)
+            _MoreAction(
+              icon: Icons.qr_code_scanner_rounded,
+              title: 'Serial, batch & warranty',
+              subtitle: 'Trace stock from receipt through sale',
+              onTap: onTraceability,
+            ),
+          _MoreAction(
+            icon: Icons.route_outlined,
+            title: 'Logistics operations',
+            subtitle: 'Trips, movement and logistics execution',
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => LogisticsOperationsWorkspace(
+                  tenantId: session.tenantId,
+                  locationId: locationId,
+                ),
+              ),
+            ),
+          ),
+          _MoreAction(
+            icon: Icons.local_shipping_outlined,
+            title: 'Vehicle logistics',
+            subtitle: 'Vehicle stock movement reporting',
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => VehicleLogisticsReportWorkspace(
+                  tenantId: session.tenantId,
+                  locationId: locationId,
+                ),
+              ),
+            ),
+          ),
+          if (session.canViewAllLocations)
+            _MoreAction(
+              icon: Icons.store_mall_directory_outlined,
+              title: 'Change store scope',
+              subtitle: locationLabel,
+              onTap: onLocation,
+            ),
+          const SizedBox(height: 14),
+          const ThqMobileSectionHeader(
+            title: 'Device',
+            subtitle: 'Current installation and release information.',
+          ),
+          const SizedBox(height: 8),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(session.deviceName, style: Theme.of(context).textTheme.titleMedium),
+                  const SizedBox(height: 5),
+                  Text(
+                    '${session.deviceCode} • ${session.locationName}',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'THQ Client Mobile ${ThqClientMobileReleaseContract.versionLabel}',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                  if (session.release.latestVersion.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      'Release service: ${session.release.status} • latest ${session.release.latestVersion}',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
                     ),
-                  )
-                  .toList(),
-              onChanged: (v) => setState(() => customerId = v),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: amount,
-              keyboardType: const TextInputType.numberWithOptions(
-                decimal: true,
-              ),
-              decoration: const InputDecoration(
-                labelText: 'Amount',
-                border: OutlineInputBorder(),
+                  ],
+                ],
               ),
             ),
-            const SizedBox(height: 12),
-            DropdownButtonFormField<String>(
-              initialValue: method,
-              decoration: const InputDecoration(
-                labelText: 'Method',
-                border: OutlineInputBorder(),
+          ),
+          const SizedBox(height: 8),
+          OutlinedButton.icon(
+            onPressed: onLogout,
+            icon: const Icon(Icons.logout_rounded),
+            label: const Text('Sign out'),
+          ),
+          const SizedBox(height: 8),
+          TextButton.icon(
+            onPressed: onDeactivate,
+            icon: const Icon(Icons.phonelink_erase_outlined),
+            label: const Text('Deactivate this phone'),
+          ),
+        ],
+      );
+}
+
+class _AttentionTile extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String value;
+  final VoidCallback onTap;
+
+  const _AttentionTile({
+    required this.icon,
+    required this.title,
+    required this.value,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) => ListTile(
+        dense: true,
+        onTap: onTap,
+        leading: Icon(icon, size: 21),
+        title: Text(title),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 130),
+              child: Text(
+                value,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontWeight: FontWeight.w900),
               ),
-              items: const [
-                DropdownMenuItem(value: 'cash', child: Text('Cash')),
-                DropdownMenuItem(value: 'card', child: Text('Card')),
-                DropdownMenuItem(value: 'bank', child: Text('Bank')),
-              ],
-              onChanged: (v) {
-                if (v != null) setState(() => method = v);
-              },
             ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: reference,
-              decoration: const InputDecoration(
-                labelText: 'Reference',
-                border: OutlineInputBorder(),
+            const SizedBox(width: 4),
+            const Icon(Icons.chevron_right_rounded, size: 19),
+          ],
+        ),
+      );
+}
+
+class _MoreAction extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  const _MoreAction({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.only(bottom: 7),
+        child: Card(
+          clipBehavior: Clip.antiAlias,
+          child: ListTile(
+            leading: Icon(icon),
+            title: Text(title),
+            subtitle: Text(subtitle, maxLines: 2, overflow: TextOverflow.ellipsis),
+            trailing: const Icon(Icons.chevron_right_rounded),
+            onTap: onTap,
+          ),
+        ),
+      );
+}
+
+class _LocationSheet extends StatelessWidget {
+  static const allSentinel = '__all__';
+
+  final String? selected;
+  final List<MobileLocation> locations;
+
+  const _LocationSheet({required this.selected, required this.locations});
+
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.fromLTRB(14, 0, 14, 18),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const ThqMobileSectionHeader(
+              title: 'Store scope',
+              subtitle: 'Choose the location used by workspace views.',
+            ),
+            const SizedBox(height: 10),
+            ListTile(
+              leading: const Icon(Icons.public_rounded),
+              title: const Text('All accessible stores'),
+              trailing: selected == null ? const Icon(Icons.check_rounded) : null,
+              onTap: () => Navigator.pop(context, allSentinel),
+            ),
+            ...locations.map(
+              (location) => ListTile(
+                leading: const Icon(Icons.storefront_outlined),
+                title: Text(location.name),
+                subtitle: location.code.isEmpty ? null : Text(location.code),
+                trailing: selected == location.id
+                    ? const Icon(Icons.check_rounded)
+                    : null,
+                onTap: () => Navigator.pop(context, location.id),
               ),
-            ),
-            const SizedBox(height: 12),
-            FilledButton(
-              onPressed: busy ? null : submit,
-              child: Text(busy ? 'Saving...' : 'Receive Payment'),
             ),
           ],
-        );
-      },
-    ),
-  );
+        ),
+      );
 }

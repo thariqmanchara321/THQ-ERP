@@ -33,6 +33,12 @@ class MobileSession {
   final String currencyCode;
   final String username;
   final bool canViewAllLocations;
+  final bool canApprove;
+  final bool canReceiveCustomerPayment;
+  final bool canViewNotifications;
+  final bool canViewAudit;
+  final bool canViewTraceability;
+  final bool canViewWarranty;
   final List<MobileLocation> locations;
   final ThqMobileReleaseStatus release;
 
@@ -48,6 +54,12 @@ class MobileSession {
     required this.currencyCode,
     required this.username,
     required this.canViewAllLocations,
+    required this.canApprove,
+    required this.canReceiveCustomerPayment,
+    required this.canViewNotifications,
+    required this.canViewAudit,
+    required this.canViewTraceability,
+    required this.canViewWarranty,
     required this.locations,
     required this.release,
   });
