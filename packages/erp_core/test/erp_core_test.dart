@@ -2,8 +2,10 @@ import 'package:erp_core/erp_core.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  test('THQ V6.0 release contract is locked to migration 213', () {
-    expect(ThqReleaseContract.appVersion, '6.0.0');
+  test('THQ v6.1.1 Build 4 release contract keeps migration 213 compatibility', () {
+    expect(ThqReleaseContract.appVersion, '6.1.1');
+    expect(ThqReleaseContract.buildNumber, 4);
+    expect(ThqReleaseContract.releaseName, 'Unified Transport & Logistics');
     expect(ThqReleaseContract.minimumMigration, 213);
     expect(ThqReleaseContract.apiVersion, 'v1');
   });

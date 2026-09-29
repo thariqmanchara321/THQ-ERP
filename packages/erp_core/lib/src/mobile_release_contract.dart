@@ -14,18 +14,18 @@ abstract final class ThqMobileReleaseContract {
 }
 
 abstract final class ThqClientMobileReleaseContract {
-  static const String appVersion = '6.2.4';
-  static const int buildNumber = 9;
-  static const String releaseName = 'Client Mobile Production Polish';
+  static const String appVersion = '6.2.5';
+  static const int buildNumber = 10;
+  static const String releaseName = 'Client Mobile Runtime Fixes';
   static const String platform = 'android';
 
   static const String versionLabel = 'v$appVersion • Build $buildNumber';
 }
 
 abstract final class ThqPosMobileReleaseContract {
-  static const String appVersion = '6.2.4';
-  static const int buildNumber = 9;
-  static const String releaseName = 'Mobile POS Production Polish';
+  static const String appVersion = '6.2.5';
+  static const int buildNumber = 10;
+  static const String releaseName = 'Mobile POS Runtime Fixes';
   static const String platform = 'android';
 
   static const String versionLabel = 'v$appVersion • Build $buildNumber';

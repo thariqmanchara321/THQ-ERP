@@ -32,6 +32,23 @@ class MobileClientService {
         ),
       );
 
+  Future<Map<String, dynamic>> performance(
+    MobileSession s, {
+    String? locationId,
+    String period = 'today',
+  }) async =>
+      _map(
+        await _supabase.rpc(
+          'mobile_client_performance_v625',
+          params: {
+            'p_tenant_id': s.tenantId,
+            'p_device_id': s.deviceId,
+            'p_period': period,
+            'p_location_id': locationId,
+          },
+        ),
+      );
+
   Future<List<Map<String, dynamic>>> sales(
     MobileSession s, {
     String? locationId,

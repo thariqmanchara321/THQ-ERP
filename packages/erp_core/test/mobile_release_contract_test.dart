@@ -2,12 +2,12 @@ import 'package:erp_core/erp_core.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  test('Build 9 mobile release contracts are aligned', () {
-    expect(ThqClientMobileReleaseContract.appVersion, '6.2.4');
-    expect(ThqClientMobileReleaseContract.buildNumber, 9);
+  test('Build 10 mobile release contracts are aligned', () {
+    expect(ThqClientMobileReleaseContract.appVersion, '6.2.5');
+    expect(ThqClientMobileReleaseContract.buildNumber, 10);
     expect(ThqClientMobileReleaseContract.platform, 'android');
-    expect(ThqPosMobileReleaseContract.appVersion, '6.2.4');
-    expect(ThqPosMobileReleaseContract.buildNumber, 9);
+    expect(ThqPosMobileReleaseContract.appVersion, '6.2.5');
+    expect(ThqPosMobileReleaseContract.buildNumber, 10);
     expect(ThqPosMobileReleaseContract.platform, 'android');
   });
 

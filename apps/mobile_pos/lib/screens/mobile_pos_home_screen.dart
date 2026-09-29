@@ -2137,9 +2137,16 @@ class _State extends State<MobilePosHomeScreen> {
         ? '${product.stockQuantity.toStringAsFixed(product.stockQuantity % 1 == 0 ? 0 : 2)} ${product.baseUnitCode}'
         : product.itemType;
     final lowStock = product.itemType == 'stock' && product.stockQuantity <= 3;
+    final selectedQuantity = cart
+        .where((line) => line.product.variantId == product.variantId)
+        .fold<double>(0, (sum, line) => sum + line.baseQuantity);
+    final selected = selectedQuantity > 0.000001;
+    final selectedText = selectedQuantity.toStringAsFixed(
+      selectedQuantity % 1 == 0 ? 0 : 2,
+    );
 
     return Material(
-      color: Colors.white,
+      color: selected ? const Color(0xFFEAF3FF) : Colors.white,
       borderRadius: BorderRadius.circular(14),
       child: InkWell(
         onTap: () => _addProduct(product),
@@ -2148,7 +2155,12 @@ class _State extends State<MobilePosHomeScreen> {
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: const Color(0xFFEDF1F5)),
+            border: Border.all(
+              color: selected
+                  ? const Color(0xFF147AF3)
+                  : const Color(0xFFEDF1F5),
+              width: selected ? 2 : 1,
+            ),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -2159,7 +2171,9 @@ class _State extends State<MobilePosHomeScreen> {
                     width: 32,
                     height: 32,
                     decoration: BoxDecoration(
-                      color: const Color(0xFFEAF3FF),
+                      color: selected
+                          ? const Color(0xFF147AF3)
+                          : const Color(0xFFEAF3FF),
                       borderRadius: BorderRadius.circular(9),
                     ),
                     child: Icon(
@@ -2168,11 +2182,32 @@ class _State extends State<MobilePosHomeScreen> {
                           : product.itemType == 'stock'
                               ? Icons.inventory_2_outlined
                               : Icons.miscellaneous_services_outlined,
-                      color: const Color(0xFF147AF3),
+                      color: selected ? Colors.white : const Color(0xFF147AF3),
                       size: 17,
                     ),
                   ),
                   const Spacer(),
+                  if (selected) ...[
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 3,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF147AF3),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text(
+                        '$selectedText selected',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 8,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 2),
+                  ],
                   IconButton(
                     tooltip: _favoriteVariantIds.contains(product.variantId)
                         ? 'Remove favorite'

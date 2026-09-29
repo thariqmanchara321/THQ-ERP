@@ -25,6 +25,7 @@ class _MobileHomeScreenState extends State<MobileHomeScreen> {
   final _service = MobileClientService();
   int _index = 0;
   String? _locationId;
+  String _period = 'today';
   late Future<Map<String, dynamic>> _dashboard;
 
   @override
@@ -33,12 +34,12 @@ class _MobileHomeScreenState extends State<MobileHomeScreen> {
     _locationId = widget.session.canViewAllLocations
         ? null
         : widget.session.locationId;
-    _dashboard = _service.dashboard(widget.session, locationId: _locationId);
+    _dashboard = _loadDashboard();
   }
 
   String get _locationLabel {
     if (_locationId == null) {
-      return 'All accessible stores';
+      return 'Entire business';
     }
     for (final location in widget.session.locations) {
       if (location.id == _locationId) {
@@ -51,9 +52,23 @@ class _MobileHomeScreenState extends State<MobileHomeScreen> {
     return 'Selected store';
   }
 
+  Future<Map<String, dynamic>> _loadDashboard() => _service.performance(
+        widget.session,
+        locationId: _locationId,
+        period: _period,
+      );
+
+  void _setPeriod(String period) {
+    if (_period == period) return;
+    setState(() {
+      _period = period;
+      _dashboard = _loadDashboard();
+    });
+  }
+
   void _refreshDashboard() {
     setState(() {
-      _dashboard = _service.dashboard(widget.session, locationId: _locationId);
+      _dashboard = _loadDashboard();
     });
   }
 
@@ -74,7 +89,7 @@ class _MobileHomeScreenState extends State<MobileHomeScreen> {
     }
     setState(() {
       _locationId = selected == _LocationSheet.allSentinel ? null : selected;
-      _dashboard = _service.dashboard(widget.session, locationId: _locationId);
+      _dashboard = _loadDashboard();
     });
   }
 
@@ -134,6 +149,8 @@ class _MobileHomeScreenState extends State<MobileHomeScreen> {
         session: widget.session,
         dashboard: _dashboard,
         locationLabel: _locationLabel,
+        period: _period,
+        onPeriod: _setPeriod,
         onRefresh: _refreshDashboard,
         onLocation: _selectLocation,
         onSearch: _openSearch,
@@ -319,6 +336,8 @@ class _OverviewTab extends StatelessWidget {
   final MobileSession session;
   final Future<Map<String, dynamic>> dashboard;
   final String locationLabel;
+  final String period;
+  final ValueChanged<String> onPeriod;
   final VoidCallback onRefresh;
   final VoidCallback onLocation;
   final VoidCallback onSearch;
@@ -334,6 +353,8 @@ class _OverviewTab extends StatelessWidget {
     required this.session,
     required this.dashboard,
     required this.locationLabel,
+    required this.period,
+    required this.onPeriod,
     required this.onRefresh,
     required this.onLocation,
     required this.onSearch,
@@ -391,12 +412,29 @@ class _OverviewTab extends StatelessWidget {
                         ),
                         const SizedBox(height: 10),
                       ],
+                      SegmentedButton<String>(
+                        segments: const [
+                          ButtonSegment<String>(
+                            value: 'today',
+                            label: Text('Today'),
+                            icon: Icon(Icons.today_outlined),
+                          ),
+                          ButtonSegment<String>(
+                            value: 'all_time',
+                            label: Text('All time'),
+                            icon: Icon(Icons.all_inclusive_rounded),
+                          ),
+                        ],
+                        selected: <String>{period},
+                        onSelectionChanged: (selection) => onPeriod(selection.first),
+                      ),
+                      const SizedBox(height: 10),
                       if (session.canViewAllLocations) ...[
                         Card(
                           clipBehavior: Clip.antiAlias,
                           child: ListTile(
                             leading: const Icon(Icons.store_mall_directory_outlined),
-                            title: const Text('Store scope'),
+                            title: const Text('Business / store scope'),
                             subtitle: Text(locationLabel),
                             trailing: const Icon(Icons.unfold_more_rounded),
                             onTap: onLocation,
@@ -415,6 +453,98 @@ class _OverviewTab extends StatelessWidget {
                         ),
                         const SizedBox(height: 12),
                       ],
+                      ThqMobileSectionHeader(
+                        title: period == 'today'
+                            ? 'Today performance'
+                            : 'All-time performance',
+                        subtitle: locationLabel,
+                      ),
+                      const SizedBox(height: 9),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: ThqMobileMetricCard(
+                              label: 'Sales',
+                              value: workspaceMoney(session, data['sales']),
+                              icon: Icons.point_of_sale_rounded,
+                              onTap: onSales,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: ThqMobileMetricCard(
+                              label: 'Purchases',
+                              value: workspaceMoney(session, data['purchases']),
+                              icon: Icons.shopping_bag_outlined,
+                              onTap: onPurchases,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: ThqMobileMetricCard(
+                              label: 'Expenses',
+                              value: workspaceMoney(session, data['expenses']),
+                              icon: Icons.receipt_long_outlined,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: ThqMobileMetricCard(
+                              label: 'Net profit',
+                              value: workspaceMoney(session, data['net_profit']),
+                              icon: Icons.trending_up_rounded,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: ThqMobileMetricCard(
+                              label: 'Gross profit',
+                              value: workspaceMoney(session, data['gross_profit']),
+                              icon: Icons.insights_rounded,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: ThqMobileMetricCard(
+                              label: 'Stock value',
+                              value: workspaceMoney(session, data['stock_value']),
+                              icon: Icons.inventory_2_outlined,
+                              onTap: onInventory,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: ThqMobileMetricCard(
+                              label: 'Receivables',
+                              value: workspaceMoney(session, data['receivables']),
+                              icon: Icons.account_balance_wallet_outlined,
+                              onTap: onMoney,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: ThqMobileMetricCard(
+                              label: 'Payables',
+                              value: workspaceMoney(session, data['payables']),
+                              icon: Icons.payments_outlined,
+                              onTap: onMoney,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
                       const ThqMobileSectionHeader(
                         title: 'Workspaces',
                         subtitle: 'Fast access to day-to-day business activity.',
