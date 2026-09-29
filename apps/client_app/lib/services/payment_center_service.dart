@@ -110,18 +110,17 @@ class PaymentCenterService {
   }) async {
     final origin = await _origin(session);
     final result = await _supabase.rpc(
-      'supplier_payment_create_v490',
+      'supplier_payment_party_v626',
       params: {
         'p_tenant_id': session.business.id,
         'p_location_id': origin.locationId,
         'p_supplier_id': supplierId,
-        'p_payment_date': _date(DateTime.now()),
         'p_amount': amount,
         'p_payment_method': paymentMethod,
-        'p_allocations': const <Map<String, dynamic>>[],
         'p_reference_number': referenceNumber.trim(),
         'p_notes': notes.trim(),
         'p_device_id': origin.deviceId,
+        'p_request_id': const Uuid().v4(),
       },
     );
     if (result is! Map) {
@@ -130,10 +129,34 @@ class PaymentCenterService {
     return Map<String, dynamic>.from(result);
   }
 
-  String _date(DateTime value) =>
-      '${value.year.toString().padLeft(4, '0')}-'
-      '${value.month.toString().padLeft(2, '0')}-'
-      '${value.day.toString().padLeft(2, '0')}';
+  Future<Map<String, dynamic>> closeOutstanding(
+    ClientSession session, {
+    required String partyType,
+    required String partyId,
+    required String adjustmentType,
+    required double amount,
+    required String reason,
+  }) async {
+    final origin = await _origin(session);
+    final result = await _supabase.rpc(
+      'party_outstanding_close_v626',
+      params: {
+        'p_tenant_id': session.business.id,
+        'p_location_id': origin.locationId,
+        'p_party_type': partyType,
+        'p_party_id': partyId,
+        'p_adjustment_type': adjustmentType,
+        'p_amount': amount,
+        'p_reason': reason.trim(),
+        'p_device_id': origin.deviceId,
+        'p_request_id': const Uuid().v4(),
+      },
+    );
+    if (result is! Map) {
+      throw StateError('Unexpected outstanding settlement response.');
+    }
+    return Map<String, dynamic>.from(result);
+  }
 }
 
 class _PaymentOrigin {

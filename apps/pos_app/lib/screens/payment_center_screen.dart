@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/client_session.dart';
 import '../models/payment_pending.dart';
 import '../services/payment_center_service.dart';
+import 'party_settlement_screen.dart';
 import 'party_statement_screen.dart';
 import 'purchase_detail_screen.dart';
 import 'sale_detail_screen.dart';
@@ -107,6 +108,21 @@ class _PaymentCenterScreenState extends State<PaymentCenterScreen> {
                       ),
                     ],
                   ),
+                ),
+                TextButton.icon(
+                  onPressed: () async {
+                    await Navigator.of(context).push<void>(
+                      MaterialPageRoute(
+                        builder: (_) => PartySettlementScreen(
+                          session: widget.session,
+                          service: _service,
+                        ),
+                      ),
+                    );
+                    if (mounted) await _refresh();
+                  },
+                  icon: const Icon(Icons.rule_rounded, size: 16),
+                  label: const Text('Settle'),
                 ),
                 IconButton(
                   tooltip: 'Refresh balances',

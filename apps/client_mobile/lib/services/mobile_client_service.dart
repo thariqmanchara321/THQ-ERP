@@ -231,6 +231,72 @@ class MobileClientService {
         ),
       );
 
+  Future<Map<String, dynamic>> partyPaymentSummary(
+    MobileSession s, {
+    String query = '',
+  }) async =>
+      _map(
+        await _supabase.rpc(
+          'payments_party_summary_v491',
+          params: {
+            'p_tenant_id': s.tenantId,
+            'p_location_id': s.locationId,
+            'p_query': query.trim(),
+            'p_limit': 1000,
+          },
+        ),
+      );
+
+  Future<Map<String, dynamic>> paySupplier(
+    MobileSession s, {
+    required String supplierId,
+    required double amount,
+    required String method,
+    String reference = '',
+    String notes = '',
+  }) async =>
+      _map(
+        await _supabase.rpc(
+          'supplier_payment_party_v626',
+          params: {
+            'p_tenant_id': s.tenantId,
+            'p_location_id': s.locationId,
+            'p_supplier_id': supplierId,
+            'p_amount': amount,
+            'p_payment_method': method,
+            'p_reference_number': reference.trim(),
+            'p_notes': notes.trim(),
+            'p_device_id': s.deviceId,
+            'p_request_id': const Uuid().v4(),
+          },
+        ),
+      );
+
+  Future<Map<String, dynamic>> closeOutstanding(
+    MobileSession s, {
+    required String partyType,
+    required String partyId,
+    required String adjustmentType,
+    required double amount,
+    required String reason,
+  }) async =>
+      _map(
+        await _supabase.rpc(
+          'party_outstanding_close_v626',
+          params: {
+            'p_tenant_id': s.tenantId,
+            'p_location_id': s.locationId,
+            'p_party_type': partyType,
+            'p_party_id': partyId,
+            'p_adjustment_type': adjustmentType,
+            'p_amount': amount,
+            'p_reason': reason.trim(),
+            'p_device_id': s.deviceId,
+            'p_request_id': const Uuid().v4(),
+          },
+        ),
+      );
+
   Future<List<Map<String, dynamic>>> notifications(
     MobileSession s, {
     int limit = 100,

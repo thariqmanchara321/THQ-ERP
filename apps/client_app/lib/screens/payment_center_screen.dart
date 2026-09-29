@@ -7,6 +7,7 @@ import '../models/payment_pending.dart';
 import '../services/expense_service.dart';
 import '../services/location_scope_service.dart';
 import '../services/payment_center_service.dart';
+import 'party_settlement_screen.dart';
 import 'party_statement_screen.dart';
 import 'purchase_detail_screen.dart';
 import 'sale_detail_screen.dart';
@@ -130,14 +131,29 @@ class _PaymentCenterScreenState extends State<PaymentCenterScreen> {
 
   Future<void> _paySupplier(PartyPendingSummary party) async {
     if (_actionBusy || !_requireSpecificStore()) return;
-    if (party.balance <= .005) return;
+    final tradeOutstanding = (
+      party.purchaseOutstanding +
+          party.invoiceOutstanding -
+          party.creditBalance
+    ).clamp(0, double.infinity).toDouble();
+    if (tradeOutstanding <= .005) {
+      ThqNotify.showSnackBar(
+        context,
+        const SnackBar(
+          content: Text(
+            'This supplier has no trade payable in this store. Supplier loans remain in the Loans workspace.',
+          ),
+        ),
+      );
+      return;
+    }
 
     final draft = await showDialog<_DirectPaymentDraft>(
       context: context,
       builder: (_) => _DirectPaymentDialog(
         title: 'Pay ${party.partyName}',
         actionLabel: 'Pay',
-        maximumAmount: party.balance,
+        maximumAmount: tradeOutstanding,
       ),
     );
     if (draft == null || !mounted) return;
@@ -267,6 +283,24 @@ class _PaymentCenterScreenState extends State<PaymentCenterScreen> {
                       ),
                     ],
                   ),
+                ),
+                TextButton.icon(
+                  onPressed: _actionBusy
+                      ? null
+                      : () async {
+                          if (!_requireSpecificStore()) return;
+                          await Navigator.of(context).push<void>(
+                            MaterialPageRoute(
+                              builder: (_) => PartySettlementScreen(
+                                session: widget.session,
+                                service: _service,
+                              ),
+                            ),
+                          );
+                          if (mounted) await _refresh();
+                        },
+                  icon: const Icon(Icons.rule_rounded, size: 18),
+                  label: const Text('Settle'),
                 ),
                 IconButton(
                   tooltip: 'Refresh balances',

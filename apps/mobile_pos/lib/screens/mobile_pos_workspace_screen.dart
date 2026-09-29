@@ -13,6 +13,7 @@ import '../services/mobile_pos_auth_service.dart';
 import '../services/mobile_pos_local_store.dart';
 import '../services/mobile_pos_sync_service.dart';
 import 'mobile_cashier_shift_screen.dart';
+import 'mobile_party_payments_screen.dart';
 import 'mobile_pos_entry_screen.dart';
 import 'mobile_pos_expense_screen.dart';
 import 'mobile_pos_home_screen.dart';
@@ -142,6 +143,9 @@ class _MobilePosWorkspaceScreenState extends State<MobilePosWorkspaceScreen> {
         ),
         onCashier: () => _push(
           MobileCashierShiftScreen(session: widget.session),
+        ),
+        onPartyPayments: () => _push(
+          MobilePartyPaymentsScreen(session: widget.session),
         ),
         onLogistics: () => _push(
           LogisticsOperationsWorkspace(
@@ -534,6 +538,7 @@ class _OperationsWorkspace extends StatelessWidget {
   final VoidCallback onPurchase;
   final VoidCallback onExpense;
   final VoidCallback onCashier;
+  final VoidCallback onPartyPayments;
   final VoidCallback onLogistics;
   final VoidCallback onVehicleLogistics;
   final VoidCallback onQueue;
@@ -544,6 +549,7 @@ class _OperationsWorkspace extends StatelessWidget {
     required this.onPurchase,
     required this.onExpense,
     required this.onCashier,
+    required this.onPartyPayments,
     required this.onLogistics,
     required this.onVehicleLogistics,
     required this.onQueue,
@@ -584,6 +590,13 @@ class _OperationsWorkspace extends StatelessWidget {
           title: 'Cashier shift',
           subtitle: 'Open, review and close the active terminal cash shift.',
           onTap: onCashier,
+        ),
+        const SizedBox(height: 8),
+        _OperationCard(
+          icon: Icons.account_balance_wallet_outlined,
+          title: 'Party payments',
+          subtitle: 'Receive customers, pay suppliers, or close balances with Discount / Write-off.',
+          onTap: onPartyPayments,
         ),
         const SizedBox(height: 8),
         if (session.restaurantEnabled) ...[

@@ -4,6 +4,7 @@ import 'package:thq_ui/thq_ui.dart';
 import '../../models/mobile_session.dart';
 import '../../services/mobile_client_service.dart';
 import '../../widgets/mobile_workspace_widgets.dart';
+import 'mobile_party_payments_page.dart';
 import 'mobile_tools_pages.dart';
 
 class MobileSalesWorkspace extends StatefulWidget {
@@ -574,6 +575,25 @@ class _MobileMoneyWorkspaceState extends State<MobileMoneyWorkspace> {
                     ),
                   ),
                 ],
+              ),
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.tonalIcon(
+                  onPressed: () async {
+                    await Navigator.of(context).push<void>(
+                      MaterialPageRoute(
+                        builder: (_) => MobilePartyPaymentsPage(
+                          session: widget.session,
+                          service: widget.service,
+                        ),
+                      ),
+                    );
+                    if (mounted) await _refresh();
+                  },
+                  icon: const Icon(Icons.account_balance_wallet_outlined),
+                  label: const Text('Party payments & settlement'),
+                ),
               ),
               if (widget.session.canReceiveCustomerPayment) ...[
                 const SizedBox(height: 8),
