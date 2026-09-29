@@ -3,6 +3,37 @@ plugins {
     id "dev.flutter.flutter-gradle-plugin"
 }
 
+def keystoreProperties = new Properties()
+def keystorePropertiesFile = rootProject.file("key.properties")
+if (keystorePropertiesFile.exists()) {
+    keystorePropertiesFile.withInputStream { stream ->
+        keystoreProperties.load(stream)
+    }
+}
+
+def thqSigningValue = { String envName, String propertyName ->
+    def envValue = System.getenv(envName)
+    if (envValue != null && !envValue.trim().isEmpty()) {
+        return envValue.trim()
+    }
+    def propertyValue = keystoreProperties.getProperty(propertyName)
+    return propertyValue == null ? null : propertyValue.trim()
+}
+
+def releaseStoreFile = thqSigningValue("THQ_ANDROID_KEYSTORE_PATH", "storeFile")
+def releaseStorePassword = thqSigningValue("THQ_ANDROID_KEYSTORE_PASSWORD", "storePassword")
+def releaseKeyAlias = thqSigningValue("THQ_POS_KEY_ALIAS", "keyAlias")
+def releaseKeyPassword = thqSigningValue("THQ_POS_KEY_PASSWORD", "keyPassword")
+def releaseSigningConfigured = [
+    releaseStoreFile,
+    releaseStorePassword,
+    releaseKeyAlias,
+    releaseKeyPassword,
+].every { value -> value != null && !value.isEmpty() }
+def releaseRequested = gradle.startParameter.taskNames.any { taskName ->
+    taskName.toLowerCase().contains("release")
+}
+
 android {
     namespace = "com.flexierp.mobile_pos"
     compileSdk = flutter.compileSdkVersion
@@ -21,10 +52,36 @@ android {
         versionName = flutter.versionName
     }
 
+    signingConfigs {
+        release {
+            if (releaseSigningConfigured) {
+                storeFile file(releaseStoreFile)
+                storePassword releaseStorePassword
+                keyAlias releaseKeyAlias
+                keyPassword releaseKeyPassword
+            }
+        }
+    }
+
     buildTypes {
         release {
-            // Keep existing THQ test-build behaviour until release signing is configured.
-            signingConfig = signingConfigs.debug
+            if (releaseRequested && !releaseSigningConfigured) {
+                throw new GradleException(
+                    "THQ Mobile POS production signing is not configured. " +
+                    "Create android/key.properties from key.properties.example " +
+                    "or provide the documented THQ_ANDROID_* environment variables."
+                )
+            }
+            if (releaseRequested &&
+                releaseSigningConfigured &&
+                !file(releaseStoreFile).exists()) {
+                throw new GradleException(
+                    "THQ production keystore was not found: " + releaseStoreFile
+                )
+            }
+            if (releaseSigningConfigured) {
+                signingConfig signingConfigs.release
+            }
         }
     }
 }

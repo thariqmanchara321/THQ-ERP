@@ -1,0 +1,6 @@
+# Copy this file to android/key.properties and replace placeholders.
+# android/key.properties is ignored by Git. Never commit real passwords or keystores.
+storeFile=C:/Users/YOUR_USER/.thq/keys/thq-mobile-release.jks
+storePassword=CHANGE_ME
+keyAlias=thq-mobile-pos
+keyPassword=CHANGE_ME

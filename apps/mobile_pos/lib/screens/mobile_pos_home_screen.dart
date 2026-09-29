@@ -449,6 +449,50 @@ class _State extends State<MobilePosHomeScreen> {
     });
   }
 
+  void _resetCurrentOrderState() {
+    cart.clear();
+    roundOff = 0;
+    customer = _walkIn(customers);
+  }
+
+  Future<void> _clearCurrentCart({VoidCallback? refreshOverlay}) async {
+    if (cart.isEmpty) return;
+
+    final quantity = cart.fold<double>(0, (sum, line) => sum + line.quantity);
+    final quantityText = quantity.toStringAsFixed(quantity % 1 == 0 ? 0 : 2);
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Clear current order?'),
+        content: Text(
+          'Remove $quantityText selected item(s) from the cart and reset this order to Walk-in? '
+          'Round-off will also be cleared. Held orders are not affected.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton.icon(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            icon: const Icon(Icons.delete_sweep_outlined),
+            label: const Text('Clear & reset'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    setState(_resetCurrentOrderState);
+    refreshOverlay?.call();
+    ThqNotify.showSnackBar(
+      context,
+      const SnackBar(
+        content: Text('Cart cleared. New order reset to Walk-in.'),
+      ),
+    );
+  }
+
   Future<void> _holdCurrentCart() async {
     if (cart.isEmpty) return;
     final controller = TextEditingController(
@@ -509,9 +553,7 @@ class _State extends State<MobilePosHomeScreen> {
     );
     if (!mounted) return;
     setState(() {
-      cart.clear();
-      roundOff = 0;
-      customer = _walkIn(customers);
+      _resetCurrentOrderState();
       _heldCount++;
     });
     ThqNotify.showSnackBar(
@@ -942,10 +984,7 @@ class _State extends State<MobilePosHomeScreen> {
     }
 
     if (!mounted) return;
-    setState(() {
-      cart.clear();
-      roundOff = 0;
-    });
+    setState(_resetCurrentOrderState);
     await _reload();
     if (!mounted) return;
 
@@ -2365,14 +2404,10 @@ class _State extends State<MobilePosHomeScreen> {
                     ),
                   if (cart.isNotEmpty)
                     IconButton(
-                      tooltip: 'Clear cart',
-                      onPressed: () {
-                        setState(() {
-                          cart.clear();
-                          roundOff = 0;
-                        });
-                        refreshOverlay?.call();
-                      },
+                      tooltip: 'Clear / reset order',
+                      onPressed: () => _clearCurrentCart(
+                        refreshOverlay: refreshOverlay,
+                      ),
                       icon: const Icon(Icons.delete_outline_rounded, size: 19),
                     ),
                 ],
@@ -2740,6 +2775,17 @@ class _State extends State<MobilePosHomeScreen> {
                 textStyle: const TextStyle(fontWeight: FontWeight.w800),
               ),
             ),
+          ),
+          const SizedBox(width: 6),
+          IconButton(
+            tooltip: 'Clear / reset order',
+            onPressed: cart.isEmpty ? null : () => _clearCurrentCart(),
+            style: IconButton.styleFrom(
+              minimumSize: const Size.square(44),
+              backgroundColor: const Color(0xFFFFECEC),
+              foregroundColor: const Color(0xFFC43B3B),
+            ),
+            icon: const Icon(Icons.delete_sweep_outlined),
           ),
           const SizedBox(width: 6),
           IconButton(
