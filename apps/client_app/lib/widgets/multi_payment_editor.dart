@@ -256,11 +256,14 @@ class _MultiPaymentEditorState extends State<MultiPaymentEditor> {
           children: [
             Text('Invoice ${widget.total.toStringAsFixed(2)}'),
             Text(
-              'Remaining ${_remaining.toStringAsFixed(2)}',
+              '${!widget.customerIsWalkIn && _remaining > .005 ? 'Customer balance' : 'Remaining'} '
+              '${_remaining.toStringAsFixed(2)}',
               style: TextStyle(
                 fontWeight: FontWeight.w700,
                 color: _remaining > .005
-                    ? Theme.of(context).colorScheme.error
+                    ? (widget.customerIsWalkIn
+                          ? Theme.of(context).colorScheme.error
+                          : Theme.of(context).colorScheme.tertiary)
                     : null,
               ),
             ),
@@ -272,10 +275,13 @@ class _MultiPaymentEditorState extends State<MultiPaymentEditor> {
           ],
         ),
         const SizedBox(height: 5),
-        const Text(
-          'Cash over-tender becomes change. Electronic overpayment is rejected. '
-          'Credit stays in Accounts Receivable and requires a named customer.',
-          style: TextStyle(fontSize: 10.5),
+        Text(
+          widget.customerIsWalkIn
+              ? 'Cash over-tender becomes change. Electronic overpayment is rejected. '
+                    'Walk-in sales must be fully settled.'
+              : 'Cash over-tender becomes change. Electronic overpayment is rejected. '
+                    'Any unpaid remainder is automatically saved to this customer\'s Accounts Receivable.',
+          style: const TextStyle(fontSize: 10.5),
         ),
       ],
     );

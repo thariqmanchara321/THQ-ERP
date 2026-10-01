@@ -5,10 +5,10 @@
   #error OutputDir was not provided.
 #endif
 #ifndef AppVersion
-  #define AppVersion "6.1.3"
+  #define AppVersion "6.1.5"
 #endif
 #ifndef BuildNumber
-  #define BuildNumber "6"
+  #define BuildNumber "8"
 #endif
 
 [Setup]
@@ -24,7 +24,7 @@ PrivilegesRequired=admin
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 OutputDir={#OutputDir}
-OutputBaseFilename=THQ-Business-v6.1.3-build6-windows-x64
+OutputBaseFilename=THQ-Business-v6.1.5-build8-windows-x64
 Compression=lzma2/max
 SolidCompression=yes
 WizardStyle=modern

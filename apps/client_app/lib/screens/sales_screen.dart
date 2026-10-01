@@ -1157,9 +1157,27 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
       (_grandTotal - _settledPayment).clamp(0.0, _grandTotal);
 
   bool get _requiresDueDate =>
-      _selectedCustomer?.isWalkIn == false &&
-      _paymentAllocations.isNotEmpty &&
-      _balanceDue > 0.005;
+      _selectedCustomer?.isWalkIn == false && _balanceDue > 0.005;
+
+  double get _unallocatedAmount =>
+      (_grandTotal - _allocatedTotal).clamp(0.0, _grandTotal).toDouble();
+
+  List<Map<String, dynamic>> _paymentAllocationsForPost(Customer customer) {
+    final allocations = _paymentAllocations
+        .map((row) => Map<String, dynamic>.from(row))
+        .toList(growable: true);
+
+    final remainder = _unallocatedAmount;
+    if (!customer.isWalkIn && remainder > 0.005) {
+      allocations.add(<String, dynamic>{
+        'method_code': 'credit',
+        'tendered_amount': double.parse(remainder.toStringAsFixed(2)),
+        'reference_number': '',
+      });
+    }
+
+    return allocations;
+  }
 
   double get _taxableAmount => _commercialQuote == null
       ? _subtotal - _discount
@@ -1373,27 +1391,21 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
       }
     }
 
-    if (_paymentAllocations.isEmpty) {
+    if (customer.isWalkIn && _paymentAllocations.isEmpty) {
       setState(() {
-        _error = 'Allocate the invoice total to at least one payment method.';
+        _error = 'Walk-in Customer sales must be fully settled.';
       });
       return;
     }
-    if ((_grandTotal - _allocatedTotal).abs() > 0.005) {
+    if (customer.isWalkIn && _unallocatedAmount > 0.005) {
       setState(() {
-        _error = 'Payment allocations must cover the invoice total.';
+        _error = 'Walk-in Customer sales must be fully settled.';
       });
       return;
     }
     if (customer.isWalkIn && _hasCredit) {
       setState(() {
         _error = 'Credit requires a named customer.';
-      });
-      return;
-    }
-    if (customer.isWalkIn && _balanceDue > 0.005) {
-      setState(() {
-        _error = 'Walk-in Customer sales must be fully settled.';
       });
       return;
     }
@@ -1418,6 +1430,8 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
     });
 
     try {
+      final paymentAllocations = _paymentAllocationsForPost(customer);
+
       final result = await _salesService.createSale(
         tenantId: widget.session.business.id,
 
@@ -1447,7 +1461,7 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
             )
             .toList(),
 
-        paymentAllocations: _paymentAllocations,
+        paymentAllocations: paymentAllocations,
 
         notes: _notesController.text,
         locationId: widget.locationId,

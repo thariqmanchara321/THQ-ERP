@@ -14,7 +14,7 @@ $ProjectRoot = (Resolve-Path $ProjectRoot).Path
 $ToolsRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 
 if([string]::IsNullOrWhiteSpace($OutputRoot)){
-    $OutputRoot = Join-Path $env:USERPROFILE "THQ_Releases\v6.1.3-build6-windows"
+    $OutputRoot = Join-Path $env:USERPROFILE "THQ_Releases\v6.1.5-build8-windows"
 }
 New-Item -ItemType Directory -Force -Path $OutputRoot | Out-Null
 
@@ -43,7 +43,7 @@ function Find-ReleaseDir {
         throw "Release executable not found under ${windowsBuild}: $ExeName"
     }
     if($exe.FullName -notmatch '\\x64\\'){
-        throw "Build 6 installer is x64-only, but detected output was: $($exe.FullName)"
+        throw "Build 8 installer is x64-only, but detected output was: $($exe.FullName)"
     }
     return $exe.Directory.FullName
 }
@@ -52,12 +52,15 @@ function Find-InnoCompiler {
     $cmd = Get-Command ISCC.exe -ErrorAction SilentlyContinue
     if($cmd){ return $cmd.Source }
     $candidates = @(
+        "$env:ProgramFiles\Inno Setup 7\ISCC.exe",
+        "${env:ProgramFiles(x86)}\Inno Setup 7\ISCC.exe",
+        "$env:LOCALAPPDATA\Programs\Inno Setup 7\ISCC.exe",
         "$env:ProgramFiles\Inno Setup 6\ISCC.exe",
         "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe",
         "$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe"
     ) | Where-Object { $_ -and (Test-Path $_) }
     if($candidates.Count -gt 0){ return $candidates[0] }
-    throw "ISCC.exe was not found. Install Inno Setup 6 or add ISCC.exe to PATH."
+    throw "ISCC.exe was not found. Install Inno Setup 7 or 6, or add ISCC.exe to PATH."
 }
 
 function Test-SigningConfigured {
@@ -101,14 +104,14 @@ $apps = @(
         Dir = Join-Path $ProjectRoot "apps\client_app"
         Exe = "thq_business.exe"
         Iss = Join-Path $ToolsRoot "THQ_Business.iss"
-        PortableBase = "THQ-Business-v6.1.3-build6-windows-x64"
+        PortableBase = "THQ-Business-v6.1.5-build8-windows-x64"
     },
     @{
         Name = "THQ POS"
         Dir = Join-Path $ProjectRoot "apps\pos_app"
         Exe = "thq_pos.exe"
         Iss = Join-Path $ToolsRoot "THQ_POS.iss"
-        PortableBase = "THQ-POS-v6.1.3-build6-windows-x64"
+        PortableBase = "THQ-POS-v6.1.5-build8-windows-x64"
     }
 )
 
@@ -151,8 +154,8 @@ foreach($app in $apps){
 
     Invoke-Flutter -AppDir $app.Dir -FlutterArgs @(
         "build","windows","--release",
-        "--build-name","6.1.3",
-        "--build-number","6"
+        "--build-name","6.1.5",
+        "--build-number","8"
     )
 
     $releaseDir = Find-ReleaseDir -AppDir $app.Dir -ExeName $app.Exe
@@ -190,8 +193,8 @@ foreach($app in $apps){
         $isccArgs = @(
             "/DSourceDir=$portableDir",
             "/DOutputDir=$OutputRoot",
-            "/DAppVersion=6.1.3",
-            "/DBuildNumber=6"
+            "/DAppVersion=6.1.5",
+            "/DBuildNumber=8"
         )
         if($vcRedist){ $isccArgs += "/DVcRedistPath=$vcRedist" }
 
@@ -234,8 +237,8 @@ $hashLines | Set-Content $hashFile -Encoding ascii
 
 $releaseInfo = Join-Path $OutputRoot "RELEASE_INFO.txt"
 @(
-    "THQ ERP Windows v6.1.3 Build 6",
-    "Release: Windows Production Readiness",
+    "THQ ERP Windows v6.1.5 Build 8",
+    "Release: Customer Receivable Sale Fix",
     "Built: $(Get-Date -Format o)",
     "Signing: $(if($signingConfigured){'Authenticode enabled'}else{'UNSIGNED'})",
     "VC++ Runtime bundled: $([bool]$vcRedist)",

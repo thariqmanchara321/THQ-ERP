@@ -1,19 +1,19 @@
-# THQ ERP Windows Release Tooling — v6.1.3 Build 6
+# THQ ERP Windows Release Tooling — v6.1.5 Build 8
 
 Default output:
-`%USERPROFILE%\THQ_Releases\v6.1.3-build6-windows`
+`%USERPROFILE%\THQ_Releases\v6.1.5-build8-windows`
 
 Expected:
-- THQ-Business-v6.1.3-build6-windows-x64-portable.zip
-- THQ-Business-v6.1.3-build6-windows-x64.exe
-- THQ-POS-v6.1.3-build6-windows-x64-portable.zip
-- THQ-POS-v6.1.3-build6-windows-x64.exe
+- THQ-Business-v6.1.5-build8-windows-x64-portable.zip
+- THQ-Business-v6.1.5-build8-windows-x64.exe
+- THQ-POS-v6.1.5-build8-windows-x64-portable.zip
+- THQ-POS-v6.1.5-build8-windows-x64.exe
 - SHA256SUMS.txt
 - RELEASE_INFO.txt
 
 Required:
 - Flutter Windows desktop toolchain / Visual Studio C++ workload
-- Inno Setup 6 for installer builds
+- Inno Setup 7 or 6 for installer builds
 - Windows SDK SignTool only when Authenticode signing is enabled
 
 Unsigned QA:
