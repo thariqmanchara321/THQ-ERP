@@ -741,8 +741,10 @@ class _BusinessDetailsScreenState extends State<BusinessDetailsScreen> {
                                     ),
                                   ),
                                 ),
-                                child: CheckboxListTile(
-                                  dense: true,
+                                child: Material(
+                                  color: Colors.transparent,
+                                  child: CheckboxListTile(
+                                    dense: true,
                                   contentPadding: const EdgeInsets.symmetric(
                                     horizontal: 8,
                                   ),
@@ -795,6 +797,7 @@ class _BusinessDetailsScreenState extends State<BusinessDetailsScreen> {
                                             }
                                           });
                                         },
+                                  ),
                                 ),
                               );
                             },

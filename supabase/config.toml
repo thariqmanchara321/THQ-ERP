@@ -419,3 +419,13 @@ verify_jwt = false
 
 [functions.device-activate]
 verify_jwt = false
+
+# Privileged management functions require a signed-in Supabase session.
+[functions.manage-business-users-v31]
+verify_jwt = true
+
+[functions.manage-tenant-users-v32]
+verify_jwt = true
+
+[functions.delete-business-v41]
+verify_jwt = true

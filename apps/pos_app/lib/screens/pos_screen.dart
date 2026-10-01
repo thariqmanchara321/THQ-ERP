@@ -1995,7 +1995,7 @@ class _PosScreenState extends State<PosScreen> {
       child: LayoutBuilder(
         builder: (context, constraints) {
           final compact = constraints.maxWidth < 900;
-          final veryCompact = constraints.maxWidth < 700;
+          final veryCompact = constraints.maxWidth < 820;
 
           return Row(
             children: [
@@ -3200,18 +3200,22 @@ class _PosScreenState extends State<PosScreen> {
                     ),
                   ] else ...[
                     const SizedBox(width: 4),
-                    Text(
-                      product.itemType == 'stock'
-                          ? _formatStock(
-                              product.stockQuantity,
-                              product.baseUnitCode,
-                            )
-                          : product.itemType,
-                      maxLines: 1,
-                      style: TextStyle(
-                        fontSize: 10.1,
-                        fontWeight: FontWeight.w700,
-                        color: outOfStock ? scheme.error : scheme.primary,
+                    Flexible(
+                      child: Text(
+                        product.itemType == 'stock'
+                            ? _formatStock(
+                                product.stockQuantity,
+                                product.baseUnitCode,
+                              )
+                            : product.itemType,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.right,
+                        style: TextStyle(
+                          fontSize: 10.1,
+                          fontWeight: FontWeight.w700,
+                          color: outOfStock ? scheme.error : scheme.primary,
+                        ),
                       ),
                     ),
                   ],

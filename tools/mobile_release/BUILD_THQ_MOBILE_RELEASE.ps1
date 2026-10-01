@@ -52,12 +52,12 @@ function Assert-SigningConfig {
 }
 
 function Invoke-Flutter {
-    param([string]$AppDir,[string[]]$Args)
+    param([string]$AppDir,[string[]]$FlutterArgs)
     Push-Location $AppDir
     try {
-        & flutter @Args
+        & flutter @FlutterArgs
         if($LASTEXITCODE -ne 0){
-            throw "flutter $($Args -join ' ') failed in $AppDir"
+            throw "flutter $($FlutterArgs -join ' ') failed in $AppDir"
         }
     } finally {
         Pop-Location
@@ -93,15 +93,15 @@ if(-not $SkipAnalyze){
     } finally { Pop-Location }
 
     foreach($app in $apps){
-        Invoke-Flutter -AppDir $app.Dir -Args @("pub","get")
-        Invoke-Flutter -AppDir $app.Dir -Args @("analyze")
+        Invoke-Flutter -AppDir $app.Dir -FlutterArgs @("pub","get")
+        Invoke-Flutter -AppDir $app.Dir -FlutterArgs @("analyze")
     }
 }
 
 $artifacts = @()
 foreach($app in $apps){
     if($Format -eq "apk" -or $Format -eq "both"){
-        Invoke-Flutter -AppDir $app.Dir -Args @("build","apk","--release")
+        Invoke-Flutter -AppDir $app.Dir -FlutterArgs @("build","apk","--release")
         $src = Join-Path $app.Dir "build\app\outputs\flutter-apk\app-release.apk"
         if(-not (Test-Path $src)){ throw "Expected APK not found: $src" }
         $dst = Join-Path $OutputRoot ($app.OutputBase + ".apk")
@@ -110,9 +110,9 @@ foreach($app in $apps){
     }
 
     if($Format -eq "appbundle" -or $Format -eq "both"){
-        Invoke-Flutter -AppDir $app.Dir -Args @("build","appbundle","--release")
-        $src = Join-Path $app.Dir "build\app\outputs\bundle\release\app-release.aab"
-        if(-not (Test-Path $src)){ throw "Expected AAB not found: $src" }
+        Invoke-Flutter -AppDir $app.Dir -FlutterArgs @("build","appbundle","--release")
+        $src = Get-ChildItem -Path $app.Dir -Recurse -File -Filter "*.aab" -ErrorAction SilentlyContinue | Sort-Object LastWriteTime -Descending | Select-Object -First 1 -ExpandProperty FullName
+        if([string]::IsNullOrWhiteSpace($src) -or -not (Test-Path $src)){ throw "Flutter appbundle completed but no AAB was found under $($app.Dir)" }
         $dst = Join-Path $OutputRoot ($app.OutputBase + ".aab")
         Copy-Item $src $dst -Force
         $artifacts += $dst
