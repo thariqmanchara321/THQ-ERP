@@ -747,7 +747,9 @@ class _SalePaymentDialogState extends State<_SalePaymentDialog> {
   final _ref = TextEditingController(), _notes = TextEditingController();
   String _method = 'cash';
   bool _saving = false;
+  bool _closeSmallBalance = false;
   String? _error;
+
   @override
   void initState() {
     super.initState();
@@ -756,12 +758,27 @@ class _SalePaymentDialogState extends State<_SalePaymentDialog> {
     );
   }
 
+  double get _enteredAmount => double.tryParse(_amount.text.trim()) ?? 0;
+  double get _remainingAfterPayment =>
+      (widget.sale.balanceDue - _enteredAmount)
+          .clamp(0.0, widget.sale.balanceDue)
+          .toDouble();
+  bool get _canCloseResidual =>
+      _remainingAfterPayment > 0.005 && _remainingAfterPayment < 1.0;
+  bool get _canCloseWholeBalance =>
+      widget.sale.balanceDue > 0.005 && widget.sale.balanceDue < 1.0;
+
+  String _money(double value) => widget.session.currencyCode == 'INR'
+      ? '₹${value.toStringAsFixed(2)}'
+      : '${widget.session.currencyCode} ${value.toStringAsFixed(2)}';
+
   Future<void> _save() async {
-    final n = double.tryParse(_amount.text.trim()) ?? 0;
+    final n = _enteredAmount;
     if (n <= 0 || n > widget.sale.balanceDue + 0.0001) {
       setState(() => _error = 'Enter an amount up to the balance due.');
       return;
     }
+    final closeResidual = _closeSmallBalance && _canCloseResidual;
     setState(() {
       _saving = true;
       _error = null;
@@ -774,6 +791,48 @@ class _SalePaymentDialogState extends State<_SalePaymentDialog> {
         paymentMethod: _method,
         referenceNumber: _ref.text,
         notes: _notes.text,
+        closeSmallBalance: closeResidual,
+      );
+      if (mounted) Navigator.pop(context, true);
+    } catch (e) {
+      if (mounted) setState(() => _error = e.toString());
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  Future<void> _closeBalanceAsRoundOff() async {
+    if (!_canCloseWholeBalance || _saving) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Close small balance?'),
+        content: Text(
+          'Close ${_money(widget.sale.balanceDue)} as round-off?\n\n'
+          'This records the residual only in Rounding / Variance. It is not a cash receipt.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Keep Outstanding'),
+          ),
+          FilledButton.tonal(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Close as Round-off'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
+    try {
+      await _service.closeSmallBalance(
+        tenantId: widget.session.business.id,
+        saleId: widget.sale.saleId,
+        reason: 'Explicit close from sale payment dialog',
       );
       if (mounted) Navigator.pop(context, true);
     } catch (e) {
@@ -796,65 +855,95 @@ class _SalePaymentDialogState extends State<_SalePaymentDialog> {
     title: const Text('Record Customer Payment'),
     content: SizedBox(
       width: 430,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text('Balance due: ${widget.sale.balanceDue.toStringAsFixed(2)}'),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _amount,
-            keyboardType: TextInputType.number,
-            decoration: const InputDecoration(
-              labelText: 'Amount',
-              border: OutlineInputBorder(),
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('Balance due: ${_money(widget.sale.balanceDue)}'),
+            if (_canCloseWholeBalance) ...[
+              const SizedBox(height: 10),
+              OutlinedButton.icon(
+                onPressed: _saving ? null : _closeBalanceAsRoundOff,
+                icon: const Icon(Icons.exposure_zero_rounded),
+                label: Text('Close ${_money(widget.sale.balanceDue)} as round-off'),
+              ),
+            ],
+            const SizedBox(height: 12),
+            TextField(
+              controller: _amount,
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              onChanged: (_) {
+                setState(() => _closeSmallBalance = false);
+              },
+              decoration: const InputDecoration(
+                labelText: 'Amount',
+                border: OutlineInputBorder(),
+              ),
             ),
-          ),
-          const SizedBox(height: 12),
-          DropdownButtonFormField<String>(
-            initialValue: _method,
-            decoration: const InputDecoration(
-              labelText: 'Payment Method',
-              border: OutlineInputBorder(),
+            if (_canCloseResidual) ...[
+              const SizedBox(height: 6),
+              CheckboxListTile(
+                contentPadding: EdgeInsets.zero,
+                value: _closeSmallBalance,
+                onChanged: _saving
+                    ? null
+                    : (value) => setState(
+                          () => _closeSmallBalance = value ?? false,
+                        ),
+                title: Text(
+                  'Close remaining ${_money(_remainingAfterPayment)} as round-off',
+                ),
+                subtitle: const Text(
+                  'Optional. Posts only the residual to Rounding / Variance; it is not cash received.',
+                ),
+              ),
+            ],
+            const SizedBox(height: 12),
+            DropdownButtonFormField<String>(
+              initialValue: _method,
+              decoration: const InputDecoration(
+                labelText: 'Payment Method',
+                border: OutlineInputBorder(),
+              ),
+              items: const [
+                'cash',
+                'card',
+                'bank_transfer',
+                'upi',
+                'cheque',
+                'other',
+              ]
+                  .map(
+                    (e) => DropdownMenuItem(
+                      value: e,
+                      child: Text(e.replaceAll('_', ' ').toUpperCase()),
+                    ),
+                  )
+                  .toList(),
+              onChanged: (v) => setState(() => _method = v ?? 'cash'),
             ),
-            items:
-                const [
-                      'cash',
-                      'card',
-                      'bank_transfer',
-                      'upi',
-                      'cheque',
-                      'other',
-                    ]
-                    .map(
-                      (e) => DropdownMenuItem(
-                        value: e,
-                        child: Text(e.replaceAll('_', ' ').toUpperCase()),
-                      ),
-                    )
-                    .toList(),
-            onChanged: (v) => setState(() => _method = v ?? 'cash'),
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _ref,
-            decoration: const InputDecoration(
-              labelText: 'Reference',
-              border: OutlineInputBorder(),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _ref,
+              decoration: const InputDecoration(
+                labelText: 'Reference',
+                border: OutlineInputBorder(),
+              ),
             ),
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _notes,
-            decoration: const InputDecoration(
-              labelText: 'Notes',
-              border: OutlineInputBorder(),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _notes,
+              decoration: const InputDecoration(
+                labelText: 'Notes',
+                border: OutlineInputBorder(),
+              ),
             ),
-          ),
-          if (_error != null) ...[
-            const SizedBox(height: 10),
-            Text(_error!, style: const TextStyle(color: Colors.red)),
+            if (_error != null) ...[
+              const SizedBox(height: 10),
+              Text(_error!, style: const TextStyle(color: Colors.red)),
+            ],
           ],
-        ],
+        ),
       ),
     ),
     actions: [
@@ -875,7 +964,6 @@ class _SalePaymentDialogState extends State<_SalePaymentDialog> {
     ],
   );
 }
-
 class _Card extends StatelessWidget {
   final String title;
   final Widget child;

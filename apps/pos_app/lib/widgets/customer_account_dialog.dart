@@ -78,11 +78,13 @@ class _CustomerAccountDialogState extends State<CustomerAccountDialog> {
         .whereType<Map>()
         .map((row) => Map<String, dynamic>.from(row))
         .toList();
-    final amount = TextEditingController(text: outstanding.toStringAsFixed(2));
+    final amount = TextEditingController();
     final reference = TextEditingController();
     final notes = TextEditingController();
     String? saleId;
     String method = 'cash';
+    String? formError;
+    double selectedOutstanding = outstanding;
 
     final form = await showDialog<Map<String, dynamic>>(
       context: context,
@@ -132,16 +134,15 @@ class _CustomerAccountDialogState extends State<CustomerAccountDialog> {
                     onChanged: (value) {
                       setLocalState(() {
                         saleId = value;
+                        formError = null;
                         if (value == null) {
-                          amount.text = outstanding.toStringAsFixed(2);
+                          selectedOutstanding = outstanding;
                         } else {
                           final selected = invoices.firstWhere(
                             (row) => row['sale_id']?.toString() == value,
                             orElse: () => <String, dynamic>{},
                           );
-                          amount.text = _number(
-                            selected['balance'],
-                          ).toStringAsFixed(2);
+                          selectedOutstanding = _number(selected['balance']);
                         }
                       });
                     },
@@ -149,13 +150,21 @@ class _CustomerAccountDialogState extends State<CustomerAccountDialog> {
                   const SizedBox(height: 12),
                   TextField(
                     controller: amount,
+                    autofocus: true,
                     keyboardType: const TextInputType.numberWithOptions(
                       decimal: true,
                     ),
+                    onChanged: (_) => setLocalState(() => formError = null),
                     decoration: const InputDecoration(
-                      labelText: 'Amount received',
+                      labelText: 'Amount actually received',
+                      hintText: 'Enter the amount received from the customer',
                       prefixIcon: Icon(Icons.payments_outlined),
                     ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Selected outstanding: ${_money(selectedOutstanding)}',
+                    style: Theme.of(context).textTheme.bodySmall,
                   ),
                   const SizedBox(height: 12),
                   DropdownButtonFormField<String>(
@@ -190,6 +199,13 @@ class _CustomerAccountDialogState extends State<CustomerAccountDialog> {
                       labelText: 'Notes (optional)',
                     ),
                   ),
+                  if (formError != null) ...[
+                    const SizedBox(height: 10),
+                    Text(
+                      formError!,
+                      style: TextStyle(color: Theme.of(context).colorScheme.error),
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -200,9 +216,42 @@ class _CustomerAccountDialogState extends State<CustomerAccountDialog> {
               child: const Text('Cancel'),
             ),
             FilledButton.icon(
-              onPressed: () {
+              onPressed: () async {
                 final value = double.tryParse(amount.text.trim()) ?? 0;
-                if (value <= 0) return;
+                if (value <= 0) {
+                  setLocalState(() => formError = 'Enter the amount actually received.');
+                  return;
+                }
+                if (value > selectedOutstanding + 0.005) {
+                  setLocalState(
+                    () => formError =
+                        'Amount cannot exceed ${_money(selectedOutstanding)} for the selected scope.',
+                  );
+                  return;
+                }
+                final remaining =
+                    (selectedOutstanding - value).clamp(0.0, selectedOutstanding);
+                final confirmed = await showDialog<bool>(
+                  context: dialogContext,
+                  builder: (confirmContext) => AlertDialog(
+                    title: const Text('Confirm receipt amount'),
+                    content: Text(
+                      'Receive ${_money(value)} from ${widget.customerName}?\n\n'
+                      'Selected balance after this receipt: ${_money(remaining)}',
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(confirmContext, false),
+                        child: const Text('Back'),
+                      ),
+                      FilledButton(
+                        onPressed: () => Navigator.pop(confirmContext, true),
+                        child: Text('Receive ${_money(value)}'),
+                      ),
+                    ],
+                  ),
+                );
+                if (confirmed != true || !dialogContext.mounted) return;
                 Navigator.pop(dialogContext, <String, dynamic>{
                   'amount': value,
                   'method': method,
@@ -246,6 +295,75 @@ class _CustomerAccountDialogState extends State<CustomerAccountDialog> {
         SnackBar(
           content: Text(
             '${result['receipt_number'] ?? 'Payment'} received • Remaining ${_money(result['outstanding_after'])}',
+          ),
+        ),
+      );
+      await _load();
+    } catch (error) {
+      if (mounted) setState(() => _error = error.toString());
+    } finally {
+      if (mounted) setState(() => _receiving = false);
+    }
+  }
+
+  Future<void> _voidReceipt(Map<String, dynamic> receipt) async {
+    if (receipt['status']?.toString() == 'void') return;
+    final receiptId = receipt['receipt_id']?.toString();
+    if (receiptId == null || receiptId.isEmpty) return;
+
+    final reason = TextEditingController();
+    final value = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text('Void ${receipt['receipt_number'] ?? 'receipt'}'),
+        content: SizedBox(
+          width: 440,
+          child: TextField(
+            controller: reason,
+            autofocus: true,
+            maxLines: 3,
+            decoration: const InputDecoration(
+              labelText: 'Reason (required)',
+              hintText: 'Explain why this receipt is being reversed',
+              border: OutlineInputBorder(),
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancel'),
+          ),
+          FilledButton.tonal(
+            onPressed: () {
+              final text = reason.text.trim();
+              if (text.isEmpty) return;
+              Navigator.pop(dialogContext, text);
+            },
+            child: const Text('Void Receipt'),
+          ),
+        ],
+      ),
+    );
+    reason.dispose();
+    if (value == null || value.trim().isEmpty || !mounted) return;
+
+    setState(() {
+      _receiving = true;
+      _error = null;
+    });
+    try {
+      final result = await _service.voidReceipt(
+        tenantId: widget.tenantId,
+        receiptId: receiptId,
+        reason: value,
+      );
+      if (!mounted) return;
+      ThqNotify.showSnackBar(
+        context,
+        SnackBar(
+          content: Text(
+            '${result['receipt_number'] ?? 'Receipt'} voided • Outstanding ${_money(result['outstanding_after'])}',
           ),
         ),
       );
@@ -376,8 +494,20 @@ class _CustomerAccountDialogState extends State<CustomerAccountDialog> {
                                 const Divider(height: 1),
                             itemBuilder: (context, index) {
                               final row = receipts[index];
+                              final status = row['status']?.toString() ?? 'posted';
                               return ListTile(
                                 dense: true,
+                                trailing: widget.canReceive && status != 'void'
+                                    ? IconButton(
+                                        tooltip: 'Void receipt',
+                                        onPressed: _receiving
+                                            ? null
+                                            : () => _voidReceipt(row),
+                                        icon: const Icon(Icons.undo_rounded),
+                                      )
+                                    : status == 'void'
+                                        ? const Chip(label: Text('VOID'))
+                                        : null,
                                 leading: const Icon(
                                   Icons.receipt_long_outlined,
                                 ),
@@ -385,7 +515,7 @@ class _CustomerAccountDialogState extends State<CustomerAccountDialog> {
                                   '${row['receipt_number'] ?? '-'} • ${_money(row['amount'])}',
                                 ),
                                 subtitle: Text(
-                                  '${(row['payment_method'] ?? '').toString().toUpperCase()} • ${row['receipt_date'] ?? ''} • ${row['location_name'] ?? ''}'
+                                  '${(row['payment_method'] ?? '').toString().toUpperCase()} • ${status.toUpperCase()} • ${row['receipt_date'] ?? ''} • ${row['location_name'] ?? ''}'
                                   '${(row['reference_number'] ?? '').toString().isEmpty ? '' : ' • ${row['reference_number']}'}',
                                 ),
                               );

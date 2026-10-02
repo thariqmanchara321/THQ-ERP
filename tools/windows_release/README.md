@@ -1,13 +1,13 @@
-# THQ ERP Windows Release Tooling — v6.1.5 Build 8
+# THQ ERP Windows Release Tooling — v6.1.6 Build 9
 
 Default output:
-`%USERPROFILE%\THQ_Releases\v6.1.5-build8-windows`
+`%USERPROFILE%\THQ_Releases\v6.1.6-build9-windows`
 
 Expected:
-- THQ-Business-v6.1.5-build8-windows-x64-portable.zip
-- THQ-Business-v6.1.5-build8-windows-x64.exe
-- THQ-POS-v6.1.5-build8-windows-x64-portable.zip
-- THQ-POS-v6.1.5-build8-windows-x64.exe
+- THQ-Business-v6.1.6-build9-windows-x64-portable.zip
+- THQ-Business-v6.1.6-build9-windows-x64.exe
+- THQ-POS-v6.1.6-build9-windows-x64-portable.zip
+- THQ-POS-v6.1.6-build9-windows-x64.exe
 - SHA256SUMS.txt
 - RELEASE_INFO.txt
 

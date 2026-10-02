@@ -66,4 +66,21 @@ class CustomerAccountService {
         ? Map<String, dynamic>.from(result)
         : <String, dynamic>{};
   }
-}
+
+  Future<Map<String, dynamic>> voidReceipt({
+    required String tenantId,
+    required String receiptId,
+    required String reason,
+  }) async {
+    final result = await _supabase.rpc(
+      'customer_receipt_void_v616',
+      params: {
+        'p_tenant_id': tenantId,
+        'p_receipt_id': receiptId,
+        'p_reason': reason.trim(),
+      },
+    );
+    return result is Map
+        ? Map<String, dynamic>.from(result)
+        : <String, dynamic>{};
+  }}

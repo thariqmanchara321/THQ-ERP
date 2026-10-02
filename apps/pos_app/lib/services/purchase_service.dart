@@ -88,10 +88,11 @@ class PurchaseService {
     required String paymentMethod,
     required String referenceNumber,
     required String notes,
+    bool closeSmallBalance = false,
     String? requestId,
   }) async {
     final result = await _supabase.rpc(
-      'purchases_add_payment_v47',
+      'purchases_add_payment_v616',
       params: {
         'p_tenant_id': tenantId,
         'p_purchase_id': purchaseId,
@@ -99,17 +100,33 @@ class PurchaseService {
         'p_payment_method': paymentMethod,
         'p_reference_number': referenceNumber.trim(),
         'p_notes': notes.trim(),
+        'p_close_small_balance': closeSmallBalance,
         'p_request_id': requestId ?? const Uuid().v4(),
       },
     );
-
-    if (result is Map) {
-      return Map<String, dynamic>.from(result);
-    }
-
+    if (result is Map) return Map<String, dynamic>.from(result);
     throw Exception('Unexpected payment response.');
   }
 
+  Future<Map<String, dynamic>> closeSmallBalance({
+    required String tenantId,
+    required String purchaseId,
+    String reason = '',
+    String? requestId,
+  }) async {
+    final result = await _supabase.rpc(
+      'document_small_balance_close_v616',
+      params: {
+        'p_tenant_id': tenantId,
+        'p_document_type': 'purchase',
+        'p_document_id': purchaseId,
+        'p_reason': reason.trim(),
+        'p_request_id': requestId ?? const Uuid().v4(),
+      },
+    );
+    if (result is Map) return Map<String, dynamic>.from(result);
+    throw Exception('Unexpected round-off response.');
+  }
   Future<DeviceActivation> _activation(String tenantId) async {
     final activation = await DeviceInstallationService().readActivation();
     if (activation == null || activation.tenantId != tenantId) {

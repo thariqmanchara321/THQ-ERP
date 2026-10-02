@@ -1722,6 +1722,7 @@ class _AddSaleItemDialogState extends State<_AddSaleItemDialog> {
     final product = _product;
 
     return AlertDialog(
+      scrollable: true,
       title: const Text('Add Sale Item'),
 
       content: SizedBox(
