@@ -134,7 +134,7 @@ class _PurchasesScreenState extends State<PurchasesScreen> {
 
   String _money(double value) {
     if (widget.session.currencyCode == 'INR') {
-      return '₹${value.toStringAsFixed(2)}';
+      return 'ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¹${value.toStringAsFixed(2)}';
     }
 
     return '${widget.session.currencyCode} '
@@ -474,7 +474,7 @@ class _PurchasesScreenState extends State<PurchasesScreen> {
               if (!compact)
                 cell(
                   Text(
-                    purchase.supplierInvoiceNumber ?? '—',
+                    purchase.supplierInvoiceNumber ?? 'ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(fontSize: 11.5),
@@ -534,6 +534,13 @@ class NewPurchaseScreen extends StatefulWidget {
   final String locationId;
   final bool embedded;
   final ValueChanged<bool>? onFinished;
+  final ValueChanged<String>? onCreated;
+  final String? initialSupplierId;
+  final String? initialVariantId;
+  final double? initialQuantity;
+  final String? initialUnitCode;
+  final String? initialSupplierInvoiceNumber;
+  final String? initialNotes;
 
   const NewPurchaseScreen({
     super.key,
@@ -541,6 +548,13 @@ class NewPurchaseScreen extends StatefulWidget {
     required this.locationId,
     this.embedded = false,
     this.onFinished,
+    this.onCreated,
+    this.initialSupplierId,
+    this.initialVariantId,
+    this.initialQuantity,
+    this.initialUnitCode,
+    this.initialSupplierInvoiceNumber,
+    this.initialNotes,
   });
 
   @override
@@ -582,6 +596,7 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
   String _paymentMethod = 'cash';
 
   final List<_PurchaseLine> _lines = [];
+  bool _initialPrefillApplied = false;
 
   Supplier? get _selectedSupplier {
     final id = _supplierId;
@@ -616,7 +631,7 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
 
   String _hsnFor(String variantId) {
     final value = _gstProfiles[variantId]?['hsn_sac']?.toString().trim() ?? '';
-    return value.isEmpty ? '—' : value;
+    return value.isEmpty ? 'ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â' : value;
   }
 
   Future<void> _loadData() async {
@@ -658,8 +673,15 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
         _supplierById = Map<String, Supplier>.unmodifiable(supplierById);
         _gstProfiles = gstProfiles;
 
-        if (_suppliers.isNotEmpty) {
+        _applyInitialPurchasePrefill(activeProducts);
+        final requestedSupplierId = widget.initialSupplierId;
+        if (requestedSupplierId != null &&
+            supplierById.containsKey(requestedSupplierId)) {
+          _supplierId = requestedSupplierId;
+        } else if (widget.initialVariantId == null && _suppliers.isNotEmpty) {
           _supplierId = _suppliers.first.id;
+        } else {
+          _supplierId = null;
         }
 
         _loading = false;
@@ -673,6 +695,73 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
         _error = error.toString();
         _loading = false;
       });
+    }
+  }
+
+  void _applyInitialPurchasePrefill(List<InventoryProduct> products) {
+    if (_initialPrefillApplied || widget.initialVariantId == null) return;
+    _initialPrefillApplied = true;
+
+    if (widget.initialSupplierInvoiceNumber?.trim().isNotEmpty == true) {
+      _invoiceController.text = widget.initialSupplierInvoiceNumber!.trim();
+    }
+    if (widget.initialNotes?.trim().isNotEmpty == true) {
+      _notesController.text = widget.initialNotes!.trim();
+    }
+
+    final quantity = widget.initialQuantity ?? 0;
+    if (quantity <= 0) {
+      _error = 'Load Ticket quantity must be greater than zero.';
+      return;
+    }
+
+    InventoryProduct? product;
+    for (final candidate in products) {
+      if (candidate.variantId == widget.initialVariantId) {
+        product = candidate;
+        break;
+      }
+    }
+
+    if (product == null || product.itemType != 'stock') {
+      _error = 'Load Ticket material is not an active stock product.';
+      return;
+    }
+
+    ProductUnitOption? unit;
+    final requestedUnit = widget.initialUnitCode?.trim().toUpperCase();
+    if (requestedUnit == null || requestedUnit.isEmpty) {
+      unit = product.defaultPurchaseUnit;
+    } else if (product.baseUnitCode.toUpperCase() == requestedUnit) {
+      unit = null;
+    } else {
+      for (final candidate in product.purchaseUnits) {
+        if (candidate.code.toUpperCase() == requestedUnit) {
+          unit = candidate;
+          break;
+        }
+      }
+
+      if (unit == null) {
+        _error =
+            'Load Ticket uses $requestedUnit, but ${product.productName} '
+            'is not configured to purchase in that unit.';
+        return;
+      }
+    }
+
+    if (!_lines.any((entry) => entry.product.variantId == product!.variantId)) {
+      _lines.add(
+        _PurchaseLine(
+          product: product,
+          unit: unit,
+          quantity: quantity,
+          unitCost:
+              unit?.purchaseCostFor(product.costPrice) ?? product.costPrice,
+          discount: 0,
+          taxRate: product.taxRate,
+        ),
+      );
     }
   }
 
@@ -749,7 +838,7 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
 
   String _money(double value) {
     if (widget.session.currencyCode == 'INR') {
-      return '₹${value.toStringAsFixed(2)}';
+      return 'ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¹${value.toStringAsFixed(2)}';
     }
 
     return '${widget.session.currencyCode} '
@@ -1002,6 +1091,17 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
         locationId: widget.locationId,
       );
 
+      final createdPurchaseIdRawId =
+          result['purchase_id'] ??
+          result['id'] ??
+          (result['result'] is Map
+              ? (result['result'] as Map)['purchase_id']
+              : null) ??
+          (result['result'] is Map ? (result['result'] as Map)['id'] : null);
+      final createdPurchaseId = createdPurchaseIdRawId?.toString() ?? '';
+      if (createdPurchaseId.isNotEmpty) {
+        widget.onCreated?.call(createdPurchaseId);
+      }
       String? printWarning;
       if (printAfter) {
         try {
@@ -1973,7 +2073,7 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
                                   .where(
                                     (value) => value?.trim().isNotEmpty == true,
                                   )
-                                  .join(' • '),
+                                  .join(' ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ '),
                           searchText:
                               '${entry.name} ${entry.publicId} ${entry.phone ?? ''} '
                               '${entry.email ?? ''} ${entry.taxNumber ?? ''}',
@@ -2223,7 +2323,7 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
               onChanged: (_) => setState(() {}),
               decoration: const InputDecoration(
                 labelText: 'Initial Payment',
-                prefixText: '₹ ',
+                prefixText: 'ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¹ ',
                 border: OutlineInputBorder(),
               ),
             );
@@ -2237,7 +2337,7 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
               decoration: const InputDecoration(
                 labelText: 'Invoice Discount',
                 helperText: 'Allocated proportionally across GST item lines',
-                prefixText: '₹ ',
+                prefixText: 'ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¹ ',
                 border: OutlineInputBorder(),
               ),
             );
@@ -2276,7 +2376,7 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
         ),
         const SizedBox(height: 6),
         const Text(
-          'For a credit purchase, leave Initial Payment at ₹0.00.',
+          'For a credit purchase, leave Initial Payment at ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¹0.00.',
           style: TextStyle(fontSize: 11, color: Colors.black54),
         ),
       ],
@@ -2787,7 +2887,7 @@ class _AddPurchaseItemDialogState extends State<_AddPurchaseItemDialog> {
           children: [
             Autocomplete<InventoryProduct>(
               displayStringForOption: (product) =>
-                  '${product.productName} — ${product.sku}',
+                  '${product.productName} ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â ${product.sku}',
               optionsBuilder: (value) {
                 final q = value.text.trim().toLowerCase();
                 return _searchProducts(q, 40);
@@ -2808,7 +2908,8 @@ class _AddPurchaseItemDialogState extends State<_AddPurchaseItemDialog> {
                     final q = value.trim().toLowerCase();
                     final exact = _exactProductIndex[q];
                     if (exact != null) {
-                      controller.text = '${exact.productName} — ${exact.sku}';
+                      controller.text =
+                          '${exact.productName} ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â ${exact.sku}';
                       _selectProduct(exact.variantId);
                     } else {
                       onSubmitted();
@@ -2842,7 +2943,7 @@ class _AddPurchaseItemDialogState extends State<_AddPurchaseItemDialog> {
                                 'Part ${product.partNumber}',
                               if ((product.barcode ?? '').isNotEmpty)
                                 'Barcode ${product.barcode}',
-                            ].join(' • '),
+                            ].join(' ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ '),
                           ),
                           onTap: () => onSelected(product),
                         );
@@ -2882,7 +2983,7 @@ class _AddPurchaseItemDialogState extends State<_AddPurchaseItemDialog> {
                       (u) => DropdownMenuItem(
                         value: u.unitId,
                         child: Text(
-                          '${u.name} (${u.code}) • 1 = ${u.conversionToBase} ${_product!.baseUnitCode}',
+                          '${u.name} (${u.code}) ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ 1 = ${u.conversionToBase} ${_product!.baseUnitCode}',
                         ),
                       ),
                     )
@@ -2931,7 +3032,7 @@ class _AddPurchaseItemDialogState extends State<_AddPurchaseItemDialog> {
                     ),
                     decoration: const InputDecoration(
                       labelText: 'Unit Cost',
-                      prefixText: '₹ ',
+                      prefixText: 'ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¹ ',
                       border: OutlineInputBorder(),
                     ),
                   ),
@@ -2951,7 +3052,7 @@ class _AddPurchaseItemDialogState extends State<_AddPurchaseItemDialog> {
                     ),
                     decoration: const InputDecoration(
                       labelText: 'Discount Amount',
-                      prefixText: '₹ ',
+                      prefixText: 'ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¹ ',
                       border: OutlineInputBorder(),
                     ),
                   ),
@@ -3004,7 +3105,7 @@ class _AddPurchaseItemDialogState extends State<_AddPurchaseItemDialog> {
                       : 'Manual serial numbers',
                   hintText: 'One serial per base unit',
                   helperText:
-                      'One serial per base unit • manual edit is optional.',
+                      'One serial per base unit ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ manual edit is optional.',
                   border: const OutlineInputBorder(),
                 ),
               ),
@@ -3025,10 +3126,10 @@ class _AddPurchaseItemDialogState extends State<_AddPurchaseItemDialog> {
                   dense: true,
                   contentPadding: EdgeInsets.zero,
                   title: Text(
-                    '${entry.value['batch_number']} • ${entry.value['quantity']} ${_product?.baseUnitCode ?? ''}',
+                    '${entry.value['batch_number']} ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ ${entry.value['quantity']} ${_product?.baseUnitCode ?? ''}',
                   ),
                   subtitle: Text(
-                    'MFG ${entry.value['manufactured_on'] ?? '-'} • EXP ${entry.value['expiry_on'] ?? '-'}',
+                    'MFG ${entry.value['manufactured_on'] ?? '-'} ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ EXP ${entry.value['expiry_on'] ?? '-'}',
                   ),
                   trailing: IconButton(
                     icon: const Icon(Icons.delete_outline),

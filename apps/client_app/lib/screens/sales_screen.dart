@@ -133,7 +133,7 @@ class _SalesScreenState extends State<SalesScreen> {
 
   String _money(double value) {
     if (widget.session.currencyCode == 'INR') {
-      return '₹${value.toStringAsFixed(2)}';
+      return 'Ã¢â€šÂ¹${value.toStringAsFixed(2)}';
     }
 
     return '${widget.session.currencyCode} '
@@ -534,6 +534,12 @@ class NewSaleScreen extends StatefulWidget {
   final String locationId;
   final bool embedded;
   final ValueChanged<bool>? onFinished;
+  final ValueChanged<String>? onCreated;
+  final String? initialCustomerId;
+  final String? initialVariantId;
+  final double? initialQuantity;
+  final String? initialUnitCode;
+  final String? initialNotes;
 
   const NewSaleScreen({
     super.key,
@@ -541,6 +547,12 @@ class NewSaleScreen extends StatefulWidget {
     required this.locationId,
     this.embedded = false,
     this.onFinished,
+    this.onCreated,
+    this.initialCustomerId,
+    this.initialVariantId,
+    this.initialQuantity,
+    this.initialUnitCode,
+    this.initialNotes,
   });
 
   @override
@@ -593,6 +605,7 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
   List<Map<String, dynamic>> _paymentAllocations = const [];
 
   final List<_SaleLine> _lines = [];
+  bool _initialPrefillApplied = false;
 
   Customer? get _selectedCustomer {
     final id = _customerId;
@@ -687,6 +700,15 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
           ? null
           : activeCustomers.first.id;
 
+      if (widget.initialVariantId != null) {
+        initialCustomer = null;
+      }
+      final requestedCustomerId = widget.initialCustomerId;
+      if (requestedCustomerId != null &&
+          customerById.containsKey(requestedCustomerId)) {
+        initialCustomer = requestedCustomerId;
+      }
+
       setState(() {
         _customers = activeCustomers;
 
@@ -713,6 +735,8 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
 
         _loading = false;
       });
+
+      await _applyInitialSalePrefill(activeProducts);
     } catch (error) {
       if (!mounted) {
         return;
@@ -724,6 +748,115 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
         _loading = false;
       });
     }
+  }
+
+  Future<void> _applyInitialSalePrefill(List<InventoryProduct> products) async {
+    if (_initialPrefillApplied || widget.initialVariantId == null) return;
+    _initialPrefillApplied = true;
+
+    final quantity = widget.initialQuantity ?? 0;
+    if (quantity <= 0) {
+      if (mounted) {
+        setState(
+          () => _error = 'Load Ticket quantity must be greater than zero.',
+        );
+      }
+      return;
+    }
+
+    InventoryProduct? product;
+    for (final candidate in products) {
+      if (candidate.variantId == widget.initialVariantId) {
+        product = candidate;
+        break;
+      }
+    }
+
+    if (product == null) {
+      if (mounted) {
+        setState(
+          () => _error = 'Load Ticket material is not available for sale.',
+        );
+      }
+      return;
+    }
+
+    if (product.itemType != 'stock') {
+      if (mounted) {
+        setState(
+          () =>
+              _error = 'Load Ticket material must be a stock-tracked product.',
+        );
+      }
+      return;
+    }
+
+    ProductUnitOption? unit;
+    final requestedUnit = widget.initialUnitCode?.trim().toUpperCase();
+    if (requestedUnit == null || requestedUnit.isEmpty) {
+      unit = product.defaultSaleUnit;
+    } else if (product.baseUnitCode.toUpperCase() == requestedUnit) {
+      unit = null;
+    } else {
+      for (final candidate in product.saleUnits) {
+        if (candidate.code.toUpperCase() == requestedUnit) {
+          unit = candidate;
+          break;
+        }
+      }
+
+      if (unit == null) {
+        if (mounted) {
+          setState(
+            () => _error =
+                'Load Ticket uses , but  '
+                'is not configured to sell in that unit.',
+          );
+        }
+        return;
+      }
+    }
+
+    var line = _SaleLine(
+      product: product,
+      unit: unit,
+      quantity: quantity,
+      unitPrice:
+          unit?.salePriceFor(product.sellingPrice) ?? product.sellingPrice,
+      discount: 0,
+      taxRate: product.taxRate,
+      cuttingChargeApplied: false,
+      pricingSource: 'Material Yard load',
+    );
+
+    try {
+      final price = await _pricingService.resolve(
+        tenantId: widget.session.business.id,
+        variantId: product.variantId,
+        customerId: _customerId,
+        unitId: unit?.unitId,
+        quantity: quantity,
+        locationId: widget.locationId,
+      );
+      line = line.copyWith(
+        unitPrice: price.unitPrice,
+        pricingSource: price.sourceLabel,
+      );
+    } catch (_) {
+      // Keep the product/unit selling price. The authoritative Sale writer
+      // still validates the transaction on confirmation.
+    }
+
+    if (!mounted) return;
+    setState(() {
+      _lines.add(line);
+      if (widget.initialNotes?.trim().isNotEmpty == true) {
+        _notesController.text = widget.initialNotes!.trim();
+      }
+      _commercialQuote = null;
+      _commercialQuoteError = null;
+      _paymentAllocations = const [];
+    });
   }
 
   List<Map<String, dynamic>> _commercialBaseItems() => _lines
@@ -952,7 +1085,7 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
           borderRadius: BorderRadius.circular(8),
         ),
         child: Text(
-          'No Additional Charges are configured. Open Settings â†’ '
+          'No Additional Charges are configured. Open Settings ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ '
           'Additional Charges to add Packaging, Delivery or custom charges.',
           style: TextStyle(fontSize: 10, color: scheme.onSurfaceVariant),
         ),
@@ -965,7 +1098,7 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
           .toUpperCase();
       final name =
           charge['name']?.toString() ?? charge['code']?.toString() ?? 'Charge';
-      return '$kind â€¢ $name â€¢ ${_money(_commercialNumber(charge['selling_price']))}';
+      return '$kind ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ $name ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ ${_money(_commercialNumber(charge['selling_price']))}';
     }
 
     return Container(
@@ -1206,7 +1339,7 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
 
   String _money(double value) {
     if (widget.session.currencyCode == 'INR') {
-      return '₹${value.toStringAsFixed(2)}';
+      return 'Ã¢â€šÂ¹${value.toStringAsFixed(2)}';
     }
 
     return '${widget.session.currencyCode} '
@@ -1470,6 +1603,17 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
             : const <Map<String, dynamic>>[],
       );
 
+      final createdSaleIdRawId =
+          result['sale_id'] ??
+          result['id'] ??
+          (result['result'] is Map
+              ? (result['result'] as Map)['sale_id']
+              : null) ??
+          (result['result'] is Map ? (result['result'] as Map)['id'] : null);
+      final createdSaleId = createdSaleIdRawId?.toString() ?? '';
+      if (createdSaleId.isNotEmpty) {
+        widget.onCreated?.call(createdSaleId);
+      }
       String? printWarning;
       if (printAfter) {
         try {
@@ -3019,7 +3163,8 @@ class _AddSaleItemDialogState extends State<_AddSaleItemDialog> {
 
           children: [
             Autocomplete<InventoryProduct>(
-              displayStringForOption: (p) => '${p.productName} — ${p.sku}',
+              displayStringForOption: (p) =>
+                  '${p.productName} Ã¢â‚¬â€ ${p.sku}',
               optionsBuilder: (value) {
                 final q = value.text.trim().toLowerCase();
                 return _searchProducts(q, 30);
@@ -3071,7 +3216,7 @@ class _AddSaleItemDialogState extends State<_AddSaleItemDialog> {
                       (u) => DropdownMenuItem(
                         value: u.unitId,
                         child: Text(
-                          '${u.name} (${u.code}) • 1 = ${u.conversionToBase} ${product.baseUnitCode}',
+                          '${u.name} (${u.code}) Ã¢â‚¬Â¢ 1 = ${u.conversionToBase} ${product.baseUnitCode}',
                         ),
                       ),
                     )
@@ -3100,7 +3245,7 @@ class _AddSaleItemDialogState extends State<_AddSaleItemDialog> {
                 onChanged: (value) =>
                     setState(() => _cuttingChargeApplied = value),
                 title: Text(
-                  'Add cutting charge ₹${(_selectedUnit?.cuttingCharge ?? 0).toStringAsFixed(2)}',
+                  'Add cutting charge Ã¢â€šÂ¹${(_selectedUnit?.cuttingCharge ?? 0).toStringAsFixed(2)}',
                 ),
                 subtitle: const Text(
                   'Optional charge added once for this line.',
@@ -3141,7 +3286,7 @@ class _AddSaleItemDialogState extends State<_AddSaleItemDialog> {
                     decoration: const InputDecoration(
                       labelText: 'Base / Preview Price',
 
-                      prefixText: '₹ ',
+                      prefixText: 'Ã¢â€šÂ¹ ',
 
                       border: OutlineInputBorder(),
                       helperText:
@@ -3167,7 +3312,7 @@ class _AddSaleItemDialogState extends State<_AddSaleItemDialog> {
                     decoration: const InputDecoration(
                       labelText: 'Discount Amount',
 
-                      prefixText: '₹ ',
+                      prefixText: 'Ã¢â€šÂ¹ ',
 
                       border: OutlineInputBorder(),
                     ),

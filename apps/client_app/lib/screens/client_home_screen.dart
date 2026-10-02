@@ -18,6 +18,7 @@ import '../services/ui_design_service.dart';
 import '../ui/v43_theme.dart';
 import '../ui/v600_client_theme.dart';
 import 'accounting_screen.dart';
+import 'aggregate_yard_screen.dart';
 import 'approvals_screen.dart';
 import 'backup_export_screen.dart';
 import 'bulk_import_screen.dart';
@@ -180,6 +181,14 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
     return resolved;
   }
 
+  String _preferredLandingModuleKey(List<ClientModule> modules) {
+    for (final key in const ['aggregate_yard', 'dashboard']) {
+      final matches = modules.where((module) => module.key == key);
+      if (matches.isNotEmpty) return matches.first.key;
+    }
+    return modules.first.key;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -195,12 +204,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
     _startSyncMonitor();
     final modules = _modules;
     if (modules.isNotEmpty) {
-      _selectedModuleKey = modules
-          .firstWhere(
-            (module) => module.key == 'dashboard',
-            orElse: () => modules.first,
-          )
-          .key;
+      _selectedModuleKey = _preferredLandingModuleKey(modules);
     }
   }
 
@@ -310,12 +314,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
       final available = _modules;
       if (available.isNotEmpty &&
           !available.any((module) => module.key == _selectedModuleKey)) {
-        _selectedModuleKey = available
-            .firstWhere(
-              (module) => module.key == 'dashboard',
-              orElse: () => available.first,
-            )
-            .key;
+        _selectedModuleKey = _preferredLandingModuleKey(available);
       }
       try {
         _syncVersions = await _thqApi
@@ -388,6 +387,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
 
   IconData _moduleIcon(String key) => switch (key) {
     'dashboard' => Icons.space_dashboard_outlined,
+    'aggregate_yard' => Icons.landscape_outlined,
     'operations_intelligence' => Icons.monitor_heart_outlined,
     'inventory' => Icons.inventory_2_outlined,
     'sales' => Icons.receipt_long_outlined,
@@ -1365,6 +1365,7 @@ class _ModulePage extends StatelessWidget {
     final moduleKey = module.key.trim().toLowerCase();
     return switch (moduleKey) {
       'dashboard' => DashboardScreen(session: session),
+      'aggregate_yard' => AggregateYardScreen(session: session),
       'operations_intelligence' => OperationsIntelligenceScreen(
         session: session,
       ),
