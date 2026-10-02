@@ -41,11 +41,6 @@ class _AggregateYardScreenState extends State<AggregateYardScreen> {
       session.hasModule('logistics_operations') ||
       session.hasModule('transport_service');
 
-  bool get _canViewDirectSupply =>
-      session.hasRole('owner') ||
-      session.hasPermission('aggregate_yard.manage') ||
-      session.hasPermission('aggregate_yard.direct.view') ||
-      session.hasPermission('aggregate_yard.direct.manage');
 
   String? get _locationId => LocationScopeService.selectedLocationId.value;
 
@@ -237,9 +232,9 @@ class _AggregateYardScreenState extends State<AggregateYardScreen> {
                 ),
                 const SizedBox(height: 16),
                 _SectionTitle(
-                  title: 'Yard operations',
+                  title: 'Quick operations',
                   subtitle:
-                      'Start with the truck/load, then let THQ post the commercial transaction.',
+                      'Fast access to Direct Supply, inward, dispatch and load control.',
                 ),
                 const SizedBox(height: 8),
                 Wrap(
@@ -270,17 +265,15 @@ class _AggregateYardScreenState extends State<AggregateYardScreen> {
                         ),
                       ),
                     ),
-                    if (_canViewDirectSupply)
-                      _ActionCard(
-                        width: operationWidth,
-                        icon: Icons.compare_arrows_rounded,
-                        title: 'Direct Supply',
-                        subtitle:
-                            'Quarry â†’ Customer via controlled transit stock',
-                        onTap: () => _open(
-                          AggregateDirectSupplyScreen(session: session),
-                        ),
-                      ),
+                    _ActionCard(
+                      width: operationWidth,
+                      icon: Icons.compare_arrows_rounded,
+                      title: 'Direct Supply',
+                      subtitle:
+                          'Quarry → Customer via controlled transit stock',
+                      onTap: () =>
+                          _open(AggregateDirectSupplyScreen(session: session)),
+                    ),
                     _ActionCard(
                       width: operationWidth,
                       icon: Icons.receipt_long_outlined,

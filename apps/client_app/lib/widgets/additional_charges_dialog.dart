@@ -35,7 +35,7 @@ class _AdditionalChargesDialogState extends State<AdditionalChargesDialog> {
   String _money(dynamic value) {
     final amount = _number(value);
     if (widget.session.currencyCode == 'INR') {
-      return 'â‚¹${amount.toStringAsFixed(2)}';
+      return '₹${amount.toStringAsFixed(2)}';
     }
     return '${widget.session.currencyCode} ${amount.toStringAsFixed(2)}';
   }
@@ -464,8 +464,8 @@ class _AdditionalChargesDialogState extends State<AdditionalChargesDialog> {
                                             ),
                                           ),
                                           Text(
-                                            '${_pretty(charge['charge_kind'])} â€¢ '
-                                            'Default ${_money(charge['selling_price'])} â€¢ '
+                                            '${_pretty(charge['charge_kind'])} • '
+                                            'Default ${_money(charge['selling_price'])} • '
                                             'GST ${_number(charge['tax_rate']).toStringAsFixed(2)}%',
                                             style: TextStyle(
                                               color: scheme.onSurfaceVariant,

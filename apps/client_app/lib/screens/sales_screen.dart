@@ -133,7 +133,7 @@ class _SalesScreenState extends State<SalesScreen> {
 
   String _money(double value) {
     if (widget.session.currencyCode == 'INR') {
-      return 'Ã¢â€šÂ¹${value.toStringAsFixed(2)}';
+      return '₹${value.toStringAsFixed(2)}';
     }
 
     return '${widget.session.currencyCode} '
@@ -1085,7 +1085,7 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
           borderRadius: BorderRadius.circular(8),
         ),
         child: Text(
-          'No Additional Charges are configured. Open Settings ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ '
+          'No Additional Charges are configured. Open Settings → '
           'Additional Charges to add Packaging, Delivery or custom charges.',
           style: TextStyle(fontSize: 10, color: scheme.onSurfaceVariant),
         ),
@@ -1098,7 +1098,7 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
           .toUpperCase();
       final name =
           charge['name']?.toString() ?? charge['code']?.toString() ?? 'Charge';
-      return '$kind ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ $name ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ ${_money(_commercialNumber(charge['selling_price']))}';
+      return '$kind • $name • ${_money(_commercialNumber(charge['selling_price']))}';
     }
 
     return Container(
@@ -1339,7 +1339,7 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
 
   String _money(double value) {
     if (widget.session.currencyCode == 'INR') {
-      return 'Ã¢â€šÂ¹${value.toStringAsFixed(2)}';
+      return '₹${value.toStringAsFixed(2)}';
     }
 
     return '${widget.session.currencyCode} '
@@ -3163,8 +3163,7 @@ class _AddSaleItemDialogState extends State<_AddSaleItemDialog> {
 
           children: [
             Autocomplete<InventoryProduct>(
-              displayStringForOption: (p) =>
-                  '${p.productName} Ã¢â‚¬â€ ${p.sku}',
+              displayStringForOption: (p) => '${p.productName} — ${p.sku}',
               optionsBuilder: (value) {
                 final q = value.text.trim().toLowerCase();
                 return _searchProducts(q, 30);
@@ -3216,7 +3215,7 @@ class _AddSaleItemDialogState extends State<_AddSaleItemDialog> {
                       (u) => DropdownMenuItem(
                         value: u.unitId,
                         child: Text(
-                          '${u.name} (${u.code}) Ã¢â‚¬Â¢ 1 = ${u.conversionToBase} ${product.baseUnitCode}',
+                          '${u.name} (${u.code}) • 1 = ${u.conversionToBase} ${product.baseUnitCode}',
                         ),
                       ),
                     )
@@ -3245,7 +3244,7 @@ class _AddSaleItemDialogState extends State<_AddSaleItemDialog> {
                 onChanged: (value) =>
                     setState(() => _cuttingChargeApplied = value),
                 title: Text(
-                  'Add cutting charge Ã¢â€šÂ¹${(_selectedUnit?.cuttingCharge ?? 0).toStringAsFixed(2)}',
+                  'Add cutting charge ₹${(_selectedUnit?.cuttingCharge ?? 0).toStringAsFixed(2)}',
                 ),
                 subtitle: const Text(
                   'Optional charge added once for this line.',
@@ -3286,7 +3285,7 @@ class _AddSaleItemDialogState extends State<_AddSaleItemDialog> {
                     decoration: const InputDecoration(
                       labelText: 'Base / Preview Price',
 
-                      prefixText: 'Ã¢â€šÂ¹ ',
+                      prefixText: '₹ ',
 
                       border: OutlineInputBorder(),
                       helperText:
@@ -3312,7 +3311,7 @@ class _AddSaleItemDialogState extends State<_AddSaleItemDialog> {
                     decoration: const InputDecoration(
                       labelText: 'Discount Amount',
 
-                      prefixText: 'Ã¢â€šÂ¹ ',
+                      prefixText: '₹ ',
 
                       border: OutlineInputBorder(),
                     ),

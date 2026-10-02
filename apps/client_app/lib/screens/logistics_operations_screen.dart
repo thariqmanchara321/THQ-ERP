@@ -240,7 +240,7 @@ class _LogisticsOperationsScreenState extends State<LogisticsOperationsScreen>
         builder: (context, setLocalState) => AlertDialog(
           title: Text(
             '${row['exception_type']?.toString().toUpperCase() ?? 'EXCEPTION'}'
-            ' â€¢ ${row['trip_number'] ?? '-'}',
+            ' • ${row['trip_number'] ?? '-'}',
           ),
           content: SizedBox(
             width: 560,
@@ -250,8 +250,8 @@ class _LogisticsOperationsScreenState extends State<LogisticsOperationsScreen>
                 children: [
                   Text(
                     '${row['product_name'] ?? 'Product'}'
-                    '${(row['sku']?.toString() ?? '').isEmpty ? '' : ' â€¢ ${row['sku']}'}'
-                    ' â€¢ Qty ${_qty(row['quantity'])}',
+                    '${(row['sku']?.toString() ?? '').isEmpty ? '' : ' • ${row['sku']}'}'
+                    ' • Qty ${_qty(row['quantity'])}',
                   ),
                   const SizedBox(height: 12),
                   DropdownButtonFormField<String>(
@@ -568,7 +568,7 @@ class _LogisticsOperationsScreenState extends State<LogisticsOperationsScreen>
                   _evidenceLabel(row['evidence_type']?.toString() ?? ''),
                 ),
                 subtitle: Text(
-                  '${row['file_name'] ?? '-'} â€¢ ${_date(row['captured_at'])}',
+                  '${row['file_name'] ?? '-'} • ${_date(row['captured_at'])}',
                 ),
                 trailing: IconButton(
                   onPressed: () => Navigator.pop(dialogContext),
@@ -651,13 +651,13 @@ class _LogisticsOperationsScreenState extends State<LogisticsOperationsScreen>
           child: ListTile(
             leading: const Icon(Icons.warning_amber_rounded),
             title: Text(
-              '${row['trip_number'] ?? '-'} â€¢ '
+              '${row['trip_number'] ?? '-'} • '
               '${row['vehicle_registration'] ?? '-'}',
             ),
             subtitle: Text(
-              '${row['from_location'] ?? '-'} â†’ ${row['to_location'] ?? '-'}\n'
+              '${row['from_location'] ?? '-'} → ${row['to_location'] ?? '-'}\n'
               '${kind == 'departure' ? 'Departure' : 'Arrival'} overdue since ${_date(due)}'
-              '${(row['driver_name']?.toString() ?? '').isEmpty ? '' : ' â€¢ ${row['driver_name']}'}',
+              '${(row['driver_name']?.toString() ?? '').isEmpty ? '' : ' • ${row['driver_name']}'}',
             ),
             isThreeLine: true,
             trailing: FilledButton.tonalIcon(
@@ -754,17 +754,17 @@ class _LogisticsOperationsScreenState extends State<LogisticsOperationsScreen>
                                   ),
                                   Text(
                                     '${row['product_name'] ?? 'Product'}'
-                                    '${(row['sku']?.toString() ?? '').isEmpty ? '' : ' â€¢ ${row['sku']}'}',
+                                    '${(row['sku']?.toString() ?? '').isEmpty ? '' : ' • ${row['sku']}'}',
                                   ),
                                   Text(
                                     '${row['trip_number'] ?? '-'}'
-                                    ' â€¢ ${row['transfer_number'] ?? '-'}'
-                                    ' â€¢ ${row['receipt_number'] ?? '-'}',
+                                    ' • ${row['transfer_number'] ?? '-'}'
+                                    ' • ${row['receipt_number'] ?? '-'}',
                                     style: const TextStyle(fontSize: 12),
                                   ),
                                   Text(
-                                    '${row['from_location'] ?? '-'} â†’ ${row['to_location'] ?? '-'}'
-                                    ' â€¢ ${row['vehicle_registration'] ?? '-'}',
+                                    '${row['from_location'] ?? '-'} → ${row['to_location'] ?? '-'}'
+                                    ' • ${row['vehicle_registration'] ?? '-'}',
                                     style: const TextStyle(fontSize: 12),
                                   ),
                                   if ((row['resolution_note']?.toString() ?? '')
@@ -836,9 +836,9 @@ class _LogisticsOperationsScreenState extends State<LogisticsOperationsScreen>
                         (row) => DropdownMenuItem(
                           value: row['id'].toString(),
                           child: Text(
-                            '${row['trip_number'] ?? '-'} â€¢ '
-                            '${row['vehicle_registration'] ?? '-'} â€¢ '
-                            '${row['from_location'] ?? '-'} â†’ ${row['to_location'] ?? '-'}',
+                            '${row['trip_number'] ?? '-'} • '
+                            '${row['vehicle_registration'] ?? '-'} • '
+                            '${row['from_location'] ?? '-'} → ${row['to_location'] ?? '-'}',
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
@@ -902,7 +902,7 @@ class _LogisticsOperationsScreenState extends State<LogisticsOperationsScreen>
                         ),
                         subtitle: Text(
                           '${row['file_name'] ?? '-'}'
-                          ' â€¢ ${_date(row['captured_at'])}'
+                          ' • ${_date(row['captured_at'])}'
                           '${(row['note']?.toString() ?? '').isEmpty ? '' : '\n${row['note']}'}',
                         ),
                         isThreeLine: (row['note']?.toString() ?? '').isNotEmpty,

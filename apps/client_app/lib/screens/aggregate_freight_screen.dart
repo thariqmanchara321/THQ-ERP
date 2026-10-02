@@ -58,7 +58,7 @@ class _AggregateFreightScreenState extends State<AggregateFreightScreen> {
   String _money(dynamic value) {
     final amount = _number(value);
     if (widget.session.currencyCode == 'INR') {
-      return 'â‚¹${amount.toStringAsFixed(2)}';
+      return '₹${amount.toStringAsFixed(2)}';
     }
     return '${widget.session.currencyCode} ${amount.toStringAsFixed(2)}';
   }
@@ -150,7 +150,7 @@ class _AggregateFreightScreenState extends State<AggregateFreightScreen> {
         barrierDismissible: false,
         builder: (dialogContext) => StatefulBuilder(
           builder: (context, setLocalState) => AlertDialog(
-            title: Text('Freight â€¢ ${row['load_number'] ?? ''}'),
+            title: Text('Freight • ${row['load_number'] ?? ''}'),
             content: SizedBox(
               width: 580,
               child: Column(
@@ -167,9 +167,9 @@ class _AggregateFreightScreenState extends State<AggregateFreightScreen> {
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Text(
-                      '${row['product_name'] ?? ''} â€¢ '
+                      '${row['product_name'] ?? ''} • '
                       '${_qty(row['quantity'])} ${row['unit_code'] ?? ''}'
-                      '${_id(row['vehicle_registration']) == null ? '' : ' â€¢ ${row['vehicle_registration']}'}',
+                      '${_id(row['vehicle_registration']) == null ? '' : ' • ${row['vehicle_registration']}'}',
                       style: const TextStyle(
                         fontSize: 10.5,
                         fontWeight: FontWeight.w700,
@@ -228,7 +228,7 @@ class _AggregateFreightScreenState extends State<AggregateFreightScreen> {
                               value: supplier['supplier_id']?.toString(),
                               child: Text(
                                 '${supplier['name'] ?? ''}'
-                                '${(supplier['phone'] ?? '').toString().trim().isEmpty ? '' : ' â€¢ ${supplier['phone']}'}',
+                                '${(supplier['phone'] ?? '').toString().trim().isEmpty ? '' : ' • ${supplier['phone']}'}',
                                 overflow: TextOverflow.ellipsis,
                               ),
                             ),
@@ -387,7 +387,7 @@ class _AggregateFreightScreenState extends State<AggregateFreightScreen> {
             }
 
             return AlertDialog(
-              title: Text('Settle Freight â€¢ ${row['load_number'] ?? ''}'),
+              title: Text('Settle Freight • ${row['load_number'] ?? ''}'),
               content: SizedBox(
                 width: 620,
                 child: SingleChildScrollView(
@@ -405,9 +405,9 @@ class _AggregateFreightScreenState extends State<AggregateFreightScreen> {
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: Text(
-                          '${row['transporter_name'] ?? 'Transporter'} â€¢ '
-                          'Committed ${_money(row['freight_cost'])} â€¢ '
-                          'Paid ${_money(row['freight_settled_base'])} â€¢ '
+                          '${row['transporter_name'] ?? 'Transporter'} • '
+                          'Committed ${_money(row['freight_cost'])} • '
+                          'Paid ${_money(row['freight_settled_base'])} • '
                           'Pending ${_money(row['freight_pending_base'])}',
                           style: const TextStyle(
                             fontSize: 10.5,
@@ -838,7 +838,7 @@ class _AggregateFreightScreenState extends State<AggregateFreightScreen> {
                                       const SizedBox(width: 7),
                                       Expanded(
                                         child: Text(
-                                          '${row['load_number'] ?? ''} â€¢ '
+                                          '${row['load_number'] ?? ''} • '
                                           '${row['product_name'] ?? ''}',
                                           maxLines: 1,
                                           overflow: TextOverflow.ellipsis,
@@ -860,8 +860,8 @@ class _AggregateFreightScreenState extends State<AggregateFreightScreen> {
                                   Text(
                                     '${_qty(row['quantity'])} '
                                     '${row['unit_code'] ?? ''}'
-                                    '${_id(row['vehicle_registration']) == null ? '' : ' â€¢ ${row['vehicle_registration']}'}'
-                                    '${_id(row['order_number']) == null ? '' : ' â€¢ ${row['order_number']}'}',
+                                    '${_id(row['vehicle_registration']) == null ? '' : ' • ${row['vehicle_registration']}'}'
+                                    '${_id(row['order_number']) == null ? '' : ' • ${row['order_number']}'}',
                                     style: TextStyle(
                                       fontSize: 9.5,
                                       color: scheme.onSurfaceVariant,
@@ -882,8 +882,7 @@ class _AggregateFreightScreenState extends State<AggregateFreightScreen> {
                                       _Info(
                                         label: 'Transporter',
                                         value:
-                                            _id(row['transporter_name']) ??
-                                            'â€”',
+                                            _id(row['transporter_name']) ?? '—',
                                       ),
                                       _Info(
                                         label: 'Freight Cost',
@@ -918,7 +917,7 @@ class _AggregateFreightScreenState extends State<AggregateFreightScreen> {
                                         _Info(
                                           label: 'Material COGS',
                                           value: row['material_cost'] == null
-                                              ? 'â€”'
+                                              ? '—'
                                               : _money(row['material_cost']),
                                         ),
                                         _Info(
@@ -926,7 +925,7 @@ class _AggregateFreightScreenState extends State<AggregateFreightScreen> {
                                           value:
                                               row['material_gross_profit'] ==
                                                   null
-                                              ? 'â€”'
+                                              ? '—'
                                               : _money(
                                                   row['material_gross_profit'],
                                                 ),
@@ -936,7 +935,7 @@ class _AggregateFreightScreenState extends State<AggregateFreightScreen> {
                                           value:
                                               row['contribution_after_freight'] ==
                                                   null
-                                              ? 'â€”'
+                                              ? '—'
                                               : _money(
                                                   row['contribution_after_freight'],
                                                 ),
@@ -983,7 +982,7 @@ class _AggregateFreightScreenState extends State<AggregateFreightScreen> {
                                           value:
                                               row['inbound_landed_cost_after_freight'] ==
                                                   null
-                                              ? 'â€”'
+                                              ? '—'
                                               : _money(
                                                   row['inbound_landed_cost_after_freight'],
                                                 ),

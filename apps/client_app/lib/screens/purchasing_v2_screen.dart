@@ -318,7 +318,7 @@ class _PurchasingV2ScreenState extends State<PurchasingV2Screen>
             ),
             SizedBox(height: 3),
             Text(
-              'PR â†’ PO approval â†’ GRN â†’ Purchase Invoice â†’ Supplier Payment',
+              'PR → PO approval → GRN → Purchase Invoice → Supplier Payment',
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),

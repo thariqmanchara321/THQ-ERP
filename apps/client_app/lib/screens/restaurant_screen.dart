@@ -475,7 +475,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                           Icons.payments_outlined,
                           'Sales',
                           _money(sales['sales']),
-                          '${count(sales['bills'])} bills â€¢ '
+                          '${count(sales['bills'])} bills • '
                               'avg ${_money(sales['avg_ticket'])}',
                         ),
                         metric(
@@ -494,7 +494,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                           Icons.receipt_long_outlined,
                           'Orders Opened',
                           count(orders['opened']),
-                          '${count(orders['billed'])} billed â€¢ '
+                          '${count(orders['billed'])} billed • '
                               '${count(orders['cancelled'])} cancelled',
                         ),
                         metric(
@@ -511,21 +511,21 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                         ),
                         metric(
                           Icons.timer_outlined,
-                          'Send â†’ Ready',
+                          'Send → Ready',
                           '${oneDecimal(kitchen['avg_send_to_ready_minutes'])} min',
                           '${oneDecimal(kitchen['ready_within_target_pct'])}% within target',
                         ),
                         metric(
                           Icons.hourglass_top_outlined,
-                          'Queue â†’ Start',
+                          'Queue → Start',
                           '${oneDecimal(kitchen['avg_queue_to_start_minutes'])} min',
-                          'Ready â†’ served ${oneDecimal(kitchen['avg_ready_to_served_minutes'])} min',
+                          'Ready → served ${oneDecimal(kitchen['avg_ready_to_served_minutes'])} min',
                         ),
                         metric(
                           Icons.cancel_outlined,
                           'Cancelled Orders',
                           count(audit['cancelled_orders']),
-                          '${count(audit['cancelled_item_lines'])} item lines â€¢ '
+                          '${count(audit['cancelled_item_lines'])} item lines • '
                               '${number(audit['cancelled_quantity']).toStringAsFixed(3)} qty',
                         ),
                       ],
@@ -544,7 +544,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                               'Item',
                           (row) => _money(row['revenue']),
                           subtitle: (row) =>
-                              '${number(row['quantity']).toStringAsFixed(3)} qty â€¢ '
+                              '${number(row['quantity']).toStringAsFixed(3)} qty • '
                               'GP ${_money(row['gross_profit'])}',
                         ),
                         ranking(
@@ -554,7 +554,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                               row['table_name']?.toString() ?? 'Unknown table',
                           (row) => _money(row['sales']),
                           subtitle: (row) =>
-                              '${count(row['bills'])} bills â€¢ '
+                              '${count(row['bills'])} bills • '
                               '${count(row['guests'])} guests',
                         ),
                         ranking(
@@ -564,7 +564,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                               row['waiter_name']?.toString() ?? 'Unassigned',
                           (row) => _money(row['sales']),
                           subtitle: (row) =>
-                              '${count(row['bills'])} bills â€¢ '
+                              '${count(row['bills'])} bills • '
                               'avg ${_money(row['avg_ticket'])}',
                         ),
                         ranking(
@@ -575,7 +575,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                               .toUpperCase(),
                           (row) => _money(row['sales']),
                           subtitle: (row) =>
-                              '${count(row['bills'])} bills â€¢ '
+                              '${count(row['bills'])} bills • '
                               'avg ${_money(row['avg_ticket'])}',
                         ),
                         ranking(
@@ -584,7 +584,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                           (row) => row['date']?.toString() ?? 'Date',
                           (row) => _money(row['sales']),
                           subtitle: (row) =>
-                              '${count(row['bills'])} bills â€¢ '
+                              '${count(row['bills'])} bills • '
                               'GP ${_money(row['gross_profit'])}',
                           width: 315,
                         ),
@@ -1628,7 +1628,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
 
       if (!mounted) return;
       _message(
-        'Restaurant bill completed â€¢ '
+        'Restaurant bill completed • '
         '${sale['invoice_number'] ?? sale['sale_number'] ?? 'Sales invoice created'}.',
       );
       await _load();
@@ -1848,7 +1848,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
               );
 
           return AlertDialog(
-            title: Text('Bill & Pay â€¢ $orderNumber'),
+            title: Text('Bill & Pay • $orderNumber'),
             content: SizedBox(
               width: 900,
               height: 680,
@@ -2378,7 +2378,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                       }.contains(entry.key),
                     )
                     .map((entry) => '${label(entry.key)}: ${entry.value}')
-                    .join(' â€¢ ');
+                    .join(' • ');
                 return ListTile(
                   dense: true,
                   title: Text('$title'),
@@ -2773,7 +2773,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                               (table) => DropdownMenuItem<String?>(
                                 value: table['id']?.toString(),
                                 child: Text(
-                                  '${table['table_code'] ?? ''} â€¢ ${table['name'] ?? ''}',
+                                  '${table['table_code'] ?? ''} • ${table['name'] ?? ''}',
                                 ),
                               ),
                             )
@@ -2952,7 +2952,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
 
           return AlertDialog(
             title: Text(
-              'Add Items â€¢ ${order['order_number'] ?? 'Restaurant Order'}',
+              'Add Items • ${order['order_number'] ?? 'Restaurant Order'}',
             ),
             content: SizedBox(
               width: 760,
@@ -3231,7 +3231,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                           (target) => DropdownMenuItem<String>(
                             value: target['id'].toString(),
                             child: Text(
-                              '${target['table_name'] ?? 'Table'} â€¢ '
+                              '${target['table_name'] ?? 'Table'} • '
                               '${target['order_number'] ?? 'Order'}',
                             ),
                           ),
@@ -3263,7 +3263,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                             children: [
                               Expanded(
                                 child: Text(
-                                  '${itemName(item)} â€¢ available '
+                                  '${itemName(item)} • available '
                                   '${available.toStringAsFixed(2)}',
                                 ),
                               ),
@@ -3532,8 +3532,8 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                                 (table) => DropdownMenuItem<String>(
                                   value: table['id'].toString(),
                                   child: Text(
-                                    '${table['table_code'] ?? ''} â€¢ '
-                                    '${table['name'] ?? ''} â€¢ '
+                                    '${table['table_code'] ?? ''} • '
+                                    '${table['name'] ?? ''} • '
                                     '${table['capacity'] ?? 0} seats',
                                   ),
                                 ),
@@ -3586,7 +3586,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                             children: [
                               Expanded(
                                 child: Text(
-                                  '${itemName(item)} â€¢ available '
+                                  '${itemName(item)} • available '
                                   '${available.toStringAsFixed(2)}',
                                 ),
                               ),
@@ -3815,7 +3815,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                         (table) => DropdownMenuItem<String>(
                           value: table['id'].toString(),
                           child: Text(
-                            '${table['table_code'] ?? ''} â€¢ ${table['name'] ?? ''}',
+                            '${table['table_code'] ?? ''} • ${table['name'] ?? ''}',
                           ),
                         ),
                       )
@@ -3914,7 +3914,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                 Align(
                   alignment: Alignment.centerLeft,
                   child: Text(
-                    'Keep target: ${target['table_name'] ?? 'Table'} â€¢ '
+                    'Keep target: ${target['table_name'] ?? 'Table'} • '
                     '${target['order_number'] ?? 'Order'}',
                     style: const TextStyle(fontWeight: FontWeight.w800),
                   ),
@@ -3931,8 +3931,8 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                         (order) => DropdownMenuItem<String>(
                           value: order['id'].toString(),
                           child: Text(
-                            '${order['table_name'] ?? 'Table'} â€¢ '
-                            '${order['order_number'] ?? 'Order'} â€¢ '
+                            '${order['table_name'] ?? 'Table'} • '
+                            '${order['order_number'] ?? 'Order'} • '
                             '${_money(order['total'])}',
                           ),
                         ),
@@ -4067,7 +4067,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                               value: item['id'].toString(),
                               child: Text(
                                 '${item['product_name'] ?? item['variant_name'] ?? item['sku'] ?? 'Item'} '
-                                'â€¢ Remaining ${remaining(item).toStringAsFixed(2)}',
+                                '• Remaining ${remaining(item).toStringAsFixed(2)}',
                               ),
                             ),
                           )
@@ -4187,7 +4187,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
         context: context,
         builder: (dialogContext) => AlertDialog(
           title: Text(
-            'KOT History â€¢ ${order['order_number'] ?? 'Restaurant Order'}',
+            'KOT History • ${order['order_number'] ?? 'Restaurant Order'}',
           ),
           content: SizedBox(
             width: 760,
@@ -4212,7 +4212,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                             row['created_at']?.toString(),
                             if ((row['note'] ?? '').toString().isNotEmpty)
                               row['note'].toString(),
-                          ].whereType<String>().join(' â€¢ '),
+                          ].whereType<String>().join(' • '),
                         ),
                       );
                     },
@@ -4577,7 +4577,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                             decimal: true,
                           ),
                           decoration: const InputDecoration(
-                            labelText: 'Rotation Â°',
+                            labelText: 'Rotation °',
                           ),
                         ),
                       ),
@@ -4746,11 +4746,11 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                               : Icons.block_outlined,
                         ),
                         title: Text(
-                          '${table['table_code'] ?? ''} â€¢ ${table['name'] ?? ''}',
+                          '${table['table_code'] ?? ''} • ${table['name'] ?? ''}',
                         ),
                         subtitle: Text(
-                          '${table['floor_name'] ?? table['area'] ?? 'Main'} â€¢ '
-                          '${table['capacity'] ?? 0} seats â€¢ '
+                          '${table['floor_name'] ?? table['area'] ?? 'Main'} • '
+                          '${table['capacity'] ?? 0} seats • '
                           '${table['operational_status'] ?? 'available'}',
                         ),
                         trailing: Wrap(
@@ -4906,7 +4906,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                 children: [
                   Expanded(
                     child: Text(
-                      '${kot['kot_number'] ?? 'KOT'} â€¢ ${kot['order_number'] ?? ''}',
+                      '${kot['kot_number'] ?? 'KOT'} • ${kot['order_number'] ?? ''}',
                       style: const TextStyle(fontWeight: FontWeight.w900),
                     ),
                   ),
@@ -4915,7 +4915,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
               ),
               Text(
                 '${kot['table_name'] ?? kot['order_type'] ?? ''}'
-                '${kot['waiter_name'] == null ? '' : ' â€¢ ${kot['waiter_name']}'}',
+                '${kot['waiter_name'] == null ? '' : ' • ${kot['waiter_name']}'}',
               ),
               if ((kot['note'] ?? '').toString().trim().isNotEmpty)
                 Text(
@@ -5176,7 +5176,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                   (table) => DropdownMenuItem<String>(
                     value: table['id'].toString(),
                     child: Text(
-                      '${table['table_code'] ?? ''} â€¢ ${table['name'] ?? ''}',
+                      '${table['table_code'] ?? ''} • ${table['name'] ?? ''}',
                     ),
                   ),
                 )
@@ -5251,7 +5251,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                                   .toString()
                                   .isNotEmpty)
                                 row['preferred_area'].toString(),
-                            ].join(' â€¢ '),
+                            ].join(' • '),
                           ),
                           trailing: Wrap(
                             spacing: 5,

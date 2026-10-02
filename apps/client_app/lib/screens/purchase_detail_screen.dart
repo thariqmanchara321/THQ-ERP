@@ -978,7 +978,9 @@ class _PurchasePaymentDialogState extends State<_PurchasePaymentDialog> {
                 onChanged: _saving
                     ? null
                     : (value) {
-                        if (value != null) setState(() => _paymentMethod = value);
+                        if (value != null) {
+                          setState(() => _paymentMethod = value);
+                        }
                       },
               ),
               const SizedBox(height: 16),

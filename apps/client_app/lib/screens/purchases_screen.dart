@@ -134,7 +134,7 @@ class _PurchasesScreenState extends State<PurchasesScreen> {
 
   String _money(double value) {
     if (widget.session.currencyCode == 'INR') {
-      return 'ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¹${value.toStringAsFixed(2)}';
+      return '₹${value.toStringAsFixed(2)}';
     }
 
     return '${widget.session.currencyCode} '
@@ -474,7 +474,7 @@ class _PurchasesScreenState extends State<PurchasesScreen> {
               if (!compact)
                 cell(
                   Text(
-                    purchase.supplierInvoiceNumber ?? 'ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â',
+                    purchase.supplierInvoiceNumber ?? '—',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(fontSize: 11.5),
@@ -631,7 +631,7 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
 
   String _hsnFor(String variantId) {
     final value = _gstProfiles[variantId]?['hsn_sac']?.toString().trim() ?? '';
-    return value.isEmpty ? 'ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â' : value;
+    return value.isEmpty ? '—' : value;
   }
 
   Future<void> _loadData() async {
@@ -838,7 +838,7 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
 
   String _money(double value) {
     if (widget.session.currencyCode == 'INR') {
-      return 'ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¹${value.toStringAsFixed(2)}';
+      return '₹${value.toStringAsFixed(2)}';
     }
 
     return '${widget.session.currencyCode} '
@@ -2073,7 +2073,7 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
                                   .where(
                                     (value) => value?.trim().isNotEmpty == true,
                                   )
-                                  .join(' ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ '),
+                                  .join(' • '),
                           searchText:
                               '${entry.name} ${entry.publicId} ${entry.phone ?? ''} '
                               '${entry.email ?? ''} ${entry.taxNumber ?? ''}',
@@ -2323,7 +2323,7 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
               onChanged: (_) => setState(() {}),
               decoration: const InputDecoration(
                 labelText: 'Initial Payment',
-                prefixText: 'ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¹ ',
+                prefixText: '₹ ',
                 border: OutlineInputBorder(),
               ),
             );
@@ -2337,7 +2337,7 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
               decoration: const InputDecoration(
                 labelText: 'Invoice Discount',
                 helperText: 'Allocated proportionally across GST item lines',
-                prefixText: 'ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¹ ',
+                prefixText: '₹ ',
                 border: OutlineInputBorder(),
               ),
             );
@@ -2376,7 +2376,7 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
         ),
         const SizedBox(height: 6),
         const Text(
-          'For a credit purchase, leave Initial Payment at ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¹0.00.',
+          'For a credit purchase, leave Initial Payment at ₹0.00.',
           style: TextStyle(fontSize: 11, color: Colors.black54),
         ),
       ],
@@ -2887,7 +2887,7 @@ class _AddPurchaseItemDialogState extends State<_AddPurchaseItemDialog> {
           children: [
             Autocomplete<InventoryProduct>(
               displayStringForOption: (product) =>
-                  '${product.productName} ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â ${product.sku}',
+                  '${product.productName} — ${product.sku}',
               optionsBuilder: (value) {
                 final q = value.text.trim().toLowerCase();
                 return _searchProducts(q, 40);
@@ -2908,8 +2908,7 @@ class _AddPurchaseItemDialogState extends State<_AddPurchaseItemDialog> {
                     final q = value.trim().toLowerCase();
                     final exact = _exactProductIndex[q];
                     if (exact != null) {
-                      controller.text =
-                          '${exact.productName} ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â ${exact.sku}';
+                      controller.text = '${exact.productName} — ${exact.sku}';
                       _selectProduct(exact.variantId);
                     } else {
                       onSubmitted();
@@ -2943,7 +2942,7 @@ class _AddPurchaseItemDialogState extends State<_AddPurchaseItemDialog> {
                                 'Part ${product.partNumber}',
                               if ((product.barcode ?? '').isNotEmpty)
                                 'Barcode ${product.barcode}',
-                            ].join(' ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ '),
+                            ].join(' • '),
                           ),
                           onTap: () => onSelected(product),
                         );
@@ -2983,7 +2982,7 @@ class _AddPurchaseItemDialogState extends State<_AddPurchaseItemDialog> {
                       (u) => DropdownMenuItem(
                         value: u.unitId,
                         child: Text(
-                          '${u.name} (${u.code}) ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ 1 = ${u.conversionToBase} ${_product!.baseUnitCode}',
+                          '${u.name} (${u.code}) • 1 = ${u.conversionToBase} ${_product!.baseUnitCode}',
                         ),
                       ),
                     )
@@ -3032,7 +3031,7 @@ class _AddPurchaseItemDialogState extends State<_AddPurchaseItemDialog> {
                     ),
                     decoration: const InputDecoration(
                       labelText: 'Unit Cost',
-                      prefixText: 'ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¹ ',
+                      prefixText: '₹ ',
                       border: OutlineInputBorder(),
                     ),
                   ),
@@ -3052,7 +3051,7 @@ class _AddPurchaseItemDialogState extends State<_AddPurchaseItemDialog> {
                     ),
                     decoration: const InputDecoration(
                       labelText: 'Discount Amount',
-                      prefixText: 'ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¹ ',
+                      prefixText: '₹ ',
                       border: OutlineInputBorder(),
                     ),
                   ),
@@ -3105,7 +3104,7 @@ class _AddPurchaseItemDialogState extends State<_AddPurchaseItemDialog> {
                       : 'Manual serial numbers',
                   hintText: 'One serial per base unit',
                   helperText:
-                      'One serial per base unit ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ manual edit is optional.',
+                      'One serial per base unit • manual edit is optional.',
                   border: const OutlineInputBorder(),
                 ),
               ),
@@ -3126,10 +3125,10 @@ class _AddPurchaseItemDialogState extends State<_AddPurchaseItemDialog> {
                   dense: true,
                   contentPadding: EdgeInsets.zero,
                   title: Text(
-                    '${entry.value['batch_number']} ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ ${entry.value['quantity']} ${_product?.baseUnitCode ?? ''}',
+                    '${entry.value['batch_number']} • ${entry.value['quantity']} ${_product?.baseUnitCode ?? ''}',
                   ),
                   subtitle: Text(
-                    'MFG ${entry.value['manufactured_on'] ?? '-'} ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ EXP ${entry.value['expiry_on'] ?? '-'}',
+                    'MFG ${entry.value['manufactured_on'] ?? '-'} • EXP ${entry.value['expiry_on'] ?? '-'}',
                   ),
                   trailing: IconButton(
                     icon: const Icon(Icons.delete_outline),

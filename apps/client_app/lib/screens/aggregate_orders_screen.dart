@@ -206,7 +206,7 @@ class _AggregateOrdersScreenState extends State<AggregateOrdersScreen> {
                                       value: row['customer_id']?.toString(),
                                       child: Text(
                                         '${row['name'] ?? ''}'
-                                        '${(row['phone'] ?? '').toString().trim().isEmpty ? '' : ' ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ ${row['phone']}'}',
+                                        '${(row['phone'] ?? '').toString().trim().isEmpty ? '' : ' • ${row['phone']}'}',
                                         overflow: TextOverflow.ellipsis,
                                       ),
                                     ),
@@ -229,7 +229,7 @@ class _AggregateOrdersScreenState extends State<AggregateOrdersScreen> {
                                     (row) => DropdownMenuItem<String>(
                                       value: row['location_id']?.toString(),
                                       child: Text(
-                                        '${row['code'] ?? ''} ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ ${row['name'] ?? ''}',
+                                        '${row['code'] ?? ''} • ${row['name'] ?? ''}',
                                         overflow: TextOverflow.ellipsis,
                                       ),
                                     ),
@@ -340,7 +340,7 @@ class _AggregateOrdersScreenState extends State<AggregateOrdersScreen> {
                                           value: row['variant_id']?.toString(),
                                           child: Text(
                                             '${row['name'] ?? ''}'
-                                            '${(row['variant_name'] ?? '').toString().trim().isEmpty ? '' : ' ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ ${row['variant_name']}'}',
+                                            '${(row['variant_name'] ?? '').toString().trim().isEmpty ? '' : ' • ${row['variant_name']}'}',
                                             overflow: TextOverflow.ellipsis,
                                           ),
                                         ),
@@ -601,9 +601,7 @@ class _AggregateOrdersScreenState extends State<AggregateOrdersScreen> {
                 : _number(quantity.text);
 
             return AlertDialog(
-              title: Text(
-                'Create Load ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ ${order['order_number'] ?? ''}',
-              ),
+              title: Text('Create Load • ${order['order_number'] ?? ''}'),
               content: SizedBox(
                 width: 760,
                 child: SingleChildScrollView(
@@ -621,9 +619,9 @@ class _AggregateOrdersScreenState extends State<AggregateOrdersScreen> {
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: Text(
-                          '${line['product_name'] ?? ''} ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ '
-                          'Ordered ${_qty(line['ordered_quantity'])} $unit ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ '
-                          'Allocated ${_qty(line['allocated_quantity'])} $unit ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ '
+                          '${line['product_name'] ?? ''} • '
+                          'Ordered ${_qty(line['ordered_quantity'])} $unit • '
+                          'Allocated ${_qty(line['allocated_quantity'])} $unit • '
                           'Available ${_qty(maxQuantity)} $unit',
                           style: const TextStyle(
                             fontSize: 10.5,
@@ -738,7 +736,7 @@ class _AggregateOrdersScreenState extends State<AggregateOrdersScreen> {
                                       value: row['vehicle_id']?.toString(),
                                       child: Text(
                                         '${row['registration_number'] ?? ''}'
-                                        '${row['nominal_capacity_cft'] == null ? '' : ' ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ ${row['nominal_capacity_cft']} CFT'}',
+                                        '${row['nominal_capacity_cft'] == null ? '' : ' • ${row['nominal_capacity_cft']} CFT'}',
                                         overflow: TextOverflow.ellipsis,
                                       ),
                                     ),
@@ -1174,7 +1172,7 @@ class _AggregateOrdersScreenState extends State<AggregateOrdersScreen> {
                             children: [
                               Expanded(
                                 child: Text(
-                                  '${order['order_number'] ?? ''} ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ '
+                                  '${order['order_number'] ?? ''} • '
                                   '${order['customer_name'] ?? ''}',
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
@@ -1199,8 +1197,8 @@ class _AggregateOrdersScreenState extends State<AggregateOrdersScreen> {
                             ],
                           ),
                           subtitle: Text(
-                            'CFT: ordered ${_qty(order['ordered_cft'])} ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ '
-                            'delivered ${_qty(order['delivered_cft'])} ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ '
+                            'CFT: ordered ${_qty(order['ordered_cft'])} • '
+                            'delivered ${_qty(order['delivered_cft'])} • '
                             'remaining ${_qty(order['remaining_cft'])}'
                             '${_id(order['delivery_site_name']) == null ? '' : '\n${order['delivery_site_name']}'}',
                             maxLines: 2,
@@ -1248,9 +1246,9 @@ class _AggregateOrdersScreenState extends State<AggregateOrdersScreen> {
                                               const SizedBox(height: 2),
                                               Text(
                                                 'Ordered ${_qty(line['ordered_quantity'])} '
-                                                '${line['unit_code'] ?? ''} ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ '
-                                                'Allocated ${_qty(line['allocated_quantity'])} ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ '
-                                                'Delivered ${_qty(line['delivered_quantity'])} ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¢ '
+                                                '${line['unit_code'] ?? ''} • '
+                                                'Allocated ${_qty(line['allocated_quantity'])} • '
+                                                'Delivered ${_qty(line['delivered_quantity'])} • '
                                                 'Remaining ${_qty(line['remaining_to_deliver'])}',
                                                 style: TextStyle(
                                                   fontSize: 9,

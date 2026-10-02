@@ -163,11 +163,11 @@ class _AggregateLoadsScreenState extends State<AggregateLoadsScreen> {
                               items: const [
                                 DropdownMenuItem(
                                   value: 'inbound',
-                                  child: Text('Inbound | Quarry â†’ Yard'),
+                                  child: Text('Inbound | Quarry → Yard'),
                                 ),
                                 DropdownMenuItem(
                                   value: 'outbound',
-                                  child: Text('Outbound | Yard â†’ Customer'),
+                                  child: Text('Outbound | Yard → Customer'),
                                 ),
                               ],
                               onChanged: (value) => setLocalState(
@@ -978,7 +978,7 @@ class _AggregateLoadsScreenState extends State<AggregateLoadsScreen> {
                             ),
                           ),
                           title: Text(
-                            '${row['load_number']}  â€¢  ${row['product_name']}',
+                            '${row['load_number']}  •  ${row['product_name']}',
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(fontWeight: FontWeight.w800),
@@ -988,9 +988,9 @@ class _AggregateLoadsScreenState extends State<AggregateLoadsScreen> {
                             '  |  ${row['vehicle_registration'] ?? 'No truck'}'
                             '  |  ${row['driver_name'] ?? 'No driver'}'
                             '\n${row['source_name'] ?? row['supplier_name'] ?? ''}'
-                            ' â†’ ${row['destination_name'] ?? row['customer_name'] ?? ''}'
-                            '${row['purchase_id'] == null ? '' : '  â€¢ Purchase linked'}'
-                            '${row['sale_id'] == null ? '' : '  â€¢ Sale linked'}',
+                            ' → ${row['destination_name'] ?? row['customer_name'] ?? ''}'
+                            '${row['purchase_id'] == null ? '' : '  • Purchase linked'}'
+                            '${row['sale_id'] == null ? '' : '  • Sale linked'}',
                             maxLines: 3,
                             overflow: TextOverflow.ellipsis,
                           ),

@@ -345,7 +345,7 @@ class _LogisticsScreenState extends State<LogisticsScreen> {
                             (row) => DropdownMenuItem(
                               value: row['id'].toString(),
                               child: Text(
-                                '${row['registration_number'] ?? '-'} ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ ${row['vehicle_type'] ?? 'Vehicle'}',
+                                '${row['registration_number'] ?? '-'} • ${row['vehicle_type'] ?? 'Vehicle'}',
                               ),
                             ),
                           )
@@ -481,10 +481,10 @@ class _LogisticsScreenState extends State<LogisticsScreen> {
                                   }
                                 : null,
                             title: Text(
-                              '${transfer['transfer_number'] ?? '-'} ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ ${transfer['from_location'] ?? '-'} ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¾Ãƒâ€šÃ‚Â¢ ${transfer['to_location'] ?? '-'}',
+                              '${transfer['transfer_number'] ?? '-'} • ${transfer['from_location'] ?? '-'} → ${transfer['to_location'] ?? '-'}',
                             ),
                             subtitle: Text(
-                              '${transfer['item_count'] ?? 0} item(s) ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ Qty ${transfer['total_quantity'] ?? 0}',
+                              '${transfer['item_count'] ?? 0} item(s) • Qty ${transfer['total_quantity'] ?? 0}',
                             ),
                           );
                         },
@@ -1080,8 +1080,8 @@ class _LogisticsTripDialogState extends State<LogisticsTripDialog> {
       final hasVariance = result['has_variance'] == true;
       _message(
         hasVariance
-            ? 'Received with variance${receiptNumber == null ? '' : ' ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¢ $receiptNumber'}'
-            : 'Received${receiptNumber == null ? '' : ' ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¢ $receiptNumber'}',
+            ? 'Received with variance${receiptNumber == null ? '' : ' • $receiptNumber'}'
+            : 'Received${receiptNumber == null ? '' : ' • $receiptNumber'}',
       );
 
       await _load();
@@ -1214,7 +1214,7 @@ class _LogisticsTripDialogState extends State<LogisticsTripDialog> {
                                     ],
                                   ),
                                   subtitle: Text(
-                                    '${doc['item_count'] ?? 0} item(s) ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ Qty ${doc['total_quantity'] ?? 0} ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ In transit ${doc['in_transit_quantity'] ?? 0}',
+                                    '${doc['item_count'] ?? 0} item(s) • Qty ${doc['total_quantity'] ?? 0} • In transit ${doc['in_transit_quantity'] ?? 0}',
                                   ),
                                   trailing:
                                       status == 'arrived' &&
@@ -1232,7 +1232,7 @@ class _LogisticsTripDialogState extends State<LogisticsTripDialog> {
                                         (item) => ListTile(
                                           dense: true,
                                           title: Text(
-                                            '${item['product_name'] ?? '-'} ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â„¢ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã‚Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¬ÃƒÆ’Ã†â€™ÃƒÂ¢Ã¢â€šÂ¬Ã…Â¡ÃƒÆ’Ã¢â‚¬Å¡Ãƒâ€šÃ‚Â¢ ${item['sku'] ?? '-'}',
+                                            '${item['product_name'] ?? '-'} • ${item['sku'] ?? '-'}',
                                           ),
                                           subtitle: Text(
                                             'Tracking: ${item['tracking_mode'] ?? 'none'}',

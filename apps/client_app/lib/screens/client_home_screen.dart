@@ -955,6 +955,74 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
     return widgets;
   }
 
+  bool _isRoutableClientModule(String key) => switch (key) {
+    'dashboard' ||
+    'aggregate_yard' ||
+    'operations_intelligence' ||
+    'inventory' ||
+    'warranty' ||
+    'suppliers' ||
+    'purchases' ||
+    'purchase_details' ||
+    'loans' ||
+    'pricing' ||
+    'customers' ||
+    'sales' ||
+    'sales_details' ||
+    'expenses' ||
+    'accounting' ||
+    'gst_compliance' ||
+    'audit_center' ||
+    'reports' ||
+    'returns' ||
+    'invoice_templates' ||
+    'division_overview' ||
+    'barcode' ||
+    'stock_transfers' ||
+    'notifications' ||
+    'tasks' ||
+    'approvals' ||
+    'backup' ||
+    'support' ||
+    'payments' ||
+    'bulk_import' ||
+    'logs' ||
+    'settings' ||
+    'locations' ||
+    'users' ||
+    'production' ||
+    'transport_service' ||
+    'logistics_operations' ||
+    'vehicle_logistics' ||
+    'restaurant' ||
+    'restaurant_orders' ||
+    'workshop' ||
+    'healthcare' ||
+    'lab' ||
+    'pharmacy' => true,
+    _ => false,
+  };
+
+  List<ClientModule> _unlistedRoutableModules(String query) {
+    final listedKeys = _menuNodes
+        .where((node) => node.isModule)
+        .map((node) => node.moduleKey)
+        .whereType<String>()
+        .toSet();
+
+    return _modules
+        .where((module) {
+          if (listedKeys.contains(module.key) ||
+              !_isRoutableClientModule(module.key)) {
+            return false;
+          }
+          if (query.isEmpty) return true;
+          return module.name.toLowerCase().contains(query) ||
+              module.key.toLowerCase().contains(query);
+        })
+        .toList(growable: false);
+  }
+
   Widget _navList({
     required bool collapsed,
     bool closeDrawer = false,
@@ -977,6 +1045,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
             .toList(),
       );
     }
+
     final query = _menuQuery.trim().toLowerCase();
     final moduleMap = _moduleMap;
     final visibleModules = _menuNodes
@@ -988,22 +1057,29 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
         )
         .where((node) => _nodeMatchesQuery(node, moduleMap, query))
         .toList();
+    final unlistedModules = _unlistedRoutableModules(query);
+
     if (collapsed) {
       return ListView(
         padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-        children: visibleModules
-            .map(
-              (node) => _moduleTile(
-                moduleMap[node.moduleKey]!,
-                node.label,
-                true,
-                closeDrawer,
-                profile,
-              ),
-            )
-            .toList(),
+        children: [
+          ...visibleModules.map(
+            (node) => _moduleTile(
+              moduleMap[node.moduleKey]!,
+              node.label,
+              true,
+              closeDrawer,
+              profile,
+            ),
+          ),
+          ...unlistedModules.map(
+            (module) =>
+                _moduleTile(module, module.name, true, closeDrawer, profile),
+          ),
+        ],
       );
     }
+
     final widgets = _renderMenuLevel(
       parentId: null,
       moduleMap: moduleMap,
@@ -1011,7 +1087,37 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
       closeDrawer: closeDrawer,
       profile: profile,
     );
-    if (widgets.isEmpty) return const Center(child: Text('No matching menu'));
+
+    if (unlistedModules.isNotEmpty) {
+      if (widgets.isNotEmpty) {
+        widgets.add(const Divider(height: 14));
+      }
+      widgets.add(
+        Padding(
+          padding: const EdgeInsets.fromLTRB(8, 2, 8, 5),
+          child: Text(
+            'OTHER ENABLED MODULES',
+            style: TextStyle(
+              fontSize: 8.5,
+              fontWeight: FontWeight.w800,
+              letterSpacing: .45,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ),
+      );
+      widgets.addAll(
+        unlistedModules.map(
+          (module) =>
+              _moduleTile(module, module.name, false, closeDrawer, profile),
+        ),
+      );
+    }
+
+    if (widgets.isEmpty) {
+      return const Center(child: Text('No matching menu'));
+    }
+
     return ListView(
       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
       children: widgets,
