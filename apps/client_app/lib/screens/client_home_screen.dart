@@ -107,7 +107,10 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
       'vehicle_logistics',
     };
     final source = _session.modules
-        .where((module) => module.key != 'pos')
+        .where(
+          (module) =>
+              module.key != 'pos' && _isRoutableClientModule(module.key),
+        )
         .toList(growable: false);
     final transport = source
         .where((module) => transportKeys.contains(module.key))
@@ -777,6 +780,13 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
   }
 
   bool _menuNodeAllowed(AppMenuNode node) {
+    if (node.isModule) {
+      final moduleKey = node.moduleKey;
+      if (moduleKey == null || !_isRoutableClientModule(moduleKey)) {
+        return false;
+      }
+    }
+
     final roles = (node.metadata['roles'] as List? ?? const [])
         .map((e) => e.toString())
         .where((e) => e.isNotEmpty)
