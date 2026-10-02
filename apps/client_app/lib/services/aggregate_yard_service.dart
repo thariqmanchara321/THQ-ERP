@@ -26,7 +26,7 @@ class AggregateYardService {
         '${localDay.day.toString().padLeft(2, '0')}';
 
     final result = await _db.rpc(
-      'aggregate_yard_dashboard_v617',
+      'aggregate_yard_dashboard_v621',
       params: {
         'p_tenant_id': tenantId,
         'p_location_id': locationId,

@@ -901,7 +901,8 @@ class _AggregateFreightScreenState extends State<AggregateFreightScreen> {
                                       ),
                                     ],
                                   ),
-                                  if (direction == 'outbound' &&
+                                  if ((direction == 'outbound' ||
+                                          direction == 'direct_delivery') &&
                                       saleVisible) ...[
                                     const Divider(height: 20),
                                     Wrap(

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/client_session.dart';
 import '../services/aggregate_yard_service.dart';
 import '../services/location_scope_service.dart';
+import 'aggregate_direct_supply_screen.dart';
 import 'aggregate_freight_screen.dart';
 import 'aggregate_loads_screen.dart';
 import 'aggregate_orders_screen.dart';
@@ -39,6 +40,12 @@ class _AggregateYardScreenState extends State<AggregateYardScreen> {
       session.hasModule('vehicle_logistics') ||
       session.hasModule('logistics_operations') ||
       session.hasModule('transport_service');
+
+  bool get _canViewDirectSupply =>
+      session.hasRole('owner') ||
+      session.hasPermission('aggregate_yard.manage') ||
+      session.hasPermission('aggregate_yard.direct.view') ||
+      session.hasPermission('aggregate_yard.direct.manage');
 
   String? get _locationId => LocationScopeService.selectedLocationId.value;
 
@@ -263,6 +270,17 @@ class _AggregateYardScreenState extends State<AggregateYardScreen> {
                         ),
                       ),
                     ),
+                    if (_canViewDirectSupply)
+                      _ActionCard(
+                        width: operationWidth,
+                        icon: Icons.compare_arrows_rounded,
+                        title: 'Direct Supply',
+                        subtitle:
+                            'Quarry â†’ Customer via controlled transit stock',
+                        onTap: () => _open(
+                          AggregateDirectSupplyScreen(session: session),
+                        ),
+                      ),
                     _ActionCard(
                       width: operationWidth,
                       icon: Icons.receipt_long_outlined,

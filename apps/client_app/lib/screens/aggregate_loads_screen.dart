@@ -108,7 +108,9 @@ class _AggregateLoadsScreenState extends State<AggregateLoadsScreen> {
       return;
     }
 
-    String direction = initialDirection ?? 'inbound';
+    String direction = initialDirection == 'direct_delivery'
+        ? 'inbound'
+        : initialDirection ?? 'inbound';
     String measurement = 'manual';
     String unit = 'CFT';
     String? productId;
@@ -166,12 +168,6 @@ class _AggregateLoadsScreenState extends State<AggregateLoadsScreen> {
                                 DropdownMenuItem(
                                   value: 'outbound',
                                   child: Text('Outbound | Yard â†’ Customer'),
-                                ),
-                                DropdownMenuItem(
-                                  value: 'direct_delivery',
-                                  child: Text(
-                                    'Direct | Quarry â†’ Customer (tracking only)',
-                                  ),
                                 ),
                               ],
                               onChanged: (value) => setLocalState(
