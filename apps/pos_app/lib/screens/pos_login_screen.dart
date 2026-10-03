@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../ui/thq_brand_experience.dart';
 import '../services/client_auth_service.dart';
 import '../services/device_installation_service.dart';
 import 'pos_bootstrap_screen.dart';
@@ -176,64 +177,17 @@ class _PosLoginScreenState extends State<PosLoginScreen> {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    return Scaffold(
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              scheme.primaryContainer.withValues(alpha: 0.55),
-              Colors.white,
-            ],
-          ),
-        ),
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 440),
-              child: Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(34),
-                  child: AutofillGroup(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        Align(
-                          child: Container(
-                            width: 70,
-                            height: 70,
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                colors: [scheme.primary, scheme.tertiary],
-                              ),
-                              borderRadius: BorderRadius.circular(22),
-                            ),
-                            child: const Icon(
-                              Icons.point_of_sale,
-                              size: 36,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 18),
-                        const Text(
-                          'THQ POS',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontSize: 28,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          'Fast counter billing',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(color: scheme.onSurfaceVariant),
-                        ),
-                        const SizedBox(height: 28),
+    return ThqBrandedLoginShell(
+      appName: 'THQ POS',
+      eyebrow: 'THQ POS',
+      title: 'Ready to sell.',
+      subtitle: 'Sign in to your activated POS terminal.',
+      versionLabel: 'Windows client',
+      child: AutofillGroup(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
                         TextField(
                           controller: _username,
                           enabled: !_loading,
@@ -301,15 +255,10 @@ class _PosLoginScreenState extends State<PosLoginScreen> {
                           icon: const Icon(Icons.swap_horiz),
                           label: const Text('Change Store / Business'),
                         ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
+          ],
         ),
       ),
     );
   }
+
 }

@@ -5,6 +5,7 @@ import 'package:thq_ui/thq_ui.dart';
 import 'package:erp_core/erp_core.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'ui/thq_brand_experience.dart';
 import 'config/supabase_config.dart';
 import 'screens/client_entry_screen.dart';
 import 'services/app_log_service.dart';
@@ -46,9 +47,14 @@ class ThqBusinessApp extends StatelessWidget {
     return MaterialApp(
       title: 'THQ Business',
       debugShowCheckedModeBanner: false,
-      builder: (context, child) => ThqNotificationHost(
-        child: NumericZeroAutoSelect(child: child ?? const SizedBox.shrink()),
+      // THQ_BRANDING_START
+      builder: (context, child) => ThqStartupGate(
+        appName: 'THQ Business',
+        child: ThqNotificationHost(
+          child: NumericZeroAutoSelect(child: child ?? const SizedBox.shrink()),
+        ),
       ),
+      // THQ_BRANDING_END
       theme: UiDesignProfile.fallback('client').theme(),
       home: const ClientEntryScreen(),
     );

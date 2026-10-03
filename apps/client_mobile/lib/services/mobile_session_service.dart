@@ -103,11 +103,9 @@ class MobileSessionService {
       canApprove: clientContext['can_approve'] == true,
       canReceiveCustomerPayment:
           clientContext['can_receive_customer_payment'] == true,
-      canViewNotifications:
-          clientContext['can_view_notifications'] == true,
+      canViewNotifications: clientContext['can_view_notifications'] == true,
       canViewAudit: clientContext['can_view_audit'] == true,
-      canViewTraceability:
-          clientContext['can_view_traceability'] == true,
+      canViewTraceability: clientContext['can_view_traceability'] == true,
       canViewWarranty: clientContext['can_view_warranty'] == true,
       locations: locations,
       release: release,

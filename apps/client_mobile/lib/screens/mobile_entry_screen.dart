@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:thq_ui/thq_ui.dart';
 
+import '../ui/thq_brand_experience.dart';
 import '../services/device_installation_service.dart';
 import '../services/mobile_auth_service.dart';
 import '../services/mobile_session_service.dart';
@@ -82,7 +83,9 @@ class _ActivationViewState extends State<_ActivationView> {
   Future<void> _activate() async {
     if (_busy) return;
     if (_business.text.trim().isEmpty || _code.text.trim().isEmpty) {
-      setState(() => _error = 'Enter both the business code and activation code.');
+      setState(
+        () => _error = 'Enter both the business code and activation code.',
+      );
       return;
     }
     setState(() {
@@ -216,11 +219,11 @@ class _LoginViewState extends State<_LoginView> {
 
   @override
   Widget build(BuildContext context) {
-    return ThqMobileAccessScaffold(
-      eyebrow: 'THQ BUSINESS â€¢ CLIENT MOBILE',
-      title: 'Welcome back',
-      subtitle:
-          'Sign in to the business already assigned to this device. Access remains controlled by your THQ role and store permissions.',
+    return ThqBrandedLoginShell(
+      appName: 'THQ Client Mobile',
+      eyebrow: 'WELCOME TO THQ',
+      title: 'Welcome back.',
+      subtitle: 'Sign in to your business workspace.',
       icon: Icons.business_center_rounded,
       versionLabel: ThqClientMobileReleaseContract.versionLabel,
       footer: const Text(
@@ -279,7 +282,7 @@ class _LoginViewState extends State<_LoginView> {
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
                     : const Icon(Icons.login_rounded),
-                label: Text(_busy ? 'Signing inâ€¦' : 'Sign in'),
+                label: Text(_busy ? 'Signing in…' : 'Sign in'),
               ),
             ),
           ],
@@ -327,7 +330,9 @@ class _SessionLoaderState extends State<_SessionLoader> {
                 await MobileAuthService().signOut();
                 if (context.mounted) {
                   Navigator.of(context).pushAndRemoveUntil(
-                    MaterialPageRoute(builder: (_) => const MobileEntryScreen()),
+                    MaterialPageRoute(
+                      builder: (_) => const MobileEntryScreen(),
+                    ),
                     (_) => false,
                   );
                 }

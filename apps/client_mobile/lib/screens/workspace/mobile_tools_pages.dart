@@ -70,9 +70,9 @@ class _MobileApprovalsPageState extends State<MobileApprovalsPage> {
       if (!mounted) {
         return;
       }
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error.toString())),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.toString())));
     }
   }
 
@@ -200,7 +200,8 @@ class MobileNotificationsPage extends StatefulWidget {
   });
 
   @override
-  State<MobileNotificationsPage> createState() => _MobileNotificationsPageState();
+  State<MobileNotificationsPage> createState() =>
+      _MobileNotificationsPageState();
 }
 
 class _MobileNotificationsPageState extends State<MobileNotificationsPage> {
@@ -245,80 +246,78 @@ class _MobileNotificationsPageState extends State<MobileNotificationsPage> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(
-          title: const Text('Notifications'),
-          actions: [
-            TextButton(onPressed: _markAll, child: const Text('Read all')),
-          ],
-        ),
-        body: FutureBuilder<List<Map<String, dynamic>>>(
-          future: _future,
-          builder: (context, snapshot) {
-            if (snapshot.connectionState != ConnectionState.done) {
-              return const WorkspaceLoadingList();
-            }
-            if (snapshot.hasError) {
-              return ListView(
-                children: [
-                  WorkspaceErrorView(error: snapshot.error!, onRetry: _refresh),
+    appBar: AppBar(
+      title: const Text('Notifications'),
+      actions: [TextButton(onPressed: _markAll, child: const Text('Read all'))],
+    ),
+    body: FutureBuilder<List<Map<String, dynamic>>>(
+      future: _future,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState != ConnectionState.done) {
+          return const WorkspaceLoadingList();
+        }
+        if (snapshot.hasError) {
+          return ListView(
+            children: [
+              WorkspaceErrorView(error: snapshot.error!, onRetry: _refresh),
+            ],
+          );
+        }
+        final rows = snapshot.data ?? const <Map<String, dynamic>>[];
+        if (rows.isEmpty) {
+          return RefreshIndicator(
+            onRefresh: _refresh,
+            child: ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              children: const [
+                ThqMobileEmptyState(
+                  title: 'No notifications',
+                  message: 'New business alerts will appear here.',
+                  icon: Icons.notifications_none_rounded,
+                ),
+              ],
+            ),
+          );
+        }
+        return RefreshIndicator(
+          onRefresh: _refresh,
+          child: ListView.separated(
+            padding: const EdgeInsets.fromLTRB(14, 10, 14, 28),
+            itemCount: rows.length,
+            separatorBuilder: (_, _) => const SizedBox(height: 8),
+            itemBuilder: (context, index) {
+              final row = rows[index];
+              final unread = row['read_at'] == null;
+              return WorkspaceRecordCard(
+                title: row['title']?.toString() ?? 'Notification',
+                subtitle: row['message']?.toString() ?? '',
+                status: row['severity']?.toString(),
+                onTap: () => _markRead(row),
+                fields: [
+                  WorkspaceRecordField(
+                    'Category',
+                    workspaceLabel(row['category']?.toString() ?? ''),
+                    icon: Icons.label_outline_rounded,
+                  ),
+                  WorkspaceRecordField(
+                    'Time',
+                    workspaceDateTime(row['created_at']),
+                    icon: Icons.schedule_rounded,
+                  ),
+                  if (unread)
+                    const WorkspaceRecordField(
+                      'State',
+                      'Unread',
+                      icon: Icons.circle_notifications_outlined,
+                    ),
                 ],
               );
-            }
-            final rows = snapshot.data ?? const <Map<String, dynamic>>[];
-            if (rows.isEmpty) {
-              return RefreshIndicator(
-                onRefresh: _refresh,
-                child: ListView(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  children: const [
-                    ThqMobileEmptyState(
-                      title: 'No notifications',
-                      message: 'New business alerts will appear here.',
-                      icon: Icons.notifications_none_rounded,
-                    ),
-                  ],
-                ),
-              );
-            }
-            return RefreshIndicator(
-              onRefresh: _refresh,
-              child: ListView.separated(
-                padding: const EdgeInsets.fromLTRB(14, 10, 14, 28),
-                itemCount: rows.length,
-                separatorBuilder: (_, _) => const SizedBox(height: 8),
-                itemBuilder: (context, index) {
-                  final row = rows[index];
-                  final unread = row['read_at'] == null;
-                  return WorkspaceRecordCard(
-                    title: row['title']?.toString() ?? 'Notification',
-                    subtitle: row['message']?.toString() ?? '',
-                    status: row['severity']?.toString(),
-                    onTap: () => _markRead(row),
-                    fields: [
-                      WorkspaceRecordField(
-                        'Category',
-                        workspaceLabel(row['category']?.toString() ?? ''),
-                        icon: Icons.label_outline_rounded,
-                      ),
-                      WorkspaceRecordField(
-                        'Time',
-                        workspaceDateTime(row['created_at']),
-                        icon: Icons.schedule_rounded,
-                      ),
-                      if (unread)
-                        const WorkspaceRecordField(
-                          'State',
-                          'Unread',
-                          icon: Icons.circle_notifications_outlined,
-                        ),
-                    ],
-                  );
-                },
-              ),
-            );
-          },
-        ),
-      );
+            },
+          ),
+        );
+      },
+    ),
+  );
 }
 
 class MobileAuditPage extends StatefulWidget {
@@ -569,23 +568,23 @@ class _MobileTraceabilityPageState extends State<MobileTraceabilityPage> {
     final query = _search.text.trim();
     _future = switch (_mode) {
       'batches' => widget.service.batches(
-          widget.session,
-          locationId: widget.locationId,
-          query: query,
-          limit: 200,
-        ),
+        widget.session,
+        locationId: widget.locationId,
+        query: query,
+        limit: 200,
+      ),
       'warranty' => widget.service.warranties(
-          widget.session,
-          locationId: widget.locationId,
-          query: query,
-          limit: 200,
-        ),
+        widget.session,
+        locationId: widget.locationId,
+        query: query,
+        limit: 200,
+      ),
       _ => widget.service.serials(
-          widget.session,
-          locationId: widget.locationId,
-          query: query,
-          limit: 200,
-        ),
+        widget.session,
+        locationId: widget.locationId,
+        query: query,
+        limit: 200,
+      ),
     };
   }
 
@@ -609,7 +608,8 @@ class _MobileTraceabilityPageState extends State<MobileTraceabilityPage> {
         appBar: AppBar(title: const Text('Traceability')),
         body: const ThqMobileEmptyState(
           title: 'Traceability access not assigned',
-          message: 'Serial, batch and warranty visibility is controlled by your role.',
+          message:
+              'Serial, batch and warranty visibility is controlled by your role.',
           icon: Icons.qr_code_scanner_rounded,
         ),
       );
@@ -667,7 +667,10 @@ class _MobileTraceabilityPageState extends State<MobileTraceabilityPage> {
                 if (snapshot.hasError) {
                   return ListView(
                     children: [
-                      WorkspaceErrorView(error: snapshot.error!, onRetry: _refresh),
+                      WorkspaceErrorView(
+                        error: snapshot.error!,
+                        onRetry: _refresh,
+                      ),
                     ],
                   );
                 }
@@ -714,41 +717,52 @@ class _MobileTraceabilityPageState extends State<MobileTraceabilityPage> {
   }
 
   Widget _serialCard(Map<String, dynamic> row) => WorkspaceRecordCard(
-        title: row['serial_number']?.toString() ?? 'Serial',
-        subtitle: row['product_name']?.toString() ?? '',
-        status: row['status']?.toString(),
-        fields: [
-          WorkspaceRecordField('SKU', row['sku']?.toString() ?? ''),
-          WorkspaceRecordField('Store', row['location_name']?.toString() ?? ''),
-          WorkspaceRecordField('Customer', row['customer_name']?.toString() ?? ''),
-          WorkspaceRecordField('Sale', row['sale_number']?.toString() ?? ''),
-          WorkspaceRecordField('Warranty', row['warranty_status']?.toString() ?? ''),
-          WorkspaceRecordField('Expiry', workspaceDate(row['warranty_expiry'])),
-        ],
-      );
+    title: row['serial_number']?.toString() ?? 'Serial',
+    subtitle: row['product_name']?.toString() ?? '',
+    status: row['status']?.toString(),
+    fields: [
+      WorkspaceRecordField('SKU', row['sku']?.toString() ?? ''),
+      WorkspaceRecordField('Store', row['location_name']?.toString() ?? ''),
+      WorkspaceRecordField('Customer', row['customer_name']?.toString() ?? ''),
+      WorkspaceRecordField('Sale', row['sale_number']?.toString() ?? ''),
+      WorkspaceRecordField(
+        'Warranty',
+        row['warranty_status']?.toString() ?? '',
+      ),
+      WorkspaceRecordField('Expiry', workspaceDate(row['warranty_expiry'])),
+    ],
+  );
 
   Widget _batchCard(Map<String, dynamic> row) => WorkspaceRecordCard(
-        title: row['batch_number']?.toString() ?? 'Batch',
-        subtitle: row['product_name']?.toString() ?? '',
-        status: row['status']?.toString(),
-        trailing: '${workspaceNumber(row['quantity'], decimals: 2)} units',
-        fields: [
-          WorkspaceRecordField('SKU', row['sku']?.toString() ?? ''),
-          WorkspaceRecordField('Supplier', row['supplier_name']?.toString() ?? ''),
-          WorkspaceRecordField('Purchase', row['purchase_number']?.toString() ?? ''),
-          WorkspaceRecordField('Expiry', workspaceDate(row['expiry_on'])),
-        ],
-      );
+    title: row['batch_number']?.toString() ?? 'Batch',
+    subtitle: row['product_name']?.toString() ?? '',
+    status: row['status']?.toString(),
+    trailing: '${workspaceNumber(row['quantity'], decimals: 2)} units',
+    fields: [
+      WorkspaceRecordField('SKU', row['sku']?.toString() ?? ''),
+      WorkspaceRecordField('Supplier', row['supplier_name']?.toString() ?? ''),
+      WorkspaceRecordField(
+        'Purchase',
+        row['purchase_number']?.toString() ?? '',
+      ),
+      WorkspaceRecordField('Expiry', workspaceDate(row['expiry_on'])),
+    ],
+  );
 
   Widget _warrantyCard(Map<String, dynamic> row) {
     final serial = row['serial_number']?.toString() ?? '';
     final batch = row['batch_number']?.toString() ?? '';
     return WorkspaceRecordCard(
-      title: serial.isNotEmpty ? serial : (batch.isNotEmpty ? batch : 'Warranty'),
+      title: serial.isNotEmpty
+          ? serial
+          : (batch.isNotEmpty ? batch : 'Warranty'),
       subtitle: row['product_name']?.toString() ?? '',
       status: row['status']?.toString(),
       fields: [
-        WorkspaceRecordField('Customer', row['customer_name']?.toString() ?? ''),
+        WorkspaceRecordField(
+          'Customer',
+          row['customer_name']?.toString() ?? '',
+        ),
         WorkspaceRecordField('Sale', row['sale_number']?.toString() ?? ''),
         WorkspaceRecordField('Start', workspaceDate(row['warranty_start'])),
         WorkspaceRecordField('Expiry', workspaceDate(row['warranty_expiry'])),
@@ -806,78 +820,100 @@ class _MobilePurchasesPageState extends State<MobilePurchasesPage> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: const Text('Purchases')),
-        body: FutureBuilder<List<Map<String, dynamic>>>(
-          future: _future,
-          builder: (context, snapshot) {
-            if (snapshot.connectionState != ConnectionState.done) {
-              return const WorkspaceLoadingList();
-            }
-            if (snapshot.hasError) {
-              return ListView(
-                children: [
-                  WorkspaceErrorView(error: snapshot.error!, onRetry: _refresh),
-                ],
-              );
-            }
-            final q = _search.text.trim().toLowerCase();
-            final all = snapshot.data ?? const <Map<String, dynamic>>[];
-            final rows = q.isEmpty
-                ? all
-                : all.where((row) => row.values.any(
-                      (value) => value?.toString().toLowerCase().contains(q) == true,
-                    )).toList();
-            return RefreshIndicator(
-              onRefresh: _refresh,
-              child: ListView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.fromLTRB(14, 10, 14, 28),
-                children: [
-                  ThqMobileSearchField(
-                    controller: _search,
-                    hintText: 'Document, supplier, store or status',
-                    onChanged: (_) => setState(() {}),
-                    onClear: () {
-                      _search.clear();
-                      setState(() {});
-                    },
-                  ),
-                  const SizedBox(height: 12),
-                  ThqMobileSectionHeader(
-                    title: 'Purchase activity',
-                    subtitle: '${rows.length} recent documents',
-                  ),
-                  const SizedBox(height: 9),
-                  if (rows.isEmpty)
-                    const ThqMobileEmptyState(
-                      title: 'No purchases match',
-                      message: 'Try another supplier, document or status.',
-                      icon: Icons.shopping_bag_outlined,
-                    )
-                  else
-                    ...rows.map(
-                      (row) => Padding(
-                        padding: const EdgeInsets.only(bottom: 8),
-                        child: WorkspaceRecordCard(
-                          title: row['document_number']?.toString() ?? 'Purchase',
-                          subtitle: row['supplier_name']?.toString() ?? '',
-                          status: row['status']?.toString(),
-                          trailing: workspaceMoney(widget.session, row['grand_total']),
-                          fields: [
-                            WorkspaceRecordField('Type', workspaceLabel(row['document_type']?.toString() ?? '')),
-                            WorkspaceRecordField('Date', workspaceDate(row['document_date'])),
-                            WorkspaceRecordField('Balance', workspaceMoney(widget.session, row['balance_due'])),
-                            WorkspaceRecordField('Store', row['location_name']?.toString() ?? ''),
-                          ],
-                        ),
-                      ),
+    appBar: AppBar(title: const Text('Purchases')),
+    body: FutureBuilder<List<Map<String, dynamic>>>(
+      future: _future,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState != ConnectionState.done) {
+          return const WorkspaceLoadingList();
+        }
+        if (snapshot.hasError) {
+          return ListView(
+            children: [
+              WorkspaceErrorView(error: snapshot.error!, onRetry: _refresh),
+            ],
+          );
+        }
+        final q = _search.text.trim().toLowerCase();
+        final all = snapshot.data ?? const <Map<String, dynamic>>[];
+        final rows = q.isEmpty
+            ? all
+            : all
+                  .where(
+                    (row) => row.values.any(
+                      (value) =>
+                          value?.toString().toLowerCase().contains(q) == true,
                     ),
-                ],
+                  )
+                  .toList();
+        return RefreshIndicator(
+          onRefresh: _refresh,
+          child: ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.fromLTRB(14, 10, 14, 28),
+            children: [
+              ThqMobileSearchField(
+                controller: _search,
+                hintText: 'Document, supplier, store or status',
+                onChanged: (_) => setState(() {}),
+                onClear: () {
+                  _search.clear();
+                  setState(() {});
+                },
               ),
-            );
-          },
-        ),
-      );
+              const SizedBox(height: 12),
+              ThqMobileSectionHeader(
+                title: 'Purchase activity',
+                subtitle: '${rows.length} recent documents',
+              ),
+              const SizedBox(height: 9),
+              if (rows.isEmpty)
+                const ThqMobileEmptyState(
+                  title: 'No purchases match',
+                  message: 'Try another supplier, document or status.',
+                  icon: Icons.shopping_bag_outlined,
+                )
+              else
+                ...rows.map(
+                  (row) => Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: WorkspaceRecordCard(
+                      title: row['document_number']?.toString() ?? 'Purchase',
+                      subtitle: row['supplier_name']?.toString() ?? '',
+                      status: row['status']?.toString(),
+                      trailing: workspaceMoney(
+                        widget.session,
+                        row['grand_total'],
+                      ),
+                      fields: [
+                        WorkspaceRecordField(
+                          'Type',
+                          workspaceLabel(
+                            row['document_type']?.toString() ?? '',
+                          ),
+                        ),
+                        WorkspaceRecordField(
+                          'Date',
+                          workspaceDate(row['document_date']),
+                        ),
+                        WorkspaceRecordField(
+                          'Balance',
+                          workspaceMoney(widget.session, row['balance_due']),
+                        ),
+                        WorkspaceRecordField(
+                          'Store',
+                          row['location_name']?.toString() ?? '',
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        );
+      },
+    ),
+  );
 }
 
 class MobileStorePerformancePage extends StatefulWidget {
@@ -891,10 +927,12 @@ class MobileStorePerformancePage extends StatefulWidget {
   });
 
   @override
-  State<MobileStorePerformancePage> createState() => _MobileStorePerformancePageState();
+  State<MobileStorePerformancePage> createState() =>
+      _MobileStorePerformancePageState();
 }
 
-class _MobileStorePerformancePageState extends State<MobileStorePerformancePage> {
+class _MobileStorePerformancePageState
+    extends State<MobileStorePerformancePage> {
   late Future<List<Map<String, dynamic>>> _future;
 
   @override
@@ -911,49 +949,67 @@ class _MobileStorePerformancePageState extends State<MobileStorePerformancePage>
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: const Text('Store Performance')),
-        body: FutureBuilder<List<Map<String, dynamic>>>(
-          future: _future,
-          builder: (context, snapshot) {
-            if (snapshot.connectionState != ConnectionState.done) {
-              return const WorkspaceLoadingList();
-            }
-            if (snapshot.hasError) {
-              return ListView(
-                children: [
-                  WorkspaceErrorView(error: snapshot.error!, onRetry: _refresh),
+    appBar: AppBar(title: const Text('Store Performance')),
+    body: FutureBuilder<List<Map<String, dynamic>>>(
+      future: _future,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState != ConnectionState.done) {
+          return const WorkspaceLoadingList();
+        }
+        if (snapshot.hasError) {
+          return ListView(
+            children: [
+              WorkspaceErrorView(error: snapshot.error!, onRetry: _refresh),
+            ],
+          );
+        }
+        final rows = snapshot.data ?? const <Map<String, dynamic>>[];
+        return RefreshIndicator(
+          onRefresh: _refresh,
+          child: ListView.separated(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.fromLTRB(14, 10, 14, 28),
+            itemCount: rows.length,
+            separatorBuilder: (_, _) => const SizedBox(height: 8),
+            itemBuilder: (context, index) {
+              final row = rows[index];
+              return WorkspaceRecordCard(
+                title: row['location_name']?.toString() ?? 'Store',
+                subtitle: row['location_code']?.toString() ?? '',
+                trailing: workspaceMoney(widget.session, row['net_sales']),
+                fields: [
+                  WorkspaceRecordField(
+                    'Profit',
+                    workspaceMoney(widget.session, row['gross_profit']),
+                  ),
+                  WorkspaceRecordField(
+                    'Invoices',
+                    '${row['invoice_count'] ?? 0}',
+                  ),
+                  WorkspaceRecordField(
+                    'Stock',
+                    workspaceMoney(widget.session, row['inventory_value']),
+                  ),
+                  WorkspaceRecordField(
+                    'Receivable',
+                    workspaceMoney(widget.session, row['receivables']),
+                  ),
+                  WorkspaceRecordField(
+                    'Payable',
+                    workspaceMoney(widget.session, row['payables']),
+                  ),
+                  WorkspaceRecordField(
+                    'Low stock',
+                    '${row['low_stock_count'] ?? 0}',
+                  ),
                 ],
               );
-            }
-            final rows = snapshot.data ?? const <Map<String, dynamic>>[];
-            return RefreshIndicator(
-              onRefresh: _refresh,
-              child: ListView.separated(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.fromLTRB(14, 10, 14, 28),
-                itemCount: rows.length,
-                separatorBuilder: (_, _) => const SizedBox(height: 8),
-                itemBuilder: (context, index) {
-                  final row = rows[index];
-                  return WorkspaceRecordCard(
-                    title: row['location_name']?.toString() ?? 'Store',
-                    subtitle: row['location_code']?.toString() ?? '',
-                    trailing: workspaceMoney(widget.session, row['net_sales']),
-                    fields: [
-                      WorkspaceRecordField('Profit', workspaceMoney(widget.session, row['gross_profit'])),
-                      WorkspaceRecordField('Invoices', '${row['invoice_count'] ?? 0}'),
-                      WorkspaceRecordField('Stock', workspaceMoney(widget.session, row['inventory_value'])),
-                      WorkspaceRecordField('Receivable', workspaceMoney(widget.session, row['receivables'])),
-                      WorkspaceRecordField('Payable', workspaceMoney(widget.session, row['payables'])),
-                      WorkspaceRecordField('Low stock', '${row['low_stock_count'] ?? 0}'),
-                    ],
-                  );
-                },
-              ),
-            );
-          },
-        ),
-      );
+            },
+          ),
+        );
+      },
+    ),
+  );
 }
 
 class MobileReportsPage extends StatefulWidget {
@@ -1014,69 +1070,72 @@ class _MobileReportsPageState extends State<MobileReportsPage> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(
-          title: const Text('Reports'),
-          actions: [
-            IconButton(
-              tooltip: 'Date range',
-              onPressed: _pickRange,
-              icon: const Icon(Icons.date_range_outlined),
-            ),
-          ],
+    appBar: AppBar(
+      title: const Text('Reports'),
+      actions: [
+        IconButton(
+          tooltip: 'Date range',
+          onPressed: _pickRange,
+          icon: const Icon(Icons.date_range_outlined),
         ),
-        body: FutureBuilder<Map<String, dynamic>>(
-          future: _future,
-          builder: (context, snapshot) {
-            if (snapshot.connectionState != ConnectionState.done) {
-              return const WorkspaceLoadingList();
-            }
-            if (snapshot.hasError) {
-              return ListView(
-                children: [
-                  WorkspaceErrorView(error: snapshot.error!, onRetry: () => setState(_load)),
-                ],
-              );
-            }
-            final data = snapshot.data ?? const <String, dynamic>{};
-            return ListView(
-              padding: const EdgeInsets.fromLTRB(14, 10, 14, 28),
-              children: [
-                ThqMobileSectionHeader(
-                  title: 'Business summary',
-                  subtitle: '${workspaceDate(_from)} – ${workspaceDate(_to)}',
-                ),
-                const SizedBox(height: 9),
-                if (data.isEmpty)
-                  const ThqMobileEmptyState(
-                    title: 'No report data',
-                    message: 'No summary values were returned for this period.',
-                    icon: Icons.analytics_outlined,
-                  )
-                else
-                  ...data.entries.map(
-                    (entry) => Padding(
-                      padding: const EdgeInsets.only(bottom: 8),
-                      child: Card(
-                        child: ListTile(
-                          title: Text(workspaceLabel(entry.key)),
-                          trailing: ConstrainedBox(
-                            constraints: const BoxConstraints(maxWidth: 170),
-                            child: Text(
-                              entry.value?.toString() ?? '—',
-                              textAlign: TextAlign.end,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(fontWeight: FontWeight.w800),
-                            ),
-                          ),
+      ],
+    ),
+    body: FutureBuilder<Map<String, dynamic>>(
+      future: _future,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState != ConnectionState.done) {
+          return const WorkspaceLoadingList();
+        }
+        if (snapshot.hasError) {
+          return ListView(
+            children: [
+              WorkspaceErrorView(
+                error: snapshot.error!,
+                onRetry: () => setState(_load),
+              ),
+            ],
+          );
+        }
+        final data = snapshot.data ?? const <String, dynamic>{};
+        return ListView(
+          padding: const EdgeInsets.fromLTRB(14, 10, 14, 28),
+          children: [
+            ThqMobileSectionHeader(
+              title: 'Business summary',
+              subtitle: '${workspaceDate(_from)} – ${workspaceDate(_to)}',
+            ),
+            const SizedBox(height: 9),
+            if (data.isEmpty)
+              const ThqMobileEmptyState(
+                title: 'No report data',
+                message: 'No summary values were returned for this period.',
+                icon: Icons.analytics_outlined,
+              )
+            else
+              ...data.entries.map(
+                (entry) => Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Card(
+                    child: ListTile(
+                      title: Text(workspaceLabel(entry.key)),
+                      trailing: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 170),
+                        child: Text(
+                          entry.value?.toString() ?? '—',
+                          textAlign: TextAlign.end,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontWeight: FontWeight.w800),
                         ),
                       ),
                     ),
                   ),
-              ],
-            );
-          },
-        ),
-      );
+                ),
+              ),
+          ],
+        );
+      },
+    ),
+  );
 }
 
 class MobileCustomerPaymentPage extends StatefulWidget {
@@ -1092,7 +1151,8 @@ class MobileCustomerPaymentPage extends StatefulWidget {
   });
 
   @override
-  State<MobileCustomerPaymentPage> createState() => _MobileCustomerPaymentPageState();
+  State<MobileCustomerPaymentPage> createState() =>
+      _MobileCustomerPaymentPageState();
 }
 
 class _MobileCustomerPaymentPageState extends State<MobileCustomerPaymentPage> {
@@ -1148,9 +1208,9 @@ class _MobileCustomerPaymentPageState extends State<MobileCustomerPaymentPage> {
       if (!mounted) {
         return;
       }
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error.toString())),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.toString())));
     } finally {
       if (mounted) {
         setState(() => _busy = false);
@@ -1160,118 +1220,122 @@ class _MobileCustomerPaymentPageState extends State<MobileCustomerPaymentPage> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: const Text('Receive Payment')),
-        body: FutureBuilder<List<Map<String, dynamic>>>(
-          future: _customers,
-          builder: (context, snapshot) {
-            if (snapshot.connectionState != ConnectionState.done) {
-              return const WorkspaceLoadingList(count: 3);
-            }
-            if (snapshot.hasError) {
-              return ListView(
-                children: [
-                  WorkspaceErrorView(
-                    error: snapshot.error!,
-                    onRetry: () => setState(() {
-                      _customers = widget.service.customerOutstanding(
-                        widget.session,
-                        locationId: widget.locationId,
-                        limit: 500,
-                      );
-                    }),
-                  ),
-                ],
-              );
-            }
-            final rows = snapshot.data ?? const <Map<String, dynamic>>[];
-            return ListView(
-              padding: const EdgeInsets.fromLTRB(14, 10, 14, 28),
-              children: [
-                DropdownButtonFormField<String>(
-                  initialValue: _customerId,
-                  isExpanded: true,
-                  decoration: const InputDecoration(
-                    labelText: 'Customer',
-                    prefixIcon: Icon(Icons.person_outline_rounded),
-                  ),
-                  items: rows
-                      .map(
-                        (row) => DropdownMenuItem<String>(
-                          value: row['customer_id']?.toString() ?? '',
-                          child: Text(
-                            '${row['customer_name'] ?? 'Customer'} • ${workspaceMoney(widget.session, row['total_outstanding'])}',
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      )
-                      .toList(),
-                  onChanged: _busy ? null : (value) => setState(() => _customerId = value),
-                ),
-                const SizedBox(height: 10),
-                TextField(
-                  controller: _amount,
-                  enabled: !_busy,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  decoration: InputDecoration(
-                    labelText: 'Amount (${widget.session.currencyCode})',
-                    prefixIcon: const Icon(Icons.currency_rupee_rounded),
-                  ),
-                ),
-                const SizedBox(height: 10),
-                DropdownButtonFormField<String>(
-                  initialValue: _method,
-                  decoration: const InputDecoration(
-                    labelText: 'Payment method',
-                    prefixIcon: Icon(Icons.payments_outlined),
-                  ),
-                  items: const [
-                    DropdownMenuItem(value: 'cash', child: Text('Cash')),
-                    DropdownMenuItem(value: 'card', child: Text('Card')),
-                    DropdownMenuItem(value: 'bank', child: Text('Bank transfer')),
-                  ],
-                  onChanged: _busy
-                      ? null
-                      : (value) {
-                          if (value != null) {
-                            setState(() => _method = value);
-                          }
-                        },
-                ),
-                const SizedBox(height: 10),
-                TextField(
-                  controller: _reference,
-                  enabled: !_busy,
-                  decoration: const InputDecoration(
-                    labelText: 'Reference',
-                    prefixIcon: Icon(Icons.tag_rounded),
-                  ),
-                ),
-                const SizedBox(height: 10),
-                TextField(
-                  controller: _notes,
-                  enabled: !_busy,
-                  maxLines: 3,
-                  decoration: const InputDecoration(
-                    labelText: 'Notes',
-                    prefixIcon: Icon(Icons.notes_rounded),
-                  ),
-                ),
-                const SizedBox(height: 14),
-                FilledButton.icon(
-                  onPressed: _busy ? null : _submit,
-                  icon: _busy
-                      ? const SizedBox.square(
-                          dimension: 17,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.check_circle_outline_rounded),
-                  label: Text(_busy ? 'Recording…' : 'Record payment'),
-                ),
+    appBar: AppBar(title: const Text('Receive Payment')),
+    body: FutureBuilder<List<Map<String, dynamic>>>(
+      future: _customers,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState != ConnectionState.done) {
+          return const WorkspaceLoadingList(count: 3);
+        }
+        if (snapshot.hasError) {
+          return ListView(
+            children: [
+              WorkspaceErrorView(
+                error: snapshot.error!,
+                onRetry: () => setState(() {
+                  _customers = widget.service.customerOutstanding(
+                    widget.session,
+                    locationId: widget.locationId,
+                    limit: 500,
+                  );
+                }),
+              ),
+            ],
+          );
+        }
+        final rows = snapshot.data ?? const <Map<String, dynamic>>[];
+        return ListView(
+          padding: const EdgeInsets.fromLTRB(14, 10, 14, 28),
+          children: [
+            DropdownButtonFormField<String>(
+              initialValue: _customerId,
+              isExpanded: true,
+              decoration: const InputDecoration(
+                labelText: 'Customer',
+                prefixIcon: Icon(Icons.person_outline_rounded),
+              ),
+              items: rows
+                  .map(
+                    (row) => DropdownMenuItem<String>(
+                      value: row['customer_id']?.toString() ?? '',
+                      child: Text(
+                        '${row['customer_name'] ?? 'Customer'} • ${workspaceMoney(widget.session, row['total_outstanding'])}',
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  )
+                  .toList(),
+              onChanged: _busy
+                  ? null
+                  : (value) => setState(() => _customerId = value),
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: _amount,
+              enabled: !_busy,
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
+              decoration: InputDecoration(
+                labelText: 'Amount (${widget.session.currencyCode})',
+                prefixIcon: const Icon(Icons.currency_rupee_rounded),
+              ),
+            ),
+            const SizedBox(height: 10),
+            DropdownButtonFormField<String>(
+              initialValue: _method,
+              decoration: const InputDecoration(
+                labelText: 'Payment method',
+                prefixIcon: Icon(Icons.payments_outlined),
+              ),
+              items: const [
+                DropdownMenuItem(value: 'cash', child: Text('Cash')),
+                DropdownMenuItem(value: 'card', child: Text('Card')),
+                DropdownMenuItem(value: 'bank', child: Text('Bank transfer')),
               ],
-            );
-          },
-        ),
-      );
+              onChanged: _busy
+                  ? null
+                  : (value) {
+                      if (value != null) {
+                        setState(() => _method = value);
+                      }
+                    },
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: _reference,
+              enabled: !_busy,
+              decoration: const InputDecoration(
+                labelText: 'Reference',
+                prefixIcon: Icon(Icons.tag_rounded),
+              ),
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: _notes,
+              enabled: !_busy,
+              maxLines: 3,
+              decoration: const InputDecoration(
+                labelText: 'Notes',
+                prefixIcon: Icon(Icons.notes_rounded),
+              ),
+            ),
+            const SizedBox(height: 14),
+            FilledButton.icon(
+              onPressed: _busy ? null : _submit,
+              icon: _busy
+                  ? const SizedBox.square(
+                      dimension: 17,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.check_circle_outline_rounded),
+              label: Text(_busy ? 'Recording…' : 'Record payment'),
+            ),
+          ],
+        );
+      },
+    ),
+  );
 }
 
 class MobileGlobalSearchPage extends StatefulWidget {
@@ -1317,86 +1381,100 @@ class _MobileGlobalSearchPageState extends State<MobileGlobalSearchPage> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: const Text('Search Business')),
-        body: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(14, 8, 14, 6),
-              child: ThqMobileSearchField(
-                controller: _search,
-                hintText: 'Invoice, product, party, SKU…',
-                onSubmitted: (_) => _run(),
-                onClear: () {
-                  _search.clear();
-                  setState(() => _future = null);
-                },
-              ),
-            ),
-            Expanded(
-              child: _future == null
-                  ? const ThqMobileEmptyState(
-                      title: 'Search across the business',
-                      message: 'Enter at least two characters to search sales, purchases, inventory, customers and suppliers.',
-                      icon: Icons.manage_search_rounded,
-                    )
-                  : FutureBuilder<Map<String, List<Map<String, dynamic>>>>(
-                      future: _future,
-                      builder: (context, snapshot) {
-                        if (snapshot.connectionState != ConnectionState.done) {
-                          return const WorkspaceLoadingList();
-                        }
-                        if (snapshot.hasError) {
-                          return ListView(
-                            children: [
-                              WorkspaceErrorView(error: snapshot.error!, onRetry: _run),
-                            ],
-                          );
-                        }
-                        final groups = snapshot.data ?? const <String, List<Map<String, dynamic>>>{};
-                        final total = groups.values.fold<int>(0, (sum, rows) => sum + rows.length);
-                        if (total == 0) {
-                          return const ThqMobileEmptyState(
-                            title: 'Nothing found',
-                            message: 'Try another invoice number, product, party or SKU.',
-                            icon: Icons.search_off_rounded,
-                          );
-                        }
-                        return ListView(
-                          padding: const EdgeInsets.fromLTRB(14, 8, 14, 28),
-                          children: groups.entries
-                              .where((entry) => entry.value.isNotEmpty)
-                              .expand(
-                                (entry) => <Widget>[
-                                  Padding(
-                                    padding: const EdgeInsets.only(top: 10, bottom: 7),
-                                    child: ThqMobileSectionHeader(
-                                      title: entry.key,
-                                      subtitle: '${entry.value.length} matches',
-                                    ),
-                                  ),
-                                  ...entry.value.map(
-                                    (row) => Padding(
-                                      padding: const EdgeInsets.only(bottom: 8),
-                                      child: WorkspaceRecordCard(
-                                        title: _searchTitle(entry.key, row),
-                                        subtitle: _searchSubtitle(entry.key, row),
-                                        status: row['status']?.toString(),
-                                        trailing: _searchTrailing(entry.key, row),
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              )
-                              .toList(),
-                        );
-                      },
-                    ),
-            ),
-          ],
+    appBar: AppBar(title: const Text('Search Business')),
+    body: Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(14, 8, 14, 6),
+          child: ThqMobileSearchField(
+            controller: _search,
+            hintText: 'Invoice, product, party, SKU…',
+            onSubmitted: (_) => _run(),
+            onClear: () {
+              _search.clear();
+              setState(() => _future = null);
+            },
+          ),
         ),
-      );
+        Expanded(
+          child: _future == null
+              ? const ThqMobileEmptyState(
+                  title: 'Search across the business',
+                  message:
+                      'Enter at least two characters to search sales, purchases, inventory, customers and suppliers.',
+                  icon: Icons.manage_search_rounded,
+                )
+              : FutureBuilder<Map<String, List<Map<String, dynamic>>>>(
+                  future: _future,
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState != ConnectionState.done) {
+                      return const WorkspaceLoadingList();
+                    }
+                    if (snapshot.hasError) {
+                      return ListView(
+                        children: [
+                          WorkspaceErrorView(
+                            error: snapshot.error!,
+                            onRetry: _run,
+                          ),
+                        ],
+                      );
+                    }
+                    final groups =
+                        snapshot.data ??
+                        const <String, List<Map<String, dynamic>>>{};
+                    final total = groups.values.fold<int>(
+                      0,
+                      (sum, rows) => sum + rows.length,
+                    );
+                    if (total == 0) {
+                      return const ThqMobileEmptyState(
+                        title: 'Nothing found',
+                        message:
+                            'Try another invoice number, product, party or SKU.',
+                        icon: Icons.search_off_rounded,
+                      );
+                    }
+                    return ListView(
+                      padding: const EdgeInsets.fromLTRB(14, 8, 14, 28),
+                      children: groups.entries
+                          .where((entry) => entry.value.isNotEmpty)
+                          .expand(
+                            (entry) => <Widget>[
+                              Padding(
+                                padding: const EdgeInsets.only(
+                                  top: 10,
+                                  bottom: 7,
+                                ),
+                                child: ThqMobileSectionHeader(
+                                  title: entry.key,
+                                  subtitle: '${entry.value.length} matches',
+                                ),
+                              ),
+                              ...entry.value.map(
+                                (row) => Padding(
+                                  padding: const EdgeInsets.only(bottom: 8),
+                                  child: WorkspaceRecordCard(
+                                    title: _searchTitle(entry.key, row),
+                                    subtitle: _searchSubtitle(entry.key, row),
+                                    status: row['status']?.toString(),
+                                    trailing: _searchTrailing(entry.key, row),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          )
+                          .toList(),
+                    );
+                  },
+                ),
+        ),
+      ],
+    ),
+  );
 
-  String _searchTitle(String group, Map<String, dynamic> row) => switch (group) {
+  String _searchTitle(String group, Map<String, dynamic> row) =>
+      switch (group) {
         'Sales' => row['sale_number']?.toString() ?? 'Sale',
         'Purchases' => row['document_number']?.toString() ?? 'Purchase',
         'Inventory' => row['product_name']?.toString() ?? 'Product',
@@ -1405,7 +1483,8 @@ class _MobileGlobalSearchPageState extends State<MobileGlobalSearchPage> {
         _ => 'Result',
       };
 
-  String _searchSubtitle(String group, Map<String, dynamic> row) => switch (group) {
+  String _searchSubtitle(String group, Map<String, dynamic> row) =>
+      switch (group) {
         'Sales' => row['customer_name']?.toString() ?? '',
         'Purchases' => row['supplier_name']?.toString() ?? '',
         'Inventory' => '${row['sku'] ?? ''} • ${row['location_name'] ?? ''}',
@@ -1414,10 +1493,14 @@ class _MobileGlobalSearchPageState extends State<MobileGlobalSearchPage> {
         _ => '',
       };
 
-  String? _searchTrailing(String group, Map<String, dynamic> row) => switch (group) {
-        'Sales' || 'Purchases' => workspaceMoney(widget.session, row['grand_total']),
-        'Inventory' => '${workspaceNumber(row['available'], decimals: 2)} available',
-        'Customers' || 'Suppliers' => workspaceMoney(widget.session, row['total_outstanding']),
+  String? _searchTrailing(String group, Map<String, dynamic> row) =>
+      switch (group) {
+        'Sales' ||
+        'Purchases' => workspaceMoney(widget.session, row['grand_total']),
+        'Inventory' =>
+          '${workspaceNumber(row['available'], decimals: 2)} available',
+        'Customers' ||
+        'Suppliers' => workspaceMoney(widget.session, row['total_outstanding']),
         _ => null,
       };
 }
@@ -1426,10 +1509,7 @@ class _ApprovalNoteDialog extends StatefulWidget {
   final String title;
   final bool noteRequired;
 
-  const _ApprovalNoteDialog({
-    required this.title,
-    required this.noteRequired,
-  });
+  const _ApprovalNoteDialog({required this.title, required this.noteRequired});
 
   @override
   State<_ApprovalNoteDialog> createState() => _ApprovalNoteDialogState();
@@ -1446,31 +1526,31 @@ class _ApprovalNoteDialogState extends State<_ApprovalNoteDialog> {
 
   @override
   Widget build(BuildContext context) => AlertDialog(
-        title: Text(widget.title),
-        content: TextField(
-          controller: _controller,
-          maxLines: 3,
-          decoration: InputDecoration(
-            labelText: widget.noteRequired ? 'Reason required' : 'Note (optional)',
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () {
-              final note = _controller.text.trim();
-              if (widget.noteRequired && note.isEmpty) {
-      return;
-    }
-              Navigator.pop(context, note);
-            },
-            child: const Text('Continue'),
-          ),
-        ],
-      );
+    title: Text(widget.title),
+    content: TextField(
+      controller: _controller,
+      maxLines: 3,
+      decoration: InputDecoration(
+        labelText: widget.noteRequired ? 'Reason required' : 'Note (optional)',
+      ),
+    ),
+    actions: [
+      TextButton(
+        onPressed: () => Navigator.pop(context),
+        child: const Text('Cancel'),
+      ),
+      FilledButton(
+        onPressed: () {
+          final note = _controller.text.trim();
+          if (widget.noteRequired && note.isEmpty) {
+            return;
+          }
+          Navigator.pop(context, note);
+        },
+        child: const Text('Continue'),
+      ),
+    ],
+  );
 }
 
 class _AuditFilterChip extends StatelessWidget {
@@ -1486,11 +1566,11 @@ class _AuditFilterChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.only(right: 7),
-        child: ChoiceChip(
-          label: Text(label),
-          selected: selected,
-          onSelected: (_) => onTap(),
-        ),
-      );
+    padding: const EdgeInsets.only(right: 7),
+    child: ChoiceChip(
+      label: Text(label),
+      selected: selected,
+      onSelected: (_) => onTap(),
+    ),
+  );
 }

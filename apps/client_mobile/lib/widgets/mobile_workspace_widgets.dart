@@ -27,7 +27,9 @@ String workspaceDate(dynamic value) {
     return '';
   }
   final parsed = DateTime.tryParse(raw);
-  return parsed == null ? raw : DateFormat('dd MMM yyyy').format(parsed.toLocal());
+  return parsed == null
+      ? raw
+      : DateFormat('dd MMM yyyy').format(parsed.toLocal());
 }
 
 String workspaceDateTime(dynamic value) {
@@ -291,8 +293,8 @@ class WorkspaceQuickAction extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: scheme.onSurfaceVariant,
-                            ),
+                          color: scheme.onSurfaceVariant,
+                        ),
                       ),
                     ],
                   ],
@@ -355,8 +357,8 @@ class WorkspaceRecordCard extends StatelessWidget {
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: scheme.onSurfaceVariant,
-                            ),
+                          color: scheme.onSurfaceVariant,
+                        ),
                       ),
                     ],
                   ],
@@ -372,9 +374,9 @@ class WorkspaceRecordCard extends StatelessWidget {
             const SizedBox(height: 9),
             Text(
               trailing!,
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w900,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w900),
             ),
           ],
           if (fields.isNotEmpty) ...[
@@ -388,10 +390,7 @@ class WorkspaceRecordCard extends StatelessWidget {
                   .toList(),
             ),
           ],
-          if (footer != null) ...[
-            const SizedBox(height: 10),
-            footer!,
-          ],
+          if (footer != null) ...[const SizedBox(height: 10), footer!],
         ],
       ),
     );
@@ -422,15 +421,15 @@ class WorkspaceErrorView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => ThqMobileEmptyState(
-        icon: Icons.cloud_off_outlined,
-        title: 'Could not load this view',
-        message: error.toString(),
-        action: OutlinedButton.icon(
-          onPressed: onRetry,
-          icon: const Icon(Icons.refresh_rounded),
-          label: const Text('Retry'),
-        ),
-      );
+    icon: Icons.cloud_off_outlined,
+    title: 'Could not load this view',
+    message: error.toString(),
+    action: OutlinedButton.icon(
+      onPressed: onRetry,
+      icon: const Icon(Icons.refresh_rounded),
+      label: const Text('Retry'),
+    ),
+  );
 }
 
 class WorkspaceLoadingList extends StatelessWidget {
@@ -498,14 +497,14 @@ class _HeroIconButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => IconButton(
-        tooltip: tooltip,
-        onPressed: onPressed,
-        style: IconButton.styleFrom(
-          foregroundColor: Colors.white,
-          backgroundColor: Colors.white.withValues(alpha: 0.13),
-        ),
-        icon: Icon(icon, size: 20),
-      );
+    tooltip: tooltip,
+    onPressed: onPressed,
+    style: IconButton.styleFrom(
+      foregroundColor: Colors.white,
+      backgroundColor: Colors.white.withValues(alpha: 0.13),
+    ),
+    icon: Icon(icon, size: 20),
+  );
 }
 
 class _HeroMetric extends StatelessWidget {
@@ -516,42 +515,42 @@ class _HeroMetric extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 5),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              value,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 14,
-                fontWeight: FontWeight.w900,
-                letterSpacing: -0.2,
-              ),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              label,
-              style: const TextStyle(
-                color: Colors.white70,
-                fontSize: 9.5,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ],
+    padding: const EdgeInsets.symmetric(horizontal: 5),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          value,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 14,
+            fontWeight: FontWeight.w900,
+            letterSpacing: -0.2,
+          ),
         ),
-      );
+        const SizedBox(height: 2),
+        Text(
+          label,
+          style: const TextStyle(
+            color: Colors.white70,
+            fontSize: 9.5,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ],
+    ),
+  );
 }
 
 class _HeroDivider extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Container(
-        width: 1,
-        height: 32,
-        color: Colors.white.withValues(alpha: 0.18),
-      );
+    width: 1,
+    height: 32,
+    color: Colors.white.withValues(alpha: 0.18),
+  );
 }
 
 class _RecordFieldView extends StatelessWidget {
@@ -572,16 +571,16 @@ class _RecordFieldView extends StatelessWidget {
         Text(
           '${field.label}: ',
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: scheme.onSurfaceVariant,
-                fontSize: 10.5,
-              ),
+            color: scheme.onSurfaceVariant,
+            fontSize: 10.5,
+          ),
         ),
         Text(
           field.value,
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                fontWeight: FontWeight.w800,
-                fontSize: 10.5,
-              ),
+            fontWeight: FontWeight.w800,
+            fontSize: 10.5,
+          ),
         ),
       ],
     );

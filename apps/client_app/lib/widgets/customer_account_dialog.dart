@@ -203,7 +203,9 @@ class _CustomerAccountDialogState extends State<CustomerAccountDialog> {
                     const SizedBox(height: 10),
                     Text(
                       formError!,
-                      style: TextStyle(color: Theme.of(context).colorScheme.error),
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.error,
+                      ),
                     ),
                   ],
                 ],
@@ -219,7 +221,9 @@ class _CustomerAccountDialogState extends State<CustomerAccountDialog> {
               onPressed: () async {
                 final value = double.tryParse(amount.text.trim()) ?? 0;
                 if (value <= 0) {
-                  setLocalState(() => formError = 'Enter the amount actually received.');
+                  setLocalState(
+                    () => formError = 'Enter the amount actually received.',
+                  );
                   return;
                 }
                 if (value > selectedOutstanding + 0.005) {
@@ -229,8 +233,10 @@ class _CustomerAccountDialogState extends State<CustomerAccountDialog> {
                   );
                   return;
                 }
-                final remaining =
-                    (selectedOutstanding - value).clamp(0.0, selectedOutstanding);
+                final remaining = (selectedOutstanding - value).clamp(
+                  0.0,
+                  selectedOutstanding,
+                );
                 final confirmed = await showDialog<bool>(
                   context: dialogContext,
                   builder: (confirmContext) => AlertDialog(
@@ -494,7 +500,8 @@ class _CustomerAccountDialogState extends State<CustomerAccountDialog> {
                                 const Divider(height: 1),
                             itemBuilder: (context, index) {
                               final row = receipts[index];
-                              final status = row['status']?.toString() ?? 'posted';
+                              final status =
+                                  row['status']?.toString() ?? 'posted';
                               return ListTile(
                                 dense: true,
                                 trailing: widget.canReceive && status != 'void'
@@ -506,8 +513,8 @@ class _CustomerAccountDialogState extends State<CustomerAccountDialog> {
                                         icon: const Icon(Icons.undo_rounded),
                                       )
                                     : status == 'void'
-                                        ? const Chip(label: Text('VOID'))
-                                        : null,
+                                    ? const Chip(label: Text('VOID'))
+                                    : null,
                                 leading: const Icon(
                                   Icons.receipt_long_outlined,
                                 ),

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../ui/v43_theme.dart';
+import '../ui/thq_brand_experience.dart';
 import '../services/client_auth_service.dart';
 import '../services/device_installation_service.dart';
 import 'client_bootstrap_screen.dart';
@@ -208,57 +208,15 @@ class _ClientLoginScreenState extends State<ClientLoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: UiDesignProfile.fallback('client').background,
-
-      body: AutofillGroup(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
-
-            child: Container(
-              width: 430,
-              padding: const EdgeInsets.all(36),
-
-              decoration: BoxDecoration(
-                color: UiDesignProfile.fallback('client').surface,
-                borderRadius: BorderRadius.circular(24),
-                boxShadow: const [
-                  BoxShadow(
-                    color: Color(0x12000000),
-                    blurRadius: 30,
-                    offset: Offset(0, 10),
-                  ),
-                ],
-              ),
-
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  const Icon(Icons.storefront_outlined, size: 64),
-
-                  const SizedBox(height: 20),
-
-                  const Text(
-                    'THQ Business',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 30,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: -0.6,
-                    ),
-                  ),
-
-                  const SizedBox(height: 6),
-
-                  Text(
-                    'Business Login',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 16, color: Colors.grey.shade600),
-                  ),
-
-                  const SizedBox(height: 36),
-
+    return ThqBrandedLoginShell(
+      appName: 'THQ Business',
+      footer: const Text('Accounting • Inventory • Business Management'),
+      versionLabel: 'Windows client',
+      child: AutofillGroup(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
                   TextField(
                     controller: _usernameController,
                     enabled: !_loading,
@@ -361,20 +319,10 @@ class _ClientLoginScreenState extends State<ClientLoginScreen> {
                     icon: const Icon(Icons.swap_horiz),
                     label: const Text('Change Store / Business'),
                   ),
-
-                  const SizedBox(height: 20),
-
-                  Text(
-                    'Accounting • Inventory • Business Management',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
-                  ),
-                ],
-              ),
-            ),
-          ),
+          ],
         ),
       ),
     );
   }
+
 }

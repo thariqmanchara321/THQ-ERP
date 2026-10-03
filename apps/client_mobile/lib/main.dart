@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:thq_ui/thq_ui.dart';
 
+import 'ui/thq_brand_experience.dart';
 import 'config/supabase_config.dart';
 import 'screens/mobile_entry_screen.dart';
 import 'services/mobile_app_log_service.dart';
@@ -19,19 +20,12 @@ Future<void> main() async {
   FlutterError.onError = (details) {
     FlutterError.presentError(details);
     unawaited(
-      MobileAppLogService().log(
-        error: details.exception,
-        stack: details.stack,
-      ),
+      MobileAppLogService().log(error: details.exception, stack: details.stack),
     );
   };
   PlatformDispatcher.instance.onError = (error, stack) {
     unawaited(
-      MobileAppLogService().log(
-        error: error,
-        stack: stack,
-        severity: 'fatal',
-      ),
+      MobileAppLogService().log(error: error, stack: stack, severity: 'fatal'),
     );
     return true;
   };
@@ -47,11 +41,16 @@ class ThqClientMobileApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'THQ Client Mobile',
-      builder: (context, child) => ThqMobileProductionFrame(
-        child: ThqNotificationHost(
-          child: child ?? const SizedBox.shrink(),
+      // THQ_BRANDING_START
+      builder: (context, child) => ThqStartupGate(
+        appName: 'THQ Client Mobile',
+        child: ThqMobileProductionFrame(
+          child: ThqNotificationHost(
+            child: child ?? const SizedBox.shrink(),
+          ),
         ),
       ),
+      // THQ_BRANDING_END
       theme: ThqMobileTheme.client(),
       home: const MobileEntryScreen(),
     );

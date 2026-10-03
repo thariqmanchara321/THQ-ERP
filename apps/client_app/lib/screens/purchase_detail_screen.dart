@@ -917,7 +917,9 @@ class _PurchasePaymentDialogState extends State<_PurchasePaymentDialog> {
               const SizedBox(height: 5),
               Align(
                 alignment: Alignment.centerLeft,
-                child: Text('Balance Due: ${_money(widget.purchase.balanceDue)}'),
+                child: Text(
+                  'Balance Due: ${_money(widget.purchase.balanceDue)}',
+                ),
               ),
               if (_canCloseWholeBalance) ...[
                 const SizedBox(height: 10),
@@ -933,7 +935,9 @@ class _PurchasePaymentDialogState extends State<_PurchasePaymentDialog> {
               TextField(
                 controller: _amountController,
                 enabled: !_saving,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
                 onChanged: (_) {
                   setState(() => _closeSmallBalance = false);
                 },
@@ -949,9 +953,8 @@ class _PurchasePaymentDialogState extends State<_PurchasePaymentDialog> {
                   value: _closeSmallBalance,
                   onChanged: _saving
                       ? null
-                      : (value) => setState(
-                            () => _closeSmallBalance = value ?? false,
-                          ),
+                      : (value) =>
+                            setState(() => _closeSmallBalance = value ?? false),
                   title: Text(
                     'Close remaining ${_money(_remainingAfterPayment)} as round-off',
                   ),
@@ -1041,6 +1044,7 @@ class _PurchasePaymentDialogState extends State<_PurchasePaymentDialog> {
     );
   }
 }
+
 class _PurchaseItemRow extends StatelessWidget {
   final PurchaseDetailItem item;
 

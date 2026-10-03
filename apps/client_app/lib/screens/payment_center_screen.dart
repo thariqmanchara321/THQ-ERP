@@ -131,11 +131,12 @@ class _PaymentCenterScreenState extends State<PaymentCenterScreen> {
 
   Future<void> _paySupplier(PartyPendingSummary party) async {
     if (_actionBusy || !_requireSpecificStore()) return;
-    final tradeOutstanding = (
-      party.purchaseOutstanding +
-          party.invoiceOutstanding -
-          party.creditBalance
-    ).clamp(0, double.infinity).toDouble();
+    final tradeOutstanding =
+        (party.purchaseOutstanding +
+                party.invoiceOutstanding -
+                party.creditBalance)
+            .clamp(0, double.infinity)
+            .toDouble();
     if (tradeOutstanding <= .005) {
       ThqNotify.showSnackBar(
         context,

@@ -14,11 +14,11 @@ class MobileLocation {
   });
 
   factory MobileLocation.fromMap(Map<String, dynamic> map) => MobileLocation(
-        id: map['id']?.toString() ?? '',
-        code: map['code']?.toString() ?? map['location_code']?.toString() ?? '',
-        name: map['name']?.toString() ?? map['location_name']?.toString() ?? '',
-        accessLevel: map['access_level']?.toString() ?? 'view',
-      );
+    id: map['id']?.toString() ?? '',
+    code: map['code']?.toString() ?? map['location_code']?.toString() ?? '',
+    name: map['name']?.toString() ?? map['location_name']?.toString() ?? '',
+    accessLevel: map['access_level']?.toString() ?? 'view',
+  );
 }
 
 class MobileSession {

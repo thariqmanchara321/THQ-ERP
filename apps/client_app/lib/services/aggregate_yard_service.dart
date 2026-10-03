@@ -350,6 +350,113 @@ class AggregateYardService {
     return Map<String, dynamic>.from(result);
   }
 
+  Future<Map<String, dynamic>> loadDetail({
+    required String tenantId,
+    required String loadId,
+  }) async {
+    final result = await _db.rpc(
+      'aggregate_load_detail_v628',
+      params: {'p_tenant_id': tenantId, 'p_load_id': loadId},
+    );
+    if (result is! Map) {
+      throw StateError('Unexpected load detail response.');
+    }
+    return Map<String, dynamic>.from(result);
+  }
+
+  Future<Map<String, dynamic>> confirmLoad({
+    required String tenantId,
+    required String loadId,
+  }) async {
+    final result = await _db.rpc(
+      'aggregate_load_confirm_v628',
+      params: {'p_tenant_id': tenantId, 'p_load_id': loadId},
+    );
+    if (result is! Map) {
+      throw StateError('Unexpected load confirmation response.');
+    }
+    return Map<String, dynamic>.from(result);
+  }
+
+  Future<Map<String, dynamic>> deleteLoad({
+    required String tenantId,
+    required String loadId,
+  }) async {
+    final result = await _db.rpc(
+      'aggregate_load_delete_v628',
+      params: {'p_tenant_id': tenantId, 'p_load_id': loadId},
+    );
+    if (result is! Map) {
+      throw StateError('Unexpected load delete response.');
+    }
+    return Map<String, dynamic>.from(result);
+  }
+
+  Future<Map<String, dynamic>> editLoad({
+    required String tenantId,
+    required String loadId,
+    required String direction,
+    String? locationId,
+    required String variantId,
+    required double quantity,
+    String unitCode = 'CFT',
+    String measurementMethod = 'manual',
+    double? bodyLengthFt,
+    double? bodyWidthFt,
+    double? bodyHeightFt,
+    double? grossWeightKg,
+    double? tareWeightKg,
+    double? netWeightKg,
+    String? vehicleId,
+    String? driverId,
+    String? supplierId,
+    String? customerId,
+    String? sourceName,
+    String? destinationName,
+    String? sourceReference,
+    String freightMode = 'none',
+    double freightAmount = 0,
+    bool capacityOverride = false,
+    String? capacityOverrideReason,
+    String? notes,
+  }) async {
+    final result = await _db.rpc(
+      'aggregate_load_edit_v628',
+      params: {
+        'p_tenant_id': tenantId,
+        'p_load_id': loadId,
+        'p_direction': direction,
+        'p_location_id': locationId,
+        'p_variant_id': variantId,
+        'p_quantity': quantity,
+        'p_unit_code': unitCode,
+        'p_measurement_method': measurementMethod,
+        'p_body_length_ft': bodyLengthFt,
+        'p_body_width_ft': bodyWidthFt,
+        'p_body_height_ft': bodyHeightFt,
+        'p_gross_weight_kg': grossWeightKg,
+        'p_tare_weight_kg': tareWeightKg,
+        'p_net_weight_kg': netWeightKg,
+        'p_vehicle_id': vehicleId,
+        'p_driver_id': driverId,
+        'p_supplier_id': supplierId,
+        'p_customer_id': customerId,
+        'p_source_name': sourceName,
+        'p_destination_name': destinationName,
+        'p_source_reference': sourceReference,
+        'p_freight_mode': freightMode,
+        'p_freight_amount': freightAmount,
+        'p_capacity_override': capacityOverride,
+        'p_capacity_override_reason': capacityOverrideReason,
+        'p_notes': notes,
+      },
+    );
+    if (result is! Map) {
+      throw StateError('Unexpected load edit response.');
+    }
+    return Map<String, dynamic>.from(result);
+  }
+
   Future<Map<String, dynamic>> updateStatus({
     required String tenantId,
     required String loadId,

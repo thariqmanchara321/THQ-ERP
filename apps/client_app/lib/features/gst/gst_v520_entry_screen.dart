@@ -32,10 +32,7 @@ class _GstV520EntryScreenState extends State<GstV520EntryScreen> {
   @override
   void initState() {
     super.initState();
-    _service = GstComplianceV520Service(
-      client: _client,
-      tenantId: _tenantId,
-    );
+    _service = GstComplianceV520Service(client: _client, tenantId: _tenantId);
     _loadMode();
   }
 
@@ -205,7 +202,8 @@ class _GstV520EntryScreenState extends State<GstV520EntryScreen> {
               },
             ),
           ),
-        ),        Expanded(child: GstComplianceV520Screen(service: _service)),
+        ),
+        Expanded(child: GstComplianceV520Screen(service: _service)),
       ],
     );
   }

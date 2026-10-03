@@ -6,148 +6,136 @@ import '../models/mobile_session.dart';
 class MobileClientService {
   SupabaseClient get _supabase => Supabase.instance.client;
 
-  List<Map<String, dynamic>> _rows(dynamic raw) =>
-      (raw as List? ?? const [])
-          .whereType<Map>()
-          .map((row) => Map<String, dynamic>.from(row))
-          .toList();
+  List<Map<String, dynamic>> _rows(dynamic raw) => (raw as List? ?? const [])
+      .whereType<Map>()
+      .map((row) => Map<String, dynamic>.from(row))
+      .toList();
 
-  Map<String, dynamic> _map(dynamic raw) => raw is Map
-      ? Map<String, dynamic>.from(raw)
-      : <String, dynamic>{};
+  Map<String, dynamic> _map(dynamic raw) =>
+      raw is Map ? Map<String, dynamic>.from(raw) : <String, dynamic>{};
 
   Future<Map<String, dynamic>> dashboard(
     MobileSession s, {
     String? locationId,
-  }) async =>
-      _map(
-        await _supabase.rpc(
-          'mobile_client_dashboard_v487',
-          params: {
-            'p_tenant_id': s.tenantId,
-            'p_device_id': s.deviceId,
-            'p_day': _date(DateTime.now()),
-            'p_location_id': locationId,
-          },
-        ),
-      );
+  }) async => _map(
+    await _supabase.rpc(
+      'mobile_client_dashboard_v487',
+      params: {
+        'p_tenant_id': s.tenantId,
+        'p_device_id': s.deviceId,
+        'p_day': _date(DateTime.now()),
+        'p_location_id': locationId,
+      },
+    ),
+  );
 
   Future<Map<String, dynamic>> performance(
     MobileSession s, {
     String? locationId,
     String period = 'today',
-  }) async =>
-      _map(
-        await _supabase.rpc(
-          'mobile_client_performance_v625',
-          params: {
-            'p_tenant_id': s.tenantId,
-            'p_device_id': s.deviceId,
-            'p_period': period,
-            'p_location_id': locationId,
-          },
-        ),
-      );
+  }) async => _map(
+    await _supabase.rpc(
+      'mobile_client_performance_v625',
+      params: {
+        'p_tenant_id': s.tenantId,
+        'p_device_id': s.deviceId,
+        'p_period': period,
+        'p_location_id': locationId,
+      },
+    ),
+  );
 
   Future<List<Map<String, dynamic>>> sales(
     MobileSession s, {
     String? locationId,
     int limit = 200,
-  }) async =>
-      _rows(
-        await _supabase.rpc(
-          'mobile_sales_status_v487',
-          params: {
-            'p_tenant_id': s.tenantId,
-            'p_device_id': s.deviceId,
-            'p_location_id': locationId,
-            'p_limit': limit,
-          },
-        ),
-      );
+  }) async => _rows(
+    await _supabase.rpc(
+      'mobile_sales_status_v487',
+      params: {
+        'p_tenant_id': s.tenantId,
+        'p_device_id': s.deviceId,
+        'p_location_id': locationId,
+        'p_limit': limit,
+      },
+    ),
+  );
 
   Future<List<Map<String, dynamic>>> purchases(
     MobileSession s, {
     String? locationId,
     int limit = 200,
-  }) async =>
-      _rows(
-        await _supabase.rpc(
-          'mobile_purchases_status_v487',
-          params: {
-            'p_tenant_id': s.tenantId,
-            'p_device_id': s.deviceId,
-            'p_location_id': locationId,
-            'p_limit': limit,
-          },
-        ),
-      );
+  }) async => _rows(
+    await _supabase.rpc(
+      'mobile_purchases_status_v487',
+      params: {
+        'p_tenant_id': s.tenantId,
+        'p_device_id': s.deviceId,
+        'p_location_id': locationId,
+        'p_limit': limit,
+      },
+    ),
+  );
 
   Future<List<Map<String, dynamic>>> inventory(
     MobileSession s, {
     String? locationId,
     String query = '',
     int limit = 500,
-  }) async =>
-      _rows(
-        await _supabase.rpc(
-          'mobile_inventory_status_v487',
-          params: {
-            'p_tenant_id': s.tenantId,
-            'p_device_id': s.deviceId,
-            'p_location_id': locationId,
-            'p_query': query,
-            'p_limit': limit,
-          },
-        ),
-      );
+  }) async => _rows(
+    await _supabase.rpc(
+      'mobile_inventory_status_v487',
+      params: {
+        'p_tenant_id': s.tenantId,
+        'p_device_id': s.deviceId,
+        'p_location_id': locationId,
+        'p_query': query,
+        'p_limit': limit,
+      },
+    ),
+  );
 
   Future<List<Map<String, dynamic>>> customerOutstanding(
     MobileSession s, {
     String? locationId,
     String query = '',
     int limit = 500,
-  }) async =>
-      _rows(
-        await _supabase.rpc(
-          'mobile_customer_outstanding_v487',
-          params: {
-            'p_tenant_id': s.tenantId,
-            'p_device_id': s.deviceId,
-            'p_location_id': locationId,
-            'p_query': query,
-            'p_limit': limit,
-          },
-        ),
-      );
+  }) async => _rows(
+    await _supabase.rpc(
+      'mobile_customer_outstanding_v487',
+      params: {
+        'p_tenant_id': s.tenantId,
+        'p_device_id': s.deviceId,
+        'p_location_id': locationId,
+        'p_query': query,
+        'p_limit': limit,
+      },
+    ),
+  );
 
   Future<List<Map<String, dynamic>>> supplierOutstanding(
     MobileSession s, {
     String? locationId,
     String query = '',
     int limit = 500,
-  }) async =>
-      _rows(
-        await _supabase.rpc(
-          'mobile_supplier_outstanding_v487',
-          params: {
-            'p_tenant_id': s.tenantId,
-            'p_device_id': s.deviceId,
-            'p_location_id': locationId,
-            'p_query': query,
-            'p_limit': limit,
-          },
-        ),
-      );
+  }) async => _rows(
+    await _supabase.rpc(
+      'mobile_supplier_outstanding_v487',
+      params: {
+        'p_tenant_id': s.tenantId,
+        'p_device_id': s.deviceId,
+        'p_location_id': locationId,
+        'p_query': query,
+        'p_limit': limit,
+      },
+    ),
+  );
 
   Future<List<Map<String, dynamic>>> storePerformance(MobileSession s) async =>
       _rows(
         await _supabase.rpc(
           'mobile_store_status_v480',
-          params: {
-            'p_tenant_id': s.tenantId,
-            'p_day': _date(DateTime.now()),
-          },
+          params: {'p_tenant_id': s.tenantId, 'p_day': _date(DateTime.now())},
         ),
       );
 
@@ -156,35 +144,33 @@ class MobileClientService {
     required DateTime from,
     required DateTime to,
     String? locationId,
-  }) async =>
-      _map(
-        await _supabase.rpc(
-          'reports_get_summary_v4',
-          params: {
-            'p_tenant_id': s.tenantId,
-            'p_from_date': _date(from),
-            'p_to_date': _date(to),
-            'p_location_id': locationId,
-          },
-        ),
-      );
+  }) async => _map(
+    await _supabase.rpc(
+      'reports_get_summary_v4',
+      params: {
+        'p_tenant_id': s.tenantId,
+        'p_from_date': _date(from),
+        'p_to_date': _date(to),
+        'p_location_id': locationId,
+      },
+    ),
+  );
 
   Future<List<Map<String, dynamic>>> approvals(
     MobileSession s, {
     String status = 'pending',
     int limit = 300,
-  }) async =>
-      _rows(
-        await _supabase.rpc(
-          'mobile_approvals_v487',
-          params: {
-            'p_tenant_id': s.tenantId,
-            'p_device_id': s.deviceId,
-            'p_status': status,
-            'p_limit': limit,
-          },
-        ),
-      );
+  }) async => _rows(
+    await _supabase.rpc(
+      'mobile_approvals_v487',
+      params: {
+        'p_tenant_id': s.tenantId,
+        'p_device_id': s.deviceId,
+        'p_status': status,
+        'p_limit': limit,
+      },
+    ),
+  );
 
   Future<void> decide(
     MobileSession s, {
@@ -213,39 +199,37 @@ class MobileClientService {
     required String method,
     String reference = '',
     String notes = '',
-  }) async =>
-      _map(
-        await _supabase.rpc(
-          'mobile_customer_payment_v487',
-          params: {
-            'p_tenant_id': s.tenantId,
-            'p_device_id': s.deviceId,
-            'p_customer_id': customerId,
-            'p_amount': amount,
-            'p_payment_method': method,
-            'p_reference_number': reference,
-            'p_notes': notes,
-            'p_sale_id': null,
-            'p_request_id': const Uuid().v4(),
-          },
-        ),
-      );
+  }) async => _map(
+    await _supabase.rpc(
+      'mobile_customer_payment_v487',
+      params: {
+        'p_tenant_id': s.tenantId,
+        'p_device_id': s.deviceId,
+        'p_customer_id': customerId,
+        'p_amount': amount,
+        'p_payment_method': method,
+        'p_reference_number': reference,
+        'p_notes': notes,
+        'p_sale_id': null,
+        'p_request_id': const Uuid().v4(),
+      },
+    ),
+  );
 
   Future<Map<String, dynamic>> partyPaymentSummary(
     MobileSession s, {
     String query = '',
-  }) async =>
-      _map(
-        await _supabase.rpc(
-          'payments_party_summary_v491',
-          params: {
-            'p_tenant_id': s.tenantId,
-            'p_location_id': s.locationId,
-            'p_query': query.trim(),
-            'p_limit': 1000,
-          },
-        ),
-      );
+  }) async => _map(
+    await _supabase.rpc(
+      'payments_party_summary_v491',
+      params: {
+        'p_tenant_id': s.tenantId,
+        'p_location_id': s.locationId,
+        'p_query': query.trim(),
+        'p_limit': 1000,
+      },
+    ),
+  );
 
   Future<Map<String, dynamic>> paySupplier(
     MobileSession s, {
@@ -254,23 +238,22 @@ class MobileClientService {
     required String method,
     String reference = '',
     String notes = '',
-  }) async =>
-      _map(
-        await _supabase.rpc(
-          'supplier_payment_party_v626',
-          params: {
-            'p_tenant_id': s.tenantId,
-            'p_location_id': s.locationId,
-            'p_supplier_id': supplierId,
-            'p_amount': amount,
-            'p_payment_method': method,
-            'p_reference_number': reference.trim(),
-            'p_notes': notes.trim(),
-            'p_device_id': s.deviceId,
-            'p_request_id': const Uuid().v4(),
-          },
-        ),
-      );
+  }) async => _map(
+    await _supabase.rpc(
+      'supplier_payment_party_v626',
+      params: {
+        'p_tenant_id': s.tenantId,
+        'p_location_id': s.locationId,
+        'p_supplier_id': supplierId,
+        'p_amount': amount,
+        'p_payment_method': method,
+        'p_reference_number': reference.trim(),
+        'p_notes': notes.trim(),
+        'p_device_id': s.deviceId,
+        'p_request_id': const Uuid().v4(),
+      },
+    ),
+  );
 
   Future<Map<String, dynamic>> closeOutstanding(
     MobileSession s, {
@@ -279,37 +262,32 @@ class MobileClientService {
     required String adjustmentType,
     required double amount,
     required String reason,
-  }) async =>
-      _map(
-        await _supabase.rpc(
-          'party_outstanding_close_v626',
-          params: {
-            'p_tenant_id': s.tenantId,
-            'p_location_id': s.locationId,
-            'p_party_type': partyType,
-            'p_party_id': partyId,
-            'p_adjustment_type': adjustmentType,
-            'p_amount': amount,
-            'p_reason': reason.trim(),
-            'p_device_id': s.deviceId,
-            'p_request_id': const Uuid().v4(),
-          },
-        ),
-      );
+  }) async => _map(
+    await _supabase.rpc(
+      'party_outstanding_close_v626',
+      params: {
+        'p_tenant_id': s.tenantId,
+        'p_location_id': s.locationId,
+        'p_party_type': partyType,
+        'p_party_id': partyId,
+        'p_adjustment_type': adjustmentType,
+        'p_amount': amount,
+        'p_reason': reason.trim(),
+        'p_device_id': s.deviceId,
+        'p_request_id': const Uuid().v4(),
+      },
+    ),
+  );
 
   Future<List<Map<String, dynamic>>> notifications(
     MobileSession s, {
     int limit = 100,
-  }) async =>
-      _rows(
-        await _supabase.rpc(
-          'notifications_list_v4',
-          params: {
-            'p_tenant_id': s.tenantId,
-            'p_limit': limit,
-          },
-        ),
-      );
+  }) async => _rows(
+    await _supabase.rpc(
+      'notifications_list_v4',
+      params: {'p_tenant_id': s.tenantId, 'p_limit': limit},
+    ),
+  );
 
   Future<void> markNotificationRead(
     MobileSession s,
@@ -317,10 +295,7 @@ class MobileClientService {
   ) async {
     await _supabase.rpc(
       'notification_mark_read_v4',
-      params: {
-        'p_tenant_id': s.tenantId,
-        'p_notification_id': notificationId,
-      },
+      params: {'p_tenant_id': s.tenantId, 'p_notification_id': notificationId},
     );
   }
 
@@ -337,18 +312,17 @@ class MobileClientService {
     String? locationId,
     DateTime? from,
     DateTime? to,
-  }) async =>
-      _map(
-        await _supabase.rpc(
-          'audit_center_summary_v600',
-          params: {
-            'p_tenant_id': s.tenantId,
-            'p_from': from?.toIso8601String(),
-            'p_to': to?.toIso8601String(),
-            'p_location_id': locationId,
-          },
-        ),
-      );
+  }) async => _map(
+    await _supabase.rpc(
+      'audit_center_summary_v600',
+      params: {
+        'p_tenant_id': s.tenantId,
+        'p_from': from?.toIso8601String(),
+        'p_to': to?.toIso8601String(),
+        'p_location_id': locationId,
+      },
+    ),
+  );
 
   Future<List<Map<String, dynamic>>> auditFindings(
     MobileSession s, {
@@ -358,57 +332,54 @@ class MobileClientService {
     DateTime? from,
     DateTime? to,
     int limit = 200,
-  }) async =>
-      _rows(
-        await _supabase.rpc(
-          'audit_findings_list_v600',
-          params: {
-            'p_tenant_id': s.tenantId,
-            'p_severity': severity,
-            'p_status': status,
-            'p_from': from?.toIso8601String(),
-            'p_to': to?.toIso8601String(),
-            'p_location_id': locationId,
-            'p_limit': limit,
-          },
-        ),
-      );
+  }) async => _rows(
+    await _supabase.rpc(
+      'audit_findings_list_v600',
+      params: {
+        'p_tenant_id': s.tenantId,
+        'p_severity': severity,
+        'p_status': status,
+        'p_from': from?.toIso8601String(),
+        'p_to': to?.toIso8601String(),
+        'p_location_id': locationId,
+        'p_limit': limit,
+      },
+    ),
+  );
 
   Future<List<Map<String, dynamic>>> serials(
     MobileSession s, {
     String? locationId,
     String query = '',
     int limit = 200,
-  }) async =>
-      _rows(
-        await _supabase.rpc(
-          'inventory_serial_search_v483',
-          params: {
-            'p_tenant_id': s.tenantId,
-            'p_query': query,
-            'p_location_id': locationId,
-            'p_limit': limit,
-          },
-        ),
-      );
+  }) async => _rows(
+    await _supabase.rpc(
+      'inventory_serial_search_v483',
+      params: {
+        'p_tenant_id': s.tenantId,
+        'p_query': query,
+        'p_location_id': locationId,
+        'p_limit': limit,
+      },
+    ),
+  );
 
   Future<List<Map<String, dynamic>>> batches(
     MobileSession s, {
     String? locationId,
     String query = '',
     int limit = 200,
-  }) async =>
-      _rows(
-        await _supabase.rpc(
-          'inventory_batch_search_v483',
-          params: {
-            'p_tenant_id': s.tenantId,
-            'p_query': query,
-            'p_location_id': locationId,
-            'p_limit': limit,
-          },
-        ),
-      );
+  }) async => _rows(
+    await _supabase.rpc(
+      'inventory_batch_search_v483',
+      params: {
+        'p_tenant_id': s.tenantId,
+        'p_query': query,
+        'p_location_id': locationId,
+        'p_limit': limit,
+      },
+    ),
+  );
 
   Future<List<Map<String, dynamic>>> warranties(
     MobileSession s, {
@@ -417,20 +388,19 @@ class MobileClientService {
     String? status,
     int? expiringDays,
     int limit = 300,
-  }) async =>
-      _rows(
-        await _supabase.rpc(
-          'warranty_register_v483',
-          params: {
-            'p_tenant_id': s.tenantId,
-            'p_query': query,
-            'p_status': status,
-            'p_expiring_days': expiringDays,
-            'p_limit': limit,
-            'p_location_id': locationId,
-          },
-        ),
-      );
+  }) async => _rows(
+    await _supabase.rpc(
+      'warranty_register_v483',
+      params: {
+        'p_tenant_id': s.tenantId,
+        'p_query': query,
+        'p_status': status,
+        'p_expiring_days': expiringDays,
+        'p_limit': limit,
+        'p_location_id': locationId,
+      },
+    ),
+  );
 
   Future<Map<String, List<Map<String, dynamic>>>> globalSearch(
     MobileSession s, {
@@ -449,8 +419,8 @@ class MobileClientService {
     ]);
 
     bool contains(Map<String, dynamic> row) => row.values.any(
-          (value) => value?.toString().toLowerCase().contains(q) == true,
-        );
+      (value) => value?.toString().toLowerCase().contains(q) == true,
+    );
 
     return {
       'Sales': groups[0].where(contains).take(30).toList(),

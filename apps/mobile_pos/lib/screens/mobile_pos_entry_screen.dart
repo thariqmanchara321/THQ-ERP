@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:thq_ui/thq_ui.dart';
 
+import '../ui/thq_brand_experience.dart';
 import '../services/device_installation_service.dart';
 import '../services/mobile_pos_auth_service.dart';
 import '../services/mobile_pos_session_service.dart';
@@ -214,11 +215,11 @@ class _LoginViewState extends State<_LoginView> {
 
   @override
   Widget build(BuildContext context) {
-    return ThqMobileAccessScaffold(
-      eyebrow: 'THQ POS • FAST COUNTER ACCESS',
-      title: 'Ready to sell',
-      subtitle:
-          'Sign in to this activated terminal. Store, terminal and module permissions are enforced before the POS workspace opens.',
+    return ThqBrandedLoginShell(
+      appName: 'THQ Mobile POS',
+      eyebrow: 'THQ POS',
+      title: 'Ready to sell.',
+      subtitle: 'Sign in to your activated POS terminal.',
       icon: Icons.point_of_sale_rounded,
       versionLabel: ThqPosMobileReleaseContract.versionLabel,
       footer: const Text(

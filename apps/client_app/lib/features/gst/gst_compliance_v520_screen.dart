@@ -418,7 +418,8 @@ class _GstComplianceV520ScreenState extends State<GstComplianceV520Screen> {
                   const _StatusPill(label: 'GST v6', tone: _PillTone.info),
                 ],
               ),
-            ),            OutlinedButton.icon(
+            ),
+            OutlinedButton.icon(
               onPressed: _pickPeriod,
               icon: const Icon(Icons.date_range_outlined, size: 18),
               label: Text(rangeLabel),
@@ -3910,9 +3911,7 @@ class _EvidenceDialog extends StatelessWidget {
             ? scheme.primaryContainer.withValues(alpha: .48)
             : scheme.surfaceContainerLow,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(
-          color: scheme.outlineVariant.withValues(alpha: .55),
-        ),
+        border: Border.all(color: scheme.outlineVariant.withValues(alpha: .55)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

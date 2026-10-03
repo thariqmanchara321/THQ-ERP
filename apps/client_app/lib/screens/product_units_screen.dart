@@ -53,8 +53,8 @@ class _ProductUnitsScreenState extends State<ProductUnitsScreen> {
           variantId: widget.variantId,
         ),
       ]);
-      final units = results[0] as List<InventoryUnit>;
-      final configured = results[1] as List<ProductUnitOption>;
+      final List<InventoryUnit> units = results[0] as List<InventoryUnit>;
+      final List<ProductUnitOption> configured = results[1] as List<ProductUnitOption>;
       final base = configured.where((u) => u.isBase).firstOrNull;
       if (!mounted) return;
       setState(() {

@@ -3,8 +3,6 @@ import 'package:flutter/material.dart';
 import '../models/client_session.dart';
 import '../services/aggregate_yard_service.dart';
 import '../services/location_scope_service.dart';
-import 'purchases_screen.dart';
-import 'sales_screen.dart';
 
 class AggregateLoadsScreen extends StatefulWidget {
   final ClientSession session;
@@ -74,12 +72,28 @@ class _AggregateLoadsScreenState extends State<AggregateLoadsScreen> {
       if (all || _context.isEmpty) {
         _context = await _service.context(tenantId: widget.session.business.id);
       }
-      _rows = await _service.loads(
+      final rows = await _service.loads(
         tenantId: widget.session.business.id,
         locationId: _locationId,
-        status: _status,
+        status: null,
         query: _search.text.trim(),
       );
+
+      _rows = switch (_status) {
+        'draft' =>
+          rows
+              .where((row) => _simpleStatus(row) == 'draft')
+              .toList(growable: false),
+        'completed' =>
+          rows
+              .where((row) => _simpleStatus(row) == 'confirmed')
+              .toList(growable: false),
+        'cancelled' =>
+          rows
+              .where((row) => _simpleStatus(row) == 'cancelled')
+              .toList(growable: false),
+        _ => rows,
+      };
     } catch (error) {
       _error = error.toString();
     } finally {
@@ -652,192 +666,70 @@ class _AggregateLoadsScreenState extends State<AggregateLoadsScreen> {
     }
   }
 
-  List<String> _nextStatuses(Map<String, dynamic> row) {
-    final status = row['status']?.toString() ?? '';
-    final direction = row['direction']?.toString() ?? '';
-    return switch (status) {
-      'draft' => const ['loading', 'cancelled'],
-      'loading' => const ['dispatched', 'in_transit', 'cancelled'],
-      'dispatched' => const ['in_transit', 'arrived', 'cancelled'],
-      'in_transit' => const ['arrived', 'cancelled'],
-      'arrived' =>
-        direction == 'inbound'
-            ? const ['received', 'cancelled']
-            : const ['delivered', 'cancelled'],
-      'received' || 'delivered' => const ['completed'],
-      _ => const [],
-    };
-  }
-
   String? _id(dynamic value) {
     final text = value?.toString().trim() ?? '';
     return text.isEmpty || text == 'null' ? null : text;
   }
 
-  String _loadTransactionNote(Map<String, dynamic> row) {
-    final parts = <String>[
-      'Material Yard Load ${row['load_number'] ?? ''}',
-      if (_id(row['vehicle_registration']) != null)
-        'Truck ${row['vehicle_registration']}',
-      if (_id(row['driver_name']) != null) 'Driver ${row['driver_name']}',
-      if (_id(row['source_name']) != null) 'From ${row['source_name']}',
-      if (_id(row['destination_name']) != null) 'To ${row['destination_name']}',
-      if (_id(row['source_reference']) != null)
-        'Ref ${row['source_reference']}',
-    ];
-    return parts.join(' | ');
+  String _simpleStatus(Map<String, dynamic> row) {
+    final status = row['status']?.toString() ?? '';
+    if (status == 'completed') return 'confirmed';
+    if (status == 'cancelled') return 'cancelled';
+    return 'draft';
   }
 
-  Future<void> _postPurchaseForLoad(Map<String, dynamic> row) async {
-    if (_id(row['purchase_id']) != null) return;
+  bool _hasProtectedLinks(Map<String, dynamic> row) {
+    return _id(row['purchase_id']) != null ||
+        _id(row['sale_id']) != null ||
+        _id(row['order_id']) != null;
+  }
 
-    final locationId = _id(row['location_id']) ?? _locationId;
-    if (locationId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Select a specific yard / store before posting the Purchase.',
+  bool _canConfirm(Map<String, dynamic> row) {
+    final status = row['status']?.toString() ?? '';
+    return status != 'completed' && status != 'cancelled';
+  }
+
+  bool _canEdit(Map<String, dynamic> row) =>
+      _canConfirm(row) && !_hasProtectedLinks(row);
+
+  bool _canDelete(Map<String, dynamic> row) =>
+      row['status']?.toString() != 'completed' && !_hasProtectedLinks(row);
+
+  Future<void> _confirmLoad(Map<String, dynamic> row) async {
+    if (!_canConfirm(row)) return;
+
+    final accepted = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Confirm Load'),
+        content: Text(
+          'Confirm ${row['load_number']}?\n\n'
+          'After confirmation this load is read-only in the Load Register.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Cancel'),
           ),
-        ),
-      );
-      return;
-    }
-
-    String? createdPurchaseId;
-
-    final completed = await Navigator.of(context).push<bool>(
-      MaterialPageRoute(
-        builder: (_) => NewPurchaseScreen(
-          session: widget.session,
-          locationId: locationId,
-          initialSupplierId: _id(row['supplier_id']),
-          initialVariantId: _id(row['variant_id']),
-          initialQuantity: double.tryParse('${row['quantity'] ?? ''}'),
-          initialUnitCode: _id(row['unit_code']),
-          initialSupplierInvoiceNumber: _id(row['source_reference']),
-          initialNotes: _loadTransactionNote(row),
-          onCreated: (purchaseId) => createdPurchaseId = purchaseId,
-        ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Confirm Load'),
+          ),
+        ],
       ),
     );
 
-    if (!mounted) return;
-    if (completed != true || createdPurchaseId == null) return;
+    if (accepted != true || !mounted) return;
 
     try {
-      await _service.linkDocument(
+      await _service.confirmLoad(
         tenantId: widget.session.business.id,
         loadId: row['load_id'].toString(),
-        documentType: 'purchase',
-        documentId: createdPurchaseId!,
       );
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Purchase posted and linked to the Load Ticket.'),
-        ),
-      );
-      await _reload();
-    } catch (error) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          duration: const Duration(seconds: 8),
-          content: Text(
-            'Purchase $createdPurchaseId was posted successfully, but the '
-            'Load Ticket link was rejected: $error\n'
-            'Do not post the Purchase again. Correct the load/document and link it.',
-          ),
-        ),
-      );
-    }
-  }
-
-  Future<void> _postSaleForLoad(Map<String, dynamic> row) async {
-    if (_id(row['sale_id']) != null) return;
-
-    final locationId = _id(row['location_id']) ?? _locationId;
-    if (locationId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Select a specific yard / store before posting the Sale.',
-          ),
-        ),
-      );
-      return;
-    }
-
-    String? createdSaleId;
-
-    final completed = await Navigator.of(context).push<bool>(
-      MaterialPageRoute(
-        builder: (_) => NewSaleScreen(
-          session: widget.session,
-          locationId: locationId,
-          initialCustomerId: _id(row['customer_id']),
-          initialVariantId: _id(row['variant_id']),
-          initialQuantity: double.tryParse('${row['quantity'] ?? ''}'),
-          initialUnitCode: _id(row['unit_code']),
-          initialNotes: _loadTransactionNote(row),
-          onCreated: (saleId) => createdSaleId = saleId,
-        ),
-      ),
-    );
-
-    if (!mounted) return;
-    if (completed != true || createdSaleId == null) return;
-
-    try {
-      await _service.linkDocument(
-        tenantId: widget.session.business.id,
-        loadId: row['load_id'].toString(),
-        documentType: 'sale',
-        documentId: createdSaleId!,
-      );
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Sale posted and linked to the Load Ticket.'),
-        ),
-      );
-      await _reload();
-    } catch (error) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          duration: const Duration(seconds: 8),
-          content: Text(
-            'Sale $createdSaleId was posted successfully, but the '
-            'Load Ticket link was rejected: $error\n'
-            'Do not post the Sale again. Correct the load/document and link it.',
-          ),
-        ),
-      );
-    }
-  }
-
-  Future<void> _handleAction(Map<String, dynamic> row, String action) async {
-    if (action == 'post_purchase') {
-      await _postPurchaseForLoad(row);
-      return;
-    }
-    if (action == 'post_sale') {
-      await _postSaleForLoad(row);
-      return;
-    }
-    if (action.startsWith('status:')) {
-      await _changeStatus(row, action.substring('status:'.length));
-    }
-  }
-
-  Future<void> _changeStatus(Map<String, dynamic> row, String status) async {
-    try {
-      await _service.updateStatus(
-        tenantId: widget.session.business.id,
-        loadId: row['load_id'].toString(),
-        status: status,
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Load confirmed.')));
       await _reload();
     } catch (error) {
       if (!mounted) return;
@@ -845,6 +737,703 @@ class _AggregateLoadsScreenState extends State<AggregateLoadsScreen> {
         context,
       ).showSnackBar(SnackBar(content: Text(error.toString())));
     }
+  }
+
+  Future<void> _deleteLoad(Map<String, dynamic> row) async {
+    if (!_canDelete(row)) return;
+
+    final accepted = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Delete Load'),
+        content: Text(
+          'Delete ${row['load_number']}?\n\n'
+          'This removes the unconfirmed Load Ticket and its operational history.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(dialogContext).colorScheme.error,
+              foregroundColor: Theme.of(dialogContext).colorScheme.onError,
+            ),
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Delete Load'),
+          ),
+        ],
+      ),
+    );
+
+    if (accepted != true || !mounted) return;
+
+    try {
+      await _service.deleteLoad(
+        tenantId: widget.session.business.id,
+        loadId: row['load_id'].toString(),
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Load deleted.')));
+      await _reload();
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.toString())));
+    }
+  }
+
+  Future<void> _editLoad(Map<String, dynamic> row) async {
+    if (!_canEdit(row)) return;
+
+    try {
+      final detail = await _service.loadDetail(
+        tenantId: widget.session.business.id,
+        loadId: row['load_id'].toString(),
+      );
+      if (!mounted) return;
+
+      final products = _list('products');
+      final vehicles = _list('vehicles');
+      final drivers = _list('drivers');
+      final suppliers = _list('suppliers');
+      final customers = _list('customers');
+      final locations = _list('locations');
+
+      String direction = detail['direction']?.toString() == 'outbound'
+          ? 'outbound'
+          : 'inbound';
+      String measurement =
+          detail['measurement_method']?.toString() == 'dimensions'
+          ? 'dimensions'
+          : 'manual';
+      String unit = _id(detail['unit_code']) ?? 'CFT';
+
+      final unitCodes = <String>{
+        'CFT',
+        'CBM',
+        'TON',
+        'LOAD',
+        'BRASS',
+        unit,
+      }.toList();
+
+      String? validSelection(
+        List<Map<String, dynamic>> rows,
+        String key,
+        dynamic raw,
+      ) {
+        final value = _id(raw);
+        if (value == null) return null;
+        return rows.any((entry) => _id(entry[key]) == value) ? value : null;
+      }
+
+      String? productId = validSelection(
+        products,
+        'variant_id',
+        detail['variant_id'],
+      );
+      String? vehicleId = validSelection(
+        vehicles,
+        'vehicle_id',
+        detail['vehicle_id'],
+      );
+      String? driverId = validSelection(
+        drivers,
+        'driver_id',
+        detail['driver_id'],
+      );
+      String? supplierId = validSelection(
+        suppliers,
+        'supplier_id',
+        detail['supplier_id'],
+      );
+      String? customerId = validSelection(
+        customers,
+        'customer_id',
+        detail['customer_id'],
+      );
+      String? locationId = validSelection(
+        locations,
+        'location_id',
+        detail['location_id'],
+      );
+
+      final quantity = TextEditingController(
+        text: '${detail['quantity'] ?? ''}',
+      );
+      final length = TextEditingController(
+        text: _id(detail['body_length_ft']) ?? '',
+      );
+      final width = TextEditingController(
+        text: _id(detail['body_width_ft']) ?? '',
+      );
+      final height = TextEditingController(
+        text: _id(detail['body_height_ft']) ?? '',
+      );
+      final source = TextEditingController(
+        text: _id(detail['source_name']) ?? '',
+      );
+      final destination = TextEditingController(
+        text: _id(detail['destination_name']) ?? '',
+      );
+      final reference = TextEditingController(
+        text: _id(detail['source_reference']) ?? '',
+      );
+      String freightMode = _id(detail['freight_mode']) ?? 'none';
+      final freight = TextEditingController(
+        text: '${detail['freight_amount'] ?? 0}',
+      );
+      bool capacityOverride = detail['capacity_override'] == true;
+      final overrideReason = TextEditingController(
+        text: _id(detail['capacity_override_reason']) ?? '',
+      );
+      final notes = TextEditingController(text: _id(detail['notes']) ?? '');
+
+      try {
+        final saved = await showDialog<bool>(
+          context: context,
+          barrierDismissible: false,
+          builder: (dialogContext) => StatefulBuilder(
+            builder: (context, setLocalState) {
+              final calculated =
+                  (_double(length.text) ?? 0) *
+                  (_double(width.text) ?? 0) *
+                  (_double(height.text) ?? 0);
+
+              return AlertDialog(
+                title: Text('Edit ${detail['load_number']}'),
+                content: SizedBox(
+                  width: 720,
+                  child: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: DropdownButtonFormField<String>(
+                                initialValue: direction,
+                                decoration: const InputDecoration(
+                                  labelText: 'Direction',
+                                ),
+                                items: const [
+                                  DropdownMenuItem(
+                                    value: 'inbound',
+                                    child: Text('Inbound | Quarry â†’ Yard'),
+                                  ),
+                                  DropdownMenuItem(
+                                    value: 'outbound',
+                                    child: Text('Outbound | Yard â†’ Customer'),
+                                  ),
+                                ],
+                                onChanged: (value) => setLocalState(() {
+                                  direction = value ?? 'inbound';
+                                  if (direction == 'inbound') {
+                                    customerId = null;
+                                  } else {
+                                    supplierId = null;
+                                  }
+                                }),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: DropdownButtonFormField<String>(
+                                initialValue: locationId,
+                                isExpanded: true,
+                                decoration: const InputDecoration(
+                                  labelText: 'Yard / Store',
+                                ),
+                                items: locations
+                                    .map(
+                                      (entry) => DropdownMenuItem<String>(
+                                        value: entry['location_id']?.toString(),
+                                        child: Text(
+                                          '${entry['code'] ?? ''} | ${entry['name'] ?? ''}',
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    )
+                                    .toList(),
+                                onChanged: (value) =>
+                                    setLocalState(() => locationId = value),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 10),
+                        DropdownButtonFormField<String>(
+                          initialValue: productId,
+                          isExpanded: true,
+                          decoration: const InputDecoration(
+                            labelText: 'Material',
+                          ),
+                          items: products
+                              .map(
+                                (entry) => DropdownMenuItem<String>(
+                                  value: entry['variant_id']?.toString(),
+                                  child: Text(
+                                    '${entry['name'] ?? ''}'
+                                    '${(entry['variant_name'] ?? '').toString().trim().isEmpty ? '' : ' | ${entry['variant_name']}'}',
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              )
+                              .toList(),
+                          onChanged: (value) =>
+                              setLocalState(() => productId = value),
+                        ),
+                        const SizedBox(height: 10),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: DropdownButtonFormField<String>(
+                                initialValue: measurement,
+                                decoration: const InputDecoration(
+                                  labelText: 'Measurement',
+                                ),
+                                items: const [
+                                  DropdownMenuItem(
+                                    value: 'manual',
+                                    child: Text('Manual quantity'),
+                                  ),
+                                  DropdownMenuItem(
+                                    value: 'dimensions',
+                                    child: Text('Truck dimensions'),
+                                  ),
+                                ],
+                                onChanged: (value) => setLocalState(
+                                  () => measurement = value ?? 'manual',
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: DropdownButtonFormField<String>(
+                                initialValue: unit,
+                                decoration: const InputDecoration(
+                                  labelText: 'Unit',
+                                ),
+                                items: unitCodes
+                                    .map(
+                                      (code) => DropdownMenuItem(
+                                        value: code,
+                                        child: Text(code),
+                                      ),
+                                    )
+                                    .toList(),
+                                onChanged: measurement == 'dimensions'
+                                    ? null
+                                    : (value) => setLocalState(
+                                        () => unit = value ?? 'CFT',
+                                      ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 10),
+                        if (measurement == 'dimensions') ...[
+                          Row(
+                            children: [
+                              Expanded(
+                                child: TextField(
+                                  controller: length,
+                                  keyboardType: TextInputType.number,
+                                  decoration: const InputDecoration(
+                                    labelText: 'Length ft',
+                                  ),
+                                  onChanged: (_) => setLocalState(() {}),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: TextField(
+                                  controller: width,
+                                  keyboardType: TextInputType.number,
+                                  decoration: const InputDecoration(
+                                    labelText: 'Width ft',
+                                  ),
+                                  onChanged: (_) => setLocalState(() {}),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: TextField(
+                                  controller: height,
+                                  keyboardType: TextInputType.number,
+                                  decoration: const InputDecoration(
+                                    labelText: 'Height ft',
+                                  ),
+                                  onChanged: (_) => setLocalState(() {}),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: Text(
+                              'Calculated: ${calculated.toStringAsFixed(3)} CFT',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ),
+                        ] else
+                          TextField(
+                            controller: quantity,
+                            keyboardType: const TextInputType.numberWithOptions(
+                              decimal: true,
+                            ),
+                            decoration: const InputDecoration(
+                              labelText: 'Quantity',
+                            ),
+                          ),
+                        const SizedBox(height: 10),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: DropdownButtonFormField<String>(
+                                initialValue: vehicleId,
+                                isExpanded: true,
+                                decoration: const InputDecoration(
+                                  labelText: 'Truck / Vehicle',
+                                ),
+                                items: vehicles
+                                    .map(
+                                      (entry) => DropdownMenuItem<String>(
+                                        value: entry['vehicle_id']?.toString(),
+                                        child: Text(
+                                          '${entry['registration_number'] ?? ''}',
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    )
+                                    .toList(),
+                                onChanged: (value) =>
+                                    setLocalState(() => vehicleId = value),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: DropdownButtonFormField<String>(
+                                initialValue: driverId,
+                                isExpanded: true,
+                                decoration: const InputDecoration(
+                                  labelText: 'Driver',
+                                ),
+                                items: drivers
+                                    .map(
+                                      (entry) => DropdownMenuItem<String>(
+                                        value: entry['driver_id']?.toString(),
+                                        child: Text(
+                                          '${entry['name'] ?? ''}',
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    )
+                                    .toList(),
+                                onChanged: (value) =>
+                                    setLocalState(() => driverId = value),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 10),
+                        if (direction == 'inbound')
+                          DropdownButtonFormField<String>(
+                            initialValue: supplierId,
+                            isExpanded: true,
+                            decoration: const InputDecoration(
+                              labelText: 'Supplier / Quarry company',
+                            ),
+                            items: suppliers
+                                .map(
+                                  (entry) => DropdownMenuItem<String>(
+                                    value: entry['supplier_id']?.toString(),
+                                    child: Text(
+                                      '${entry['name'] ?? ''}',
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                )
+                                .toList(),
+                            onChanged: (value) =>
+                                setLocalState(() => supplierId = value),
+                          )
+                        else
+                          DropdownButtonFormField<String>(
+                            initialValue: customerId,
+                            isExpanded: true,
+                            decoration: const InputDecoration(
+                              labelText: 'Customer',
+                            ),
+                            items: customers
+                                .map(
+                                  (entry) => DropdownMenuItem<String>(
+                                    value: entry['customer_id']?.toString(),
+                                    child: Text(
+                                      '${entry['name'] ?? ''}',
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                )
+                                .toList(),
+                            onChanged: (value) =>
+                                setLocalState(() => customerId = value),
+                          ),
+                        const SizedBox(height: 10),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: TextField(
+                                controller: source,
+                                decoration: const InputDecoration(
+                                  labelText: 'Source / Quarry',
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: TextField(
+                                controller: destination,
+                                decoration: const InputDecoration(
+                                  labelText: 'Destination',
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 10),
+                        TextField(
+                          controller: reference,
+                          decoration: const InputDecoration(
+                            labelText: 'Reference',
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: DropdownButtonFormField<String>(
+                                initialValue: freightMode,
+                                decoration: const InputDecoration(
+                                  labelText: 'Freight',
+                                ),
+                                items: const [
+                                  DropdownMenuItem(
+                                    value: 'none',
+                                    child: Text('None'),
+                                  ),
+                                  DropdownMenuItem(
+                                    value: 'own',
+                                    child: Text('Own'),
+                                  ),
+                                  DropdownMenuItem(
+                                    value: 'hired',
+                                    child: Text('Hired'),
+                                  ),
+                                  DropdownMenuItem(
+                                    value: 'supplier',
+                                    child: Text('Supplier'),
+                                  ),
+                                  DropdownMenuItem(
+                                    value: 'customer',
+                                    child: Text('Customer'),
+                                  ),
+                                  DropdownMenuItem(
+                                    value: 'included',
+                                    child: Text('Included'),
+                                  ),
+                                ],
+                                onChanged: (value) => setLocalState(
+                                  () => freightMode = value ?? 'none',
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: TextField(
+                                controller: freight,
+                                keyboardType:
+                                    const TextInputType.numberWithOptions(
+                                      decimal: true,
+                                    ),
+                                decoration: const InputDecoration(
+                                  labelText: 'Freight amount',
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        SwitchListTile(
+                          contentPadding: EdgeInsets.zero,
+                          title: const Text('Override truck capacity'),
+                          value: capacityOverride,
+                          onChanged: (value) =>
+                              setLocalState(() => capacityOverride = value),
+                        ),
+                        if (capacityOverride)
+                          TextField(
+                            controller: overrideReason,
+                            decoration: const InputDecoration(
+                              labelText: 'Capacity override reason',
+                            ),
+                          ),
+                        const SizedBox(height: 10),
+                        TextField(
+                          controller: notes,
+                          maxLines: 2,
+                          decoration: const InputDecoration(labelText: 'Notes'),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.of(dialogContext).pop(false),
+                    child: const Text('Cancel'),
+                  ),
+                  FilledButton(
+                    onPressed: () async {
+                      if (productId == null || locationId == null) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Select a store and material.'),
+                          ),
+                        );
+                        return;
+                      }
+
+                      final editedQuantity = measurement == 'dimensions'
+                          ? calculated
+                          : (_double(quantity.text) ?? 0);
+                      if (editedQuantity <= 0) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                              'Quantity must be greater than zero.',
+                            ),
+                          ),
+                        );
+                        return;
+                      }
+
+                      try {
+                        await _service.editLoad(
+                          tenantId: widget.session.business.id,
+                          loadId: row['load_id'].toString(),
+                          direction: direction,
+                          locationId: locationId,
+                          variantId: productId!,
+                          quantity: editedQuantity,
+                          unitCode: measurement == 'dimensions' ? 'CFT' : unit,
+                          measurementMethod: measurement,
+                          bodyLengthFt: _double(length.text),
+                          bodyWidthFt: _double(width.text),
+                          bodyHeightFt: _double(height.text),
+                          vehicleId: vehicleId,
+                          driverId: driverId,
+                          supplierId: direction == 'inbound'
+                              ? supplierId
+                              : null,
+                          customerId: direction == 'outbound'
+                              ? customerId
+                              : null,
+                          sourceName: source.text,
+                          destinationName: destination.text,
+                          sourceReference: reference.text,
+                          freightMode: freightMode,
+                          freightAmount: _double(freight.text) ?? 0,
+                          capacityOverride: capacityOverride,
+                          capacityOverrideReason: overrideReason.text,
+                          notes: notes.text,
+                        );
+                        if (dialogContext.mounted) {
+                          Navigator.of(dialogContext).pop(true);
+                        }
+                      } catch (error) {
+                        if (!context.mounted) return;
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text(error.toString())),
+                        );
+                      }
+                    },
+                    child: const Text('Save Changes'),
+                  ),
+                ],
+              );
+            },
+          ),
+        );
+
+        if (saved == true) {
+          await _reload();
+        }
+      } finally {
+        quantity.dispose();
+        length.dispose();
+        width.dispose();
+        height.dispose();
+        source.dispose();
+        destination.dispose();
+        reference.dispose();
+        freight.dispose();
+        overrideReason.dispose();
+        notes.dispose();
+      }
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.toString())));
+    }
+  }
+
+  Widget _loadActions(Map<String, dynamic> row) {
+    final scheme = Theme.of(context).colorScheme;
+    final canConfirm = _canConfirm(row);
+    final canEdit = _canEdit(row);
+    final canDelete = _canDelete(row);
+
+    return SizedBox(
+      width: 420,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          Chip(
+            label: Text(_simpleStatus(row)),
+            visualDensity: VisualDensity.compact,
+          ),
+          const SizedBox(width: 6),
+          FilledButton.tonalIcon(
+            onPressed: canConfirm ? () => _confirmLoad(row) : null,
+            icon: const Icon(Icons.check_circle_outline, size: 16),
+            label: const Text('Confirm'),
+          ),
+          const SizedBox(width: 6),
+          OutlinedButton.icon(
+            onPressed: canEdit ? () => _editLoad(row) : null,
+            icon: const Icon(Icons.edit_outlined, size: 16),
+            label: const Text('Edit'),
+          ),
+          const SizedBox(width: 6),
+          TextButton.icon(
+            style: TextButton.styleFrom(foregroundColor: scheme.error),
+            onPressed: canDelete ? () => _deleteLoad(row) : null,
+            icon: const Icon(Icons.delete_outline, size: 16),
+            label: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -899,28 +1488,8 @@ class _AggregateLoadsScreenState extends State<AggregateLoadsScreen> {
                       ),
                       DropdownMenuItem(value: 'draft', child: Text('Draft')),
                       DropdownMenuItem(
-                        value: 'loading',
-                        child: Text('Loading'),
-                      ),
-                      DropdownMenuItem(
-                        value: 'in_transit',
-                        child: Text('In transit'),
-                      ),
-                      DropdownMenuItem(
-                        value: 'arrived',
-                        child: Text('Arrived'),
-                      ),
-                      DropdownMenuItem(
-                        value: 'received',
-                        child: Text('Received'),
-                      ),
-                      DropdownMenuItem(
-                        value: 'delivered',
-                        child: Text('Delivered'),
-                      ),
-                      DropdownMenuItem(
                         value: 'completed',
-                        child: Text('Completed'),
+                        child: Text('Confirmed'),
                       ),
                       DropdownMenuItem(
                         value: 'cancelled',
@@ -963,7 +1532,6 @@ class _AggregateLoadsScreenState extends State<AggregateLoadsScreen> {
                     separatorBuilder: (_, _) => const SizedBox(height: 6),
                     itemBuilder: (context, index) {
                       final row = _rows[index];
-                      final next = _nextStatuses(row);
                       return Card(
                         margin: EdgeInsets.zero,
                         child: ListTile(
@@ -994,85 +1562,7 @@ class _AggregateLoadsScreenState extends State<AggregateLoadsScreen> {
                             maxLines: 3,
                             overflow: TextOverflow.ellipsis,
                           ),
-                          trailing: SizedBox(
-                            width: 190,
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.end,
-                              children: [
-                                Flexible(
-                                  child: Chip(
-                                    label: Text(
-                                      (row['status'] ?? '')
-                                          .toString()
-                                          .replaceAll('_', ' '),
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                    visualDensity: VisualDensity.compact,
-                                  ),
-                                ),
-                                if (next.isNotEmpty ||
-                                    (row['status'] != 'cancelled' &&
-                                        row['purchase_id'] == null &&
-                                        row['direction'] == 'inbound') ||
-                                    (row['status'] != 'cancelled' &&
-                                        row['sale_id'] == null &&
-                                        row['direction'] == 'outbound'))
-                                  PopupMenuButton<String>(
-                                    tooltip: 'Load actions',
-                                    onSelected: (value) =>
-                                        _handleAction(row, value),
-                                    itemBuilder: (context) {
-                                      final canPurchase =
-                                          row['status'] != 'cancelled' &&
-                                          row['purchase_id'] == null &&
-                                          row['direction'] == 'inbound';
-                                      final canSale =
-                                          row['status'] != 'cancelled' &&
-                                          row['sale_id'] == null &&
-                                          row['direction'] == 'outbound';
-
-                                      return <PopupMenuEntry<String>>[
-                                        if (canPurchase)
-                                          const PopupMenuItem(
-                                            value: 'post_purchase',
-                                            child: ListTile(
-                                              dense: true,
-                                              contentPadding: EdgeInsets.zero,
-                                              leading: Icon(
-                                                Icons.shopping_cart_outlined,
-                                              ),
-                                              title: Text('Post THQ Purchase'),
-                                            ),
-                                          ),
-                                        if (canSale)
-                                          const PopupMenuItem(
-                                            value: 'post_sale',
-                                            child: ListTile(
-                                              dense: true,
-                                              contentPadding: EdgeInsets.zero,
-                                              leading: Icon(
-                                                Icons.receipt_long_outlined,
-                                              ),
-                                              title: Text('Post THQ Sale'),
-                                            ),
-                                          ),
-                                        if ((canPurchase || canSale) &&
-                                            next.isNotEmpty)
-                                          const PopupMenuDivider(),
-                                        ...next.map(
-                                          (value) => PopupMenuItem(
-                                            value: 'status:$value',
-                                            child: Text(
-                                              'Mark ${value.replaceAll('_', ' ')}',
-                                            ),
-                                          ),
-                                        ),
-                                      ];
-                                    },
-                                  ),
-                              ],
-                            ),
-                          ),
+                          trailing: _loadActions(row),
                         ),
                       );
                     },

@@ -49,16 +49,19 @@ class DeviceInstallationService {
     final deviceSecret = await _storage.read(key: '${_prefix}device_secret');
     final tenantId = await _storage.read(key: '${_prefix}tenant_id');
     final locationId = await _storage.read(key: '${_prefix}location_id');
-    if ([deviceId, deviceSecret, tenantId, locationId]
-        .any((value) => value == null || value.isEmpty)) {
+    if ([
+      deviceId,
+      deviceSecret,
+      tenantId,
+      locationId,
+    ].any((value) => value == null || value.isEmpty)) {
       return null;
     }
     return DeviceActivation(
       tenantId: tenantId!,
       tenantName:
           await _storage.read(key: '${_prefix}tenant_name') ?? 'Business',
-      businessCode:
-          await _storage.read(key: '${_prefix}business_code') ?? '',
+      businessCode: await _storage.read(key: '${_prefix}business_code') ?? '',
       deviceId: deviceId!,
       deviceCode: await _storage.read(key: '${_prefix}device_code') ?? '',
       deviceName:

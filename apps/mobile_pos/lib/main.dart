@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:thq_ui/thq_ui.dart';
 
+import 'ui/thq_brand_experience.dart';
 import 'config/supabase_config.dart';
 import 'screens/mobile_pos_entry_screen.dart';
 import 'services/mobile_app_log_service.dart';
@@ -47,11 +48,16 @@ class ThqMobilePosApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'THQ Mobile POS',
-      builder: (context, child) => ThqMobileProductionFrame(
-        child: ThqNotificationHost(
-          child: child ?? const SizedBox.shrink(),
+      // THQ_BRANDING_START
+      builder: (context, child) => ThqStartupGate(
+        appName: 'THQ Mobile POS',
+        child: ThqMobileProductionFrame(
+          child: ThqNotificationHost(
+            child: child ?? const SizedBox.shrink(),
+          ),
         ),
       ),
+      // THQ_BRANDING_END
       theme: ThqMobileTheme.pos(),
       home: const MobilePosEntryScreen(),
     );

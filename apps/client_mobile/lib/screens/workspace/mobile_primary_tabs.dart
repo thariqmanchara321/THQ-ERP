@@ -138,7 +138,8 @@ class _MobileSalesWorkspaceState extends State<MobileSalesWorkspace> {
                             child: ChoiceChip(
                               label: Text(workspaceLabel(status)),
                               selected: _status == status,
-                              onSelected: (_) => setState(() => _status = status),
+                              onSelected: (_) =>
+                                  setState(() => _status = status),
                             ),
                           ),
                         )
@@ -165,9 +166,14 @@ class _MobileSalesWorkspaceState extends State<MobileSalesWorkspace> {
                     padding: const EdgeInsets.only(bottom: 8),
                     child: WorkspaceRecordCard(
                       title: row['sale_number']?.toString() ?? 'Sale',
-                      subtitle: row['customer_name']?.toString() ?? 'Walk-in customer',
+                      subtitle:
+                          row['customer_name']?.toString() ??
+                          'Walk-in customer',
                       status: row['status']?.toString(),
-                      trailing: workspaceMoney(widget.session, row['grand_total']),
+                      trailing: workspaceMoney(
+                        widget.session,
+                        row['grand_total'],
+                      ),
                       fields: [
                         WorkspaceRecordField(
                           'Date',
@@ -274,8 +280,12 @@ class _MobileInventoryWorkspaceState extends State<MobileInventoryWorkspace> {
       if (q.isEmpty) {
         return true;
       }
-      return [row['product_name'], row['sku'], row['location_name'], row['status']]
-          .any((value) => value?.toString().toLowerCase().contains(q) == true);
+      return [
+        row['product_name'],
+        row['sku'],
+        row['location_name'],
+        row['status'],
+      ].any((value) => value?.toString().toLowerCase().contains(q) == true);
     }).toList();
   }
 
@@ -297,10 +307,15 @@ class _MobileInventoryWorkspaceState extends State<MobileInventoryWorkspace> {
         final allRows = snapshot.data ?? const <Map<String, dynamic>>[];
         final rows = _filter(allRows);
         final low = allRows
-            .where((row) => row['status']?.toString().toLowerCase() == 'low_stock')
+            .where(
+              (row) => row['status']?.toString().toLowerCase() == 'low_stock',
+            )
             .length;
         final out = allRows
-            .where((row) => row['status']?.toString().toLowerCase() == 'out_of_stock')
+            .where(
+              (row) =>
+                  row['status']?.toString().toLowerCase() == 'out_of_stock',
+            )
             .length;
         final statuses = <String>{
           'all',
@@ -378,7 +393,8 @@ class _MobileInventoryWorkspaceState extends State<MobileInventoryWorkspace> {
                             child: ChoiceChip(
                               label: Text(workspaceLabel(status)),
                               selected: _status == status,
-                              onSelected: (_) => setState(() => _status = status),
+                              onSelected: (_) =>
+                                  setState(() => _status = status),
                             ),
                           ),
                         )
@@ -522,13 +538,13 @@ class _MobileMoneyWorkspaceState extends State<MobileMoneyWorkspace> {
   }
 
   double _sum(List<Map<String, dynamic>> rows, String key) => rows.fold<double>(
-        0,
-        (sum, row) =>
-            sum +
-            (row[key] is num
-                ? (row[key] as num).toDouble()
-                : double.tryParse(row[key]?.toString() ?? '') ?? 0),
-      );
+    0,
+    (sum, row) =>
+        sum +
+        (row[key] is num
+            ? (row[key] as num).toDouble()
+            : double.tryParse(row[key]?.toString() ?? '') ?? 0),
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -654,7 +670,9 @@ class _MobileMoneyWorkspaceState extends State<MobileMoneyWorkspace> {
               const SizedBox(height: 9),
               if (rows.isEmpty)
                 ThqMobileEmptyState(
-                  title: _customers ? 'No receivables found' : 'No payables found',
+                  title: _customers
+                      ? 'No receivables found'
+                      : 'No payables found',
                   message: 'There is nothing matching the current search.',
                   icon: Icons.account_balance_wallet_outlined,
                 )
@@ -669,8 +687,10 @@ class _MobileMoneyWorkspaceState extends State<MobileMoneyWorkspace> {
                       title: name ?? 'Account',
                       subtitle: row['phone']?.toString() ?? '',
                       status: row['status']?.toString(),
-                      trailing:
-                          workspaceMoney(widget.session, row['total_outstanding']),
+                      trailing: workspaceMoney(
+                        widget.session,
+                        row['total_outstanding'],
+                      ),
                       fields: [
                         WorkspaceRecordField(
                           'Invoices',
