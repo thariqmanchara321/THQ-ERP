@@ -4,6 +4,7 @@ import 'package:thq_ui/thq_ui.dart';
 import '../models/client_session.dart';
 import '../models/supplier.dart';
 import '../services/supplier_service.dart';
+import '../widgets/gst_party_master_fields.dart';
 import 'party_statement_screen.dart';
 
 class SuppliersScreen extends StatefulWidget {
@@ -525,7 +526,7 @@ class _SupplierCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        supplier.taxNumber ?? 'No Tax ID',
+                        supplier.gstSummary,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(fontSize: 10.5),
@@ -610,7 +611,7 @@ class _SupplierFormDialogState extends State<_SupplierFormDialog> {
 
   late final TextEditingController _emailController;
 
-  late final TextEditingController _taxController;
+  late final GstPartyMasterController _gstController;
 
   late final TextEditingController _address1Controller;
 
@@ -650,7 +651,11 @@ class _SupplierFormDialogState extends State<_SupplierFormDialog> {
 
     _emailController = TextEditingController(text: supplier?.email ?? '');
 
-    _taxController = TextEditingController(text: supplier?.taxNumber ?? '');
+    _gstController = GstPartyMasterController(
+      registrationType: supplier?.gstRegistrationType ?? 'unregistered',
+      gstin: supplier?.gstGstin ?? supplier?.taxNumber,
+      initiallyConfigured: supplier?.gstConfigured ?? false,
+    );
 
     _address1Controller = TextEditingController(
       text: supplier?.addressLine1 ?? '',
@@ -708,7 +713,9 @@ class _SupplierFormDialogState extends State<_SupplierFormDialog> {
 
           email: _emailController.text,
 
-          taxNumber: _taxController.text,
+          gstin: _gstController.gstin,
+
+          gstRegistrationType: _gstController.registrationType,
 
           addressLine1: _address1Controller.text,
 
@@ -738,7 +745,9 @@ class _SupplierFormDialogState extends State<_SupplierFormDialog> {
 
           email: _emailController.text,
 
-          taxNumber: _taxController.text,
+          gstin: _gstController.gstin,
+
+          gstRegistrationType: _gstController.registrationType,
 
           addressLine1: _address1Controller.text,
 
@@ -784,7 +793,7 @@ class _SupplierFormDialogState extends State<_SupplierFormDialog> {
     _contactController.dispose();
     _phoneController.dispose();
     _emailController.dispose();
-    _taxController.dispose();
+    _gstController.dispose();
     _address1Controller.dispose();
     _address2Controller.dispose();
     _cityController.dispose();
@@ -878,20 +887,9 @@ class _SupplierFormDialogState extends State<_SupplierFormDialog> {
 
                 const SizedBox(height: 16),
 
-                TextFormField(
-                  controller: _taxController,
-
+                GstPartyMasterFields(
+                  controller: _gstController,
                   enabled: !_saving,
-
-                  textCapitalization: TextCapitalization.characters,
-
-                  decoration: const InputDecoration(
-                    labelText: 'GSTIN / Tax ID',
-
-                    hintText: 'Optional',
-
-                    border: OutlineInputBorder(),
-                  ),
                 ),
 
                 const SizedBox(height: 24),

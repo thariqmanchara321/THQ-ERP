@@ -8,6 +8,7 @@ import '../models/customer.dart';
 import '../services/customer_service.dart';
 import '../services/location_scope_service.dart';
 import '../widgets/customer_account_dialog.dart';
+import '../widgets/gst_party_master_fields.dart';
 import 'party_statement_screen.dart';
 import 'customer_accounts_screen.dart';
 import 'customer_crm_screen.dart';
@@ -665,7 +666,7 @@ class _CustomerCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        customer.taxNumber ?? 'No Tax ID',
+                        customer.gstSummary,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(fontSize: 10.5),
@@ -779,7 +780,7 @@ class _CustomerFormDialogState extends State<_CustomerFormDialog> {
 
   late final TextEditingController _emailController;
 
-  late final TextEditingController _taxController;
+  late final GstPartyMasterController _gstController;
 
   late final TextEditingController _address1Controller;
 
@@ -821,7 +822,11 @@ class _CustomerFormDialogState extends State<_CustomerFormDialog> {
 
     _emailController = TextEditingController(text: customer?.email ?? '');
 
-    _taxController = TextEditingController(text: customer?.taxNumber ?? '');
+    _gstController = GstPartyMasterController(
+      registrationType: customer?.gstRegistrationType ?? 'unregistered',
+      gstin: customer?.gstGstin ?? customer?.taxNumber,
+      initiallyConfigured: customer?.gstConfigured ?? false,
+    );
 
     _address1Controller = TextEditingController(
       text: customer?.addressLine1 ?? '',
@@ -893,7 +898,9 @@ class _CustomerFormDialogState extends State<_CustomerFormDialog> {
 
           email: _emailController.text,
 
-          taxNumber: _taxController.text,
+          gstin: _gstController.gstin,
+
+          gstRegistrationType: _gstController.registrationType,
 
           addressLine1: _address1Controller.text,
 
@@ -925,7 +932,9 @@ class _CustomerFormDialogState extends State<_CustomerFormDialog> {
 
           email: _emailController.text,
 
-          taxNumber: _taxController.text,
+          gstin: _gstController.gstin,
+
+          gstRegistrationType: _gstController.registrationType,
 
           addressLine1: _address1Controller.text,
 
@@ -973,7 +982,7 @@ class _CustomerFormDialogState extends State<_CustomerFormDialog> {
     _contactController.dispose();
     _phoneController.dispose();
     _emailController.dispose();
-    _taxController.dispose();
+    _gstController.dispose();
     _address1Controller.dispose();
     _address2Controller.dispose();
     _cityController.dispose();
@@ -1068,18 +1077,9 @@ class _CustomerFormDialogState extends State<_CustomerFormDialog> {
                 const SizedBox(height: 16),
 
                 _twoFields(
-                  TextFormField(
-                    controller: _taxController,
-
+                  GstPartyMasterFields(
+                    controller: _gstController,
                     enabled: !_saving,
-
-                    textCapitalization: TextCapitalization.characters,
-
-                    decoration: const InputDecoration(
-                      labelText: 'GSTIN / Tax ID',
-
-                      border: OutlineInputBorder(),
-                    ),
                   ),
 
                   TextFormField(

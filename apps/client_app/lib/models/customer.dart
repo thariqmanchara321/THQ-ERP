@@ -9,6 +9,14 @@ class Customer {
 
   final String? taxNumber;
 
+  final bool gstConfigured;
+  final String? gstProfileId;
+  final String gstRegistrationType;
+  final String? gstGstin;
+  final String? gstStateCode;
+  final String? gstPlaceOfSupplyCode;
+  final String? gstValidationStatus;
+
   final String? addressLine1;
   final String? addressLine2;
 
@@ -37,6 +45,13 @@ class Customer {
     required this.phone,
     required this.email,
     required this.taxNumber,
+    required this.gstConfigured,
+    required this.gstProfileId,
+    required this.gstRegistrationType,
+    required this.gstGstin,
+    required this.gstStateCode,
+    required this.gstPlaceOfSupplyCode,
+    required this.gstValidationStatus,
     required this.addressLine1,
     required this.addressLine2,
     required this.city,
@@ -55,14 +70,45 @@ class Customer {
 
   bool get isActive => status == 'active';
 
+  String get gstStatusLabel {
+    switch (gstRegistrationType) {
+      case 'registered':
+        return 'Registered';
+      case 'composition':
+        return 'Composition';
+      case 'sez':
+        return 'SEZ';
+      case 'export':
+        return 'Export';
+      case 'exempt':
+        return 'Exempt';
+      case 'unregistered':
+      default:
+        return 'Unregistered';
+    }
+  }
+
+  String get gstSummary {
+    if (!gstConfigured) {
+      final oldTax = taxNumber?.trim() ?? '';
+      return oldTax.isEmpty ? 'GST not synced' : 'GST not synced | $oldTax';
+    }
+    final value = gstGstin?.trim() ?? '';
+    return value.isEmpty ? gstStatusLabel : '$gstStatusLabel | $value';
+  }
+
   factory Customer.fromMap(Map<String, dynamic> map) {
     double number(dynamic value) {
       if (value is num) {
         return value.toDouble();
       }
-
       return double.tryParse(value?.toString() ?? '') ?? 0;
     }
+
+    final taxNumber = map['tax_number']?.toString();
+    final gstRegistrationType =
+        map['gst_registration_type']?.toString() ??
+        ((taxNumber ?? '').trim().isEmpty ? 'unregistered' : 'registered');
 
     return Customer(
       id: (map['customer_id'] ?? map['id'])?.toString() ?? '',
@@ -71,7 +117,14 @@ class Customer {
       contactPerson: map['contact_person']?.toString(),
       phone: map['phone']?.toString(),
       email: map['email']?.toString(),
-      taxNumber: map['tax_number']?.toString(),
+      taxNumber: taxNumber,
+      gstConfigured: map['gst_configured'] == true,
+      gstProfileId: map['gst_profile_id']?.toString(),
+      gstRegistrationType: gstRegistrationType,
+      gstGstin: (map['gst_gstin'] ?? map['tax_number'])?.toString(),
+      gstStateCode: map['gst_state_code']?.toString(),
+      gstPlaceOfSupplyCode: map['gst_place_of_supply_code']?.toString(),
+      gstValidationStatus: map['gst_validation_status']?.toString(),
       addressLine1: map['address_line1']?.toString(),
       addressLine2: map['address_line2']?.toString(),
       city: map['city']?.toString(),
