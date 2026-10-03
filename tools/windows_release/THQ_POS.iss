@@ -5,10 +5,10 @@
   #error OutputDir was not provided.
 #endif
 #ifndef AppVersion
-  #define AppVersion "6.1.6"
+  #define AppVersion "6.2.8"
 #endif
 #ifndef BuildNumber
-  #define BuildNumber "9"
+  #define BuildNumber "13"
 #endif
 
 [Setup]
@@ -24,7 +24,7 @@ PrivilegesRequired=admin
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 OutputDir={#OutputDir}
-OutputBaseFilename=THQ-POS-v6.1.6-build9-windows-x64
+OutputBaseFilename=THQ-POS-v6.2.8-build13-windows-x64
 Compression=lzma2/max
 SolidCompression=yes
 WizardStyle=modern

@@ -3,9 +3,9 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   test('THQ current release/API contract is available to POS', () {
-    expect(ThqReleaseContract.appVersion, '6.1.6');
-    expect(ThqReleaseContract.buildNumber, 9);
-    expect(ThqReleaseContract.releaseName, 'Customer Receipt Safety & Small Balance Round-off');
+    expect(ThqReleaseContract.appVersion, '6.2.8');
+    expect(ThqReleaseContract.buildNumber, 13);
+    expect(ThqReleaseContract.releaseName, 'Production Validation & Client Readiness');
     expect(ThqReleaseContract.minimumMigration, 213);
     expect(ThqReleaseContract.apiVersion, 'v1');
     expect(ThqApiContract.version, 'v1');

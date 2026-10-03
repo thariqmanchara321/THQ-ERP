@@ -1,6 +1,6 @@
 # THQ Mobile production signing
 
-Build 12 removes debug signing from Android release builds. Debug builds remain unchanged.
+Build 13 keeps production signing fail-closed from Android release builds. Debug builds remain unchanged.
 
 ## Recommended keystore location
 
@@ -51,7 +51,7 @@ From PowerShell:
 
 Signed APK/AAB files are copied outside the repository to:
 
-`%USERPROFILE%\THQ_Releases\v6.2.7-build12`
+`%USERPROFILE%\THQ_Releases\v6.2.8-build13`
 
 The script also writes SHA256SUMS.txt.
 

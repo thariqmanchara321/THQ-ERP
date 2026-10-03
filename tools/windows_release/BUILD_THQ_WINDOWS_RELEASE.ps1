@@ -14,7 +14,7 @@ $ProjectRoot = (Resolve-Path $ProjectRoot).Path
 $ToolsRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 
 if([string]::IsNullOrWhiteSpace($OutputRoot)){
-    $OutputRoot = Join-Path $env:USERPROFILE "THQ_Releases\v6.1.6-build9-windows"
+    $OutputRoot = Join-Path $env:USERPROFILE "THQ_Releases\v6.2.8-build13-windows"
 }
 New-Item -ItemType Directory -Force -Path $OutputRoot | Out-Null
 
@@ -43,7 +43,7 @@ function Find-ReleaseDir {
         throw "Release executable not found under ${windowsBuild}: $ExeName"
     }
     if($exe.FullName -notmatch '\\x64\\'){
-        throw "Build 9 installer is x64-only, but detected output was: $($exe.FullName)"
+        throw "Build 13 installer is x64-only, but detected output was: $($exe.FullName)"
     }
     return $exe.Directory.FullName
 }
@@ -104,14 +104,14 @@ $apps = @(
         Dir = Join-Path $ProjectRoot "apps\client_app"
         Exe = "thq_business.exe"
         Iss = Join-Path $ToolsRoot "THQ_Business.iss"
-        PortableBase = "THQ-Business-v6.1.6-build9-windows-x64"
+        PortableBase = "THQ-Business-v6.2.8-build13-windows-x64"
     },
     @{
         Name = "THQ POS"
         Dir = Join-Path $ProjectRoot "apps\pos_app"
         Exe = "thq_pos.exe"
         Iss = Join-Path $ToolsRoot "THQ_POS.iss"
-        PortableBase = "THQ-POS-v6.1.6-build9-windows-x64"
+        PortableBase = "THQ-POS-v6.2.8-build13-windows-x64"
     }
 )
 
@@ -154,8 +154,8 @@ foreach($app in $apps){
 
     Invoke-Flutter -AppDir $app.Dir -FlutterArgs @(
         "build","windows","--release",
-        "--build-name","6.1.6",
-        "--build-number","9"
+        "--build-name","6.2.8",
+        "--build-number","13"
     )
 
     $releaseDir = Find-ReleaseDir -AppDir $app.Dir -ExeName $app.Exe
@@ -193,8 +193,8 @@ foreach($app in $apps){
         $isccArgs = @(
             "/DSourceDir=$portableDir",
             "/DOutputDir=$OutputRoot",
-            "/DAppVersion=6.1.6",
-            "/DBuildNumber=9"
+            "/DAppVersion=6.2.8",
+            "/DBuildNumber=13"
         )
         if($vcRedist){ $isccArgs += "/DVcRedistPath=$vcRedist" }
 
@@ -237,8 +237,8 @@ $hashLines | Set-Content $hashFile -Encoding ascii
 
 $releaseInfo = Join-Path $OutputRoot "RELEASE_INFO.txt"
 @(
-    "THQ ERP Windows v6.1.6 Build 9",
-    "Release: Customer Receipt Safety & Small Balance Round-off",
+    "THQ ERP Windows v6.2.8 Build 13",
+    "Release: Production Validation & Client Readiness",
     "Built: $(Get-Date -Format o)",
     "Signing: $(if($signingConfigured){'Authenticode enabled'}else{'UNSIGNED'})",
     "VC++ Runtime bundled: $([bool]$vcRedist)",

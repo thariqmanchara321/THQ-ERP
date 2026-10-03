@@ -2,10 +2,10 @@ import 'package:erp_core/erp_core.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  test('THQ v6.1.6 Build 9 release contract keeps migration 213 compatibility', () {
-    expect(ThqReleaseContract.appVersion, '6.1.6');
-    expect(ThqReleaseContract.buildNumber, 9);
-    expect(ThqReleaseContract.releaseName, 'Customer Receipt Safety & Small Balance Round-off');
+  test('THQ v6.2.8 Build 13 release contract keeps migration 213 compatibility', () {
+    expect(ThqReleaseContract.appVersion, '6.2.8');
+    expect(ThqReleaseContract.buildNumber, 13);
+    expect(ThqReleaseContract.releaseName, 'Production Validation & Client Readiness');
     expect(ThqReleaseContract.minimumMigration, 213);
     expect(ThqReleaseContract.apiVersion, 'v1');
   });

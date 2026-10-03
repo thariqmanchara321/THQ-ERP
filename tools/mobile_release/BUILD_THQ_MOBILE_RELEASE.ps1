@@ -10,7 +10,7 @@ param(
 $ErrorActionPreference = "Stop"
 $ProjectRoot = (Resolve-Path $ProjectRoot).Path
 if([string]::IsNullOrWhiteSpace($OutputRoot)){
-    $OutputRoot = Join-Path $env:USERPROFILE "THQ_Releases\v6.2.7-build12"
+    $OutputRoot = Join-Path $env:USERPROFILE "THQ_Releases\v6.2.8-build13"
 }
 New-Item -ItemType Directory -Force -Path $OutputRoot | Out-Null
 
@@ -70,14 +70,14 @@ $apps = @(
         Dir=(Join-Path $ProjectRoot "apps\client_mobile")
         AliasEnv="THQ_CLIENT_KEY_ALIAS"
         PasswordEnv="THQ_CLIENT_KEY_PASSWORD"
-        OutputBase="thq-client-mobile-v6.2.7-build12"
+        OutputBase="thq-client-mobile-v6.2.8-build13"
     },
     @{
         Key="mobile_pos"
         Dir=(Join-Path $ProjectRoot "apps\mobile_pos")
         AliasEnv="THQ_POS_KEY_ALIAS"
         PasswordEnv="THQ_POS_KEY_PASSWORD"
-        OutputBase="thq-mobile-pos-v6.2.7-build12"
+        OutputBase="thq-mobile-pos-v6.2.8-build13"
     }
 )
 
