@@ -37,10 +37,10 @@ class _AggregateFreightScreenState extends State<AggregateFreightScreen> {
           .map((row) => Map<String, dynamic>.from(row))
           .toList(growable: false);
 
-  double _number(dynamic value) =>
-      (value as num?)?.toDouble() ??
-      double.tryParse(value?.toString() ?? '') ??
-      0;
+  double _number(dynamic value) {
+    if (value is num) return value.toDouble();
+    return double.tryParse(value?.toString().trim() ?? '') ?? 0;
+  }
 
   String? _id(dynamic value) {
     final text = value?.toString().trim() ?? '';

@@ -113,9 +113,9 @@ class _TransportLogisticsHubScreenState
             children: [
               ListTile(
                 leading: const CircleAvatar(child: Icon(Icons.route_outlined)),
-                title: const Text('Internal / Operational'),
+                title: const Text('Quick Operational Trip'),
                 subtitle: const Text(
-                  'Physical movement only. No inventory posting and no GST.',
+                  'Track a vehicle movement without extra accounting steps.',
                 ),
                 enabled: _hasOperations,
                 onTap: !_hasOperations
@@ -222,7 +222,7 @@ class _TransportLogisticsHubScreenState
     if (mounted) await _load();
   }
 
-  Future<void> _openRow(Map<String, dynamic> row) async {
+  Future<void> _openFullWorkflow(Map<String, dynamic> row) async {
     final kind = row['trip_kind']?.toString() ?? '';
 
     if (kind == 'stock_transfer') {
@@ -257,6 +257,102 @@ class _TransportLogisticsHubScreenState
     }
 
     if (mounted) await _load();
+  }
+
+  Future<void> _openRow(Map<String, dynamic> row) async {
+    final kind = row['trip_kind']?.toString() ?? 'operational';
+    final status = row['source_status']?.toString() ?? 'planned';
+    final source = row['source_reference']?.toString() ?? '-';
+    final vehicle = row['vehicle_registration']?.toString();
+    final route = [
+      row['from_label']?.toString(),
+      row['to_label']?.toString(),
+    ].where((value) => value != null && value.isNotEmpty).join(' -> ');
+    final date = row['source_date']?.toString() ?? '-';
+    final billed = row['sale_id'] != null;
+
+    final openFull = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(row['trip_number']?.toString() ?? source),
+        content: SizedBox(
+          width: 520,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                dense: true,
+                leading: Icon(_kindIcon(kind)),
+                title: const Text('Type'),
+                trailing: Text(_kindLabel(kind)),
+              ),
+              ListTile(
+                dense: true,
+                leading: const Icon(Icons.flag_outlined),
+                title: const Text('Status'),
+                trailing: Text(status.replaceAll('_', ' ').toUpperCase()),
+              ),
+              ListTile(
+                dense: true,
+                leading: const Icon(Icons.tag_outlined),
+                title: const Text('Reference'),
+                trailing: Text(source),
+              ),
+              if (vehicle != null && vehicle.isNotEmpty)
+                ListTile(
+                  dense: true,
+                  leading: const Icon(Icons.local_shipping_outlined),
+                  title: const Text('Vehicle'),
+                  trailing: Text(vehicle),
+                ),
+              if (route.isNotEmpty)
+                ListTile(
+                  dense: true,
+                  leading: const Icon(Icons.alt_route_outlined),
+                  title: const Text('Route'),
+                  subtitle: Text(route),
+                ),
+              ListTile(
+                dense: true,
+                leading: const Icon(Icons.event_outlined),
+                title: const Text('Date'),
+                trailing: Text(date),
+              ),
+              if (kind == 'customer_transport')
+                ListTile(
+                  dense: true,
+                  leading: const Icon(Icons.receipt_long_outlined),
+                  title: const Text('Billing'),
+                  trailing: Text(billed ? 'Billed' : 'Not billed'),
+                ),
+              const SizedBox(height: 6),
+              const Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'This summary is the normal view. Open the full workflow '
+                  'only for execution, evidence or advanced controls.',
+                  style: TextStyle(fontSize: 11),
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Close'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Open Full Workflow'),
+          ),
+        ],
+      ),
+    );
+
+    if (openFull == true && mounted) {
+      await _openFullWorkflow(row);
+    }
   }
 
   Widget _metric(String label, int value, IconData icon) {
@@ -483,7 +579,7 @@ class _TransportLogisticsHubScreenState
     final scheme = Theme.of(context).colorScheme;
 
     return Material(
-      color: Colors.transparent,
+      color: scheme.surface,
       child: DefaultTabController(
         length: 3,
         child: Padding(
@@ -499,15 +595,15 @@ class _TransportLogisticsHubScreenState
                       const Text(
                         'Transport & Logistics',
                         style: TextStyle(
-                          fontSize: 23,
+                          fontSize: 20,
                           fontWeight: FontWeight.w800,
                           letterSpacing: -.25,
                         ),
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        'One control center for physical trips, Stock Transfer '
-                        'movement and customer transport billing.',
+                        'Simple trip list first. Open advanced execution only when '
+                        'you actually need it.',
                         style: TextStyle(
                           fontSize: 12,
                           color: scheme.onSurfaceVariant,
@@ -523,7 +619,7 @@ class _TransportLogisticsHubScreenState
                       OutlinedButton.icon(
                         onPressed: _openStockTransferExecution,
                         icon: const Icon(Icons.swap_horiz_rounded, size: 18),
-                        label: const Text('Transfer Execution'),
+                        label: const Text('Stock Transfer'),
                       ),
                       OutlinedButton.icon(
                         onPressed: _openControlCenter,
@@ -531,7 +627,7 @@ class _TransportLogisticsHubScreenState
                           Icons.monitor_heart_outlined,
                           size: 18,
                         ),
-                        label: const Text('Control Center'),
+                        label: const Text('Reports'),
                       ),
                       IconButton(
                         tooltip: 'Refresh trips',
@@ -580,15 +676,9 @@ class _TransportLogisticsHubScreenState
               Expanded(
                 child: TabBarView(
                   children: [
-                    Material(color: Colors.transparent, child: _tripsTab()),
-                    Material(
-                      color: Colors.transparent,
-                      child: _operationsTab(),
-                    ),
-                    Material(
-                      color: Colors.transparent,
-                      child: _customerJobsTab(),
-                    ),
+                    Material(color: scheme.surface, child: _tripsTab()),
+                    Material(color: scheme.surface, child: _operationsTab()),
+                    Material(color: scheme.surface, child: _customerJobsTab()),
                   ],
                 ),
               ),

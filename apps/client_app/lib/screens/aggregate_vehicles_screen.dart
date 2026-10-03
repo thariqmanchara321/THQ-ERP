@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models/client_session.dart';
 import '../services/aggregate_yard_service.dart';
+import '../services/location_scope_service.dart';
 
 class AggregateVehiclesScreen extends StatefulWidget {
   final ClientSession session;
@@ -17,8 +18,15 @@ class _AggregateVehiclesScreenState extends State<AggregateVehiclesScreen> {
   final AggregateYardService _service = AggregateYardService();
 
   List<Map<String, dynamic>> _vehicles = const [];
+  List<Map<String, dynamic>> _locations = const [];
   bool _loading = true;
   String? _error;
+
+  bool get _canManageTrucks =>
+      widget.session.hasRole('owner') ||
+      widget.session.hasPermission('aggregate_yard.manage') ||
+      widget.session.hasPermission('logistics_operations.manage') ||
+      widget.session.hasPermission('transport_service.manage');
 
   @override
   void initState() {
@@ -46,6 +54,10 @@ class _AggregateVehiclesScreenState extends State<AggregateVehiclesScreen> {
           .whereType<Map>()
           .map((e) => Map<String, dynamic>.from(e))
           .toList();
+      _locations = (context['locations'] as List? ?? const [])
+          .whereType<Map>()
+          .map((e) => Map<String, dynamic>.from(e))
+          .toList();
     } catch (error) {
       _error = error.toString();
     } finally {
@@ -54,6 +66,237 @@ class _AggregateVehiclesScreenState extends State<AggregateVehiclesScreen> {
   }
 
   String _text(dynamic value) => value?.toString() ?? '';
+
+  Future<void> _addTruck() async {
+    if (!_canManageTrucks) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Truck manage permission is required.')),
+      );
+      return;
+    }
+
+    if (_locations.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Create an active store/location first.')),
+      );
+      return;
+    }
+
+    final registration = TextEditingController();
+    final makeModel = TextEditingController();
+    final driverName = TextEditingController();
+    final driverPhone = TextEditingController();
+    final capacity = TextEditingController();
+
+    String vehicleType = 'Truck';
+    String? locationId = LocationScopeService.selectedLocationId.value;
+    if (locationId == null ||
+        !_locations.any(
+          (row) => row['location_id']?.toString() == locationId,
+        )) {
+      locationId = _locations.first['location_id']?.toString();
+    }
+
+    try {
+      final saved = await showDialog<bool>(
+        context: context,
+        barrierDismissible: false,
+        builder: (dialogContext) => StatefulBuilder(
+          builder: (context, setLocalState) => AlertDialog(
+            title: const Text('Add Truck'),
+            content: SizedBox(
+              width: 560,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextField(
+                      controller: registration,
+                      autofocus: true,
+                      textCapitalization: TextCapitalization.characters,
+                      decoration: const InputDecoration(
+                        labelText: 'Registration number *',
+                        hintText: 'KL 11 AB 1234',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: DropdownButtonFormField<String>(
+                            initialValue: vehicleType,
+                            decoration: const InputDecoration(
+                              labelText: 'Type',
+                              border: OutlineInputBorder(),
+                            ),
+                            items: const [
+                              DropdownMenuItem(
+                                value: 'Truck',
+                                child: Text('Truck'),
+                              ),
+                              DropdownMenuItem(
+                                value: 'Tipper',
+                                child: Text('Tipper'),
+                              ),
+                              DropdownMenuItem(
+                                value: 'Trailer',
+                                child: Text('Trailer'),
+                              ),
+                              DropdownMenuItem(
+                                value: 'Other',
+                                child: Text('Other'),
+                              ),
+                            ],
+                            onChanged: (value) => setLocalState(
+                              () => vehicleType = value ?? 'Truck',
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: TextField(
+                            controller: capacity,
+                            keyboardType: const TextInputType.numberWithOptions(
+                              decimal: true,
+                            ),
+                            decoration: const InputDecoration(
+                              labelText: 'Capacity CFT',
+                              border: OutlineInputBorder(),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    DropdownButtonFormField<String>(
+                      initialValue: locationId,
+                      decoration: const InputDecoration(
+                        labelText: 'Yard / store',
+                        border: OutlineInputBorder(),
+                      ),
+                      items: _locations
+                          .map(
+                            (row) => DropdownMenuItem<String>(
+                              value: row['location_id']?.toString(),
+                              child: Text(
+                                '${row['code'] ?? ''} - ${row['name'] ?? ''}',
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: (value) =>
+                          setLocalState(() => locationId = value),
+                    ),
+                    const SizedBox(height: 10),
+                    TextField(
+                      controller: makeModel,
+                      decoration: const InputDecoration(
+                        labelText: 'Make / model (optional)',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: driverName,
+                            decoration: const InputDecoration(
+                              labelText: 'Driver (optional)',
+                              border: OutlineInputBorder(),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: TextField(
+                            controller: driverPhone,
+                            decoration: const InputDecoration(
+                              labelText: 'Driver phone',
+                              border: OutlineInputBorder(),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    const Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        'Registration is the only required truck detail. '
+                        'Ownership, dimensions and freight can be configured later.',
+                        style: TextStyle(fontSize: 11),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext, false),
+                child: const Text('Cancel'),
+              ),
+              FilledButton.icon(
+                onPressed: () async {
+                  if (registration.text.trim().isEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Enter the registration number.'),
+                      ),
+                    );
+                    return;
+                  }
+                  if (locationId == null) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Select a yard/store.')),
+                    );
+                    return;
+                  }
+
+                  try {
+                    await _service.createVehicle(
+                      tenantId: widget.session.business.id,
+                      locationId: locationId!,
+                      registrationNumber: registration.text,
+                      vehicleType: vehicleType,
+                      makeModel: makeModel.text,
+                      driverName: driverName.text,
+                      driverPhone: driverPhone.text,
+                      capacityCft: _double(capacity.text),
+                    );
+
+                    if (dialogContext.mounted) {
+                      Navigator.pop(dialogContext, true);
+                    }
+                  } catch (error) {
+                    if (!context.mounted) return;
+                    ScaffoldMessenger.of(
+                      context,
+                    ).showSnackBar(SnackBar(content: Text(error.toString())));
+                  }
+                },
+                icon: const Icon(Icons.add_rounded),
+                label: const Text('Add Truck'),
+              ),
+            ],
+          ),
+        ),
+      );
+
+      if (saved == true) {
+        await _reload();
+      }
+    } finally {
+      registration.dispose();
+      makeModel.dispose();
+      driverName.dispose();
+      driverPhone.dispose();
+      capacity.dispose();
+    }
+  }
 
   Future<void> _edit(Map<String, dynamic> vehicle) async {
     String ownership = _text(vehicle['ownership_type']).isEmpty
@@ -305,11 +548,19 @@ class _AggregateVehiclesScreenState extends State<AggregateVehiclesScreen> {
     appBar: AppBar(
       title: const Text('Truck Setup'),
       actions: [
+        if (_canManageTrucks)
+          FilledButton.icon(
+            onPressed: _loading ? null : _addTruck,
+            icon: const Icon(Icons.add_rounded, size: 18),
+            label: const Text('Add Truck'),
+          ),
+        const SizedBox(width: 6),
         IconButton(
           tooltip: 'Refresh',
           onPressed: _loading ? null : _reload,
           icon: const Icon(Icons.refresh_rounded),
         ),
+        const SizedBox(width: 6),
       ],
     ),
     body: _loading
@@ -319,7 +570,7 @@ class _AggregateVehiclesScreenState extends State<AggregateVehiclesScreen> {
         : _vehicles.isEmpty
         ? const Center(
             child: Text(
-              'No vehicles are available.\nAdd vehicles from Transport & Logistics first.',
+              'No trucks yet.\nUse Add Truck above to create the first one.',
               textAlign: TextAlign.center,
             ),
           )

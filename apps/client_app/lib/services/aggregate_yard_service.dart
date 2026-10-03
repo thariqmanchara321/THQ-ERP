@@ -392,6 +392,35 @@ class AggregateYardService {
     return Map<String, dynamic>.from(result);
   }
 
+  Future<String> createVehicle({
+    required String tenantId,
+    required String locationId,
+    required String registrationNumber,
+    String vehicleType = 'Truck',
+    String? makeModel,
+    String? driverName,
+    String? driverPhone,
+    double? capacityCft,
+  }) async {
+    final result = await _db.rpc(
+      'aggregate_vehicle_create_v621',
+      params: {
+        'p_tenant_id': tenantId,
+        'p_location_id': locationId,
+        'p_registration_number': registrationNumber,
+        'p_vehicle_type': vehicleType,
+        'p_make_model': makeModel,
+        'p_driver_name': driverName,
+        'p_driver_phone': driverPhone,
+        'p_capacity_cft': capacityCft,
+      },
+    );
+    if (result == null || result.toString().isEmpty) {
+      throw StateError('Unexpected truck-create response.');
+    }
+    return result.toString();
+  }
+
   Future<Map<String, dynamic>> saveVehicleProfile({
     required String tenantId,
     required String vehicleId,

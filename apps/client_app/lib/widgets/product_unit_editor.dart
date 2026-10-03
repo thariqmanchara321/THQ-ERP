@@ -28,7 +28,7 @@ class ProductUnitEditorController {
     );
   }
 
-  final List<InventoryUnit> units;
+  List<InventoryUnit> units;
   String baseCode;
   String baseStep = '1';
   bool baseCuttingAllowed = false;
@@ -39,6 +39,19 @@ class ProductUnitEditorController {
     if (units.any((unit) => unit.code == requested)) return requested;
     if (units.any((unit) => unit.code == 'PCS')) return 'PCS';
     return units.isEmpty ? requested : units.first.code;
+  }
+
+  void replaceUnits(List<InventoryUnit> value) {
+    units = List<InventoryUnit>.unmodifiable(value);
+
+    if (!units.any((unit) => unit.code == baseCode)) {
+      baseCode = _validBase(units, baseCode);
+    }
+
+    rows.removeWhere((row) {
+      final unit = unitById(row.unitId);
+      return unit == null || unit.code == baseCode;
+    });
   }
 
   InventoryUnit? get baseUnit {

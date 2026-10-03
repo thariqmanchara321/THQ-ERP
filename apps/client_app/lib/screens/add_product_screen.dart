@@ -144,6 +144,198 @@ class _AddProductScreenState extends State<AddProductScreen> {
     }
   }
 
+  Future<void> _addUnit() async {
+    final code = TextEditingController();
+    final name = TextEditingController();
+    String group = 'custom';
+    bool allowFractional = false;
+    bool useAsBase = true;
+
+    try {
+      final createdCode = await showDialog<String>(
+        context: context,
+        barrierDismissible: false,
+        builder: (dialogContext) => StatefulBuilder(
+          builder: (context, setLocalState) => AlertDialog(
+            title: const Text('New Unit'),
+            content: SizedBox(
+              width: 520,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: code,
+                          autofocus: true,
+                          textCapitalization: TextCapitalization.characters,
+                          decoration: const InputDecoration(
+                            labelText: 'Unit code *',
+                            hintText: 'CFT, BAG, BOX, MTR...',
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: TextField(
+                          controller: name,
+                          decoration: const InputDecoration(
+                            labelText: 'Unit name *',
+                            hintText: 'Cubic Feet, Bag, Box...',
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  DropdownButtonFormField<String>(
+                    initialValue: group,
+                    decoration: const InputDecoration(
+                      labelText: 'Unit type',
+                      border: OutlineInputBorder(),
+                    ),
+                    items: const [
+                      DropdownMenuItem(value: 'custom', child: Text('Custom')),
+                      DropdownMenuItem(value: 'count', child: Text('Count')),
+                      DropdownMenuItem(value: 'weight', child: Text('Weight')),
+                      DropdownMenuItem(value: 'volume', child: Text('Volume')),
+                      DropdownMenuItem(value: 'length', child: Text('Length')),
+                      DropdownMenuItem(value: 'area', child: Text('Area')),
+                      DropdownMenuItem(
+                        value: 'time',
+                        child: Text('Time / Service'),
+                      ),
+                    ],
+                    onChanged: (value) =>
+                        setLocalState(() => group = value ?? 'custom'),
+                  ),
+                  const SizedBox(height: 4),
+                  CheckboxListTile(
+                    contentPadding: EdgeInsets.zero,
+                    value: allowFractional,
+                    title: const Text('Allow decimal quantity'),
+                    subtitle: const Text(
+                      'Example: 1.5 MTR, 2.25 KG or 10.750 CFT',
+                    ),
+                    onChanged: (value) =>
+                        setLocalState(() => allowFractional = value ?? false),
+                  ),
+                  CheckboxListTile(
+                    contentPadding: EdgeInsets.zero,
+                    value: useAsBase,
+                    title: const Text('Use as this product base unit'),
+                    subtitle: const Text(
+                      'You can still add other sale/purchase conversion units.',
+                    ),
+                    onChanged: (value) =>
+                        setLocalState(() => useAsBase = value ?? true),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext),
+                child: const Text('Cancel'),
+              ),
+              FilledButton.icon(
+                onPressed: () async {
+                  final normalizedCode = code.text.trim().toUpperCase();
+                  final unitName = name.text.trim();
+
+                  if (normalizedCode.isEmpty || unitName.isEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Unit code and unit name are required.'),
+                      ),
+                    );
+                    return;
+                  }
+
+                  if (_units.any(
+                    (unit) => unit.code.toUpperCase() == normalizedCode,
+                  )) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                          'That unit already exists. Select it from the unit list.',
+                        ),
+                      ),
+                    );
+                    return;
+                  }
+
+                  try {
+                    await _service.saveUnit(
+                      tenantId: widget.session.business.id,
+                      code: normalizedCode,
+                      name: unitName,
+                      group: group,
+                      decimalPlaces: allowFractional ? 3 : 0,
+                      allowFractional: allowFractional,
+                    );
+
+                    if (dialogContext.mounted) {
+                      Navigator.pop(dialogContext, normalizedCode);
+                    }
+                  } catch (error) {
+                    if (!context.mounted) return;
+                    ScaffoldMessenger.of(
+                      context,
+                    ).showSnackBar(SnackBar(content: Text(error.toString())));
+                  }
+                },
+                icon: const Icon(Icons.add_rounded),
+                label: const Text('Create Unit'),
+              ),
+            ],
+          ),
+        ),
+      );
+
+      if (createdCode == null || !mounted) return;
+
+      final units = await _service.getUnits(
+        tenantId: widget.session.business.id,
+      );
+      if (!mounted) return;
+
+      setState(() {
+        _units = units;
+
+        if (_unitEditor == null) {
+          _unitEditor = ProductUnitEditorController(
+            units: units,
+            baseCode: createdCode,
+          );
+        } else {
+          _unitEditor!.replaceUnits(units);
+        }
+
+        if (useAsBase && units.any((unit) => unit.code == createdCode)) {
+          _baseUnitCode = createdCode;
+          _unitEditor!.setBaseCode(createdCode);
+        }
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            useAsBase
+                ? 'Unit $createdCode created and selected as the base unit.'
+                : 'Unit $createdCode created. It is now available to this product.',
+          ),
+        ),
+      );
+    } finally {
+      code.dispose();
+      name.dispose();
+    }
+  }
+
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) {
       return;
@@ -444,9 +636,23 @@ class _AddProductScreenState extends State<AddProductScreen> {
 
                   const SizedBox(height: 26),
 
-                  const Text(
-                    'Inventory Unit',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+                  Row(
+                    children: [
+                      const Expanded(
+                        child: Text(
+                          'Inventory Unit',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                      OutlinedButton.icon(
+                        onPressed: _saving ? null : _addUnit,
+                        icon: const Icon(Icons.add_rounded, size: 17),
+                        label: const Text('New Unit'),
+                      ),
+                    ],
                   ),
 
                   const SizedBox(height: 8),

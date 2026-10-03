@@ -73,10 +73,10 @@ class _AggregateDirectSupplyScreenState
     return text.isEmpty || text == 'null' ? null : text;
   }
 
-  double _number(dynamic value) =>
-      (value as num?)?.toDouble() ??
-      double.tryParse(value?.toString() ?? '') ??
-      0;
+  double _number(dynamic value) {
+    if (value is num) return value.toDouble();
+    return double.tryParse(value?.toString().trim() ?? '') ?? 0;
+  }
 
   double? _double(String value) {
     final text = value.trim();

@@ -32,10 +32,10 @@ class _AggregateOrdersScreenState extends State<AggregateOrdersScreen> {
           .map((row) => Map<String, dynamic>.from(row))
           .toList();
 
-  double _number(dynamic value) =>
-      (value as num?)?.toDouble() ??
-      double.tryParse(value?.toString() ?? '') ??
-      0;
+  double _number(dynamic value) {
+    if (value is num) return value.toDouble();
+    return double.tryParse(value?.toString().trim() ?? '') ?? 0;
+  }
 
   String _qty(dynamic value) {
     final number = _number(value);

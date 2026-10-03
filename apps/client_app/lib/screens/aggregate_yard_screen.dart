@@ -41,7 +41,6 @@ class _AggregateYardScreenState extends State<AggregateYardScreen> {
       session.hasModule('logistics_operations') ||
       session.hasModule('transport_service');
 
-
   String? get _locationId => LocationScopeService.selectedLocationId.value;
 
   List<Map<String, dynamic>> _rows(String key) =>
@@ -50,13 +49,15 @@ class _AggregateYardScreenState extends State<AggregateYardScreen> {
           .map((row) => Map<String, dynamic>.from(row))
           .toList(growable: false);
 
-  double _number(dynamic value) =>
-      (value as num?)?.toDouble() ??
-      double.tryParse(value?.toString() ?? '') ??
-      0;
+  double _number(dynamic value) {
+    if (value is num) return value.toDouble();
+    return double.tryParse(value?.toString().trim() ?? '') ?? 0;
+  }
 
-  int _integer(dynamic value) =>
-      (value as num?)?.toInt() ?? int.tryParse(value?.toString() ?? '') ?? 0;
+  int _integer(dynamic value) {
+    if (value is num) return value.toInt();
+    return int.tryParse(value?.toString().trim() ?? '') ?? 0;
+  }
 
   String _qty(dynamic value, {int decimals = 2}) {
     final number = _number(value);
@@ -109,9 +110,17 @@ class _AggregateYardScreenState extends State<AggregateYardScreen> {
     if (mounted) await _loadDashboard();
   }
 
+  Future<void> _openWorkspace(String title, Widget page) async {
+    await _open(
+      Scaffold(
+        appBar: AppBar(toolbarHeight: 46, title: Text(title)),
+        body: SafeArea(child: page),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
     final device = session.device;
     final locationName = device == null || device.locationName.isEmpty
         ? 'Current yard / store'
@@ -119,26 +128,31 @@ class _AggregateYardScreenState extends State<AggregateYardScreen> {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final compact = constraints.maxWidth < 900;
-        final operationWidth = compact
-            ? constraints.maxWidth
-            : (constraints.maxWidth - 20) / 3;
-        final metricWidth = compact
-            ? constraints.maxWidth
-            : constraints.maxWidth < 1250
-            ? (constraints.maxWidth - 10) / 2
-            : (constraints.maxWidth - 20) / 3;
-        final panelWidth = compact
-            ? constraints.maxWidth
-            : (constraints.maxWidth - 10) / 2;
-
+        const gap = 10.0;
+        final width = constraints.maxWidth;
+        final actionColumns = width >= 1250
+            ? 4
+            : width >= 820
+            ? 3
+            : width >= 560
+            ? 2
+            : 1;
+        final summaryColumns = width >= 1050
+            ? 4
+            : width >= 650
+            ? 2
+            : 1;
+        final actionWidth =
+            (width - ((actionColumns - 1) * gap)) / actionColumns;
+        final summaryWidth =
+            (width - ((summaryColumns - 1) * gap)) / summaryColumns;
         final receivablesVisible = _dashboard['receivables_visible'] == true;
 
         return RefreshIndicator(
           onRefresh: _loadDashboard,
           child: SingleChildScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
-            padding: EdgeInsets.all(compact ? 12 : 16),
+            padding: const EdgeInsets.fromLTRB(14, 12, 14, 18),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -148,7 +162,7 @@ class _AggregateYardScreenState extends State<AggregateYardScreen> {
                   onRefresh: _dashboardLoading ? null : _loadDashboard,
                 ),
                 if (_dashboardLoading) ...[
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 6),
                   const LinearProgressIndicator(minHeight: 2),
                 ],
                 if (_dashboardError != null) ...[
@@ -158,94 +172,31 @@ class _AggregateYardScreenState extends State<AggregateYardScreen> {
                     onRetry: _loadDashboard,
                   ),
                 ],
-                const SizedBox(height: 14),
-                _SectionTitle(
-                  title: 'Today at the yard',
+                const SizedBox(height: 12),
+                const _SectionTitle(
+                  title: 'Do the work',
                   subtitle:
-                      'Operational loads plus authoritative THQ stock and receivables.',
+                      'Start with the real business action. Extra tracking is optional.',
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 7),
                 Wrap(
-                  spacing: 10,
-                  runSpacing: 10,
-                  children: [
-                    _MetricCard(
-                      width: metricWidth,
-                      icon: Icons.south_west_rounded,
-                      label: 'Today In',
-                      value: '${_qty(_dashboard['today_in_cft'])} CFT',
-                      helper:
-                          '${_integer(_dashboard['today_in_loads'])} received loads',
-                    ),
-                    _MetricCard(
-                      width: metricWidth,
-                      icon: Icons.north_east_rounded,
-                      label: 'Today Out',
-                      value: '${_qty(_dashboard['today_out_cft'])} CFT',
-                      helper:
-                          '${_integer(_dashboard['today_out_loads'])} dispatched loads',
-                    ),
-                    _MetricCard(
-                      width: metricWidth,
-                      icon: Icons.inventory_2_outlined,
-                      label: 'Available Stock',
-                      value: '${_qty(_dashboard['stock_available_cft'])} CFT',
-                      helper:
-                          'On hand ${_qty(_dashboard['stock_on_hand_cft'])} CFT',
-                    ),
-                    _MetricCard(
-                      width: metricWidth,
-                      icon: Icons.local_shipping_outlined,
-                      label: 'Trucks On Road',
-                      value: '${_integer(_dashboard['trucks_on_road'])}',
-                      helper:
-                          '${_integer(_dashboard['active_trucks'])} active trucks',
-                    ),
-                    _MetricCard(
-                      width: metricWidth,
-                      icon: Icons.schedule_send_outlined,
-                      label: 'Pending Delivery',
-                      value: '${_qty(_dashboard['pending_delivery_cft'])} CFT',
-                      helper:
-                          '${_integer(_dashboard['pending_delivery_loads'])} open loads',
-                    ),
-                    _MetricCard(
-                      width: metricWidth,
-                      icon: Icons.assignment_outlined,
-                      label: 'Open Orders',
-                      value: '${_integer(_dashboard['open_order_count'])}',
-                      helper:
-                          '${_qty(_dashboard['open_order_cft'])} CFT remaining',
-                    ),
-                    _MetricCard(
-                      width: metricWidth,
-                      icon: Icons.account_balance_wallet_outlined,
-                      label: 'Receivable',
-                      value: receivablesVisible
-                          ? _money(_dashboard['receivables'])
-                          : 'Restricted',
-                      helper: receivablesVisible
-                          ? 'Authoritative customer outstanding'
-                          : 'Requires sales/customer/accounting access',
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                _SectionTitle(
-                  title: 'Quick operations',
-                  subtitle:
-                      'Fast access to Direct Supply, inward, dispatch and load control.',
-                ),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 10,
-                  runSpacing: 10,
+                  spacing: gap,
+                  runSpacing: gap,
                   children: [
                     _ActionCard(
-                      width: operationWidth,
+                      width: actionWidth,
+                      icon: Icons.compare_arrows_rounded,
+                      title: 'Direct Supply',
+                      subtitle:
+                          'Quarry -> customer. Purchase first, sale next.',
+                      onTap: () =>
+                          _open(AggregateDirectSupplyScreen(session: session)),
+                    ),
+                    _ActionCard(
+                      width: actionWidth,
                       icon: Icons.move_to_inbox_outlined,
                       title: 'Material Inward',
-                      subtitle: 'Truck load → authoritative THQ Purchase',
+                      subtitle: 'Receive a truck load and create the purchase.',
                       onTap: () => _open(
                         AggregateLoadsScreen(
                           session: session,
@@ -254,10 +205,10 @@ class _AggregateYardScreenState extends State<AggregateYardScreen> {
                       ),
                     ),
                     _ActionCard(
-                      width: operationWidth,
+                      width: actionWidth,
                       icon: Icons.outbox_outlined,
                       title: 'Material Dispatch',
-                      subtitle: 'Truck load → authoritative THQ Sale',
+                      subtitle: 'Dispatch a truck load and create the sale.',
                       onTap: () => _open(
                         AggregateLoadsScreen(
                           session: session,
@@ -266,154 +217,219 @@ class _AggregateYardScreenState extends State<AggregateYardScreen> {
                       ),
                     ),
                     _ActionCard(
-                      width: operationWidth,
-                      icon: Icons.compare_arrows_rounded,
-                      title: 'Direct Supply',
-                      subtitle:
-                          'Quarry → Customer via controlled transit stock',
-                      onTap: () =>
-                          _open(AggregateDirectSupplyScreen(session: session)),
-                    ),
-                    _ActionCard(
-                      width: operationWidth,
-                      icon: Icons.receipt_long_outlined,
-                      title: 'Load Register',
-                      subtitle: 'Loads, CFT measurement, links and status',
-                      onTap: () =>
-                          _open(AggregateLoadsScreen(session: session)),
-                    ),
-                    _ActionCard(
-                      width: operationWidth,
+                      width: actionWidth,
                       icon: Icons.assignment_outlined,
                       title: 'Customer Orders',
-                      subtitle:
-                          'Multi-load orders with delivered / remaining tracking',
+                      subtitle: 'Order, delivered quantity and balance only.',
                       onTap: () =>
                           _open(AggregateOrdersScreen(session: session)),
                     ),
                     _ActionCard(
-                      width: operationWidth,
-                      icon: Icons.inventory_2_outlined,
-                      title: 'Yard Stock',
-                      subtitle: 'Open authoritative THQ inventory',
+                      width: actionWidth,
+                      icon: Icons.receipt_long_outlined,
+                      title: 'Load Register',
+                      subtitle: 'Find a load and see its final status.',
                       onTap: () =>
-                          _open(InventoryProductsScreen(session: session)),
+                          _open(AggregateLoadsScreen(session: session)),
                     ),
                     _ActionCard(
-                      width: operationWidth,
+                      width: actionWidth,
                       icon: Icons.local_shipping_outlined,
                       title: 'Truck Setup',
-                      subtitle:
-                          'Dimensions, CFT capacity, ownership and freight',
+                      subtitle: 'Add a truck or update capacity and ownership.',
                       onTap: () =>
                           _open(AggregateVehiclesScreen(session: session)),
                     ),
-                    _ActionCard(
-                      width: operationWidth,
-                      icon: Icons.payments_outlined,
-                      title: 'Freight & Profit',
-                      subtitle:
-                          'Transporter settlement and per-load contribution',
-                      onTap: () =>
-                          _open(AggregateFreightScreen(session: session)),
-                    ),
-                    _ActionCard(
-                      width: operationWidth,
-                      icon: Icons.route_outlined,
-                      title: 'Trips & Vehicles',
-                      subtitle: _hasTransport
-                          ? 'Open existing THQ Transport & Logistics'
-                          : 'Enable Vehicle Logistics for advanced tracking',
-                      enabled: _hasTransport,
-                      onTap: () =>
-                          _open(TransportLogisticsHubScreen(session: session)),
-                    ),
                   ],
                 ),
-                const SizedBox(height: 16),
-                Wrap(
-                  spacing: 10,
-                  runSpacing: 10,
-                  crossAxisAlignment: WrapCrossAlignment.start,
-                  children: [
-                    SizedBox(
-                      width: panelWidth,
-                      child: _StockPanel(
-                        rows: _rows('stock_by_material'),
-                        quantityText: _qty,
-                      ),
-                    ),
-                    SizedBox(
-                      width: panelWidth,
-                      child: _ActiveLoadsPanel(
-                        rows: _rows('active_loads'),
-                        quantityText: _qty,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 14),
                 Card(
                   margin: EdgeInsets.zero,
                   child: Padding(
-                    padding: const EdgeInsets.all(14),
+                    padding: const EdgeInsets.all(12),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          'Masters & reports',
-                          style: Theme.of(context).textTheme.titleSmall
-                              ?.copyWith(fontWeight: FontWeight.w800),
+                        const _SectionTitle(
+                          title: 'Reports & masters',
+                          subtitle:
+                              'The final records that matter most day to day.',
                         ),
-                        const SizedBox(height: 10),
+                        const SizedBox(height: 8),
                         Wrap(
                           spacing: 8,
                           runSpacing: 8,
                           children: [
                             _SmallAction(
+                              icon: Icons.insights_outlined,
+                              label: 'Reports',
+                              onTap: () => _openWorkspace(
+                                'Reports',
+                                ReportsScreen(session: session),
+                              ),
+                            ),
+                            _SmallAction(
                               icon: Icons.groups_outlined,
                               label: 'Customers',
-                              onTap: () =>
-                                  _open(CustomersScreen(session: session)),
+                              onTap: () => _openWorkspace(
+                                'Customers',
+                                CustomersScreen(session: session),
+                              ),
                             ),
                             _SmallAction(
                               icon: Icons.factory_outlined,
                               label: 'Suppliers / Quarries',
-                              onTap: () =>
-                                  _open(SuppliersScreen(session: session)),
-                            ),
-                            _SmallAction(
-                              icon: Icons.insights_outlined,
-                              label: 'Reports',
-                              onTap: () =>
-                                  _open(ReportsScreen(session: session)),
+                              onTap: () => _openWorkspace(
+                                'Suppliers / Quarries',
+                                SuppliersScreen(session: session),
+                              ),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 12),
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(10),
-                          decoration: BoxDecoration(
-                            color: scheme.surfaceContainerHighest.withValues(
-                              alpha: .45,
-                            ),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Text(
-                            'Dashboard stock and receivables come from THQ '
-                            'authoritative balances. Load Tickets remain '
-                            'operational tracking only. CFT summary cards never '
-                            'mix tonnes, pieces or other units into the same total.',
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: scheme.onSurfaceVariant,
-                              height: 1.35,
-                            ),
-                          ),
-                        ),
                       ],
                     ),
+                  ),
+                ),
+                const SizedBox(height: 14),
+                const _SectionTitle(
+                  title: 'At a glance',
+                  subtitle: 'Only the numbers needed to run the yard today.',
+                ),
+                const SizedBox(height: 7),
+                Wrap(
+                  spacing: gap,
+                  runSpacing: gap,
+                  children: [
+                    _MetricCard(
+                      width: summaryWidth,
+                      icon: Icons.inventory_2_outlined,
+                      label: 'Available Stock',
+                      value: '${_qty(_dashboard['stock_available_cft'])} CFT',
+                      helper:
+                          'On hand ${_qty(_dashboard['stock_on_hand_cft'])} CFT',
+                    ),
+                    _MetricCard(
+                      width: summaryWidth,
+                      icon: Icons.account_balance_wallet_outlined,
+                      label: 'Receivable',
+                      value: receivablesVisible
+                          ? _money(_dashboard['receivables'])
+                          : 'Restricted',
+                      helper: receivablesVisible
+                          ? 'Customer outstanding'
+                          : 'Needs finance access',
+                    ),
+                    _MetricCard(
+                      width: summaryWidth,
+                      icon: Icons.assignment_outlined,
+                      label: 'Open Orders',
+                      value: '${_integer(_dashboard['open_order_count'])}',
+                      helper:
+                          '${_qty(_dashboard['open_order_cft'])} CFT remaining',
+                    ),
+                    _MetricCard(
+                      width: summaryWidth,
+                      icon: Icons.local_shipping_outlined,
+                      label: 'Trucks On Road',
+                      value: '${_integer(_dashboard['trucks_on_road'])}',
+                      helper:
+                          '${_integer(_dashboard['active_trucks'])} active trucks',
+                    ),
+                    _MetricCard(
+                      width: summaryWidth,
+                      icon: Icons.south_west_rounded,
+                      label: 'Today In',
+                      value: '${_qty(_dashboard['today_in_cft'])} CFT',
+                      helper: '${_integer(_dashboard['today_in_loads'])} loads',
+                    ),
+                    _MetricCard(
+                      width: summaryWidth,
+                      icon: Icons.north_east_rounded,
+                      label: 'Today Out',
+                      value: '${_qty(_dashboard['today_out_cft'])} CFT',
+                      helper:
+                          '${_integer(_dashboard['today_out_loads'])} loads',
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Card(
+                  margin: EdgeInsets.zero,
+                  child: ExpansionTile(
+                    initiallyExpanded: false,
+                    leading: const Icon(Icons.tune_rounded),
+                    title: const Text(
+                      'More yard tools',
+                      style: TextStyle(fontWeight: FontWeight.w800),
+                    ),
+                    subtitle: const Text(
+                      'Stock view, freight and detailed trip tracking',
+                    ),
+                    childrenPadding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+                    children: [
+                      Wrap(
+                        spacing: gap,
+                        runSpacing: gap,
+                        children: [
+                          _ActionCard(
+                            width: actionWidth,
+                            icon: Icons.inventory_2_outlined,
+                            title: 'Yard Stock',
+                            subtitle: 'Open authoritative THQ inventory.',
+                            onTap: () => _open(
+                              InventoryProductsScreen(session: session),
+                            ),
+                          ),
+                          _ActionCard(
+                            width: actionWidth,
+                            icon: Icons.payments_outlined,
+                            title: 'Freight & Profit',
+                            subtitle: 'Settlement and per-load contribution.',
+                            onTap: () =>
+                                _open(AggregateFreightScreen(session: session)),
+                          ),
+                          _ActionCard(
+                            width: actionWidth,
+                            icon: Icons.route_outlined,
+                            title: 'Trips & Vehicles',
+                            subtitle: _hasTransport
+                                ? 'Trip details and advanced transport workflow.'
+                                : 'Enable Vehicle Logistics for trip tracking.',
+                            enabled: _hasTransport,
+                            onTap: () => _open(
+                              TransportLogisticsHubScreen(session: session),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Card(
+                  margin: EdgeInsets.zero,
+                  child: ExpansionTile(
+                    initiallyExpanded: false,
+                    leading: const Icon(Icons.dashboard_outlined),
+                    title: const Text(
+                      'Operational details',
+                      style: TextStyle(fontWeight: FontWeight.w800),
+                    ),
+                    subtitle: const Text(
+                      'Material balances and active load tracking',
+                    ),
+                    childrenPadding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+                    children: [
+                      _StockPanel(
+                        rows: _rows('stock_by_material'),
+                        quantityText: _qty,
+                      ),
+                      const SizedBox(height: 10),
+                      _ActiveLoadsPanel(
+                        rows: _rows('active_loads'),
+                        quantityText: _qty,
+                      ),
+                    ],
                   ),
                 ),
               ],
