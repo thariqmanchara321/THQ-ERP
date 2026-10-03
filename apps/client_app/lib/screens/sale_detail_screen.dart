@@ -759,10 +759,9 @@ class _SalePaymentDialogState extends State<_SalePaymentDialog> {
   }
 
   double get _enteredAmount => double.tryParse(_amount.text.trim()) ?? 0;
-  double get _remainingAfterPayment =>
-      (widget.sale.balanceDue - _enteredAmount)
-          .clamp(0.0, widget.sale.balanceDue)
-          .toDouble();
+  double get _remainingAfterPayment => (widget.sale.balanceDue - _enteredAmount)
+      .clamp(0.0, widget.sale.balanceDue)
+      .toDouble();
   bool get _canCloseResidual =>
       _remainingAfterPayment > 0.005 && _remainingAfterPayment < 1.0;
   bool get _canCloseWholeBalance =>
@@ -865,13 +864,17 @@ class _SalePaymentDialogState extends State<_SalePaymentDialog> {
               OutlinedButton.icon(
                 onPressed: _saving ? null : _closeBalanceAsRoundOff,
                 icon: const Icon(Icons.exposure_zero_rounded),
-                label: Text('Close ${_money(widget.sale.balanceDue)} as round-off'),
+                label: Text(
+                  'Close ${_money(widget.sale.balanceDue)} as round-off',
+                ),
               ),
             ],
             const SizedBox(height: 12),
             TextField(
               controller: _amount,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
               onChanged: (_) {
                 setState(() => _closeSmallBalance = false);
               },
@@ -887,9 +890,8 @@ class _SalePaymentDialogState extends State<_SalePaymentDialog> {
                 value: _closeSmallBalance,
                 onChanged: _saving
                     ? null
-                    : (value) => setState(
-                          () => _closeSmallBalance = value ?? false,
-                        ),
+                    : (value) =>
+                          setState(() => _closeSmallBalance = value ?? false),
                 title: Text(
                   'Close remaining ${_money(_remainingAfterPayment)} as round-off',
                 ),
@@ -905,14 +907,7 @@ class _SalePaymentDialogState extends State<_SalePaymentDialog> {
                 labelText: 'Payment Method',
                 border: OutlineInputBorder(),
               ),
-              items: const [
-                'cash',
-                'card',
-                'bank_transfer',
-                'upi',
-                'cheque',
-                'other',
-              ]
+              items: const ['cash', 'card', 'bank', 'upi', 'cheque', 'other']
                   .map(
                     (e) => DropdownMenuItem(
                       value: e,
@@ -964,6 +959,7 @@ class _SalePaymentDialogState extends State<_SalePaymentDialog> {
     ],
   );
 }
+
 class _Card extends StatelessWidget {
   final String title;
   final Widget child;
