@@ -6,6 +6,7 @@ import 'package:file_saver/file_saver.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
+import '../models/record_presentation.dart';
 
 class OperationalExportService {
   Map<String, dynamic> _flatten(Map<String, dynamic> record) {
@@ -36,6 +37,7 @@ class OperationalExportService {
   }
 
   Future<void> saveExcel(String name, Map<String, dynamic> dataset) async {
+    dataset = RecordPresentation.report(dataset);
     final excel = Excel.createExcel();
     final defaultName = excel.getDefaultSheet();
     if (defaultName != null) excel.rename(defaultName, 'Overview');
@@ -95,6 +97,7 @@ class OperationalExportService {
   }
 
   Future<void> printDataset(String title, Map<String, dynamic> dataset) async {
+    dataset = RecordPresentation.report(dataset);
     final document = pw.Document();
     final widgets = <pw.Widget>[
       pw.Text(
@@ -126,7 +129,8 @@ class OperationalExportService {
           widgets.add(pw.SizedBox(height: 8));
         }
       } else {
-        final text = '${key.replaceAll('_', ' ')}: ${value ?? '—'}';
+        final text =
+            '${RecordPresentation.label(key)}: ${RecordPresentation.value(key, value)}';
         for (var start = 0; start < text.length; start += 600) {
           widgets.add(
             pw.Text(

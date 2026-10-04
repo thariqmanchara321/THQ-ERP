@@ -1,21 +1,18 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
+import '../models/record_presentation.dart';
 
 /// A complete, selectable preview of saved operational evidence.
 class RecordPreview extends StatelessWidget {
   final Map<String, dynamic> record;
-  const RecordPreview({super.key, required this.record});
+  final String currency;
+  const RecordPreview({super.key, required this.record, this.currency = ''});
 
-  static String label(String key) => key.replaceAll('_', ' ');
-  static String value(dynamic value) => value is Map || value is List
-      ? const JsonEncoder.withIndent('  ').convert(value)
-      : value?.toString() ?? '—';
+  static String label(String key) => RecordPresentation.label(key);
 
   @override
   Widget build(BuildContext context) => Column(
     crossAxisAlignment: CrossAxisAlignment.stretch,
-    children: record.entries
+    children: RecordPresentation.report(record).entries
         .map(
           (entry) => Padding(
             padding: const EdgeInsets.symmetric(vertical: 5),
@@ -23,13 +20,35 @@ class RecordPreview extends StatelessWidget {
                 ? ExpansionTile(
                     title: Text(label(entry.key)),
                     children: [
-                      Padding(
-                        padding: const EdgeInsets.all(12),
-                        child: Align(
-                          alignment: Alignment.centerLeft,
-                          child: SelectableText(value(entry.value)),
-                        ),
-                      ),
+                      if (entry.value is Map)
+                        Padding(
+                          padding: const EdgeInsets.all(12),
+                          child: RecordPreview(
+                            record: Map<String, dynamic>.from(entry.value),
+                            currency: currency,
+                          ),
+                        )
+                      else if ((entry.value as List).isEmpty)
+                        const Padding(
+                          padding: EdgeInsets.all(12),
+                          child: Text('No records.'),
+                        )
+                      else
+                        for (final item in entry.value as List)
+                          Padding(
+                            padding: const EdgeInsets.all(8),
+                            child: item is Map
+                                ? Card(
+                                    child: Padding(
+                                      padding: const EdgeInsets.all(12),
+                                      child: RecordPreview(
+                                        record: Map<String, dynamic>.from(item),
+                                        currency: currency,
+                                      ),
+                                    ),
+                                  )
+                                : SelectableText('$item'),
+                          ),
                     ],
                   )
                 : Wrap(
@@ -39,7 +58,13 @@ class RecordPreview extends StatelessWidget {
                         '${label(entry.key)}:',
                         style: const TextStyle(fontWeight: FontWeight.w600),
                       ),
-                      SelectableText(value(entry.value)),
+                      SelectableText(
+                        RecordPresentation.value(
+                          entry.key,
+                          entry.value,
+                          currency: currency,
+                        ),
+                      ),
                     ],
                   ),
           ),
@@ -51,13 +76,16 @@ class RecordPreview extends StatelessWidget {
     BuildContext context, {
     required String title,
     required Map<String, dynamic> record,
+    String currency = '',
   }) => showDialog<void>(
     context: context,
     builder: (dialogContext) => AlertDialog(
       title: Text(title),
       content: SizedBox(
         width: 800,
-        child: SingleChildScrollView(child: RecordPreview(record: record)),
+        child: SingleChildScrollView(
+          child: RecordPreview(record: record, currency: currency),
+        ),
       ),
       actions: [
         TextButton(

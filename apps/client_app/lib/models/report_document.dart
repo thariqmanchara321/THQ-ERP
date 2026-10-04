@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:intl/intl.dart';
+import 'record_presentation.dart';
 
 Map<String, dynamic> reportMap(dynamic value) =>
     value is Map ? Map<String, dynamic>.from(value) : <String, dynamic>{};
@@ -188,7 +189,9 @@ class ReportDocument {
       'trip_kind',
       'account_type',
     };
-    final value = row[column.key];
+    final value = RecordPresentation.internal(column.key)
+        ? null
+        : RecordPresentation.clean(row[column.key]);
     if (states.contains(column.key) && value is String) {
       return value
           .split('_')

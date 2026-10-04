@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
 
 import '../models/client_session.dart';
+import '../models/staff_statement.dart';
+import '../widgets/staff_statement_dialog.dart';
 import '../services/location_scope_service.dart';
 import '../services/operational_export_service.dart';
 import '../services/staff_load_service.dart';
@@ -10,13 +12,14 @@ import '../widgets/record_preview.dart';
 
 class StaffScreen extends StatefulWidget {
   final ClientSession session;
-  const StaffScreen({super.key, required this.session});
+  final StaffLoadService? service;
+  const StaffScreen({super.key, required this.session, this.service});
   @override
   State<StaffScreen> createState() => _StaffScreenState();
 }
 
 class _StaffScreenState extends State<StaffScreen> {
-  final _service = StaffLoadService();
+  late final _service = widget.service ?? StaffLoadService();
   final _export = OperationalExportService();
   Map<String, dynamic> _data = const {};
   DateTime _from = DateTime(DateTime.now().year, DateTime.now().month);
@@ -77,7 +80,9 @@ class _StaffScreenState extends State<StaffScreen> {
           'to': StaffLoadService.date(_to),
         },
       );
-      if (mounted) setState(() => _data = data);
+      if (mounted) {
+        setState(() => _data = StaffLoadService.staffRecord(data));
+      }
     } catch (e) {
       if (mounted) setState(() => _error = e.toString());
     } finally {
@@ -211,30 +216,7 @@ class _StaffScreenState extends State<StaffScreen> {
       selected = chosen;
     }
     final member = selected ?? _staff.first;
-    final attendance = StaffLoadService.rows(_data['attendance'])
-        .where((r) => r['staff_id'] == member['id'])
-        .toList();
-    final basis = member['wage_basis'];
-    final units = basis == 'monthly'
-        ? 1.0
-        : attendance.fold<double>(
-            0,
-            (sum, a) =>
-                sum +
-                (basis == 'hourly'
-                    ? StaffLoadService.number(a['hours'])
-                    : a['status'] == 'half_day'
-                    ? .5
-                    : ['present', 'paid_leave'].contains(a['status'])
-                    ? 1
-                    : 0),
-          );
-    final overtime =
-        attendance.fold<double>(
-          0,
-          (sum, a) => sum + StaffLoadService.number(a['overtime_hours']),
-        ) *
-        StaffLoadService.number(member['overtime_rate']);
+    final units = member['wage_basis'] == 'monthly' ? 1.0 : 0.0;
     final fields = <OperationalField>[
       OperationalField(
         'staff_id',
@@ -252,21 +234,6 @@ class _StaffScreenState extends State<StaffScreen> {
         },
       ),
       const OperationalField('date', 'Date', required: true, date: true),
-      if (action == 'attendance') ...const [
-        OperationalField(
-          'status',
-          'Attendance',
-          options: {
-            'present': 'Present',
-            'half_day': 'Half day',
-            'absent': 'Absent',
-            'paid_leave': 'Paid leave',
-            'unpaid_leave': 'Unpaid leave',
-          },
-        ),
-        OperationalField('hours', 'Hours worked', number: true),
-        OperationalField('overtime_hours', 'Overtime hours', number: true),
-      ],
       if (action == 'payroll') ...const [
         OperationalField(
           'kind',
@@ -288,7 +255,8 @@ class _StaffScreenState extends State<StaffScreen> {
           'Payable months / days / hours',
           required: true,
           number: true,
-          help: 'Suggested from this staff member and selected attendance period. Check when changing staff.',
+          help:
+              'Enter the agreed payable months, days or hours for this period.',
         ),
         OperationalField(
           'rate',
@@ -309,7 +277,8 @@ class _StaffScreenState extends State<StaffScreen> {
           'Payment amount',
           required: true,
           number: true,
-          help: 'Settles oldest unpaid earnings in this location. Excess becomes an advance.',
+          help:
+              'Settles oldest unpaid earnings in this location. Excess becomes an advance.',
         ),
         OperationalField('payment_method', 'Payment method', options: _methods),
         OperationalField('reference', 'Payment / transaction reference'),
@@ -319,7 +288,6 @@ class _StaffScreenState extends State<StaffScreen> {
     final saved = await showOperationalForm(
       context,
       title: switch (action) {
-        'attendance' => 'Record attendance',
         'payroll' => 'Post salary / wages',
         _ => 'Pay staff / advance',
       },
@@ -335,10 +303,8 @@ class _StaffScreenState extends State<StaffScreen> {
         'period_to': StaffLoadService.date(_to),
         'units': units,
         'rate': member['base_rate'],
-        'allowances': overtime,
+        'allowances': 0,
         'deductions': 0,
-        'hours': 8,
-        'overtime_hours': 0,
       },
       saveLabel: action == 'payroll' ? 'Post earning' : 'Save',
       preview: action == 'payroll'
@@ -359,9 +325,10 @@ class _StaffScreenState extends State<StaffScreen> {
 
   Future<void> _statement(Map<String, dynamic> member) async {
     try {
+      final scopeLabel = LocationScopeService.scopeLabel(widget.session);
       final data = await _service.staff(
         tenantId: _tenant,
-        action: 'detail',
+        action: 'statement',
         locationId: _scope,
         data: {
           'staff_id': member['id'],
@@ -369,32 +336,15 @@ class _StaffScreenState extends State<StaffScreen> {
           'to': StaffLoadService.date(_to),
         },
       );
+      final statement = StaffStatement({
+        ...StaffLoadService.staffRecord(data),
+        'location_scope': scopeLabel,
+      }, currency: widget.session.currencyCode);
       if (!mounted) return;
       await showDialog<void>(
         context: context,
-        builder: (ctx) => AlertDialog(
-          title: Text('${member['name']} • Statement'),
-          content: SizedBox(
-            width: 820,
-            child: SingleChildScrollView(child: RecordPreview(record: data)),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () =>
-                  _runExport('Staff_${member['staff_code']}', data, 'pdf'),
-              child: const Text('Print statement / payslips'),
-            ),
-            TextButton(
-              onPressed: () =>
-                  _runExport('Staff_${member['staff_code']}', data, 'json'),
-              child: const Text('Save complete record'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Close'),
-            ),
-          ],
-        ),
+        builder: (_) =>
+            StaffStatementDialog(session: widget.session, statement: statement),
       );
     } catch (e) {
       if (mounted) setState(() => _error = e.toString());
@@ -413,7 +363,22 @@ class _StaffScreenState extends State<StaffScreen> {
           'to': StaffLoadService.date(_to),
           'location': LocationScopeService.scopeLabel(widget.session),
         },
-        ...data,
+        ...StaffLoadService.staffRecord(data),
+        for (final key in ['earnings', 'payments', 'load_allocations'])
+          if (data[key] is List)
+            key: StaffLoadService.rows(data[key])
+                .map(
+                  (r) => {
+                    ...r,
+                    'staff_code':
+                        r['staff_code'] ??
+                        _staff
+                            .where((s) => s['id'] == r['staff_id'])
+                            .map((s) => s['staff_code'])
+                            .firstOrNull,
+                  },
+                )
+                .toList(),
       };
       if (format == 'xlsx') {
         await _export.saveExcel(name, data);
@@ -428,9 +393,9 @@ class _StaffScreenState extends State<StaffScreen> {
   }
 
   Widget _records(String key) {
-    final rows = StaffLoadService.rows(_data[key])
-        .where((r) => '$r'.toLowerCase().contains(_query.toLowerCase()))
-        .toList();
+    final rows = StaffLoadService.rows(
+      _data[key],
+    ).where((r) => '$r'.toLowerCase().contains(_query.toLowerCase())).toList();
     if (rows.isEmpty) {
       return const Center(child: Text('No records in this period.'));
     }
@@ -441,12 +406,10 @@ class _StaffScreenState extends State<StaffScreen> {
         return Card(
           child: ListTile(
             title: Text(
-              '${row['staff_name'] ?? ''} • ${row['work_date'] ?? row['earning_date'] ?? row['payment_date'] ?? ''}',
+              '${row['staff_name'] ?? ''} • ${row['earning_date'] ?? row['payment_date'] ?? ''}',
             ),
             subtitle: Text(
-              key == 'attendance'
-                  ? '${row['status']} • ${row['hours']} hours • Overtime ${row['overtime_hours']} hours'
-                  : key == 'earnings'
+              key == 'earnings'
                   ? '${row['kind']} • ${_money(row['amount'])} • Paid ${_money(row['paid_amount'])} • Due ${_money(row['outstanding'])}'
                   : '${_money(row['amount'])} • ${row['payment_method']} • Advance ${_money(row['advance_amount'])}',
             ),
@@ -455,7 +418,16 @@ class _StaffScreenState extends State<StaffScreen> {
               context,
               title:
                   'Saved ${key == 'earnings' ? 'earning / payslip' : key} record',
-              record: row,
+              record: {
+                ...row,
+                'staff_code':
+                    row['staff_code'] ??
+                    _staff
+                        .where((s) => s['id'] == row['staff_id'])
+                        .map((s) => s['staff_code'])
+                        .firstOrNull,
+              },
+              currency: widget.session.currencyCode,
             ),
           ),
         );
@@ -465,7 +437,7 @@ class _StaffScreenState extends State<StaffScreen> {
 
   @override
   Widget build(BuildContext context) => DefaultTabController(
-    length: 4,
+    length: 3,
     child: Scaffold(
       appBar: AppBar(
         title: const Text('Staff'),
@@ -479,7 +451,6 @@ class _StaffScreenState extends State<StaffScreen> {
           isScrollable: true,
           tabs: [
             Tab(text: 'Staff & balances'),
-            Tab(text: 'Attendance'),
             Tab(text: 'Earnings / payroll'),
             Tab(text: 'Payments / advances'),
           ],
@@ -506,11 +477,6 @@ class _StaffScreenState extends State<StaffScreen> {
                     onPressed: _busy ? null : _saveProfile,
                     icon: const Icon(Icons.person_add),
                     label: const Text('Add staff'),
-                  ),
-                if (_manage)
-                  OutlinedButton(
-                    onPressed: _busy ? null : () => _transaction('attendance'),
-                    child: const Text('Attendance'),
                   ),
                 if (_payroll)
                   OutlinedButton(
@@ -557,7 +523,7 @@ class _StaffScreenState extends State<StaffScreen> {
           const Padding(
             padding: EdgeInsets.all(8),
             child: Text(
-              'Balances are current. Attendance, earnings and payments follow the selected period. Per-trip wages are recorded on loads; monthly salary allocations on loads do not post salary twice.',
+              'Balances are current. Earnings and payments follow the selected period. Enter agreed payroll units and allowances manually. Per-trip wages are recorded on loads; monthly salary allocations on loads do not post salary twice.',
             ),
           ),
           if (_error != null)
@@ -605,11 +571,6 @@ class _StaffScreenState extends State<StaffScreen> {
                                           value: 'edit',
                                           child: Text('Edit profile'),
                                         ),
-                                      if (_manage)
-                                        const PopupMenuItem(
-                                          value: 'attendance',
-                                          child: Text('Record attendance'),
-                                        ),
                                       if (_payroll)
                                         const PopupMenuItem(
                                           value: 'payroll',
@@ -627,7 +588,6 @@ class _StaffScreenState extends State<StaffScreen> {
                             )
                             .toList(),
                       ),
-                      _records('attendance'),
                       _records('earnings'),
                       _records('payments'),
                     ],

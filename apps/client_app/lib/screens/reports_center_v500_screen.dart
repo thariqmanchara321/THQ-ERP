@@ -727,6 +727,7 @@ class _ReportsCenterV500ScreenState extends State<ReportsCenterV500Screen> {
                             title:
                                 '${report.definition.title} • Record ${report.offset + index + 1}',
                             record: row,
+                            currency: widget.session.currencyCode,
                           ),
                           child: Row(
                             children: [

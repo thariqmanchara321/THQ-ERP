@@ -88,7 +88,6 @@ class ReportExportService {
       'material_loads',
       'load_costs',
       'staff',
-      'staff_attendance',
       'staff_earnings',
       'staff_payments',
     ]) {

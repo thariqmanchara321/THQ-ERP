@@ -14,11 +14,13 @@ Owners receive Staff, load cost and invoice tax adjustment permissions. Managers
 
 Add a staff profile with contact details, role, joining/leaving dates, wage basis and rate, overtime rate, emergency contact and optional bank details. Choosing Driver creates or updates its linked logistics driver, including licence and phone. Existing logistics drivers have been retained and linked to Staff with a zero default rate; edit the rate before using it for wages. Deactivate departed staff rather than removing their financial history.
 
-Staff supports monthly, daily, hourly and per-trip rates. Record attendance with status, hours and overtime. Payroll suggests units from the selected attendance period and the selected staff member's wage basis; check the units, rate, overtime, allowances and deductions before posting. Changing a date range does not post payroll automatically.
+Staff supports monthly, daily, hourly and per-trip rates. Enter the agreed payable months, days or hours, rate, allowances including overtime and deductions before posting payroll. Monthly payroll starts at one payable month; other wage bases start at zero units for explicit entry. Changing a date range does not post payroll automatically.
 
-Payments settle the oldest outstanding earnings at the same location. Any excess becomes a staff advance. Later earnings apply available advances at that location. Payment method, reference and notes are retained. Overlapping payroll periods are rejected, and attendance inside a posted payroll period is locked. Current outstanding/advance balances are labelled separately from the filtered attendance/earnings/payment period.
+Payments settle the oldest outstanding earnings at the same location. Any excess becomes a staff advance. Later earnings apply available advances at that location. Payment method, reference and notes are retained. Overlapping payroll periods are rejected. Current outstanding/advance balances are labelled separately from the filtered earnings/payment period.
 
-Staff statements provide profiles, attendance, earnings, payments with allocations, monthly salary allocations to loads and audit history. Use the full record preview or export Excel, complete JSON or a PDF through the print dialog.
+Staff statements provide profiles, earnings, payments with allocations, monthly salary allocations to loads and Staff financial audit history. Use the full record preview or export Excel, complete JSON or a PDF through the print dialog.
+
+Attendance is reserved as a separate, inactive module for later implementation. Staff has no attendance screen, recording action, automatic attendance-based payroll calculation or attendance export. Existing attendance and its audit records are retained in the database for a future explicit migration; they are not deleted or included in Staff statements. See `attendance_module_scope.md`.
 
 ## Load expenses and customer charges
 

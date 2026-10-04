@@ -6,6 +6,7 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 
 import '../models/report_document.dart';
+import '../models/record_presentation.dart';
 
 /// Pure builders shared by saved files and printing. No screen/plugin state.
 class ReportFileBuilder {
@@ -30,10 +31,17 @@ class ReportFileBuilder {
   }
 
   static List<String> getColumns(ReportDocument report) => [
-    ...report.columns.map((c) => c.key),
+    ...report.columns
+        .where((c) => !RecordPresentation.internal(c.key))
+        .map((c) => c.key),
     ...report.rows
         .expand((r) => r.entries)
-        .where((e) => e.value is! Map && e.value is! List)
+        .where(
+          (e) =>
+              e.value is! Map &&
+              e.value is! List &&
+              !RecordPresentation.internal(e.key),
+        )
         .map((e) => e.key)
         .toSet()
         .difference(report.columns.map((c) => c.key).toSet())
@@ -162,7 +170,7 @@ class ReportFileBuilder {
       TextCellValue('Value'),
     ]);
     for (var index = 0; index < report.rows.length; index++) {
-      final row = report.rows[index];
+      final row = RecordPresentation.report(report.rows[index]);
       append(
         sheet,
         fields.map((key) {
@@ -175,7 +183,7 @@ class ReportFileBuilder {
           return excelValue(value);
         }).toList(),
       );
-      for (final field in leaves(row)) {
+      for (final field in leaves(RecordPresentation.report(row))) {
         final parts = field.value is String
             ? chunks(field.value, 30000).toList()
             : [field.value];
@@ -273,7 +281,9 @@ class ReportFileBuilder {
         ),
       );
     }
-    final columns = report.columns;
+    final columns = report.columns
+        .where((c) => !RecordPresentation.internal(c.key))
+        .toList();
     // A stable record number and document reference link every column band.
     if (columns.isEmpty) {
       throw StateError('This report has no defined columns.');
@@ -307,7 +317,7 @@ class ReportFileBuilder {
       );
       final table = <List<String>>[];
       for (var index = 0; index < report.rows.length; index++) {
-        final row = report.rows[index];
+        final row = RecordPresentation.report(report.rows[index]);
         table.add([
           '${index + 1}',
           ...band.map((c) {
@@ -353,9 +363,9 @@ class ReportFileBuilder {
     }
     final details = <MapEntry<int, List<MapEntry<String, dynamic>>>>[];
     for (var index = 0; index < report.rows.length; index++) {
-      final row = report.rows[index];
+      final row = RecordPresentation.report(report.rows[index]);
       final fields = evidence
-          ? leaves(row).toList()
+          ? leaves(RecordPresentation.report(row)).toList()
           : [
               for (final column in columns)
                 if (report.cell(row, column).length > 75)
