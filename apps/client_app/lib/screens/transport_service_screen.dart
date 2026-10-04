@@ -13,11 +13,13 @@ import '../widgets/searchable_select.dart';
 class TransportServiceScreen extends StatefulWidget {
   final ClientSession session;
   final bool startInCreate;
+  final String? initialJobId;
 
   const TransportServiceScreen({
     super.key,
     required this.session,
     this.startInCreate = false,
+    this.initialJobId,
   });
 
   @override
@@ -34,6 +36,7 @@ class _TransportServiceScreenState extends State<TransportServiceScreen> {
   String _statusFilter = 'all';
   List<Map<String, dynamic>> _vehicles = [];
   List<Map<String, dynamic>> _jobs = [];
+  String? _jobFocusId;
   List<Customer> _customerRows = [];
   List<InventoryProduct> _billingProducts = [];
 
@@ -49,6 +52,7 @@ class _TransportServiceScreenState extends State<TransportServiceScreen> {
   @override
   void initState() {
     super.initState();
+    _jobFocusId = widget.initialJobId;
     _bootstrap();
   }
 
@@ -82,7 +86,12 @@ class _TransportServiceScreenState extends State<TransportServiceScreen> {
       if (!mounted) return;
       setState(() {
         _vehicles = results[0] as List<Map<String, dynamic>>;
-        _jobs = results[1] as List<Map<String, dynamic>>;
+        final jobs = results[1] as List<Map<String, dynamic>>;
+        _jobs = _jobFocusId == null
+            ? jobs
+            : jobs
+                  .where((row) => row['id']?.toString() == _jobFocusId)
+                  .toList();
         _customerRows = (results[2] as List<Customer>)
             .where((customer) => customer.isActive && !customer.isWalkIn)
             .toList();
@@ -864,9 +873,9 @@ class _TransportServiceScreenState extends State<TransportServiceScreen> {
                                 'GST preview is calculated by the server. Flutter does not calculate tax.',
                                 style: TextStyle(
                                   fontSize: 11,
-                                  color: Theme.of(
-                                    context,
-                                  ).colorScheme.onSurfaceVariant,
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .onSurfaceVariant,
                                 ),
                               ),
                             ),
@@ -1491,8 +1500,19 @@ class _TransportServiceScreenState extends State<TransportServiceScreen> {
                 ),
               ),
             )
-          else
-            ..._jobs.map(_jobCard),
+          else if (_jobFocusId != null)
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton.icon(
+                onPressed: () {
+                  setState(() => _jobFocusId = null);
+                  _load();
+                },
+                icon: const Icon(Icons.filter_alt_off_outlined),
+                label: const Text('Linked customer job • Show all jobs'),
+              ),
+            ),
+          ..._jobs.map(_jobCard),
         ],
       ),
     );

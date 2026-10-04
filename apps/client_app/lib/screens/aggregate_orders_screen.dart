@@ -126,9 +126,7 @@ class _AggregateOrdersScreenState extends State<AggregateOrdersScreen> {
   }
 
   Future<void> _createOrder() async {
-    final customers = _list(
-      'customers',
-    ).where((row) => row['is_walk_in'] != true).toList(growable: false);
+    final customers = _list('customers');
     final products = _list('products');
     final locations = _list('locations');
 
@@ -184,7 +182,7 @@ class _AggregateOrdersScreenState extends State<AggregateOrdersScreen> {
             }
 
             return AlertDialog(
-              title: const Text('New Customer Order'),
+              title: const Text('New Customer Order — no GST invoice'),
               content: SizedBox(
                 width: 860,
                 child: SingleChildScrollView(
@@ -317,9 +315,9 @@ class _AggregateOrdersScreenState extends State<AggregateOrdersScreen> {
                           padding: const EdgeInsets.all(10),
                           decoration: BoxDecoration(
                             border: Border.all(
-                              color: Theme.of(
-                                context,
-                              ).colorScheme.outlineVariant,
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .outlineVariant,
                             ),
                             borderRadius: BorderRadius.circular(10),
                           ),
@@ -1025,9 +1023,8 @@ class _AggregateOrdersScreenState extends State<AggregateOrdersScreen> {
       await _reload();
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(error.toString())));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(error.toString())));
     } finally {
       reason.dispose();
     }

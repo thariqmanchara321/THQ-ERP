@@ -4,11 +4,17 @@ import 'package:thq_ui/thq_ui.dart';
 import '../models/client_session.dart';
 import '../services/location_scope_service.dart';
 import '../services/transport_service.dart';
+import 'transport_logistics_hub_screen.dart';
 
 class VehicleFleetScreen extends StatefulWidget {
   final ClientSession session;
+  final String? initialVehicleId;
 
-  const VehicleFleetScreen({super.key, required this.session});
+  const VehicleFleetScreen({
+    super.key,
+    required this.session,
+    this.initialVehicleId,
+  });
 
   @override
   State<VehicleFleetScreen> createState() => _VehicleFleetScreenState();
@@ -20,6 +26,7 @@ class _VehicleFleetScreenState extends State<VehicleFleetScreen> {
   bool _loading = true;
   String? _error;
   List<Map<String, dynamic>> _vehicles = [];
+  String? _vehicleId;
 
   String get _tenantId => widget.session.business.id;
   String? get _locationId =>
@@ -32,7 +39,17 @@ class _VehicleFleetScreenState extends State<VehicleFleetScreen> {
   @override
   void initState() {
     super.initState();
+    _vehicleId = widget.initialVehicleId;
+    LocationScopeService.selectedLocationId.addListener(_locationChanged);
     _load();
+  }
+
+  void _locationChanged() => _load();
+
+  @override
+  void dispose() {
+    LocationScopeService.selectedLocationId.removeListener(_locationChanged);
+    super.dispose();
   }
 
   String _clean(Object error) => error
@@ -60,7 +77,11 @@ class _VehicleFleetScreenState extends State<VehicleFleetScreen> {
       if (!mounted) {
         return;
       }
-      setState(() => _vehicles = rows);
+      setState(
+        () => _vehicles = _vehicleId == null
+            ? rows
+            : rows.where((row) => row['id']?.toString() == _vehicleId).toList(),
+      );
     } catch (error) {
       if (mounted) {
         setState(() => _error = _clean(error));
@@ -352,13 +373,32 @@ class _VehicleFleetScreenState extends State<VehicleFleetScreen> {
           ].where((v) => v.isNotEmpty).join('\n'),
         ),
         isThreeLine: true,
-        trailing: _canManage
-            ? IconButton(
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            IconButton(
+              tooltip: 'View vehicle trips',
+              onPressed: () async {
+                await Navigator.of(context).push<void>(
+                  MaterialPageRoute(
+                    builder: (_) => TransportLogisticsHubScreen(
+                      session: widget.session,
+                      initialVehicleId: vehicle['id']?.toString(),
+                    ),
+                  ),
+                );
+                if (mounted) await _load();
+              },
+              icon: const Icon(Icons.route_outlined),
+            ),
+            if (_canManage)
+              IconButton(
                 tooltip: 'Edit vehicle',
                 onPressed: () => _editVehicle(vehicle),
                 icon: const Icon(Icons.edit_outlined),
-              )
-            : null,
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -369,6 +409,14 @@ class _VehicleFleetScreenState extends State<VehicleFleetScreen> {
       appBar: AppBar(
         title: const Text('Vehicle Fleet'),
         actions: [
+          if (_vehicleId != null)
+            TextButton(
+              onPressed: () {
+                setState(() => _vehicleId = null);
+                _load();
+              },
+              child: const Text('All vehicles'),
+            ),
           if (_canManage)
             FilledButton.tonalIcon(
               onPressed: () => _editVehicle(),
@@ -393,13 +441,12 @@ class _VehicleFleetScreenState extends State<VehicleFleetScreen> {
                 children: [
                   Text(
                     'Fleet master',
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
+                    style: Theme.of(context).textTheme.titleLarge
+                        ?.copyWith(fontWeight: FontWeight.w700),
                   ),
                   const SizedBox(height: 4),
                   const Text(
-                    'Vehicles here are shared by Vehicle Logistics and Transport / Service.',
+                    'Vehicles are shared by Material Yard, Vehicle Logistics and Transport / Service.',
                   ),
                   if (_error != null) ...[
                     const SizedBox(height: 10),

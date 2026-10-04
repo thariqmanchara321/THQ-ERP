@@ -1,23 +1,26 @@
-import 'dart:typed_data';
+import 'dart:async';
 
-import 'package:excel/excel.dart';
 import 'package:file_saver/file_saver.dart';
 import 'package:flutter/material.dart';
-import 'package:thq_ui/thq_ui.dart';
-import 'package:flutter/painting.dart' as painting;
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
-import 'package:pdf/pdf.dart';
-import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/client_session.dart';
+import '../models/report_document.dart';
 import '../services/location_scope_service.dart';
+import '../services/report_file_builder.dart';
+import '../services/reports_center_service.dart';
+import '../widgets/record_preview.dart';
 
 class ReportsCenterV500Screen extends StatefulWidget {
   final ClientSession session;
-  const ReportsCenterV500Screen({super.key, required this.session});
-
+  final ReportsCenterService? service;
+  const ReportsCenterV500Screen({
+    super.key,
+    required this.session,
+    this.service,
+  });
   @override
   State<ReportsCenterV500Screen> createState() =>
       _ReportsCenterV500ScreenState();
@@ -25,550 +28,854 @@ class ReportsCenterV500Screen extends StatefulWidget {
 
 class _ReportsCenterV500ScreenState extends State<ReportsCenterV500Screen> {
   final _query = TextEditingController();
-  List<Map<String, dynamic>> _catalog = const [];
-  List<Map<String, dynamic>> _rows = const [];
-  List<String> _columnsCache = const [];
-  Map<String, String> _reportNameByKey = const {};
-  int _runGeneration = 0;
-  String? _reportKey;
+  final _horizontal = ScrollController();
+  final _vertical = ScrollController();
+  late final ReportsCenterService _service =
+      widget.service ?? ReportsCenterService();
+  List<ReportDefinition> _catalog = [];
+  ReportDefinition? _definition;
+  ReportDocument? _report;
+  ReportRequest? _loadedRequest;
   DateTime _from = DateTime(DateTime.now().year, DateTime.now().month, 1);
   DateTime _to = DateTime.now();
+  Timer? _searchTimer;
+  int _generation = 0;
+  int _offset = 0;
+  int _pageSize = 100;
+  String? _sortKey;
+  bool _sortDescending = false;
   bool _loading = true;
   bool _exporting = false;
   String? _error;
+  String? _category;
 
   @override
   void initState() {
     super.initState();
+    LocationScopeService.selectedLocationId.addListener(_scopeChanged);
     _initialize();
   }
 
   @override
   void dispose() {
+    _generation++;
+    _searchTimer?.cancel();
+    LocationScopeService.selectedLocationId.removeListener(_scopeChanged);
     _query.dispose();
+    _horizontal.dispose();
+    _vertical.dispose();
     super.dispose();
   }
 
-  List<Map<String, dynamic>> _maps(dynamic raw) => raw is List
-      ? raw.whereType<Map>().map((x) => Map<String, dynamic>.from(x)).toList()
-      : const <Map<String, dynamic>>[];
-
-  static const Map<String, String> _reportNames = {
-    'sales_summary': 'Sales Summary',
-    'sales_register': 'Sales Register',
-    'sales_by_product': 'Sales by Product',
-    'sales_by_customer': 'Sales by Customer',
-    'sales_by_salesperson': 'Sales by Salesperson',
-    'sales_by_store': 'Sales by Store',
-    'sales_by_pos': 'Sales by POS',
-    'sales_by_payment_method': 'Sales by Payment Method',
-    'returns': 'Returns',
-    'current_stock': 'Current Stock',
-    'stock_valuation': 'Stock Valuation',
-    'stock_movement': 'Stock Movement',
-    'stock_aging': 'Stock Aging',
-    'expiry': 'Expiry',
-    'dead_stock': 'Dead Stock',
-    'low_stock': 'Low Stock',
-    'serials': 'Serial Numbers',
-    'batches': 'Batch / Lot',
-    'purchase_register': 'Purchase Register',
-    'supplier_purchase': 'Supplier Purchases',
-    'purchase_returns': 'Purchase Returns',
-    'supplier_outstanding': 'Supplier Outstanding',
-    'supplier_performance': 'Supplier Performance',
-    'price_history': 'Purchase Price History',
-    'profit_loss': 'Profit & Loss',
-    'balance_sheet': 'Balance Sheet',
-    'trial_balance': 'Trial Balance',
-    'general_ledger': 'General Ledger',
-    'cash_flow': 'Cash Flow',
-    'receivables': 'Accounts Receivable',
-    'payables': 'Accounts Payable',
-    'journal_register': 'Journal Register',
-    'expenses': 'Expense Register',
-    'tax': 'GST / Tax Report',
-    'reconciliation': 'Financial Reconciliation',
-  };
-
-  List<Map<String, dynamic>> _flattenCatalog(dynamic raw) {
-    final out = <Map<String, dynamic>>[];
-    for (final group in _maps(raw)) {
-      final category = group['category']?.toString() ?? 'Reports';
-      final reports = group['reports'];
-      if (reports is! List) continue;
-      for (final item in reports) {
-        final key = item?.toString().trim() ?? '';
-        if (key.isEmpty) continue;
-        out.add({
-          'category': category,
-          'key': key,
-          'name': _reportNames[key] ?? _label(key),
+  Future<void> _initialize() async {
+    final generation = ++_generation;
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final items = await _service.catalog(widget.session.business.id);
+      if (!mounted || generation != _generation) return;
+      setState(() {
+        _catalog = items;
+        _definition = items.isEmpty ? null : items.first;
+      });
+      if (items.isEmpty) {
+        setState(() {
+          _loading = false;
+          _error =
+              'No reports are available for your enabled modules and permissions.';
+        });
+      } else {
+        await _run();
+      }
+    } catch (error) {
+      if (mounted && generation == _generation) {
+        setState(() {
+          _loading = false;
+          _error = error.toString();
         });
       }
     }
-    return out;
   }
 
-  String _date(DateTime d) => DateFormat('yyyy-MM-dd').format(d);
+  void _scopeChanged() {
+    _invalidate();
+    _run();
+  }
 
-  Future<void> _initialize() async {
+  void _invalidate() {
+    _searchTimer?.cancel();
+    _generation++;
+    setState(() {
+      _report = null;
+      _loadedRequest = null;
+      _offset = 0;
+      _error = null;
+      _loading = false;
+    });
+  }
+
+  ReportRequest _request() => ReportRequest(
+    tenantId: widget.session.business.id,
+    key: _definition!.key,
+    from: _from,
+    to: _to,
+    locationId: LocationScopeService.currentForRead(widget.session),
+    query: _query.text.trim(),
+    offset: _offset,
+    limit: _pageSize,
+    sortKey: _sortKey,
+    sortDescending: _sortDescending,
+  );
+  Future<void> _run() async {
+    if (_definition == null) return;
+    _searchTimer?.cancel();
+    final generation = ++_generation;
+    final request = _request();
+    setState(() {
+      _loading = true;
+      _report = null;
+      _loadedRequest = null;
+      _error = null;
+    });
     try {
-      final raw = await Supabase.instance.client.rpc('reports_catalog_v500');
-      _catalog = _flattenCatalog(raw);
-      _reportNameByKey = Map<String, String>.unmodifiable({
-        for (final report in _catalog)
-          if ((report['key']?.toString() ?? '').isNotEmpty)
-            report['key'].toString():
-                report['name']?.toString() ?? report['key'].toString(),
+      final report = await _service.run(request);
+      if (!mounted || generation != _generation) return;
+      setState(() {
+        _report = report;
+        _loadedRequest = request;
+        _loading = false;
       });
-      _reportKey = _catalog.isEmpty
-          ? 'sales_summary'
-          : _catalog.first['key']?.toString();
-      await _run();
-    } catch (e) {
-      if (mounted) {
+      if (_vertical.hasClients) _vertical.jumpTo(0);
+    } catch (error) {
+      if (mounted && generation == _generation) {
         setState(() {
-          _error = e.toString();
+          _error = error.toString();
           _loading = false;
         });
       }
     }
   }
 
-  void _invalidateResult() {
-    _runGeneration++;
-    _rows = const [];
-    _columnsCache = const [];
-    _error = null;
-    _loading = false;
+  void _searchChanged(String value) {
+    _invalidate();
+    _searchTimer = Timer(const Duration(milliseconds: 400), _run);
   }
 
-  List<String> _deriveColumns(List<Map<String, dynamic>> rows) {
-    if (rows.isEmpty) return const [];
-    final columns = <String>[];
-    for (final row in rows.take(50)) {
-      for (final key in row.keys) {
-        if (!columns.contains(key)) columns.add(key);
-      }
-    }
-    return List<String>.unmodifiable(columns);
-  }
-
-  Future<void> _run() async {
-    final key = _reportKey;
-    if (key == null) return;
-
-    final request = ++_runGeneration;
-    final from = _from;
-    final to = _to;
-    final locationId = LocationScopeService.currentForRead(widget.session);
-    final query = _query.text.trim();
-
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
-
-    try {
-      final raw = await Supabase.instance.client.rpc(
-        'reports_center_data_v500',
-        params: {
-          'p_tenant_id': widget.session.business.id,
-          'p_report_key': key,
-          'p_from': _date(from),
-          'p_to': _date(to),
-          'p_location_id': locationId,
-          'p_query': query,
-          'p_limit': 5000,
-        },
-      );
-      final rows = _maps(raw);
-      final columns = _deriveColumns(rows);
-
-      if (!mounted || request != _runGeneration) return;
-      setState(() {
-        _rows = rows;
-        _columnsCache = columns;
-        _loading = false;
-        _error = null;
-      });
-    } catch (e) {
-      if (!mounted || request != _runGeneration) return;
-      setState(() {
-        _error = e.toString();
-        _rows = const [];
-        _columnsCache = const [];
-        _loading = false;
-      });
-    }
-  }
-
-  Future<void> _pickDate(bool from) async {
-    final picked = await showDatePicker(
+  Future<void> _date(bool start) async {
+    final date = await showDatePicker(
       context: context,
-      initialDate: from ? _from : _to,
-      firstDate: DateTime(2000),
+      initialDate: start ? _from : _to,
+      firstDate: DateTime(1900),
       lastDate: DateTime(2100),
     );
-    if (picked == null) return;
+    if (!mounted || date == null) return;
     setState(() {
-      if (from) {
-        _from = picked;
+      if (start) {
+        _from = date;
+        if (_to.isBefore(date)) _to = date;
       } else {
-        _to = picked;
+        _to = date;
+        if (_from.isAfter(date)) _from = date;
       }
-      if (_from.isAfter(_to)) {
-        final swap = _from;
-        _from = _to;
-        _to = swap;
-      }
-      _invalidateResult();
     });
+    _invalidate();
+    await _run();
   }
 
-  List<String> get _columns => _columnsCache;
+  void _chooseReport(ReportDefinition definition) {
+    setState(() {
+      _definition = definition;
+      _sortKey = null;
+      _sortDescending = false;
+    });
+    _invalidate();
+    _run();
+  }
 
-  String get _reportTitle =>
-      _reportNameByKey[_reportKey] ?? _reportKey ?? 'Report';
+  Future<void> _export(String format) async {
+    final request = _loadedRequest;
+    if (request == null || _loading || _exporting) return;
+    setState(() {
+      _exporting = true;
+    });
+    try {
+      // Capture the loaded query. UI edits cannot relabel an export in progress.
+      final report = await _service.run(request.exportRequest());
+      report.requireComplete();
+      final name =
+          'THQ_${report.definition.key}_${report.context['from']}_${report.context['to']}';
+      Uint8List bytes;
+      var extension = format;
+      var mime = MimeType.other;
+      if (format == 'xlsx') {
+        bytes = ReportFileBuilder.excel(report);
+        mime = MimeType.microsoftExcel;
+      } else if (format == 'json') {
+        bytes = ReportFileBuilder.json(report);
+        mime = MimeType.json;
+      } else {
+        final fonts = await Future.wait([
+          rootBundle.load('assets/report_fonts/ReportSans.ttf'),
+          rootBundle.load('assets/report_fonts/ReportSans-Bold.ttf'),
+          rootBundle.load('assets/report_fonts/NotoSansMalayalam.ttf'),
+          rootBundle.load('assets/report_fonts/NotoSansDevanagari.ttf'),
+        ]);
+        bytes = await ReportFileBuilder.pdf(
+          report,
+          regular: fonts[0],
+          bold: fonts[1],
+          fallback: fonts.skip(2).toList(),
+          evidence: format == 'pdf_details',
+        );
+        extension = 'pdf';
+        mime = MimeType.pdf;
+      }
+      if (!mounted) return;
+      if (format == 'print') {
+        await Printing.layoutPdf(name: name, onLayout: (_) async => bytes);
+      } else {
+        await FileSaver.instance.saveFile(
+          name: name,
+          bytes: bytes,
+          fileExtension: extension,
+          mimeType: mime,
+        );
+      }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${report.totalRows} matching records exported.'),
+          ),
+        );
+      }
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Export failed: $error')));
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _exporting = false;
+        });
+      }
+    }
+  }
 
-  Future<Uint8List> _pdf() async {
-    final document = pw.Document();
-    final columns = _columns.take(8).toList();
-    document.addPage(
-      pw.MultiPage(
-        pageFormat: PdfPageFormat.a4.landscape,
-        margin: const pw.EdgeInsets.all(22),
-        header: (_) => pw.Column(
-          crossAxisAlignment: pw.CrossAxisAlignment.start,
-          children: [
-            pw.Text(
-              widget.session.business.name,
-              style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold),
+  Widget _selector() {
+    final items = _category == null
+        ? _catalog
+        : _catalog.where((r) => r.category == _category).toList();
+    return DropdownButtonFormField<String>(
+      key: ValueKey(_definition?.key),
+      initialValue: _definition?.key,
+      isExpanded: true,
+      decoration: const InputDecoration(
+        labelText: 'Report',
+        border: OutlineInputBorder(),
+        isDense: true,
+      ),
+      items: items
+          .map(
+            (d) => DropdownMenuItem(
+              value: d.key,
+              child: Text(d.title, overflow: TextOverflow.ellipsis),
             ),
-            pw.Text(
-              '$_reportTitle • ${_date(_from)} to ${_date(_to)}',
-              style: const pw.TextStyle(fontSize: 11),
-            ),
-            pw.SizedBox(height: 8),
-          ],
+          )
+          .toList(),
+      onChanged: _exporting
+          ? null
+          : (key) {
+              if (key != null) {
+                _chooseReport(_catalog.firstWhere((d) => d.key == key));
+              }
+            },
+    );
+  }
+
+  Widget _scopeSelector({VoidCallback? refresh}) =>
+      DropdownButtonFormField<String>(
+        key: ValueKey(
+          'scope-${LocationScopeService.currentForRead(widget.session)}',
         ),
-        build: (_) => [
-          if (_rows.isEmpty)
-            pw.Text('No records')
-          else
-            pw.TableHelper.fromTextArray(
-              headers: columns.map(_label).toList(),
-              data: _rows
-                  .map((r) => columns.map((c) => _cell(r[c])).toList())
-                  .toList(),
-              headerDecoration: const pw.BoxDecoration(
-                color: PdfColors.grey200,
+        initialValue: LocationScopeService.currentForRead(widget.session) ?? '',
+        isExpanded: true,
+        decoration: const InputDecoration(
+          labelText: 'Store',
+          border: OutlineInputBorder(),
+          isDense: true,
+        ),
+        items: [
+          if (widget.session.canViewAllLocations ||
+              LocationScopeService.currentForRead(widget.session) == null)
+            const DropdownMenuItem(
+              value: '',
+              child: Text(
+                'All authorized stores',
+                overflow: TextOverflow.ellipsis,
               ),
-              headerStyle: pw.TextStyle(
-                fontSize: 10.5,
-                fontWeight: pw.FontWeight.bold,
-              ),
-              cellStyle: const pw.TextStyle(fontSize: 10),
             ),
+          ...LocationScopeService.orderedLocations(widget.session).map(
+            (l) => DropdownMenuItem(
+              value: l.id,
+              child: Text(l.name, overflow: TextOverflow.ellipsis),
+            ),
+          ),
         ],
-        footer: (c) => pw.Align(
-          alignment: pw.Alignment.centerRight,
-          child: pw.Text(
-            'Page ${c.pageNumber} of ${c.pagesCount}',
-            style: const pw.TextStyle(fontSize: 10),
+        onChanged: _exporting
+            ? null
+            : (value) {
+                if (value == null) return;
+                if (value.isEmpty) {
+                  LocationScopeService.selectAll(widget.session);
+                } else {
+                  LocationScopeService.select(widget.session, value);
+                }
+                refresh?.call();
+              },
+      );
+  Widget _dateButton(
+    bool start, {
+    VoidCallback? refresh,
+  }) => OutlinedButton.icon(
+    onPressed: _exporting
+        ? null
+        : () async {
+            await _date(start);
+            refresh?.call();
+          },
+    icon: const Icon(Icons.calendar_month, size: 17),
+    label: Text(
+      '${start ? 'From' : 'To'} ${DateFormat('dd MMM yyyy').format(start ? _from : _to)}',
+    ),
+  );
+  Widget _exportMenu() => PopupMenuButton<String>(
+    enabled: _report != null && !_loading && !_exporting,
+    tooltip: 'Export every matching record',
+    onSelected: _export,
+    itemBuilder: (_) => const [
+      PopupMenuItem(value: 'xlsx', child: Text('Excel + complete evidence')),
+      PopupMenuItem(value: 'pdf', child: Text('PDF report')),
+      PopupMenuItem(
+        value: 'pdf_details',
+        child: Text('PDF + all saved evidence'),
+      ),
+
+      PopupMenuItem(value: 'json', child: Text('Complete JSON')),
+      PopupMenuItem(value: 'print', child: Text('Print report')),
+    ],
+    child: const Padding(
+      padding: EdgeInsets.all(12),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.download, size: 19),
+          SizedBox(width: 6),
+          Text('Export'),
+        ],
+      ),
+    ),
+  );
+  Future<void> _filters() async {
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (sheetContext) => StatefulBuilder(
+        builder: (sheetContext, update) => SingleChildScrollView(
+          padding: EdgeInsets.fromLTRB(
+            16,
+            16,
+            16,
+            16 + MediaQuery.viewInsetsOf(sheetContext).bottom,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Text(
+                'Report filters',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 12),
+              _scopeSelector(
+                refresh: () {
+                  if (sheetContext.mounted) update(() {});
+                },
+              ),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 8,
+                children: [
+                  _dateButton(
+                    true,
+                    refresh: () {
+                      if (sheetContext.mounted) update(() {});
+                    },
+                  ),
+                  _dateButton(
+                    false,
+                    refresh: () {
+                      if (sheetContext.mounted) update(() {});
+                    },
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _query,
+                decoration: const InputDecoration(
+                  labelText: 'Search all saved fields',
+                  border: OutlineInputBorder(),
+                ),
+                onChanged: _searchChanged,
+                onSubmitted: (_) => _run(),
+              ),
+              const SizedBox(height: 12),
+              FilledButton(
+                onPressed: () {
+                  Navigator.pop(sheetContext);
+                  _run();
+                },
+                child: const Text('Run report'),
+              ),
+            ],
           ),
         ),
       ),
     );
-    return document.save();
   }
 
-  Future<void> _export(String type) async {
-    if (_exporting) return;
-    setState(() => _exporting = true);
-    try {
-      final safe = _reportTitle.replaceAll(RegExp(r'[^A-Za-z0-9_-]+'), '_');
-      final name = 'THQ_${safe}_${_date(_from)}_${_date(_to)}';
-      if (type == 'xlsx') {
-        final excel = Excel.createExcel();
-        final sheet = excel['Report'];
-        final columns = _columns;
-        sheet.appendRow(columns.map((x) => TextCellValue(_label(x))).toList());
-        for (final row in _rows) {
-          sheet.appendRow(
-            columns.map((x) => TextCellValue(_cell(row[x]))).toList(),
-          );
-        }
-        final raw = excel.save();
-        if (raw == null) throw Exception('Could not create Excel report.');
-        await FileSaver.instance.saveFile(
-          name: name,
-          bytes: Uint8List.fromList(raw),
-          fileExtension: 'xlsx',
-          mimeType: MimeType.microsoftExcel,
-        );
-      } else {
-        final bytes = await _pdf();
-        if (type == 'print') {
-          await Printing.layoutPdf(
-            name: '$name.pdf',
-            onLayout: (_) async => bytes,
-          );
-        } else {
-          await FileSaver.instance.saveFile(
-            name: name,
-            bytes: bytes,
-            fileExtension: 'pdf',
-            mimeType: MimeType.pdf,
-          );
-        }
-      }
-      if (mounted) {
-        ThqNotify.showSnackBar(
-          context,
-          SnackBar(
-            content: Text(
-              type == 'print'
-                  ? 'Print dialog opened.'
-                  : '${type.toUpperCase()} report created.',
-            ),
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ThqNotify.showSnackBar(context, SnackBar(content: Text(e.toString())));
-      }
-    } finally {
-      if (mounted) setState(() => _exporting = false);
-    }
-  }
-
-  String _label(String key) => key
-      .replaceAll('_', ' ')
-      .split(' ')
-      .map((x) => x.isEmpty ? x : '${x[0].toUpperCase()}${x.substring(1)}')
-      .join(' ');
-  String _cell(dynamic value) {
-    if (value == null) return '';
-    if (value is Map || value is List) return value.toString();
-    return value.toString();
-  }
-
-  Widget _reportTable(List<String> columns) {
-    final visibleCount = _rows.length > 1000 ? 1000 : _rows.length;
-
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final calculatedWidth = columns.isEmpty
-            ? constraints.maxWidth
-            : columns.length * 175.0;
-        final tableWidth = calculatedWidth < constraints.maxWidth
-            ? constraints.maxWidth
-            : calculatedWidth;
-        final scheme = Theme.of(context).colorScheme;
-
-        return SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: SizedBox(
-            width: tableWidth,
-            height: constraints.maxHeight,
-            child: Column(
-              children: [
-                Container(
-                  height: 42,
-                  decoration: BoxDecoration(
-                    color: scheme.surfaceContainerHighest,
-                    border: painting.Border(
-                      bottom: BorderSide(color: scheme.outlineVariant),
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      for (final column in columns)
-                        Expanded(
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 8),
-                            child: Text(
-                              _label(column),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                          ),
-                        ),
-                    ],
+  Widget _toolbar(bool compact) => Padding(
+    padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SizedBox(
+          height: MediaQuery.textScalerOf(context).scale(22) + 20,
+          child: ListView(
+            scrollDirection: Axis.horizontal,
+            children: [
+              for (final category in [
+                'All',
+                ..._catalog.map((r) => r.category).toSet(),
+              ])
+                Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: ChoiceChip(
+                    label: Text(category),
+                    selected: (_category ?? 'All') == category,
+                    onSelected: _exporting
+                        ? null
+                        : (_) {
+                            setState(() {
+                              _category = category == 'All' ? null : category;
+                            });
+                            if (_category != null &&
+                                _definition?.category != _category) {
+                              _chooseReport(
+                                _catalog.firstWhere(
+                                  (r) => r.category == _category,
+                                ),
+                              );
+                            }
+                          },
                   ),
                 ),
-                Expanded(
-                  child: ListView.builder(
-                    itemCount: visibleCount,
-                    itemBuilder: (context, index) {
-                      final row = _rows[index];
-                      return Container(
-                        constraints: const BoxConstraints(minHeight: 52),
-                        decoration: BoxDecoration(
-                          border: painting.Border(
-                            bottom: BorderSide(color: scheme.outlineVariant),
-                          ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 10),
+        if (compact)
+          Row(
+            children: [
+              Expanded(child: _selector()),
+              IconButton(
+                tooltip: 'Dates, store and search',
+                onPressed: _exporting ? null : _filters,
+                icon: const Icon(Icons.tune),
+              ),
+              IconButton(
+                tooltip: 'Run report',
+                onPressed: _exporting ? null : _run,
+                icon: const Icon(Icons.refresh),
+              ),
+            ],
+          )
+        else
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              SizedBox(width: 330, child: _selector()),
+              SizedBox(width: 230, child: _scopeSelector()),
+              _dateButton(true),
+              _dateButton(false),
+              SizedBox(
+                width: 280,
+                child: TextField(
+                  controller: _query,
+                  enabled: !_exporting,
+                  decoration: const InputDecoration(
+                    labelText: 'Search all saved fields',
+                    prefixIcon: Icon(Icons.search),
+                    border: OutlineInputBorder(),
+                    isDense: true,
+                  ),
+                  onChanged: _searchChanged,
+                  onSubmitted: (_) => _run(),
+                ),
+              ),
+              FilledButton.icon(
+                onPressed: _exporting ? null : _run,
+                icon: const Icon(Icons.refresh, size: 18),
+                label: const Text('Run'),
+              ),
+            ],
+          ),
+        const SizedBox(height: 8),
+        Text(
+          '${_definition?.dateBasis ?? ''}\n${_definition?.description ?? ''}',
+          maxLines: compact ? 3 : 4,
+          overflow: TextOverflow.ellipsis,
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
+        if (compact)
+          Text(
+            '${DateFormat('dd MMM yyyy').format(_from)} – ${DateFormat('dd MMM yyyy').format(_to)} • ${LocationScopeService.scopeLabel(widget.session)}',
+            maxLines: 2,
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+      ],
+    ),
+  );
+  Widget _summary(ReportDocument report) {
+    if (report.summary.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            report.context['summary_basis']?.toString() ?? '',
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+          const SizedBox(height: 5),
+          SizedBox(
+            height: MediaQuery.textScalerOf(context).scale(60) + 28,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: report.summary.length,
+              separatorBuilder: (_, _) => const SizedBox(width: 10),
+              itemBuilder: (context, index) {
+                final metric = report.summary[index];
+                return Container(
+                  width: 220,
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.surfaceContainer,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        metric['label']?.toString() ?? '',
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.labelMedium,
+                      ),
+                      const Spacer(),
+                      Text(
+                        report.format(
+                          metric['value'],
+                          metric['type']?.toString() ?? 'text',
                         ),
-                        child: Row(
-                          children: [
-                            for (final column in columns)
-                              Expanded(
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 8,
-                                    vertical: 6,
-                                  ),
-                                  child: Text(
-                                    _cell(row[column]),
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(fontSize: 11.5),
-                                  ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _cell(
+    String text,
+    double width, {
+    bool numeric = false,
+    bool heading = false,
+    VoidCallback? tap,
+    IconData? icon,
+  }) => SizedBox(
+    width: width,
+    child: InkWell(
+      onTap: tap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        child: Row(
+          mainAxisAlignment: numeric
+              ? MainAxisAlignment.end
+              : MainAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Tooltip(
+                message: text,
+                child: Text(
+                  text,
+                  textAlign: numeric ? TextAlign.right : TextAlign.left,
+                  maxLines: heading ? 2 : 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontWeight: heading ? FontWeight.w600 : FontWeight.normal,
+                  ),
+                ),
+              ),
+            ),
+            if (icon != null) Icon(icon, size: 14),
+          ],
+        ),
+      ),
+    ),
+  );
+  Widget _table(ReportDocument report) {
+    if (report.rows.isEmpty) {
+      return const Center(
+        child: Text('No matching records. Change dates, store or search.'),
+      );
+    }
+    final width = report.columns.fold<double>(62, (sum, c) => sum + c.width);
+    return Scrollbar(
+      controller: _horizontal,
+      thumbVisibility: true,
+      notificationPredicate: (n) => n.depth == 0,
+      child: SingleChildScrollView(
+        controller: _horizontal,
+        scrollDirection: Axis.horizontal,
+        child: SizedBox(
+          width: width,
+          child: Column(
+            children: [
+              Container(
+                color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                child: Row(
+                  children: [
+                    const SizedBox(
+                      width: 62,
+                      height: 48,
+                      child: Center(child: Text('#')),
+                    ),
+                    for (final column in report.columns)
+                      _cell(
+                        column.label,
+                        column.width,
+                        heading: true,
+                        numeric: column.numeric,
+                        icon: _sortKey == column.key
+                            ? (_sortDescending
+                                  ? Icons.arrow_downward
+                                  : Icons.arrow_upward)
+                            : null,
+                        tap: _exporting
+                            ? null
+                            : () {
+                                setState(() {
+                                  _sortDescending = _sortKey == column.key
+                                      ? !_sortDescending
+                                      : false;
+                                  _sortKey = column.key;
+                                });
+                                _invalidate();
+                                _run();
+                              },
+                      ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: Scrollbar(
+                  controller: _vertical,
+                  thumbVisibility: true,
+                  child: ListView.builder(
+                    controller: _vertical,
+                    itemExtent: 46,
+                    itemCount: report.rows.length,
+                    itemBuilder: (context, index) {
+                      final row = report.rows[index];
+                      return Material(
+                        color: index.isEven
+                            ? Theme.of(context).colorScheme.surface
+                            : Theme.of(context).colorScheme.surfaceContainerLow,
+                        child: InkWell(
+                          onTap: () => RecordPreview.show(
+                            context,
+                            title:
+                                '${report.definition.title} • Record ${report.offset + index + 1}',
+                            record: row,
+                          ),
+                          child: Row(
+                            children: [
+                              _cell('${report.offset + index + 1}', 62),
+                              for (final column in report.columns)
+                                _cell(
+                                  report.cell(row, column),
+                                  column.width,
+                                  numeric: column.numeric,
                                 ),
-                              ),
-                          ],
+                            ],
+                          ),
                         ),
                       );
                     },
                   ),
                 ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final columns = _columns;
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Reports Center v5'),
-        actions: [
-          IconButton(
-            onPressed: _loading ? null : _run,
-            icon: const Icon(Icons.refresh),
-            tooltip: 'Refresh',
-          ),
-        ],
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          children: [
-            Wrap(
-              spacing: 10,
-              runSpacing: 10,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: [
-                SizedBox(
-                  width: 280,
-                  child: DropdownButtonFormField<String>(
-                    initialValue: _reportKey,
-                    decoration: const InputDecoration(
-                      labelText: 'Report',
-                      border: OutlineInputBorder(),
-                    ),
-                    items: _catalog
-                        .map(
-                          (report) => DropdownMenuItem<String>(
-                            value: report['key']?.toString(),
-                            child: Text(
-                              '${report['category'] ?? 'Reports'} • '
-                              '${report['name']?.toString() ?? report['key']?.toString() ?? 'Report'}',
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        )
-                        .toList(),
-                    onChanged: (value) {
-                      setState(() {
-                        _reportKey = value;
-                        _invalidateResult();
-                      });
-                    },
-                  ),
-                ),
-                OutlinedButton.icon(
-                  onPressed: () => _pickDate(true),
-                  icon: const Icon(Icons.date_range),
-                  label: Text('From ${_date(_from)}'),
-                ),
-                OutlinedButton.icon(
-                  onPressed: () => _pickDate(false),
-                  icon: const Icon(Icons.event),
-                  label: Text('To ${_date(_to)}'),
-                ),
-                SizedBox(
-                  width: 240,
-                  child: TextField(
-                    controller: _query,
-                    decoration: const InputDecoration(
-                      labelText: 'Search',
-                      prefixIcon: Icon(Icons.search),
-                      border: OutlineInputBorder(),
-                    ),
-                    onSubmitted: (_) => _run(),
-                  ),
-                ),
-                FilledButton.icon(
-                  onPressed: _loading ? null : _run,
-                  icon: const Icon(Icons.visibility),
-                  label: const Text('View'),
-                ),
-                OutlinedButton.icon(
-                  onPressed: _exporting || _rows.isEmpty
-                      ? null
-                      : () => _export('pdf'),
-                  icon: const Icon(Icons.picture_as_pdf),
-                  label: const Text('PDF'),
-                ),
-                OutlinedButton.icon(
-                  onPressed: _exporting || _rows.isEmpty
-                      ? null
-                      : () => _export('xlsx'),
-                  icon: const Icon(Icons.table_view),
-                  label: const Text('Excel'),
-                ),
-                OutlinedButton.icon(
-                  onPressed: _exporting || _rows.isEmpty
-                      ? null
-                      : () => _export('print'),
-                  icon: const Icon(Icons.print),
-                  label: const Text('Print'),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            if (_error != null)
-              Padding(
-                padding: const EdgeInsets.all(10),
-                child: Text(
-                  _error!,
-                  style: TextStyle(color: Theme.of(context).colorScheme.error),
-                ),
               ),
-            Expanded(
-              child: _loading
-                  ? const Center(child: CircularProgressIndicator())
-                  : _rows.isEmpty
-                  ? const Center(
-                      child: Text('No records for the selected filters.'),
-                    )
-                  : _reportTable(columns),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
   }
+
+  Widget _pagination(ReportDocument report, bool compact) => Padding(
+    padding: const EdgeInsets.all(8),
+    child: Wrap(
+      spacing: 12,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      alignment: WrapAlignment.end,
+      children: [
+        Text(
+          report.totalRows == 0
+              ? '0 matching records'
+              : '${report.offset + 1}–${report.offset + report.rows.length} of ${report.totalRows} records',
+        ),
+        if (!compact) const Text('Open a row for complete saved details'),
+        DropdownButton<int>(
+          value: _pageSize,
+          items: [50, 100, 200]
+              .map(
+                (size) =>
+                    DropdownMenuItem(value: size, child: Text('$size / page')),
+              )
+              .toList(),
+          onChanged: _exporting
+              ? null
+              : (size) {
+                  if (size == null) return;
+                  setState(() {
+                    _pageSize = size;
+                  });
+                  _invalidate();
+                  _run();
+                },
+        ),
+        IconButton(
+          tooltip: 'Previous page',
+          onPressed: report.offset > 0 && !_exporting
+              ? () {
+                  setState(() {
+                    _offset = (_offset - _pageSize).clamp(0, report.totalRows);
+                  });
+                  _run();
+                }
+              : null,
+          icon: const Icon(Icons.chevron_left),
+        ),
+        IconButton(
+          tooltip: 'Next page',
+          onPressed:
+              report.offset + report.rows.length < report.totalRows &&
+                  !_exporting
+              ? () {
+                  setState(() {
+                    _offset += _pageSize;
+                  });
+                  _run();
+                }
+              : null,
+          icon: const Icon(Icons.chevron_right),
+        ),
+      ],
+    ),
+  );
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(
+      title: const Text('Reports Center v5'),
+      actions: [
+        if (_exporting)
+          const Padding(
+            padding: EdgeInsets.all(15),
+            child: SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+          ),
+        _exportMenu(),
+      ],
+    ),
+    body: LayoutBuilder(
+      builder: (context, constraints) {
+        final compact =
+            constraints.maxWidth < 700 || constraints.maxHeight < 500;
+        final report = _report;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _toolbar(compact),
+            if (_loading) const LinearProgressIndicator(),
+            if (report != null && constraints.maxHeight >= 520)
+              _summary(report),
+            Expanded(
+              child: _error != null
+                  ? Center(
+                      child: SingleChildScrollView(
+                        padding: const EdgeInsets.all(24),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(_error!, textAlign: TextAlign.center),
+                            const SizedBox(height: 12),
+                            FilledButton(
+                              onPressed: _definition == null
+                                  ? _initialize
+                                  : _run,
+                              child: const Text('Retry'),
+                            ),
+                          ],
+                        ),
+                      ),
+                    )
+                  : report != null
+                  ? _table(report)
+                  : Center(
+                      child: Text(
+                        _loading
+                            ? 'Loading report…'
+                            : 'Choose a report and run it.',
+                      ),
+                    ),
+            ),
+            if (report != null) _pagination(report, compact),
+          ],
+        );
+      },
+    ),
+  );
 }

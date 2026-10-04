@@ -1,4 +1,5 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
+
 import 'location_scope_service.dart';
 import '../models/report_summary.dart';
 
@@ -10,7 +11,7 @@ class ReportService {
     required DateTime to,
   }) async {
     final result = await _supabase.rpc(
-      'reports_get_summary_v4',
+      'reports_get_summary_v630',
       params: {
         'p_tenant_id': tenantId,
         'p_from_date': _date(from),

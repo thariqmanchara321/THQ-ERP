@@ -1,5 +1,8 @@
+import '../widgets/load_cost_editor.dart';
+
 import 'package:flutter/material.dart';
 import 'package:thq_ui/thq_ui.dart';
+
 import '../models/client_session.dart';
 import '../models/sale_detail.dart';
 import '../services/sales_service.dart';
@@ -502,6 +505,8 @@ class _SaleDetailScreenState extends State<SaleDetailScreen> {
                 const SizedBox(height: 18),
                 _Card(title: 'Notes', child: Text(s.notes!)),
               ],
+              if (s.materialLoad.isNotEmpty)
+                LoadEvidenceCard(record: s.materialLoad),
               const SizedBox(height: 18),
               ActivityTimelineCard(
                 future: ActivityTimelineService().load(
@@ -681,7 +686,7 @@ class _SaleReturnDialogState extends State<_SaleReturnDialog> {
                 final item = widget.sale.items[index];
                 return ListTile(
                   contentPadding: EdgeInsets.zero,
-                  title: Text(item.productName),
+                  title: Text(item.invoiceDescription),
                   subtitle: Text('${item.sku} • Sold ${item.quantity}'),
                   trailing: SizedBox(
                     width: 120,

@@ -329,7 +329,7 @@ class TransactionPrintService {
                 (item) => pw.TableRow(
                   children: [
                     cell(
-                      '${item.productName}\n${item.sku}'
+                      '${item.invoiceDescription}\n${item.sku}'
                       '${(item.partNumber ?? '').trim().isEmpty ? '' : ' • ${item.partNumber}'}',
                     ),
                     cell(hsnFor(item)),

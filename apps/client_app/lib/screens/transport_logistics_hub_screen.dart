@@ -6,11 +6,23 @@ import '../services/location_scope_service.dart';
 import '../services/transport_trip_hub_service.dart';
 import 'logistics_screen.dart';
 import 'transport_service_screen.dart';
+import 'aggregate_loads_screen.dart';
+import 'vehicle_fleet_screen.dart';
+import 'material_load_reports_screen.dart';
 
 class TransportLogisticsHubScreen extends StatefulWidget {
+  final VoidCallback? onBack;
   final ClientSession session;
+  final String? initialVehicleId;
+  final String? initialMaterialLoadId;
 
-  const TransportLogisticsHubScreen({super.key, required this.session});
+  const TransportLogisticsHubScreen({
+    super.key,
+    this.onBack,
+    required this.session,
+    this.initialVehicleId,
+    this.initialMaterialLoadId,
+  });
 
   @override
   State<TransportLogisticsHubScreen> createState() =>
@@ -26,6 +38,8 @@ class _TransportLogisticsHubScreenState
   String? _error;
   String _kind = 'all';
   List<Map<String, dynamic>> _rows = const [];
+  String? _vehicleId;
+  String? _materialLoadId;
 
   String get _tenantId => widget.session.business.id;
   String? get _locationId =>
@@ -37,9 +51,16 @@ class _TransportLogisticsHubScreenState
 
   bool get _hasCustomerTransport =>
       widget.session.hasModule('transport_service');
+  bool get _hasMaterialYard =>
+      widget.session.hasModule('aggregate_yard') &&
+      (widget.session.hasRole('owner') ||
+          widget.session.hasPermission('aggregate_yard.view') ||
+          widget.session.hasPermission('aggregate_yard.manage'));
 
   bool get _canCreate =>
       widget.session.hasRole('owner') ||
+      (_hasMaterialYard &&
+          widget.session.hasPermission('aggregate_yard.manage')) ||
       widget.session.hasPermission('logistics_operations.create') ||
       widget.session.hasPermission('logistics_operations.manage') ||
       widget.session.hasPermission('transport_service.create') ||
@@ -50,14 +71,20 @@ class _TransportLogisticsHubScreenState
   @override
   void initState() {
     super.initState();
+    _vehicleId = widget.initialVehicleId;
+    _materialLoadId = widget.initialMaterialLoadId;
+    LocationScopeService.selectedLocationId.addListener(_locationChanged);
     _load();
   }
 
   @override
   void dispose() {
+    LocationScopeService.selectedLocationId.removeListener(_locationChanged);
     _search.dispose();
     super.dispose();
   }
+
+  void _locationChanged() => _load();
 
   Future<void> _load() async {
     setState(() {
@@ -70,6 +97,8 @@ class _TransportLogisticsHubScreenState
         tenantId: _tenantId,
         locationId: _locationId,
         kind: _kind == 'all' ? null : _kind,
+        vehicleId: _vehicleId,
+        materialLoadId: _materialLoadId,
         query: _search.text.trim().isEmpty ? null : _search.text.trim(),
       );
       if (!mounted) return;
@@ -91,6 +120,7 @@ class _TransportLogisticsHubScreenState
     'operational' => 'Operational',
     'stock_transfer' => 'Stock Transfer',
     'customer_transport' => 'Customer Transport',
+    'material_load' => 'Material Load',
     _ => kind.replaceAll('_', ' '),
   };
 
@@ -98,6 +128,7 @@ class _TransportLogisticsHubScreenState
     'operational' => Icons.route_outlined,
     'stock_transfer' => Icons.swap_horiz_rounded,
     'customer_transport' => Icons.receipt_long_outlined,
+    'material_load' => Icons.local_shipping_outlined,
     _ => Icons.local_shipping_outlined,
   };
 
@@ -111,6 +142,23 @@ class _TransportLogisticsHubScreenState
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              if (_hasMaterialYard &&
+                  (widget.session.hasRole('owner') ||
+                      widget.session.hasPermission(
+                        'aggregate_yard.manage',
+                      ))) ...[
+                ListTile(
+                  leading: const CircleAvatar(
+                    child: Icon(Icons.local_shipping_outlined),
+                  ),
+                  title: const Text('Material Load'),
+                  subtitle: const Text(
+                    'Receive or dispatch material through the Load Register.',
+                  ),
+                  onTap: () => Navigator.pop(dialogContext, 'material_load'),
+                ),
+                const Divider(height: 1),
+              ],
               ListTile(
                 leading: const CircleAvatar(child: Icon(Icons.route_outlined)),
                 title: const Text('Quick Operational Trip'),
@@ -163,7 +211,16 @@ class _TransportLogisticsHubScreenState
 
     if (!mounted || mode == null) return;
 
-    if (mode == 'operational') {
+    if (mode == 'material_load') {
+      await Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => AggregateLoadsScreen(
+            session: widget.session,
+            initialCreateDirection: 'outbound',
+          ),
+        ),
+      );
+    } else if (mode == 'operational') {
       await Navigator.of(context).push(
         MaterialPageRoute<void>(
           builder: (_) => Scaffold(
@@ -225,7 +282,16 @@ class _TransportLogisticsHubScreenState
   Future<void> _openFullWorkflow(Map<String, dynamic> row) async {
     final kind = row['trip_kind']?.toString() ?? '';
 
-    if (kind == 'stock_transfer') {
+    if (kind == 'material_load') {
+      await Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => AggregateLoadsScreen(
+            session: widget.session,
+            initialLoadId: row['material_load_id']?.toString(),
+          ),
+        ),
+      );
+    } else if (kind == 'stock_transfer') {
       final tripId = row['stock_trip_id']?.toString();
       await Navigator.of(context).push(
         MaterialPageRoute<void>(
@@ -238,7 +304,10 @@ class _TransportLogisticsHubScreenState
         MaterialPageRoute<void>(
           builder: (_) => Scaffold(
             appBar: AppBar(title: const Text('Customer Transport')),
-            body: TransportServiceScreen(session: widget.session),
+            body: TransportServiceScreen(
+              session: widget.session,
+              initialJobId: row['service_job_id']?.toString(),
+            ),
           ),
         ),
       );
@@ -250,6 +319,7 @@ class _TransportLogisticsHubScreenState
             body: LogisticsOperationsWorkspace(
               tenantId: _tenantId,
               locationId: _locationId,
+              initialOperationId: row['logistics_operation_id']?.toString(),
             ),
           ),
         ),
@@ -318,6 +388,17 @@ class _TransportLogisticsHubScreenState
                 title: const Text('Date'),
                 trailing: Text(date),
               ),
+              if (kind == 'material_load')
+                ListTile(
+                  dense: true,
+                  leading: const Icon(Icons.inventory_2_outlined),
+                  title: Text(
+                    '${row['product_name'] ?? 'Material'} • ${row['quantity']} ${row['unit_code']}',
+                  ),
+                  subtitle: Text(
+                    '${row['direction'] == 'outbound' ? 'Dispatch' : 'Inward'} • ${billed || row['purchase_id'] != null ? 'Invoice linked' : 'Invoice pending'}',
+                  ),
+                ),
               if (kind == 'customer_transport')
                 ListTile(
                   dense: true,
@@ -434,11 +515,12 @@ class _TransportLogisticsHubScreenState
               spacing: 6,
               runSpacing: 6,
               children: [
-                for (final entry in const [
+                for (final entry in [
                   ('all', 'All'),
                   ('operational', 'Operational'),
                   ('stock_transfer', 'Stock Transfer'),
                   ('customer_transport', 'Customer'),
+                  if (_hasMaterialYard) ('material_load', 'Material Loads'),
                 ])
                   ChoiceChip(
                     label: Text(entry.$2),
@@ -467,6 +549,27 @@ class _TransportLogisticsHubScreenState
             );
           },
         ),
+        if (_vehicleId != null || _materialLoadId != null)
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton.icon(
+              onPressed: () {
+                setState(() {
+                  _vehicleId = null;
+                  _materialLoadId = null;
+                  _kind = 'all';
+                  _search.clear();
+                });
+                _load();
+              },
+              icon: const Icon(Icons.filter_alt_off_outlined),
+              label: Text(
+                _vehicleId != null
+                    ? 'Vehicle trips • Show all trips'
+                    : 'Linked material load • Show all trips',
+              ),
+            ),
+          ),
         if (_error != null) ...[
           const SizedBox(height: 8),
           Card(
@@ -616,6 +719,33 @@ class _TransportLogisticsHubScreenState
                     spacing: 7,
                     runSpacing: 7,
                     children: [
+                      if (widget.onBack != null ||
+                          Navigator.of(context).canPop())
+                        OutlinedButton.icon(
+                          onPressed:
+                              widget.onBack ??
+                              () => Navigator.of(context).maybePop(),
+                          icon: const Icon(Icons.arrow_back),
+                          label: const Text('Back'),
+                        ),
+                      OutlinedButton.icon(
+                        onPressed: () async {
+                          await Navigator.of(context).push(
+                            MaterialPageRoute<void>(
+                              builder: (_) => VehicleFleetScreen(
+                                session: widget.session,
+                                initialVehicleId: _vehicleId,
+                              ),
+                            ),
+                          );
+                          if (mounted) await _load();
+                        },
+                        icon: const Icon(
+                          Icons.local_shipping_outlined,
+                          size: 18,
+                        ),
+                        label: const Text('Vehicles'),
+                      ),
                       OutlinedButton.icon(
                         onPressed: _openStockTransferExecution,
                         icon: const Icon(Icons.swap_horiz_rounded, size: 18),
@@ -629,6 +759,19 @@ class _TransportLogisticsHubScreenState
                         ),
                         label: const Text('Reports'),
                       ),
+                      if (widget.session.hasModule('aggregate_yard'))
+                        OutlinedButton.icon(
+                          onPressed: () => Navigator.push<void>(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => MaterialLoadReportsScreen(
+                                session: widget.session,
+                              ),
+                            ),
+                          ),
+                          icon: const Icon(Icons.assessment_outlined),
+                          label: const Text('Load costs & deliveries'),
+                        ),
                       IconButton(
                         tooltip: 'Refresh trips',
                         onPressed: _load,

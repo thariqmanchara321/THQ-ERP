@@ -9,7 +9,7 @@ import 'aggregate_loads_screen.dart';
 import 'aggregate_orders_screen.dart';
 import 'aggregate_vehicles_screen.dart';
 import 'customers_screen.dart';
-import 'inventory_products_screen.dart';
+import 'aggregate_yard_stock_screen.dart';
 import 'reports_screen.dart';
 import 'suppliers_screen.dart';
 import 'transport_logistics_hub_screen.dart';
@@ -175,8 +175,7 @@ class _AggregateYardScreenState extends State<AggregateYardScreen> {
                 const SizedBox(height: 12),
                 const _SectionTitle(
                   title: 'Do the work',
-                  subtitle:
-                      'Start with the real business action. Extra tracking is optional.',
+                  subtitle: 'Start with the real business action. Extra tracking is optional.',
                 ),
                 const SizedBox(height: 7),
                 Wrap(
@@ -194,27 +193,11 @@ class _AggregateYardScreenState extends State<AggregateYardScreen> {
                     ),
                     _ActionCard(
                       width: actionWidth,
-                      icon: Icons.move_to_inbox_outlined,
-                      title: 'Material Inward',
-                      subtitle: 'Receive a truck load and create the purchase.',
-                      onTap: () => _open(
-                        AggregateLoadsScreen(
-                          session: session,
-                          initialCreateDirection: 'inbound',
-                        ),
-                      ),
-                    ),
-                    _ActionCard(
-                      width: actionWidth,
-                      icon: Icons.outbox_outlined,
-                      title: 'Material Dispatch',
-                      subtitle: 'Dispatch a truck load and create the sale.',
-                      onTap: () => _open(
-                        AggregateLoadsScreen(
-                          session: session,
-                          initialCreateDirection: 'outbound',
-                        ),
-                      ),
+                      icon: Icons.local_shipping_outlined,
+                      title: 'Load Register',
+                      subtitle: 'Receive or dispatch a load, then continue to Purchase or Sales.',
+                      onTap: () =>
+                          _open(AggregateLoadsScreen(session: session)),
                     ),
                     _ActionCard(
                       width: actionWidth,
@@ -223,14 +206,6 @@ class _AggregateYardScreenState extends State<AggregateYardScreen> {
                       subtitle: 'Order, delivered quantity and balance only.',
                       onTap: () =>
                           _open(AggregateOrdersScreen(session: session)),
-                    ),
-                    _ActionCard(
-                      width: actionWidth,
-                      icon: Icons.receipt_long_outlined,
-                      title: 'Load Register',
-                      subtitle: 'Find a load and see its final status.',
-                      onTap: () =>
-                          _open(AggregateLoadsScreen(session: session)),
                     ),
                     _ActionCard(
                       width: actionWidth,
@@ -375,9 +350,9 @@ class _AggregateYardScreenState extends State<AggregateYardScreen> {
                             width: actionWidth,
                             icon: Icons.inventory_2_outlined,
                             title: 'Yard Stock',
-                            subtitle: 'Open authoritative THQ inventory.',
+                            subtitle: 'Material, batch / quality, rates and yard balances.',
                             onTap: () => _open(
-                              InventoryProductsScreen(session: session),
+                              AggregateYardStockScreen(session: session),
                             ),
                           ),
                           _ActionCard(
@@ -636,9 +611,8 @@ class _StockPanel extends StatelessWidget {
                 const SizedBox(width: 7),
                 Text(
                   'Stock by material',
-                  style: Theme.of(
-                    context,
-                  ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800),
+                  style: Theme.of(context).textTheme.titleSmall
+                      ?.copyWith(fontWeight: FontWeight.w800),
                 ),
               ],
             ),
@@ -743,9 +717,8 @@ class _ActiveLoadsPanel extends StatelessWidget {
                 const SizedBox(width: 7),
                 Text(
                   'Active loads',
-                  style: Theme.of(
-                    context,
-                  ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800),
+                  style: Theme.of(context).textTheme.titleSmall
+                      ?.copyWith(fontWeight: FontWeight.w800),
                 ),
               ],
             ),
@@ -886,9 +859,8 @@ class _SectionTitle extends StatelessWidget {
     children: [
       Text(
         title,
-        style: Theme.of(
-          context,
-        ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+        style: Theme.of(context).textTheme.titleMedium
+            ?.copyWith(fontWeight: FontWeight.w800),
       ),
       const SizedBox(height: 2),
       Text(

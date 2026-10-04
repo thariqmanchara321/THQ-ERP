@@ -1,3 +1,5 @@
+import 'package:erp_core/erp_core.dart';
+
 class SaleDetail {
   final String saleId;
   final String saleNumber;
@@ -25,6 +27,7 @@ class SaleDetail {
   final double paidAmount;
   final double balanceDue;
   final SaleGstDetail? gst;
+  final Map<String, dynamic> materialLoad;
 
   const SaleDetail({
     required this.saleId,
@@ -53,6 +56,7 @@ class SaleDetail {
     required this.paidAmount,
     required this.balanceDue,
     this.gst,
+    this.materialLoad = const {},
   });
 
   String get paymentStatus =>
@@ -113,6 +117,9 @@ class SaleDetail {
           .toList(),
       paidAmount: n(map['paid_amount']),
       balanceDue: n(map['balance_due']),
+      materialLoad: map['material_load'] is Map
+          ? Map<String, dynamic>.from(map['material_load'] as Map)
+          : const {},
       gst: map['gst'] is Map
           ? SaleGstDetail.fromMap(Map<String, dynamic>.from(map['gst'] as Map))
           : null,
@@ -124,6 +131,12 @@ class SaleGstDetail {
   final bool authoritative;
   final bool interstate;
   final String? taxMode;
+  final String? documentClass;
+  final String? supplierGstin;
+  final String? supplierLegalName;
+  final String? supplierAddress;
+  final String? recipientGstin;
+  final bool hasReverseCharge;
   final String? supplyType;
   final String? placeOfSupplyCode;
   final double taxableTotal;
@@ -139,6 +152,12 @@ class SaleGstDetail {
     required this.authoritative,
     required this.interstate,
     required this.taxMode,
+    this.documentClass,
+    this.supplierGstin,
+    this.supplierLegalName,
+    this.supplierAddress,
+    this.recipientGstin,
+    this.hasReverseCharge = false,
     required this.supplyType,
     required this.placeOfSupplyCode,
     required this.taxableTotal,
@@ -157,6 +176,13 @@ class SaleGstDetail {
       utgstTotal.abs() > 0.0001 ||
       igstTotal.abs() > 0.0001 ||
       cessTotal.abs() > 0.0001;
+
+  bool get isNonGst => authoritative && taxMode == 'non_gst';
+  String get invoiceTitle => isNonGst
+      ? 'INVOICE'
+      : documentClass == 'bill_of_supply'
+      ? 'BILL OF SUPPLY'
+      : 'TAX INVOICE';
 
   List<SaleGstRateSummary> get rateSummaries {
     final grouped = <String, SaleGstRateSummary>{};
@@ -177,6 +203,12 @@ class SaleGstDetail {
       authoritative: map['authoritative'] == true,
       interstate: map['interstate'] == true,
       taxMode: map['tax_mode']?.toString(),
+      documentClass: map['document_class']?.toString(),
+      supplierGstin: map['supplier_gstin']?.toString(),
+      supplierLegalName: map['supplier_legal_name']?.toString(),
+      supplierAddress: map['supplier_address']?.toString(),
+      recipientGstin: map['recipient_gstin']?.toString(),
+      hasReverseCharge: map['has_reverse_charge'] == true,
       supplyType: map['supply_type']?.toString(),
       placeOfSupplyCode: map['place_of_supply_code']?.toString(),
       taxableTotal: n(map['taxable_total']),
@@ -278,6 +310,7 @@ class SaleDetailItem {
   final String itemId;
   final String variantId;
   final String productName;
+  final List<Map<String, dynamic>> batchAllocations;
   final String sku;
   final String? partNumber;
   final String? unitCode;
@@ -295,6 +328,7 @@ class SaleDetailItem {
   final double grossProfit;
 
   const SaleDetailItem({
+    this.batchAllocations = const [],
     required this.itemId,
     required this.variantId,
     required this.productName,
@@ -315,10 +349,19 @@ class SaleDetailItem {
     required this.grossProfit,
   });
 
+  String get invoiceDescription {
+    final detail = documentBatchDescription(batchAllocations);
+    return detail.isEmpty ? productName : '$productName\n$detail';
+  }
+
   factory SaleDetailItem.fromMap(Map<String, dynamic> map) {
     double n(dynamic v) =>
         v is num ? v.toDouble() : double.tryParse(v?.toString() ?? '') ?? 0;
     return SaleDetailItem(
+      batchAllocations: (map['batch_allocations'] as List? ?? const [])
+          .whereType<Map>()
+          .map((row) => Map<String, dynamic>.from(row))
+          .toList(),
       itemId: map['item_id']?.toString() ?? '',
       variantId: map['variant_id']?.toString() ?? '',
       productName: map['product_name']?.toString() ?? '',

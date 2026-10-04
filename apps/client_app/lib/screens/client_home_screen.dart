@@ -1,6 +1,8 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+
+import 'staff_screen.dart';
 import 'package:thq_ui/thq_ui.dart';
 import 'package:erp_core/erp_core.dart';
 
@@ -42,7 +44,7 @@ import 'payment_center_screen.dart';
 import 'production_screen.dart';
 import 'purchases_screen.dart';
 import 'pricing_screen.dart';
-import 'reports_screen.dart';
+import 'reports_center_v500_screen.dart';
 import 'returns_register_screen.dart';
 import 'stock_transfers_screen.dart';
 import 'tasks_screen.dart';
@@ -389,6 +391,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
   }
 
   IconData _moduleIcon(String key) => switch (key) {
+    'staff' => Icons.badge_outlined,
     'dashboard' => Icons.space_dashboard_outlined,
     'aggregate_yard' => Icons.landscape_outlined,
     'operations_intelligence' => Icons.monitor_heart_outlined,
@@ -609,6 +612,10 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
                                   child: _ModulePage(
                                     module: selected,
                                     session: _session,
+                                    onBack: () => setState(
+                                      () => _selectedModuleKey =
+                                          _preferredLandingModuleKey(_modules),
+                                    ),
                                   ),
                                 ),
                               ),
@@ -706,7 +713,15 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
                 key: ValueKey(
                   '${selected.key}:${locationId ?? 'all'}:$_contentGeneration',
                 ),
-                child: _ModulePage(module: selected, session: _session),
+                child: _ModulePage(
+                  module: selected,
+                  session: _session,
+                  onBack: () => setState(
+                    () => _selectedModuleKey = _preferredLandingModuleKey(
+                      _modules,
+                    ),
+                  ),
+                ),
               ),
             ),
           ),
@@ -967,6 +982,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
 
   bool _isRoutableClientModule(String key) => switch (key) {
     'dashboard' ||
+    'staff' ||
     'aggregate_yard' ||
     'operations_intelligence' ||
     'inventory' ||
@@ -1474,7 +1490,8 @@ class _ModulePage extends StatelessWidget {
   final ClientModule module;
   final ClientSession session;
 
-  const _ModulePage({required this.module, required this.session});
+  final VoidCallback? onBack;
+  const _ModulePage({required this.module, required this.session, this.onBack});
 
   @override
   Widget build(BuildContext context) {
@@ -1497,6 +1514,7 @@ class _ModulePage extends StatelessWidget {
       'pricing' => PricingScreen(session: session),
       'customers' => CustomersScreen(session: session),
       'sales' => SalesScreen(session: session, startInCreate: true),
+      'staff' => StaffScreen(session: session),
       'sales_details' => SalesScreen(
         session: session,
         historyOnly: true,
@@ -1506,7 +1524,7 @@ class _ModulePage extends StatelessWidget {
       'accounting' => AccountingScreen(session: session),
       'gst_compliance' => GstV520EntryScreen(session: session),
       'audit_center' => AuditIntelligenceScreen(session: session),
-      'reports' => ReportsScreen(session: session),
+      'reports' => ReportsCenterV500Screen(session: session),
       'returns' => ReturnsRegisterScreen(session: session),
       'invoice_templates' => InvoiceDesignerScreen(session: session),
       'division_overview' => DivisionOverviewScreen(session: session),
@@ -1524,9 +1542,8 @@ class _ModulePage extends StatelessWidget {
       'locations' => LocationsScreen(session: session),
       'users' => TeamAccessScreen(session: session),
       'production' => ProductionScreen(session: session),
-      'transport_service' ||
-      'logistics_operations' ||
-      'vehicle_logistics' => TransportLogisticsHubScreen(session: session),
+      'transport_service' || 'logistics_operations' || 'vehicle_logistics' =>
+        TransportLogisticsHubScreen(session: session, onBack: onBack),
       'restaurant' || 'restaurant_orders' => RestaurantScreen(session: session),
       'workshop' => WorkshopScreen(session: session),
       'healthcare' ||

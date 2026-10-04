@@ -8,15 +8,19 @@ class TransportTripHubService {
     String? locationId,
     String? kind,
     String? query,
+    String? vehicleId,
+    String? materialLoadId,
     int limit = 500,
   }) async {
     final result = await _db.rpc(
-      'transport_trip_hub_list_v611',
+      'transport_trip_hub_list_v629',
       params: {
         'p_tenant_id': tenantId,
         'p_location_id': locationId,
         'p_kind': kind,
         'p_query': query,
+        'p_vehicle_id': vehicleId,
+        'p_material_load_id': materialLoadId,
         'p_limit': limit,
       },
     );
@@ -33,7 +37,7 @@ class TransportTripHubService {
     required String sourceId,
   }) async {
     final result = await _db.rpc(
-      'transport_trip_hub_context_v611',
+      'transport_trip_hub_context_v629',
       params: {
         'p_tenant_id': tenantId,
         'p_source_type': sourceType,

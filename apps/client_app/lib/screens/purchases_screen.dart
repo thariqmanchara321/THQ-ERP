@@ -541,6 +541,7 @@ class NewPurchaseScreen extends StatefulWidget {
   final String? initialUnitCode;
   final String? initialSupplierInvoiceNumber;
   final String? initialNotes;
+  final String? materialLoadId;
 
   const NewPurchaseScreen({
     super.key,
@@ -555,6 +556,7 @@ class NewPurchaseScreen extends StatefulWidget {
     this.initialUnitCode,
     this.initialSupplierInvoiceNumber,
     this.initialNotes,
+    this.materialLoadId,
   });
 
   @override
@@ -750,6 +752,26 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
       }
     }
 
+    if (product.trackingMode != 'none') {
+      final material = product;
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        if (!mounted) return;
+        final line = await showDialog<_PurchaseLine>(
+          context: context,
+          barrierDismissible: false,
+          builder: (_) => _AddPurchaseItemDialog(
+            products: [material],
+            initialVariantId: material.variantId,
+            initialUnitCode: requestedUnit,
+            initialQuantity: quantity,
+          ),
+        );
+        if (line != null && mounted) {
+          setState(() => _lines.add(line));
+        }
+      });
+      return;
+    }
     if (!_lines.any((entry) => entry.product.variantId == product!.variantId)) {
       _lines.add(
         _PurchaseLine(
@@ -846,6 +868,26 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
   }
 
   Future<void> _addLine() async {
+    try {
+      final products = await _inventoryService.getProducts(
+        tenantId: widget.session.business.id,
+        locationId: widget.locationId,
+      );
+      if (!mounted) return;
+      _products = products
+          .where(
+            (p) => p.productStatus == 'active' && p.variantStatus == 'active',
+          )
+          .toList();
+    } catch (error) {
+      if (mounted) {
+        ThqNotify.showSnackBar(
+          context,
+          SnackBar(content: Text('Could not refresh product costs: $error')),
+        );
+      }
+      return;
+    }
     final usedVariants = _lines.map((line) => line.product.variantId).toSet();
     final available = _products
         .where(
@@ -979,8 +1021,7 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
     final supplierInvoiceNumber = _invoiceController.text.trim();
     if (supplierInvoiceNumber.isEmpty) {
       setState(() {
-        _error =
-            'Supplier invoice number is required for an authoritative GST purchase.';
+        _error = 'Supplier invoice number is required for an authoritative GST purchase.';
       });
       return;
     }
@@ -1089,6 +1130,7 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
         paymentMethod: _paymentMethod,
         notes: _notesController.text,
         locationId: widget.locationId,
+        materialLoadId: widget.materialLoadId,
       );
 
       final createdPurchaseIdRawId =
@@ -2532,7 +2574,15 @@ class _PurchaseLine {
 class _AddPurchaseItemDialog extends StatefulWidget {
   final List<InventoryProduct> products;
 
-  const _AddPurchaseItemDialog({required this.products});
+  final String? initialVariantId;
+  final String? initialUnitCode;
+  final double? initialQuantity;
+  const _AddPurchaseItemDialog({
+    required this.products,
+    this.initialVariantId,
+    this.initialUnitCode,
+    this.initialQuantity,
+  });
 
   @override
   State<_AddPurchaseItemDialog> createState() => _AddPurchaseItemDialogState();
@@ -2599,6 +2649,28 @@ class _AddPurchaseItemDialogState extends State<_AddPurchaseItemDialog> {
     _exactProductIndex = Map<String, InventoryProduct>.unmodifiable(exact);
     _productSearchText = Map<String, String>.unmodifiable(searchText);
     _productPrefixTokens = Map<String, List<String>>.unmodifiable(prefixTokens);
+    if (widget.initialVariantId != null) {
+      _selectProduct(widget.initialVariantId);
+      if (widget.initialQuantity != null) {
+        _quantityController.text = widget.initialQuantity.toString();
+      }
+      final requestedUnit = widget.initialUnitCode?.trim().toUpperCase();
+      if (requestedUnit == _product?.baseUnitCode.toUpperCase()) {
+        _unitId = null;
+      }
+      for (final unit in _product?.purchaseUnits ?? <ProductUnitOption>[]) {
+        if (unit.code.toUpperCase() == requestedUnit) {
+          _unitId = unit.unitId;
+        }
+      }
+      _costController.text =
+          (_selectedUnit?.purchaseCostFor(_product!.costPrice) ??
+                  _product!.costPrice)
+              .toStringAsFixed(4);
+      if (_product?.trackingMode == 'serial') {
+        _generateSerials();
+      }
+    }
   }
 
   Iterable<InventoryProduct> _searchProducts(String query, int limit) {
@@ -2631,7 +2703,7 @@ class _AddPurchaseItemDialogState extends State<_AddPurchaseItemDialog> {
 
   ProductUnitOption? get _selectedUnit {
     final product = _product;
-    if (product == null) return null;
+    if (product == null || _unitId == null) return null;
     for (final unit in product.purchaseUnits) {
       if (unit.unitId == _unitId) return unit;
     }
@@ -2677,8 +2749,7 @@ class _AddPurchaseItemDialogState extends State<_AddPurchaseItemDialog> {
     if (product == null || product.trackingMode != 'serial') return;
     if (baseQuantity <= 0 || baseQuantity != baseQuantity.truncateToDouble()) {
       setState(() {
-        _error =
-            'Enter a whole base-unit quantity before generating serial numbers.';
+        _error = 'Enter a whole base-unit quantity before generating serial numbers.';
       });
       return;
     }
@@ -2712,6 +2783,26 @@ class _AddPurchaseItemDialogState extends State<_AddPurchaseItemDialog> {
     return 'LOT-${sku.isEmpty ? 'ITEM' : sku}-$date-${_batches.length + 1}';
   }
 
+  void _refreshBatchCost() {
+    if (_batches.isEmpty) return;
+    final total = _batches.fold<double>(
+      0,
+      (s, b) => s + (b['quantity'] as num).toDouble(),
+    );
+    final value = _batches.fold<double>(
+      0,
+      (s, b) =>
+          s +
+          (b['quantity'] as num).toDouble() *
+              (b['purchase_cost_base'] as num).toDouble(),
+    );
+    if (total > 0) {
+      _costController.text =
+          (value / total * (_selectedUnit?.conversionToBase ?? 1))
+              .toStringAsFixed(4);
+    }
+  }
+
   Future<void> _addAutoBatch() async {
     final product = _product;
     final quantity = double.tryParse(_quantityController.text.trim()) ?? 0;
@@ -2733,11 +2824,16 @@ class _AddPurchaseItemDialogState extends State<_AddPurchaseItemDialog> {
       builder: (_) => _PurchaseBatchDialog(
         initialBatchNumber: _autoBatchNumber(product),
         initialQuantity: remaining,
+        initialCostBase:
+            (double.tryParse(_costController.text) ?? 0) /
+            (_selectedUnit?.conversionToBase ?? 1),
+        baseUnit: product.baseUnitCode,
       ),
     );
     if (batch != null && mounted) {
       setState(() {
         _batches.add(batch);
+        _refreshBatchCost();
         _error = null;
       });
     }
@@ -2753,12 +2849,23 @@ class _AddPurchaseItemDialogState extends State<_AddPurchaseItemDialog> {
   Future<void> _addBatch() async {
     final batch = await showDialog<Map<String, dynamic>>(
       context: context,
-      builder: (_) => const _PurchaseBatchDialog(),
+      builder: (_) => _PurchaseBatchDialog(
+        initialCostBase:
+            (double.tryParse(_costController.text) ?? 0) /
+            (_selectedUnit?.conversionToBase ?? 1),
+        baseUnit: _product?.baseUnitCode ?? 'base unit',
+      ),
     );
-    if (batch != null && mounted) setState(() => _batches.add(batch));
+    if (batch != null && mounted) {
+      setState(() {
+        _batches.add(batch);
+        _refreshBatchCost();
+      });
+    }
   }
 
   void _add() {
+    _refreshBatchCost();
     final product = _product;
 
     final quantity = double.tryParse(_quantityController.text.trim());
@@ -2776,7 +2883,7 @@ class _AddPurchaseItemDialogState extends State<_AddPurchaseItemDialog> {
       return;
     }
 
-    if (quantity == null || quantity <= 0) {
+    if (quantity == null || !quantity.isFinite || quantity <= 0) {
       setState(() {
         _error = 'Quantity must be greater than zero.';
       });
@@ -2825,7 +2932,7 @@ class _AddPurchaseItemDialogState extends State<_AddPurchaseItemDialog> {
       }
     }
 
-    if (cost == null || cost < 0) {
+    if (cost == null || !cost.isFinite || cost < 0) {
       setState(() {
         _error = 'Enter a valid purchase cost.';
       });
@@ -3026,10 +3133,14 @@ class _AddPurchaseItemDialogState extends State<_AddPurchaseItemDialog> {
                 Expanded(
                   child: TextField(
                     controller: _costController,
+                    readOnly: _batches.isNotEmpty,
                     keyboardType: const TextInputType.numberWithOptions(
                       decimal: true,
                     ),
-                    decoration: const InputDecoration(
+                    decoration: InputDecoration(
+                      helperText: _batches.isEmpty
+                          ? null
+                          : 'Calculated from the selected batch costs.',
                       labelText: 'Unit Cost',
                       prefixText: '₹ ',
                       border: OutlineInputBorder(),
@@ -3125,15 +3236,17 @@ class _AddPurchaseItemDialogState extends State<_AddPurchaseItemDialog> {
                   dense: true,
                   contentPadding: EdgeInsets.zero,
                   title: Text(
-                    '${entry.value['batch_number']} • ${entry.value['quantity']} ${_product?.baseUnitCode ?? ''}',
+                    '${entry.value['batch_number']} • ${entry.value['quality_label'] ?? ''} • ${entry.value['quantity']} ${_product?.baseUnitCode ?? ''} • Cost ${entry.value['purchase_cost_base']} • Sell ${entry.value['selling_price_base'] ?? 'standard'}',
                   ),
                   subtitle: Text(
                     'MFG ${entry.value['manufactured_on'] ?? '-'} • EXP ${entry.value['expiry_on'] ?? '-'}',
                   ),
                   trailing: IconButton(
                     icon: const Icon(Icons.delete_outline),
-                    onPressed: () =>
-                        setState(() => _batches.removeAt(entry.key)),
+                    onPressed: () => setState(() {
+                      _batches.removeAt(entry.key);
+                      _refreshBatchCost();
+                    }),
                   ),
                 ),
               ),
@@ -3179,10 +3292,14 @@ class _AddPurchaseItemDialogState extends State<_AddPurchaseItemDialog> {
 class _PurchaseBatchDialog extends StatefulWidget {
   final String initialBatchNumber;
   final double? initialQuantity;
+  final double? initialCostBase;
+  final String baseUnit;
 
   const _PurchaseBatchDialog({
     this.initialBatchNumber = '',
     this.initialQuantity,
+    this.initialCostBase,
+    this.baseUnit = 'base unit',
   });
   @override
   State<_PurchaseBatchDialog> createState() => _PurchaseBatchDialogState();
@@ -3191,6 +3308,9 @@ class _PurchaseBatchDialog extends StatefulWidget {
 class _PurchaseBatchDialogState extends State<_PurchaseBatchDialog> {
   late final TextEditingController _number;
   late final TextEditingController _quantity;
+  final _quality = TextEditingController();
+  final _selling = TextEditingController();
+  late final TextEditingController _cost;
   final _manufactured = TextEditingController();
   final _expiry = TextEditingController();
   String? _error;
@@ -3198,6 +3318,9 @@ class _PurchaseBatchDialogState extends State<_PurchaseBatchDialog> {
   @override
   void initState() {
     super.initState();
+    _cost = TextEditingController(
+      text: widget.initialCostBase?.toString() ?? '',
+    );
     _number = TextEditingController(text: widget.initialBatchNumber);
     _quantity = TextEditingController(
       text: widget.initialQuantity == null
@@ -3210,6 +3333,9 @@ class _PurchaseBatchDialogState extends State<_PurchaseBatchDialog> {
 
   @override
   void dispose() {
+    _quality.dispose();
+    _selling.dispose();
+    _cost.dispose();
     _number.dispose();
     _quantity.dispose();
     _manufactured.dispose();
@@ -3219,13 +3345,33 @@ class _PurchaseBatchDialogState extends State<_PurchaseBatchDialog> {
 
   void _save() {
     final qty = double.tryParse(_quantity.text.trim());
-    if (_number.text.trim().isEmpty || qty == null || qty <= 0) {
+    if (_number.text.trim().isEmpty ||
+        qty == null ||
+        !qty.isFinite ||
+        qty <= 0) {
       setState(
         () => _error = 'Enter a batch number and positive base quantity.',
       );
       return;
     }
+    final cost = double.tryParse(_cost.text.trim());
+    final rate = _selling.text.trim().isEmpty
+        ? null
+        : double.tryParse(_selling.text.trim());
+    if (cost == null ||
+        !cost.isFinite ||
+        cost < 0 ||
+        (_selling.text.trim().isNotEmpty &&
+            (rate == null || !rate.isFinite || rate < 0))) {
+      setState(
+        () => _error = 'Enter a valid purchase cost and optional selling rate.',
+      );
+      return;
+    }
     Navigator.of(context).pop(<String, dynamic>{
+      'quality_label': _quality.text.trim(),
+      'purchase_cost_base': cost,
+      'selling_price_base': rate,
       'batch_number': _number.text.trim(),
       'quantity': qty,
       'manufactured_on': _manufactured.text.trim().isEmpty
@@ -3237,7 +3383,8 @@ class _PurchaseBatchDialogState extends State<_PurchaseBatchDialog> {
 
   @override
   Widget build(BuildContext context) => AlertDialog(
-    title: const Text('Add Batch'),
+    scrollable: true,
+    title: const Text('Add Batch / Quality'),
     content: SizedBox(
       width: 460,
       child: Column(
@@ -3254,9 +3401,35 @@ class _PurchaseBatchDialogState extends State<_PurchaseBatchDialog> {
           TextField(
             controller: _quantity,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: InputDecoration(
+              labelText: 'Quantity in ${widget.baseUnit}',
+              border: const OutlineInputBorder(),
+            ),
+          ),
+          const SizedBox(height: 10),
+          TextField(
+            controller: _quality,
             decoration: const InputDecoration(
-              labelText: 'Quantity in base unit',
+              labelText: 'Quality / grade',
               border: OutlineInputBorder(),
+            ),
+          ),
+          const SizedBox(height: 10),
+          TextField(
+            controller: _cost,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: InputDecoration(
+              labelText: 'Purchase cost per ${widget.baseUnit}',
+              border: const OutlineInputBorder(),
+            ),
+          ),
+          const SizedBox(height: 10),
+          TextField(
+            controller: _selling,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: InputDecoration(
+              labelText: 'Selling rate per ${widget.baseUnit} (optional)',
+              border: const OutlineInputBorder(),
             ),
           ),
           const SizedBox(height: 10),

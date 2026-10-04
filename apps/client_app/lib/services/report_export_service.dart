@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:excel/excel.dart';
@@ -19,7 +20,7 @@ class ReportExportService {
   }) async {
     final results = await Future.wait<dynamic>([
       _supabase.rpc(
-        'reports_export_dataset_v44',
+        'reports_export_dataset_v630',
         params: {
           'p_tenant_id': tenantId,
           'p_from': DateFormat('yyyy-MM-dd').format(from),
@@ -83,7 +84,50 @@ class ReportExportService {
     _writeRows(excel['Returns'], _rows(data['returns']));
     _writeRows(excel['Top Products'], _rows(data['top_products']));
     _writeRows(excel['Top Customers'], _rows(data['top_customers']));
+    for (final key in [
+      'material_loads',
+      'load_costs',
+      'staff',
+      'staff_attendance',
+      'staff_earnings',
+      'staff_payments',
+    ]) {
+      final rows = _rows(data[key]);
+      _writeRows(
+        excel[key.replaceAll('_', ' ')],
+        key == 'material_loads'
+            ? rows
+                  .map(
+                    (r) => <String, dynamic>{
+                      for (final e in r.entries)
+                        if (e.value is! List) e.key: e.value,
+                    },
+                  )
+                  .toList()
+            : rows,
+      );
+    }
 
+    for (final key in [
+      'cost_payments',
+      'staff_payments',
+      'customer_payments',
+      'legacy_freight_payments',
+      'history',
+      'load_events',
+    ]) {
+      _writeRows(
+        excel['Load ${key.replaceAll('_', ' ')}'.substring(
+          0,
+          ('Load ${key.replaceAll('_', ' ')}').length.clamp(0, 31),
+        )],
+        [
+          for (final l in _rows(data['material_loads']))
+            for (final r in _rows(l[key]))
+              {...r, 'load_number': l['load_number'], 'load_id': l['load_id']},
+        ],
+      );
+    }
     final raw = excel.save();
     if (raw == null) throw Exception('Could not generate XLSX report.');
     final bytes = Uint8List.fromList(raw);
@@ -149,6 +193,7 @@ class ReportExportService {
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
         margin: const pw.EdgeInsets.all(28),
+        maxPages: 1000,
         header: (_) => pw.Column(
           crossAxisAlignment: pw.CrossAxisAlignment.start,
           children: [
@@ -165,6 +210,26 @@ class ReportExportService {
           ],
         ),
         build: (_) => [
+          for (final key in ['load_costs', 'staff_earnings', 'staff_payments'])
+            if (_rows(data[key]).isNotEmpty) ...[
+              _pdfSectionTitle(key.replaceAll('_', ' ')),
+              _pdfDynamicTable(
+                _rows(data[key]),
+                preferred: const [
+                  'staff_name',
+                  'load_number',
+                  'description',
+                  'payee',
+                  'amount',
+                  'bill_amount',
+                  'paid_amount',
+                  'outstanding',
+                  'payment_method',
+                  'reference',
+                ],
+              ),
+              pw.SizedBox(height: 12),
+            ],
           _pdfSectionTitle('Summary'),
           pw.TableHelper.fromTextArray(
             headers: const ['Metric', 'Value'],
@@ -410,7 +475,15 @@ class ReportExportService {
     if (value is double) return DoubleCellValue(value);
     if (value is num) return DoubleCellValue(value.toDouble());
     if (value is bool) return BoolCellValue(value);
-    return TextCellValue(value.toString());
+    final text = value is Map || value is List
+        ? jsonEncode(value)
+        : value.toString();
+    if (text.length > 32767) {
+      throw StateError(
+        'A saved record exceeds the Excel cell limit. Use the complete JSON export in Load reports or Staff statements for this record.',
+      );
+    }
+    return TextCellValue(text);
   }
 
   pw.Widget _pdfSectionTitle(String text) => pw.Padding(
@@ -433,7 +506,6 @@ class ReportExportService {
     var keys = preferred.where(available.contains).toList();
     if (keys.isEmpty) keys = available.take(7).toList();
     final data = rows
-        .take(150)
         .map((row) => keys.map((key) => _short(row[key])).toList())
         .toList();
     return pw.TableHelper.fromTextArray(

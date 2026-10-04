@@ -717,7 +717,7 @@ class _PurchaseReturnDialogState extends State<_PurchaseReturnDialog> {
                   final item = widget.purchase.items[index];
                   return ListTile(
                     contentPadding: EdgeInsets.zero,
-                    title: Text(item.productName),
+                    title: Text(item.invoiceDescription),
                     subtitle: Text('${item.sku} • Purchased ${item.quantity}'),
                     trailing: SizedBox(
                       width: 120,
@@ -1075,7 +1075,7 @@ class _PurchaseItemRow extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  item.productName,
+                  item.invoiceDescription,
                   style: const TextStyle(fontWeight: FontWeight.w600),
                 ),
 

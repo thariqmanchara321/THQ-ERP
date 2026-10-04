@@ -1,3 +1,6 @@
+import 'material_load_reports_screen.dart';
+import 'staff_screen.dart';
+
 import 'package:flutter/material.dart';
 import 'package:thq_ui/thq_ui.dart';
 
@@ -234,6 +237,32 @@ class _ReportsScreenState extends State<ReportsScreen> {
             child: LayoutBuilder(
               builder: (context, constraints) {
                 final controls = <Widget>[
+                  if (widget.session.hasModule('aggregate_yard'))
+                    OutlinedButton.icon(
+                      onPressed: () => Navigator.push<void>(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => MaterialLoadReportsScreen(
+                            session: widget.session,
+                          ),
+                        ),
+                      ),
+                      icon: const Icon(Icons.local_shipping_outlined),
+                      label: const Text('Loads, drivers & costs'),
+                    ),
+                  if (widget.session.hasModule('staff') &&
+                      (widget.session.hasRole('owner') ||
+                          widget.session.hasPermission('staff.view')))
+                    OutlinedButton.icon(
+                      onPressed: () => Navigator.push<void>(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => StaffScreen(session: widget.session),
+                        ),
+                      ),
+                      icon: const Icon(Icons.badge_outlined),
+                      label: const Text('Staff statements'),
+                    ),
                   OutlinedButton.icon(
                     onPressed: () => _pick(true),
                     icon: const Icon(Icons.date_range, size: 15),

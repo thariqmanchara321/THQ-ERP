@@ -823,6 +823,19 @@ class _EditProductDialogState extends State<_EditProductDialog> {
       );
       final editor = _unitEditor;
       if (editor != null) {
+        for (final row in editor.rows) {
+          final factor = double.tryParse(row.factor) ?? 1;
+          final sale = double.tryParse(row.salePrice);
+          final cost = double.tryParse(row.purchaseCost);
+          if (sale != null &&
+              (sale - widget.product.sellingPrice * factor).abs() <= 0.000001) {
+            row.salePrice = (_number(_sellingController) * factor).toString();
+          }
+          if (cost != null &&
+              (cost - widget.product.costPrice * factor).abs() <= 0.000001) {
+            row.purchaseCost = (_number(_costController) * factor).toString();
+          }
+        }
         await _service.saveProductUnits(
           tenantId: widget.session.business.id,
           variantId: widget.product.variantId,
