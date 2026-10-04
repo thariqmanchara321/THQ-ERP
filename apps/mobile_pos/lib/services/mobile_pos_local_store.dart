@@ -1,3 +1,4 @@
+import '../config/supabase_config.dart';
 import 'dart:convert';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -11,7 +12,7 @@ class MobilePosLocalStore {
   Future<Database> get db async {
     if(_db!=null)return _db!;
     final support=await getApplicationSupportDirectory();
-    final path=p.join(support.path,'thq_mobile_pos_v488.sqlite');
+    final path=p.join(support.path,SupabaseConfig.isTest ? 'thq_mobile_pos_test.sqlite' : 'thq_mobile_pos_v488.sqlite');
     _db=await openDatabase(path,version:2,onCreate:(d,_) async {
       await d.execute('CREATE TABLE meta(key TEXT PRIMARY KEY,value TEXT NOT NULL,updated_at TEXT NOT NULL)');
       await d.execute('CREATE TABLE products(tenant_id TEXT NOT NULL,location_id TEXT NOT NULL,variant_id TEXT NOT NULL,payload_json TEXT NOT NULL,available_qty REAL NOT NULL DEFAULT 0,refreshed_at TEXT NOT NULL,PRIMARY KEY(tenant_id,location_id,variant_id))');

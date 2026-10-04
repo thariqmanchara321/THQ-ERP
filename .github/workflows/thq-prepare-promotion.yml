@@ -1,0 +1,26 @@
+name: Prepare THQ promotion to main
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+  pull-requests: write
+jobs:
+  prepare:
+    if: github.ref == 'refs/heads/staging'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/github-script@v7
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const existing = await github.rest.pulls.list({owner, repo, state: 'open', head: `${owner}:staging`, base: 'main'});
+            let pr = existing.data[0];
+            if (!pr) {
+              const result = await github.rest.pulls.create({
+                owner, repo, head: 'staging', base: 'main', draft: true,
+                title: 'Promote tested THQ ERP modules from staging',
+                body: 'Review the complete staging diff before release.\n\n- [ ] Flutter analysis, tests and platform builds pass\n- [ ] Test database migration history and Edge Functions reconciled\n- [ ] Test login, activation and business workflows verified\n- [ ] Only new reviewed migrations prepared for production (never replay fresh-install baseline)\n- [ ] Release versions and client installers prepared\n\nThis PR promotes source only. It does not deploy SQL, copy test transactions or update installed clients. See docs/THQ_TEST_ENVIRONMENT.md.'
+              });
+              pr = result.data;
+            }
+            await core.summary.addHeading('THQ promotion review').addLink('Open promotion pull request', pr.html_url).write();

@@ -1,3 +1,4 @@
+import '../config/supabase_config.dart';
 import 'dart:convert';
 import 'dart:io';
 
@@ -63,7 +64,7 @@ class OfflinePosService {
   Future<void> initialize() async {
     if (_db != null) return;
     final support = await getApplicationSupportDirectory();
-    final dir = Directory(p.join(support.path, 'THQ ERP', 'POS'));
+    final dir = Directory(p.join(support.path, 'THQ ERP', SupabaseConfig.isTest ? 'POS TEST' : 'POS'));
     if (!await dir.exists()) await dir.create(recursive: true);
     _databasePath = p.join(dir.path, 'thq_pos_offline_v486.sqlite');
     final db = sqlite3.open(_databasePath!);

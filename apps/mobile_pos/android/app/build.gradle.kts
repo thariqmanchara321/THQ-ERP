@@ -15,6 +15,12 @@ android {
     }
 
     defaultConfig {
+        // Separate install identity and Android storage for TEST builds.
+        if (System.getenv("THQ_TEST_BUILD") == "1") {
+            applicationIdSuffix = ".test"
+            versionNameSuffix = "-test"
+        }
+
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
         applicationId = "com.flexierp.mobile_pos"
         // You can update the following values to match your application needs.

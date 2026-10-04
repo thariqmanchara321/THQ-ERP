@@ -7,11 +7,13 @@ import 'package:thq_ui/thq_ui.dart';
 
 import 'ui/thq_brand_experience.dart';
 import 'config/supabase_config.dart';
+import 'config/thq_environment_frame.dart';
 import 'screens/mobile_pos_entry_screen.dart';
 import 'services/mobile_app_log_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  SupabaseConfig.validate();
   await Supabase.initialize(
     url: SupabaseConfig.url,
     publishableKey: SupabaseConfig.publishableKey,
@@ -47,9 +49,10 @@ class ThqMobilePosApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'THQ Mobile POS',
+      title: SupabaseConfig.appTitle('THQ Mobile POS'),
       // THQ_BRANDING_START
-      builder: (context, child) => ThqStartupGate(
+      builder: (context, child) => ThqEnvironmentFrame(
+        child: ThqStartupGate(
         appName: 'THQ Mobile POS',
         child: ThqMobileProductionFrame(
           child: ThqNotificationHost(
@@ -58,6 +61,7 @@ class ThqMobilePosApp extends StatelessWidget {
         ),
       ),
       // THQ_BRANDING_END
+      ),
       theme: ThqMobileTheme.pos(),
       home: const MobilePosEntryScreen(),
     );

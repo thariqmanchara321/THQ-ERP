@@ -6,6 +6,7 @@ import 'package:erp_core/erp_core.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'config/supabase_config.dart';
+import 'config/thq_environment_frame.dart';
 import 'screens/admin_dashboard_v600.dart';
 import 'screens/login_screen.dart';
 import 'services/app_log_service.dart';
@@ -13,6 +14,7 @@ import 'ui/v43_theme.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  SupabaseConfig.validate();
   await Supabase.initialize(
     url: SupabaseConfig.url,
     publishableKey: SupabaseConfig.publishableKey,
@@ -42,10 +44,12 @@ class ThqAdminApp extends StatelessWidget {
         (Supabase.instance.client.auth.currentSession != null);
 
     return MaterialApp(
-      title: 'THQ Admin',
+      title: SupabaseConfig.appTitle('THQ Admin'),
       debugShowCheckedModeBanner: false,
-      builder: (context, child) => ThqNotificationHost(
+      builder: (context, child) => ThqEnvironmentFrame(
+        child: ThqNotificationHost(
         child: NumericZeroAutoSelect(child: child ?? const SizedBox.shrink()),
+      ),
       ),
       theme: UiDesignProfile.fallback('client').theme(),
       home: authenticated ? const AdminDashboardV600() : const LoginScreen(),

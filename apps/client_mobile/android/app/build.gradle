@@ -45,6 +45,12 @@ android {
     }
 
     defaultConfig {
+        // Separate install identity and Android storage for TEST builds.
+        if (System.getenv("THQ_TEST_BUILD") == "1") {
+            applicationIdSuffix = ".test"
+            versionNameSuffix = "-test"
+        }
+
         applicationId = "com.flexierp.client_mobile"
         minSdk = 24
         targetSdk = flutter.targetSdkVersion

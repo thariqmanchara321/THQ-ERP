@@ -1,0 +1,48 @@
+name: Build THQ TEST
+on:
+  push:
+    branches: [staging]
+  workflow_dispatch:
+    inputs:
+      app:
+        description: App to build against the isolated TEST database
+        type: choice
+        options: [client_app, pos_app, admin_panel, client_mobile, mobile_pos]
+        default: client_app
+      target:
+        type: choice
+        options: [windows, android]
+        default: windows
+permissions:
+  contents: read
+jobs:
+  build:
+    if: github.ref == 'refs/heads/staging'
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ github.event_name == 'workflow_dispatch' && fromJSON(format('[{{"app":"{0}","target":"{1}"}}]', inputs.app, inputs.target)) || fromJSON('[{"app":"client_app","target":"windows"},{"app":"pos_app","target":"windows"},{"app":"admin_panel","target":"windows"},{"app":"client_mobile","target":"android"},{"app":"mobile_pos","target":"android"}]') }}
+    runs-on: ${{ matrix.target == 'windows' && 'windows-latest' || 'ubuntu-latest' }}
+    env:
+      THQ_TEST_BUILD: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        if: matrix.target == 'android'
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Build guarded TEST app
+        shell: pwsh
+        run: ./tools/environments/START_THQ_TEST.ps1 -App '${{ matrix.app }}' -Target '${{ matrix.target }}' -Build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: THQ-TEST-${{ matrix.app }}-${{ matrix.target }}-${{ github.sha }}
+          if-no-files-found: error
+          path: |
+            apps/${{ matrix.app }}/build/windows/x64/runner/Release/**
+            apps/${{ matrix.app }}/build/app/outputs/flutter-apk/app-release.apk

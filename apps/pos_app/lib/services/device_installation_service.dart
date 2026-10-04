@@ -1,3 +1,4 @@
+import '../config/supabase_config.dart';
 import 'package:erp_core/erp_core.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -31,22 +32,24 @@ class DeviceActivation {
 
 class DeviceInstallationService {
   static const FlutterSecureStorage _storage = FlutterSecureStorage();
+  String _storageKey(String key) => SupabaseConfig.isTest ? 'test.$key' : key;
+
   SupabaseClient get _supabase => Supabase.instance.client;
 
   Future<String> installationId() async {
-    var value = await _storage.read(key: 'flexi.installation_id');
+    var value = await _storage.read(key: _storageKey('flexi.installation_id'));
     if (value == null || value.isEmpty) {
       value = const Uuid().v4();
-      await _storage.write(key: 'flexi.installation_id', value: value);
+      await _storage.write(key: _storageKey('flexi.installation_id'), value: value);
     }
     return value;
   }
 
   Future<DeviceActivation?> readActivation() async {
-    final deviceId = await _storage.read(key: 'flexi.device_id');
-    final deviceSecret = await _storage.read(key: 'flexi.device_secret');
-    final tenantId = await _storage.read(key: 'flexi.tenant_id');
-    final locationId = await _storage.read(key: 'flexi.location_id');
+    final deviceId = await _storage.read(key: _storageKey('flexi.device_id'));
+    final deviceSecret = await _storage.read(key: _storageKey('flexi.device_secret'));
+    final tenantId = await _storage.read(key: _storageKey('flexi.tenant_id'));
+    final locationId = await _storage.read(key: _storageKey('flexi.location_id'));
     if ([
       deviceId,
       deviceSecret,
@@ -57,15 +60,15 @@ class DeviceInstallationService {
     }
     return DeviceActivation(
       tenantId: tenantId!,
-      tenantName: await _storage.read(key: 'flexi.tenant_name') ?? 'Business',
-      businessCode: await _storage.read(key: 'flexi.business_code') ?? '',
+      tenantName: await _storage.read(key: _storageKey('flexi.tenant_name')) ?? 'Business',
+      businessCode: await _storage.read(key: _storageKey('flexi.business_code')) ?? '',
       deviceId: deviceId!,
-      deviceCode: await _storage.read(key: 'flexi.device_code') ?? '',
-      deviceName: await _storage.read(key: 'flexi.device_name') ?? 'System',
+      deviceCode: await _storage.read(key: _storageKey('flexi.device_code')) ?? '',
+      deviceName: await _storage.read(key: _storageKey('flexi.device_name')) ?? 'System',
       deviceSecret: deviceSecret!,
       locationId: locationId!,
-      locationName: await _storage.read(key: 'flexi.location_name') ?? 'Main',
-      locationCode: await _storage.read(key: 'flexi.location_code') ?? 'MAIN',
+      locationName: await _storage.read(key: _storageKey('flexi.location_name')) ?? 'Main',
+      locationCode: await _storage.read(key: _storageKey('flexi.location_code')) ?? 'MAIN',
     );
   }
 
@@ -109,38 +112,38 @@ class DeviceInstallationService {
         activation.locationId.isEmpty) {
       throw Exception('Activation response was incomplete.');
     }
-    await _storage.write(key: 'flexi.tenant_id', value: activation.tenantId);
+    await _storage.write(key: _storageKey('flexi.tenant_id'), value: activation.tenantId);
     await _storage.write(
-      key: 'flexi.tenant_name',
+      key: _storageKey('flexi.tenant_name'),
       value: activation.tenantName,
     );
     await _storage.write(
-      key: 'flexi.business_code',
+      key: _storageKey('flexi.business_code'),
       value: activation.businessCode,
     );
-    await _storage.write(key: 'flexi.device_id', value: activation.deviceId);
+    await _storage.write(key: _storageKey('flexi.device_id'), value: activation.deviceId);
     await _storage.write(
-      key: 'flexi.device_code',
+      key: _storageKey('flexi.device_code'),
       value: activation.deviceCode,
     );
     await _storage.write(
-      key: 'flexi.device_name',
+      key: _storageKey('flexi.device_name'),
       value: activation.deviceName,
     );
     await _storage.write(
-      key: 'flexi.device_secret',
+      key: _storageKey('flexi.device_secret'),
       value: activation.deviceSecret,
     );
     await _storage.write(
-      key: 'flexi.location_id',
+      key: _storageKey('flexi.location_id'),
       value: activation.locationId,
     );
     await _storage.write(
-      key: 'flexi.location_name',
+      key: _storageKey('flexi.location_name'),
       value: activation.locationName,
     );
     await _storage.write(
-      key: 'flexi.location_code',
+      key: _storageKey('flexi.location_code'),
       value: activation.locationCode,
     );
     return activation;
@@ -157,15 +160,15 @@ class DeviceInstallationService {
     required String locationCode,
   }) async {
     if (deviceCode.isNotEmpty) {
-      await _storage.write(key: 'flexi.device_code', value: deviceCode);
+      await _storage.write(key: _storageKey('flexi.device_code'), value: deviceCode);
     }
     if (deviceName.isNotEmpty) {
-      await _storage.write(key: 'flexi.device_name', value: deviceName);
+      await _storage.write(key: _storageKey('flexi.device_name'), value: deviceName);
     }
     if (locationId.isNotEmpty) {
-      await _storage.write(key: 'flexi.location_id', value: locationId);
-      await _storage.write(key: 'flexi.location_name', value: locationName);
-      await _storage.write(key: 'flexi.location_code', value: locationCode);
+      await _storage.write(key: _storageKey('flexi.location_id'), value: locationId);
+      await _storage.write(key: _storageKey('flexi.location_name'), value: locationName);
+      await _storage.write(key: _storageKey('flexi.location_code'), value: locationCode);
     }
   }
 
@@ -182,7 +185,7 @@ class DeviceInstallationService {
       'flexi.location_name',
       'flexi.location_code',
     ]) {
-      await _storage.delete(key: key);
+      await _storage.delete(key: _storageKey(key));
     }
   }
 }

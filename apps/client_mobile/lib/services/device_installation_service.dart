@@ -1,3 +1,4 @@
+import '../config/supabase_config.dart';
 import 'package:erp_core/erp_core.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -31,7 +32,7 @@ class DeviceActivation {
 
 class DeviceInstallationService {
   static const FlutterSecureStorage _storage = FlutterSecureStorage();
-  static const String _prefix = 'thq.client_mobile.';
+  static String get _prefix => SupabaseConfig.isTest ? 'test.thq.client_mobile.' : 'thq.client_mobile.';
 
   SupabaseClient get _supabase => Supabase.instance.client;
 
