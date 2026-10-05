@@ -8,3 +8,5 @@ export 'src/pricing.dart';
 export 'src/batch_description.dart';
 export 'src/numeric_zero_auto_select.dart';
 export 'src/desktop_release_status.dart';
+
+export 'src/tracking_allocations.dart';

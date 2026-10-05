@@ -904,6 +904,8 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
             .map(
               (line) => {
                 'variant_id': line.product.variantId,
+            'tracking_revision': line.product.trackingRevision,
+            'tracking_mode': line.product.trackingMode,
 
                 'quantity': line.quantity,
 

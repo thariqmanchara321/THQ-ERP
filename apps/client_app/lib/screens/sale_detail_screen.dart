@@ -1,3 +1,4 @@
+import '../widgets/return_tracking_dialog.dart';
 import '../widgets/load_cost_editor.dart';
 
 import 'package:flutter/material.dart';
@@ -582,6 +583,13 @@ class _SaleReturnDialogState extends State<_SaleReturnDialog> {
       _error = null;
     });
     try {
+      for (final row in items) {
+        if (!mounted) return;
+        final allocation = await collectReturnTracking(context, tenantId: widget.session.business.id,
+          kind: 'sale', itemId: row['sale_item_id'] as String, quantity: (row['quantity'] as num).toDouble());
+        if (!mounted || allocation == null) return;
+        row.addAll(allocation);
+      }
       final result = await _service.createReturn(
         tenantId: widget.session.business.id,
         saleId: widget.sale.saleId,

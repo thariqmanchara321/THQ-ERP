@@ -1318,6 +1318,8 @@ class _PosScreenState extends State<PosScreen> {
         .map(
           (line) => <String, dynamic>{
             'variant_id': line.product.variantId,
+            'tracking_revision': line.product.trackingRevision,
+            'tracking_mode': line.product.trackingMode,
             'quantity': line.quantity,
             'unit_id': line.unit?.unitId,
             'cutting_charge_applied': line.cuttingChargeApplied,
@@ -3746,6 +3748,8 @@ class _PosScreenState extends State<PosScreen> {
       .map(
         (line) => <String, dynamic>{
           'variant_id': line.product.variantId,
+            'tracking_revision': line.product.trackingRevision,
+            'tracking_mode': line.product.trackingMode,
           'product_name': line.product.productName,
           'sku': line.product.sku,
           'quantity': line.quantity,
@@ -3976,6 +3980,8 @@ class _PosScreenState extends State<PosScreen> {
         .map(
           (line) => <String, dynamic>{
             'variant_id': line.product.variantId,
+            'tracking_revision': line.product.trackingRevision,
+            'tracking_mode': line.product.trackingMode,
             'product_name': line.product.productName,
             'sku': line.product.sku,
             'quantity': line.quantity,

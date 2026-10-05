@@ -695,6 +695,7 @@ class OfflinePosService {
     'reorder_level': product.reorderLevel,
     'stock_quantity': product.stockQuantity,
     'tracking_mode': product.trackingMode,
+    'tracking_revision': product.trackingRevision,
     'tracked_stock_quantity': product.trackedStockQuantity,
     'product_status': product.productStatus,
     'variant_status': product.variantStatus,

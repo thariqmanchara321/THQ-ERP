@@ -1,3 +1,4 @@
+import '../widgets/return_tracking_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:thq_ui/thq_ui.dart';
 
@@ -615,6 +616,13 @@ class _PurchaseReturnDialogState extends State<_PurchaseReturnDialog> {
       _error = null;
     });
     try {
+      for (final row in items) {
+        if (!mounted) return;
+        final allocation = await collectReturnTracking(context, tenantId: widget.session.business.id,
+          kind: 'purchase', itemId: row['purchase_item_id'] as String, quantity: (row['quantity'] as num).toDouble());
+        if (!mounted || allocation == null) return;
+        row.addAll(allocation);
+      }
       final result = await _service.createReturn(
         tenantId: widget.session.business.id,
         purchaseId: widget.purchase.purchaseId,

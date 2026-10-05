@@ -1,0 +1,26 @@
+﻿**********************
+Windows PowerShell transcript start
+Start time: 20261004231025
+Username: DESKTOP-DNTHJKD\SMART COM
+RunAs User: DESKTOP-DNTHJKD\SMART COM
+Configuration Name: 
+Machine: DESKTOP-DNTHJKD (Microsoft Windows NT 10.0.26200.0)
+Host Application: C:\WINDOWS\System32\WindowsPowerShell\v1.0\powershell.exe -ExecutionPolicy Bypass -File C:\Users\SMART COM\Downloads\THQ_Staff_Attendance_Separation_v6.3.3\thq_staff_separation_v633\APPLY_THQ_STAFF_SEPARATION.ps1 -RepoRoot D:\ERP\flexi_erp
+Process ID: 20356
+PSVersion: 5.1.26100.9444
+PSEdition: Desktop
+PSCompatibleVersions: 1.0, 2.0, 3.0, 4.0, 5.0, 5.1.26100.9444
+BuildVersion: 10.0.26100.9444
+CLRVersion: 4.0.30319.42000
+WSManStackVersion: 3.0
+PSRemotingProtocolVersion: 2.3
+SerializationVersion: 1.1.0.1
+**********************
+
+
+
+All selected Flutter analysis and tests passed.
+**********************
+Windows PowerShell transcript end
+End time: 20261004231055
+**********************

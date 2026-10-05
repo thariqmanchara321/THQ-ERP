@@ -5,11 +5,13 @@ import 'package:thq_ui/thq_ui.dart';
 
 import '../models/client_session.dart';
 import '../models/inventory_product.dart';
+import '../models/inventory_report.dart';
 import '../services/inventory_service.dart';
 import '../services/location_scope_service.dart';
 import '../ui/v43_theme.dart';
 import 'add_product_screen.dart';
 import 'inventory_movement_history_screen.dart';
+import 'inventory_reports_screen.dart';
 import 'product_detail_screen.dart';
 
 class InventoryProductsScreen extends StatefulWidget {
@@ -288,6 +290,17 @@ class _InventoryProductsScreenState extends State<InventoryProductsScreen> {
                     icon: const Icon(Icons.refresh_rounded, size: 19),
                   ),
                   const SizedBox(width: 4),
+                  if (canOpenInventoryReports(widget.session))
+                    IconButton(
+                      tooltip: 'Inventory Reports',
+                      onPressed: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) =>
+                              InventoryReportsScreen(session: widget.session),
+                        ),
+                      ),
+                      icon: const Icon(Icons.analytics_outlined),
+                    ),
                   OutlinedButton.icon(
                     onPressed: () => Navigator.of(context).push(
                       MaterialPageRoute(

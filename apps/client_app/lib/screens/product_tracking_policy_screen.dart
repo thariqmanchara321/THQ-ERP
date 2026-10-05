@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import '../widgets/tracking_conversion_dialog.dart';
 import 'package:thq_ui/thq_ui.dart';
 
 import '../models/client_session.dart';
@@ -28,6 +30,9 @@ class _ProductTrackingPolicyScreenState
   final _serials = TextEditingController();
   final _note = TextEditingController();
   String _mode = 'none';
+  String _savedMode = 'none';
+  String? _conversionRequestId;
+  Map<String, dynamic>? _pendingConversion;
   bool _warranty = false;
   bool _requireExpiry = false;
   bool _allowExpired = false;
@@ -65,6 +70,8 @@ class _ProductTrackingPolicyScreenState
       if (!mounted) return;
       setState(() {
         _mode = policy['tracking_mode']?.toString() ?? 'none';
+        _savedMode = _mode;
+        _conversionRequestId = null; _pendingConversion = null;
         _warranty = policy['warranty_enabled'] == true;
         _months.text = (policy['warranty_months'] ?? 0).toString();
         _days.text = (policy['warranty_days'] ?? 0).toString();
@@ -79,7 +86,7 @@ class _ProductTrackingPolicyScreenState
     }
   }
 
-  String _clean(Object e) => e.toString().replaceFirst('Exception: ', '');
+  String _clean(Object e) => e is PostgrestException ? e.message : e is FormatException ? e.message : e.toString().replaceFirst('Exception: ', '');
 
   Future<void> _save() async {
     final months = int.tryParse(_months.text.trim()) ?? 0;
@@ -89,6 +96,26 @@ class _ProductTrackingPolicyScreenState
       _error = null;
     });
     try {
+      if (_mode != _savedMode) {
+        if (_pendingConversion == null) {
+          final preview = await _service.previewConversion(tenantId: _tenantId, variantId: widget.variantId);
+          if (!mounted) return;
+          final conversion = await showDialog<Map<String, dynamic>>(context: context,
+            builder: (_) => TrackingConversionDialog(preview: preview, mode: _mode, productName: widget.productName));
+          if (!mounted || conversion == null) return;
+          _conversionRequestId = 'tracking-${DateTime.now().microsecondsSinceEpoch}-${widget.variantId}';
+          _pendingConversion = {'mode': _mode, 'revision': (preview['revision'] as num).toInt(),
+            'conversion': conversion, 'policy': <String, dynamic>{
+              'warranty_enabled': _mode != 'none' && _warranty, 'warranty_months': months, 'warranty_days': days,
+              'require_batch_expiry': _mode == 'batch' && _requireExpiry, 'allow_expired_sale': _mode == 'batch' && _allowExpired,
+            }};
+        }
+        final pending = _pendingConversion!;
+        await _service.convert(tenantId: _tenantId, variantId: widget.variantId,
+          mode: pending['mode'] as String, revision: pending['revision'] as int,
+          conversion: pending['conversion'] as Map<String, dynamic>, requestId: _conversionRequestId!,
+          policy: pending['policy'] as Map<String, dynamic>);
+      } else {
       await _service.savePolicy(
         tenantId: _tenantId,
         variantId: widget.variantId,
@@ -99,6 +126,7 @@ class _ProductTrackingPolicyScreenState
         requireBatchExpiry: _requireExpiry,
         allowExpiredSale: _allowExpired,
       );
+      }
       await _load();
       if (mounted) {
         ThqNotify.showSnackBar(
@@ -107,6 +135,7 @@ class _ProductTrackingPolicyScreenState
         );
       }
     } catch (e) {
+      if (e is PostgrestException) { _pendingConversion = null; _conversionRequestId = null; }
       if (mounted) setState(() => _error = _clean(e));
     } finally {
       if (mounted) setState(() => _saving = false);
@@ -176,6 +205,7 @@ class _ProductTrackingPolicyScreenState
         );
       }
     } catch (e) {
+      if (e is PostgrestException) { _pendingConversion = null; _conversionRequestId = null; }
       if (mounted) setState(() => _error = _clean(e));
     } finally {
       if (mounted) setState(() => _saving = false);
@@ -263,7 +293,7 @@ class _ProductTrackingPolicyScreenState
                                 onChanged: _saving
                                     ? null
                                     : (v) =>
-                                          setState(() => _mode = v ?? 'none'),
+                                          setState(() { _mode = v ?? 'none'; _conversionRequestId = null; _pendingConversion = null; if (_mode == 'none') _warranty = false; }),
                               ),
                               if (_mode == 'batch') ...[
                                 const SizedBox(height: 8),
@@ -349,7 +379,7 @@ class _ProductTrackingPolicyScreenState
                       FilledButton.icon(
                         onPressed: _saving ? null : _save,
                         icon: const Icon(Icons.save_outlined),
-                        label: Text(_saving ? 'Saving...' : 'Save Policy'),
+                        label: Text(_saving ? 'Saving...' : _mode != _savedMode ? 'Change Tracking Method' : 'Save Policy'),
                       ),
                       if (_error != null)
                         Padding(
@@ -361,7 +391,7 @@ class _ProductTrackingPolicyScreenState
                             ),
                           ),
                         ),
-                      if (_mode != 'none' && _reconciliation != null) ...[
+                      if (_mode == _savedMode && _mode != 'none' && _reconciliation != null) ...[
                         const SizedBox(height: 24),
                         Card(
                           child: Padding(

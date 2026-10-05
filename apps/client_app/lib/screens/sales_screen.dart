@@ -933,6 +933,8 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
       .map(
         (line) => <String, dynamic>{
           'variant_id': line.product.variantId,
+            'tracking_revision': line.product.trackingRevision,
+            'tracking_mode': line.product.trackingMode,
           'quantity': line.quantity,
           'unit_id': line.unitId,
           'unit_price': line.unitPrice,

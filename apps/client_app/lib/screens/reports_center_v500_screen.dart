@@ -7,11 +7,13 @@ import 'package:intl/intl.dart';
 import 'package:printing/printing.dart';
 
 import '../models/client_session.dart';
+import '../models/inventory_report.dart';
 import '../models/report_document.dart';
 import '../services/location_scope_service.dart';
 import '../services/report_file_builder.dart';
 import '../services/reports_center_service.dart';
 import '../widgets/record_preview.dart';
+import 'inventory_reports_screen.dart';
 
 class ReportsCenterV500Screen extends StatefulWidget {
   final ClientSession session;
@@ -819,6 +821,16 @@ class _ReportsCenterV500ScreenState extends State<ReportsCenterV500Screen> {
     appBar: AppBar(
       title: const Text('Reports Center v5'),
       actions: [
+        if (canOpenInventoryReports(widget.session))
+          IconButton(
+            tooltip: 'Inventory Reports',
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => InventoryReportsScreen(session: widget.session),
+              ),
+            ),
+            icon: const Icon(Icons.analytics_outlined),
+          ),
         if (_exporting)
           const Padding(
             padding: EdgeInsets.all(15),

@@ -84,6 +84,7 @@ class MobileProduct {
   final double taxRate;
   final double stockQuantity;
   final String trackingMode;
+  final int trackingRevision;
   final List<MobileSaleUnit> saleUnits;
   final List<MobilePurchaseUnit> purchaseUnits;
 
@@ -104,6 +105,7 @@ class MobileProduct {
     required this.taxRate,
     required this.stockQuantity,
     required this.trackingMode,
+    this.trackingRevision = 0,
     required this.saleUnits,
     this.purchaseUnits = const <MobilePurchaseUnit>[],
   });
@@ -127,6 +129,7 @@ class MobileProduct {
         stockQuantity:
             numberValue(m['offline_available_quantity'] ?? m['stock_quantity']),
         trackingMode: m['tracking_mode']?.toString() ?? 'none',
+        trackingRevision: numberValue(m['tracking_revision']).toInt(),
         saleUnits: (m['sale_units'] as List? ?? const [])
             .whereType<Map>()
             .map((x) => MobileSaleUnit.fromMap(Map<String, dynamic>.from(x)))
@@ -262,6 +265,8 @@ class CartLine {
 
   Map<String, dynamic> toPayload() => {
         'variant_id': product.variantId,
+        'tracking_revision': product.trackingRevision,
+        'tracking_mode': product.trackingMode,
         'product_name': product.name,
         'sku': product.sku,
         'quantity': quantity,

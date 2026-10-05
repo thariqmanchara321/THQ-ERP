@@ -34,6 +34,8 @@ import 'global_search_screen.dart';
 import 'workshop_screen.dart';
 import 'industry_workspace_screen.dart';
 import 'inventory_products_screen.dart';
+import '../models/inventory_report.dart';
+import 'inventory_reports_screen.dart';
 import 'loan_screen.dart';
 import 'tracking_workspace_screen.dart';
 import 'invoice_designer_screen.dart';
@@ -149,6 +151,20 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
               'and customer transport billing',
           category: 'Operations',
           sortOrder: sortOrder,
+        ),
+      );
+    }
+
+    if (canOpenInventoryReports(_session) &&
+        !modules.any((module) => module.key == 'inventory_reports')) {
+      modules.add(
+        const ClientModule(
+          key: 'inventory_reports',
+          name: 'Inventory Reports',
+          description:
+              'Stock, valuation, movement, tracking and reconciliation',
+          category: 'Reports',
+          sortOrder: 91,
         ),
       );
     }
@@ -396,6 +412,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
     'aggregate_yard' => Icons.landscape_outlined,
     'operations_intelligence' => Icons.monitor_heart_outlined,
     'inventory' => Icons.inventory_2_outlined,
+    'inventory_reports' => Icons.analytics_outlined,
     'sales' => Icons.receipt_long_outlined,
     'sales_details' => Icons.history_outlined,
     'purchases' => Icons.shopping_cart_outlined,
@@ -986,6 +1003,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
     'aggregate_yard' ||
     'operations_intelligence' ||
     'inventory' ||
+    'inventory_reports' ||
     'warranty' ||
     'suppliers' ||
     'purchases' ||
@@ -1503,6 +1521,7 @@ class _ModulePage extends StatelessWidget {
         session: session,
       ),
       'inventory' => InventoryProductsScreen(session: session),
+      'inventory_reports' => InventoryReportsScreen(session: session),
       'warranty' => TrackingWorkspaceScreen(session: session),
       'suppliers' => SuppliersScreen(session: session),
       'purchases' => PurchasesScreen(session: session, startInCreate: true),
