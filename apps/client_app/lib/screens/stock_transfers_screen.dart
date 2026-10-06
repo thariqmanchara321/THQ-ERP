@@ -142,7 +142,7 @@ class _StockTransfersScreenState extends State<StockTransfersScreen> {
       String? lineError;
       bool loadingTracking = false;
 
-      final result = await showDialog<(Map<String, dynamic>, String)>(
+      final result = await showThqDialog<(Map<String, dynamic>, String)>(
         context: context,
         barrierDismissible: false,
         builder: (itemContext) => StatefulBuilder(
@@ -422,7 +422,7 @@ class _StockTransfersScreenState extends State<StockTransfersScreen> {
       return result;
     }
 
-    final ok = await showDialog<bool>(
+    final ok = await showThqDialog<bool>(
       context: context,
       barrierDismissible: false,
       builder: (dialogContext) => StatefulBuilder(
@@ -469,7 +469,7 @@ class _StockTransfersScreenState extends State<StockTransfersScreen> {
                           'Products in this transfer',
                           style: TextStyle(
                             fontSize: 15,
-                            fontWeight: FontWeight.w800,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
                       ),
@@ -646,7 +646,7 @@ class _StockTransfersScreenState extends State<StockTransfersScreen> {
 
   Future<String?> _noteDialog(String title, {bool required = false}) async {
     final controller = TextEditingController();
-    final result = await showDialog<String>(
+    final result = await showThqDialog<String>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: Text(title),
@@ -680,7 +680,7 @@ class _StockTransfersScreenState extends State<StockTransfersScreen> {
   Future<(String, String)?> _dispatchDialog() async {
     final note = TextEditingController();
     final transport = TextEditingController();
-    final result = await showDialog<(String, String)>(
+    final result = await showThqDialog<(String, String)>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('Dispatch Transfer'),
@@ -842,7 +842,7 @@ class _StockTransfersScreenState extends State<StockTransfersScreen> {
       final history = (detail['history'] as List? ?? const [])
           .whereType<Map>()
           .toList();
-      await showDialog<void>(
+      await showThqDialog<void>(
         context: context,
         builder: (dialogContext) => AlertDialog(
           title: Text(
@@ -923,7 +923,7 @@ class _StockTransfersScreenState extends State<StockTransfersScreen> {
       locationId = writable.first.id;
     }
     if (writable.length > 1) {
-      final selected = await showDialog<String>(
+      final selected = await showThqDialog<String>(
         context: context,
         builder: (dialogContext) => SimpleDialog(
           title: const Text('Count location'),
@@ -957,7 +957,7 @@ class _StockTransfersScreenState extends State<StockTransfersScreen> {
       _message('No stock products are available to count at this location.');
       return;
     }
-    final posted = await showDialog<bool>(
+    final posted = await showThqDialog<bool>(
       context: context,
       barrierDismissible: false,
       builder: (_) => _V485StockCountDialog(
@@ -982,7 +982,7 @@ class _StockTransfersScreenState extends State<StockTransfersScreen> {
         locationId: warehouse['location_id']?.toString(),
       );
       if (!mounted) return;
-      await showDialog<void>(
+      await showThqDialog<void>(
         context: context,
         builder: (dialogContext) => AlertDialog(
           title: Text(
@@ -1034,7 +1034,7 @@ class _StockTransfersScreenState extends State<StockTransfersScreen> {
       final items = (detail['items'] as List? ?? const [])
           .whereType<Map>()
           .toList();
-      await showDialog<void>(
+      await showThqDialog<void>(
         context: context,
         builder: (dialogContext) => AlertDialog(
           title: Text('${count['count_number']} • ${count['location_name']}'),
@@ -1101,7 +1101,7 @@ class _StockTransfersScreenState extends State<StockTransfersScreen> {
                         'Warehouse & Transfers',
                         style: TextStyle(
                           fontSize: 24,
-                          fontWeight: FontWeight.w800,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                       SizedBox(height: 4),
@@ -1571,7 +1571,7 @@ class _V485StockCountDialogState extends State<_V485StockCountDialog> {
   Future<void> _editTracked(Map<String, dynamic> row) async {
     final mode = row['tracking_mode']?.toString() ?? 'none';
     final controller = _editors[row['variant_id'].toString()]!;
-    await showDialog<void>(
+    await showThqDialog<void>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: Text('${row['product_name']} • ${mode.toUpperCase()} count'),

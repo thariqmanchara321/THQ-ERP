@@ -127,6 +127,7 @@ class PurchaseService {
     if (result is Map) return Map<String, dynamic>.from(result);
     throw Exception('Unexpected round-off response.');
   }
+
   Future<DeviceActivation> _activation(String tenantId) async {
     final activation = await DeviceInstallationService().readActivation();
     if (activation == null || activation.tenantId != tenantId) {

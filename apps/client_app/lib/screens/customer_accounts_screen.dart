@@ -1,3 +1,4 @@
+import 'package:thq_ui/thq_ui.dart';
 import 'package:flutter/material.dart';
 
 import '../models/client_session.dart';
@@ -68,7 +69,7 @@ class _CustomerAccountsScreenState extends State<CustomerAccountsScreen> {
   }
 
   Future<void> _open(Map<String, dynamic> row) async {
-    await showDialog<void>(
+    await showThqDialog<void>(
       context: context,
       barrierDismissible: false,
       builder: (_) => CustomerAccountDialog(
@@ -137,7 +138,7 @@ class _CustomerAccountsScreenState extends State<CustomerAccountsScreen> {
                           _money(totalOutstanding),
                           style: const TextStyle(
                             fontSize: 21,
-                            fontWeight: FontWeight.w900,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
                       ),
@@ -152,7 +153,7 @@ class _CustomerAccountsScreenState extends State<CustomerAccountsScreen> {
                       '$dueCustomers',
                       style: const TextStyle(
                         fontSize: 21,
-                        fontWeight: FontWeight.w900,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ),
@@ -220,7 +221,7 @@ class _CustomerAccountsScreenState extends State<CustomerAccountsScreen> {
                                           Text(
                                             customerName,
                                             style: const TextStyle(
-                                              fontWeight: FontWeight.w800,
+                                              fontWeight: FontWeight.w600,
                                             ),
                                           ),
                                           const SizedBox(height: 3),
@@ -258,10 +259,14 @@ class _CustomerAccountsScreenState extends State<CustomerAccountsScreen> {
                                           maxLines: 1,
                                           style: TextStyle(
                                             fontSize: 17,
-                                            fontWeight: FontWeight.w900,
+                                            fontWeight: FontWeight.w600,
                                             color: outstanding > 0.005
-                                                ? Colors.orange.shade800
-                                                : Colors.green.shade700,
+                                                ? context
+                                                      .thqSemanticColors
+                                                      .warning
+                                                : Theme.of(
+                                                    context,
+                                                  ).colorScheme.primary,
                                           ),
                                         ),
                                       ),

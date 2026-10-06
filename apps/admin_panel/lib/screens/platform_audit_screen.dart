@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../widgets/admin_home_button.dart';
 
 import '../models/platform_models.dart';
@@ -59,7 +60,9 @@ class _PlatformAuditScreenState extends State<PlatformAuditScreen> {
                 const SizedBox(height: 6),
                 Text(
                   'Security-sensitive platform configuration changes are recorded by backend RPCs.',
-                  style: TextStyle(color: Colors.grey.shade600),
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
                 ),
                 const SizedBox(height: 6),
                 ...rows.map(

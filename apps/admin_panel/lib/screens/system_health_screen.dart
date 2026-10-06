@@ -46,7 +46,7 @@ class _SystemHealthScreenState extends State<SystemHealthScreen> {
           '${widget.businessName} | System Health',
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w900),
+          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
         ),
         actions: [
           IconButton(
@@ -187,7 +187,7 @@ class _SystemHealthScreenState extends State<SystemHealthScreen> {
                               : 'Critical integrity issues require attention before release.',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(fontSize: 8.2),
+                          style: const TextStyle(fontSize: 11),
                         ),
                       ),
                     ],
@@ -257,8 +257,8 @@ class _SystemHealthScreenState extends State<SystemHealthScreen> {
                                         maxLines: 1,
                                         overflow: TextOverflow.ellipsis,
                                         style: const TextStyle(
-                                          fontSize: 8.5,
-                                          fontWeight: FontWeight.w900,
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w600,
                                         ),
                                       ),
                                     ),
@@ -267,7 +267,7 @@ class _SystemHealthScreenState extends State<SystemHealthScreen> {
                                         issue['description']?.toString() ?? '',
                                         maxLines: 2,
                                         overflow: TextOverflow.ellipsis,
-                                        style: const TextStyle(fontSize: 7.8),
+                                        style: const TextStyle(fontSize: 11),
                                       ),
                                     ),
                                   ],
@@ -318,15 +318,15 @@ class _Metric extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    fontSize: 8.8,
-                    fontWeight: FontWeight.w900,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
                 Text(
                   label,
                   maxLines: 1,
                   style: TextStyle(
-                    fontSize: 6.8,
+                    fontSize: 11,
                     color: scheme.onSurfaceVariant,
                   ),
                 ),

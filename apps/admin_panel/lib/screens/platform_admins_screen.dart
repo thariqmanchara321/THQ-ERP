@@ -1,4 +1,6 @@
+import 'package:thq_ui/thq_ui.dart';
 import 'package:flutter/material.dart';
+
 import '../widgets/admin_home_button.dart';
 
 import '../models/platform_models.dart';
@@ -30,7 +32,7 @@ class _PlatformAdminsScreenState extends State<PlatformAdminsScreen> {
     String role = 'support_admin';
     String? error;
     bool saving = false;
-    final changed = await showDialog<bool>(
+    final changed = await showThqDialog<bool>(
       context: context,
       barrierDismissible: false,
       builder: (dialogContext) => StatefulBuilder(
@@ -93,7 +95,9 @@ class _PlatformAdminsScreenState extends State<PlatformAdminsScreen> {
                     padding: const EdgeInsets.only(top: 12),
                     child: Text(
                       error!,
-                      style: const TextStyle(color: Colors.red),
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.error,
+                      ),
                     ),
                   ),
               ],
@@ -141,7 +145,7 @@ class _PlatformAdminsScreenState extends State<PlatformAdminsScreen> {
   }
 
   Future<void> _revoke(PlatformAdminInfo admin) async {
-    final ok = await showDialog<bool>(
+    final ok = await showThqDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
         title: const Text('Revoke access?'),
@@ -198,7 +202,9 @@ class _PlatformAdminsScreenState extends State<PlatformAdminsScreen> {
                 const SizedBox(height: 6),
                 Text(
                   'Separate platform responsibilities instead of granting every employee unrestricted Super Admin access.',
-                  style: TextStyle(color: Colors.grey.shade600),
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
                 ),
                 const SizedBox(height: 6),
                 ...rows.map(

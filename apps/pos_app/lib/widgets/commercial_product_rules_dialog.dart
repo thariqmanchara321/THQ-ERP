@@ -1,3 +1,4 @@
+import 'package:thq_ui/thq_ui.dart';
 import 'package:flutter/material.dart';
 
 import '../models/client_session.dart';
@@ -127,7 +128,7 @@ class _CommercialProductRulesDialogState
     var autoTakeaway = existing?['auto_apply_takeaway'] == true;
     var autoDelivery = existing?['auto_apply_delivery'] == true;
 
-    final saved = await showDialog<bool>(
+    final saved = await showThqDialog<bool>(
       context: context,
       barrierDismissible: false,
       builder: (dialogContext) => StatefulBuilder(
@@ -206,7 +207,7 @@ class _CommercialProductRulesDialogState
                   const SizedBox(height: 12),
                   const Text(
                     'Automatic order-type application',
-                    style: TextStyle(fontWeight: FontWeight.w800),
+                    style: TextStyle(fontWeight: FontWeight.w600),
                   ),
                   const SizedBox(height: 6),
                   Wrap(
@@ -329,7 +330,7 @@ class _CommercialProductRulesDialogState
       text: _number(existing?['quantity_value'], 1).toString(),
     );
 
-    final saved = await showDialog<bool>(
+    final saved = await showThqDialog<bool>(
       context: context,
       barrierDismissible: false,
       builder: (dialogContext) => StatefulBuilder(
@@ -573,7 +574,7 @@ class _CommercialProductRulesDialogState
                     registered
                         ? '${_pretty(existing['charge_kind']?.toString() ?? 'other')} Charge'
                         : 'Not registered as a commercial charge',
-                    style: const TextStyle(fontWeight: FontWeight.w900),
+                    style: const TextStyle(fontWeight: FontWeight.w600),
                   ),
                   const SizedBox(height: 2),
                   Text(
@@ -618,7 +619,7 @@ class _CommercialProductRulesDialogState
                 const Expanded(
                   child: Text(
                     'Automatic Product Charge Rules',
-                    style: TextStyle(fontWeight: FontWeight.w900),
+                    style: TextStyle(fontWeight: FontWeight.w600),
                   ),
                 ),
                 FilledButton.tonalIcon(
@@ -667,7 +668,7 @@ class _CommercialProductRulesDialogState
                                   rule['charge_code']?.toString() ??
                                   'Charge',
                               style: const TextStyle(
-                                fontWeight: FontWeight.w900,
+                                fontWeight: FontWeight.w600,
                               ),
                             ),
                             const SizedBox(height: 2),
@@ -676,7 +677,7 @@ class _CommercialProductRulesDialogState
                               '${_pretty(rule['quantity_mode']?.toString() ?? 'per_unit')} â€¢ '
                               'Qty ${_number(rule['quantity_value'], 1)}',
                               style: TextStyle(
-                                fontSize: 10.5,
+                                fontSize: 11,
                                 color: scheme.onSurfaceVariant,
                               ),
                             ),
@@ -727,7 +728,7 @@ class _CommercialProductRulesDialogState
                           'Commercial Pricing Rules',
                           style: TextStyle(
                             fontSize: 16,
-                            fontWeight: FontWeight.w900,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
                         Text(

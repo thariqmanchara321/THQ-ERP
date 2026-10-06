@@ -233,7 +233,7 @@ class _LogisticsOperationsScreenState extends State<LogisticsOperationsScreen>
       text: row['external_reference']?.toString() ?? '',
     );
 
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showThqDialog<bool>(
       context: context,
       barrierDismissible: false,
       builder: (dialogContext) => StatefulBuilder(
@@ -406,7 +406,7 @@ class _LogisticsOperationsScreenState extends State<LogisticsOperationsScreen>
     String type = 'delivery_photo';
     final note = TextEditingController();
 
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showThqDialog<bool>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setLocalState) => AlertDialog(
@@ -555,7 +555,7 @@ class _LogisticsOperationsScreenState extends State<LogisticsOperationsScreen>
       return;
     }
     final url = _service.logisticsEvidencePublicUrl(path);
-    await showDialog<void>(
+    await showThqDialog<void>(
       context: context,
       builder: (dialogContext) => Dialog(
         child: ConstrainedBox(

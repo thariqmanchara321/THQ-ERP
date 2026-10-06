@@ -1,3 +1,4 @@
+import 'package:thq_ui/thq_ui.dart';
 import 'package:flutter/material.dart';
 
 import '../models/client_session.dart';
@@ -46,7 +47,7 @@ class _ApprovalsScreenState extends State<ApprovalsScreen> {
 
   Future<void> _decide(Map<String, dynamic> row, bool approve) async {
     final note = TextEditingController();
-    final ok = await showDialog<bool>(
+    final ok = await showThqDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: Text(approve ? 'Approve Request' : 'Reject Request'),
@@ -93,7 +94,7 @@ class _ApprovalsScreenState extends State<ApprovalsScreen> {
           children: [
             const Text(
               'Approvals',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
             ),
             const Text(
               'Review sensitive business actions before they are finalized.',
@@ -142,7 +143,7 @@ class _ApprovalsScreenState extends State<ApprovalsScreen> {
                                       Text(
                                         '${row['module_key']} • ${row['action_key']}',
                                         style: const TextStyle(
-                                          fontWeight: FontWeight.w800,
+                                          fontWeight: FontWeight.w600,
                                         ),
                                       ),
                                       Text(

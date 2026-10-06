@@ -132,7 +132,7 @@ class _FinanceControlsScreenState extends State<FinanceControlsScreen>
                 .map((e) => Map<String, dynamic>.from(e))
                 .toList()
           : <Map<String, dynamic>>[];
-      await showDialog<void>(
+      await showThqDialog<void>(
         context: context,
         builder: (context) => AlertDialog(
           title: Text(journal['entry_number']?.toString() ?? 'Journal'),
@@ -191,7 +191,7 @@ class _FinanceControlsScreenState extends State<FinanceControlsScreen>
   }
 
   Future<void> _closeYear(Map<String, dynamic> year) async {
-    final ok = await showDialog<bool>(
+    final ok = await showThqDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Close financial year?'),
@@ -231,7 +231,7 @@ class _FinanceControlsScreenState extends State<FinanceControlsScreen>
     final id = (journal['journal_id'] ?? journal['id'])?.toString();
     if (id == null) return;
     final reason = TextEditingController();
-    final ok = await showDialog<bool>(
+    final ok = await showThqDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Reverse journal'),
@@ -374,15 +374,19 @@ class _FinanceControlsScreenState extends State<FinanceControlsScreen>
                 children: [
                   CircleAvatar(
                     backgroundColor: ready
-                        ? Colors.green.withValues(alpha: .12)
-                        : Colors.orange.withValues(alpha: .12),
+                        ? Theme.of(
+                            context,
+                          ).colorScheme.primary.withValues(alpha: .12)
+                        : context.thqSemanticColors.warning.withValues(
+                            alpha: .12,
+                          ),
                     child: Icon(
                       ready
                           ? Icons.verified_outlined
                           : Icons.warning_amber_rounded,
                       color: ready
-                          ? Colors.green.shade700
-                          : Colors.orange.shade800,
+                          ? Theme.of(context).colorScheme.primary
+                          : context.thqSemanticColors.warning,
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -396,7 +400,7 @@ class _FinanceControlsScreenState extends State<FinanceControlsScreen>
                               : 'Finance reconciliation needs attention',
                           style: const TextStyle(
                             fontSize: 16,
-                            fontWeight: FontWeight.w800,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
                         const SizedBox(height: 3),
@@ -483,7 +487,9 @@ class _FinanceControlsScreenState extends State<FinanceControlsScreen>
                   Icon(
                     ok ? Icons.check_circle : Icons.error_outline,
                     size: 18,
-                    color: ok ? Colors.green.shade700 : Colors.orange.shade800,
+                    color: ok
+                        ? Theme.of(context).colorScheme.primary
+                        : context.thqSemanticColors.warning,
                   ),
                 ],
               ),
@@ -519,8 +525,8 @@ class _FinanceControlsScreenState extends State<FinanceControlsScreen>
         Text(
           value,
           style: TextStyle(
-            fontWeight: bold ? FontWeight.w800 : FontWeight.w600,
-            color: warning ? Colors.orange.shade900 : null,
+            fontWeight: bold ? FontWeight.w600 : FontWeight.w600,
+            color: warning ? context.thqSemanticColors.warning : null,
           ),
         ),
       ],
@@ -548,13 +554,13 @@ class _FinanceControlsScreenState extends State<FinanceControlsScreen>
                 Icon(
                   healthy ? Icons.shield_outlined : Icons.warning_amber_rounded,
                   color: healthy
-                      ? Colors.green.shade700
-                      : Colors.orange.shade800,
+                      ? Theme.of(context).colorScheme.primary
+                      : context.thqSemanticColors.warning,
                 ),
                 const SizedBox(width: 8),
                 const Text(
                   'Journal integrity',
-                  style: TextStyle(fontWeight: FontWeight.w800),
+                  style: TextStyle(fontWeight: FontWeight.w600),
                 ),
               ],
             ),

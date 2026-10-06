@@ -70,7 +70,7 @@ class _TrackingLookupScreenState extends State<TrackingLookupScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(title: const Text('Tracking ID Lookup')),
       body: Center(
         child: ConstrainedBox(
@@ -119,7 +119,12 @@ class _TrackingLookupScreenState extends State<TrackingLookupScreen> {
                 ),
                 if (_error != null) ...[
                   const SizedBox(height: 18),
-                  Text(_error!, style: const TextStyle(color: Colors.red)),
+                  Text(
+                    _error!,
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.error,
+                    ),
+                  ),
                 ],
                 if (_result != null) ...[
                   const SizedBox(height: 22),

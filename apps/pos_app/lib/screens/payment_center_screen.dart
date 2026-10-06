@@ -96,13 +96,13 @@ class _PaymentCenterScreenState extends State<PaymentCenterScreen> {
                         'Pending Payments',
                         style: TextStyle(
                           fontSize: 14.5,
-                          fontWeight: FontWeight.w900,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                       Text(
                         'Customer receivables and supplier payables',
                         style: TextStyle(
-                          fontSize: 10.5,
+                          fontSize: 11,
                           color: scheme.onSurfaceVariant,
                         ),
                       ),
@@ -290,14 +290,14 @@ class _PartyPane extends StatelessWidget {
                         maxLines: 1,
                         style: const TextStyle(
                           fontSize: 11,
-                          fontWeight: FontWeight.w900,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                       Text(
                         subtitle,
                         maxLines: 1,
                         style: TextStyle(
-                          fontSize: 10,
+                          fontSize: 11,
                           color: scheme.onSurfaceVariant,
                         ),
                       ),
@@ -309,7 +309,7 @@ class _PartyPane extends StatelessWidget {
                   maxLines: 1,
                   style: const TextStyle(
                     fontSize: 11.5,
-                    fontWeight: FontWeight.w900,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ],
@@ -384,8 +384,8 @@ class _PartyPane extends StatelessWidget {
                                         maxLines: 1,
                                         overflow: TextOverflow.ellipsis,
                                         style: const TextStyle(
-                                          fontSize: 10.5,
-                                          fontWeight: FontWeight.w800,
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w600,
                                         ),
                                       ),
                                       Text(
@@ -393,7 +393,7 @@ class _PartyPane extends StatelessWidget {
                                         maxLines: 1,
                                         overflow: TextOverflow.ellipsis,
                                         style: TextStyle(
-                                          fontSize: 10,
+                                          fontSize: 11,
                                           color: scheme.onSurfaceVariant,
                                         ),
                                       ),
@@ -404,7 +404,7 @@ class _PartyPane extends StatelessWidget {
                                         maxLines: 1,
                                         overflow: TextOverflow.ellipsis,
                                         style: TextStyle(
-                                          fontSize: 10,
+                                          fontSize: 11,
                                           color: row.overdue > .005
                                               ? scheme.error
                                               : scheme.onSurfaceVariant,
@@ -418,8 +418,8 @@ class _PartyPane extends StatelessWidget {
                                   money(row.balance),
                                   maxLines: 1,
                                   style: const TextStyle(
-                                    fontSize: 10.5,
-                                    fontWeight: FontWeight.w900,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
                                   ),
                                 ),
                                 const SizedBox(width: 3),
@@ -698,7 +698,7 @@ class _PartyPaymentDetailScreenState extends State<_PartyPaymentDetailScreen> {
                 Text(
                   _m(document.balance),
                   style: TextStyle(
-                    fontWeight: FontWeight.w800,
+                    fontWeight: FontWeight.w600,
                     color: document.overdue
                         ? Theme.of(context).colorScheme.error
                         : null,
@@ -760,7 +760,7 @@ class _PartyPaymentDetailScreenState extends State<_PartyPaymentDetailScreen> {
           ),
           trailing: Text(
             _m(payment.amount),
-            style: const TextStyle(fontWeight: FontWeight.w800),
+            style: const TextStyle(fontWeight: FontWeight.w600),
           ),
         );
       },
@@ -812,7 +812,7 @@ class _MetricCard extends StatelessWidget {
                   Text(
                     value,
                     style: TextStyle(
-                      fontWeight: FontWeight.w800,
+                      fontWeight: FontWeight.w600,
                       fontSize: 16,
                       color: danger
                           ? Theme.of(context).colorScheme.error

@@ -135,7 +135,7 @@ class _AccountingScreenState extends State<AccountingScreen> {
     );
     var type = account?['account_type']?.toString() ?? 'asset';
     var active = account?['active'] != false;
-    final ok = await showDialog<bool>(
+    final ok = await showThqDialog<bool>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
@@ -270,7 +270,7 @@ class _AccountingScreenState extends State<AccountingScreen> {
       selected[key.$1] =
           row?['account_id']?.toString() ?? _accounts.first['id'].toString();
     }
-    final saved = await showDialog<bool>(
+    final saved = await showThqDialog<bool>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
@@ -394,7 +394,7 @@ class _AccountingScreenState extends State<AccountingScreen> {
                     'Accounting',
                     style: TextStyle(
                       fontSize: 14.5,
-                      fontWeight: FontWeight.w900,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ),
@@ -715,7 +715,7 @@ class _MetricCard extends StatelessWidget {
                     value,
                     style: const TextStyle(
                       fontSize: 17,
-                      fontWeight: FontWeight.w800,
+                      fontWeight: FontWeight.w600,
                     ),
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -743,7 +743,7 @@ class _MiniMetric extends StatelessWidget {
         const SizedBox(height: 4),
         Text(
           value,
-          style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
+          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
         ),
       ],
     ),

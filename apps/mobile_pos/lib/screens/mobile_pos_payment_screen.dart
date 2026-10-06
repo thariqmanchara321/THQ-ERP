@@ -32,10 +32,10 @@ class MobilePaymentAllocation {
   });
 
   Map<String, dynamic> toMap() => <String, dynamic>{
-        'method_code': methodCode,
-        'tendered_amount': amount,
-        'reference_number': reference.trim().isEmpty ? null : reference.trim(),
-      };
+    'method_code': methodCode,
+    'tendered_amount': amount,
+    'reference_number': reference.trim().isEmpty ? null : reference.trim(),
+  };
 }
 
 class MobilePaymentResult {
@@ -87,8 +87,7 @@ class MobilePosPaymentScreen extends StatefulWidget {
   });
 
   @override
-  State<MobilePosPaymentScreen> createState() =>
-      _MobilePosPaymentScreenState();
+  State<MobilePosPaymentScreen> createState() => _MobilePosPaymentScreenState();
 }
 
 class _MobilePosPaymentScreenState extends State<MobilePosPaymentScreen> {
@@ -176,9 +175,8 @@ class _MobilePosPaymentScreenState extends State<MobilePosPaymentScreen> {
 
   double get _beforeRoundOff => _subtotal - _discountValue + _tax;
 
-  double get _total => (_beforeRoundOff + _roundOffValue)
-      .clamp(0, double.infinity)
-      .toDouble();
+  double get _total =>
+      (_beforeRoundOff + _roundOffValue).clamp(0, double.infinity).toDouble();
 
   double get _receivedValue => double.tryParse(_received.text.trim()) ?? 0;
 
@@ -225,7 +223,8 @@ class _MobilePosPaymentScreenState extends State<MobilePosPaymentScreen> {
   }
 
   void _show(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
   }
 
   void _complete() {
@@ -336,8 +335,8 @@ class _MobilePosPaymentScreenState extends State<MobilePosPaymentScreen> {
     return Scaffold(
       backgroundColor: _surface,
       appBar: AppBar(
-        backgroundColor: Colors.white,
-        surfaceTintColor: Colors.white,
+        backgroundColor: Theme.of(context).colorScheme.surface,
+        surfaceTintColor: Theme.of(context).colorScheme.surface,
         elevation: 0,
         leading: IconButton(
           tooltip: 'Back to cart',
@@ -347,14 +346,14 @@ class _MobilePosPaymentScreenState extends State<MobilePosPaymentScreen> {
         title: compactHeader
             ? const Text(
                 'Payment',
-                style: TextStyle(fontWeight: FontWeight.w900, color: _ink),
+                style: TextStyle(fontWeight: FontWeight.w600, color: _ink),
               )
             : const Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     'Payment',
-                    style: TextStyle(fontWeight: FontWeight.w900, color: _ink),
+                    style: TextStyle(fontWeight: FontWeight.w600, color: _ink),
                   ),
                   Text(
                     'Review order, discounts and payment before completing the sale',
@@ -381,7 +380,7 @@ class _MobilePosPaymentScreenState extends State<MobilePosPaymentScreen> {
                         widget.customerName,
                         style: const TextStyle(
                           color: _success,
-                          fontWeight: FontWeight.w800,
+                          fontWeight: FontWeight.w600,
                           fontSize: 12,
                         ),
                       ),
@@ -416,204 +415,198 @@ class _MobilePosPaymentScreenState extends State<MobilePosPaymentScreen> {
   }
 
   Widget _leftColumn() => Column(
-        children: [
-          _section(
-            title: 'Order items',
-            icon: Icons.receipt_long_outlined,
-            child: Column(
+    children: [
+      _section(
+        title: 'Order items',
+        icon: Icons.receipt_long_outlined,
+        child: Column(
+          children: [
+            for (var index = 0; index < widget.lines.length; index++) ...[
+              _orderLine(index + 1, widget.lines[index]),
+              if (index < widget.lines.length - 1)
+                const Divider(height: 1, color: _line),
+            ],
+          ],
+        ),
+      ),
+      const SizedBox(height: 14),
+      _section(
+        title: 'Order adjustments',
+        icon: Icons.tune_rounded,
+        child: Column(
+          children: [
+            Row(
               children: [
-                for (var index = 0; index < widget.lines.length; index++) ...[
-                  _orderLine(index + 1, widget.lines[index]),
-                  if (index < widget.lines.length - 1)
-                    const Divider(height: 1, color: _line),
-                ],
-              ],
-            ),
-          ),
-          const SizedBox(height: 14),
-          _section(
-            title: 'Order adjustments',
-            icon: Icons.tune_rounded,
-            child: Column(
-              children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: DropdownButtonFormField<String>(
-                        initialValue: _discountMode,
-                        decoration: const InputDecoration(
-                          labelText: 'Discount type',
-                          border: OutlineInputBorder(),
-                        ),
-                        items: const [
-                          DropdownMenuItem(
-                            value: 'amount',
-                            child: Text('Amount'),
-                          ),
-                          DropdownMenuItem(
-                            value: 'percent',
-                            child: Text('Percentage'),
-                          ),
-                        ],
-                        onChanged: (value) => setState(() {
-                          _discountMode = value ?? 'amount';
-                          _discount.text = '0';
-                        }),
-                      ),
+                Expanded(
+                  child: DropdownButtonFormField<String>(
+                    initialValue: _discountMode,
+                    decoration: const InputDecoration(
+                      labelText: 'Discount type',
+                      border: OutlineInputBorder(),
                     ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: TextField(
-                        controller: _discount,
-                        keyboardType:
-                            const TextInputType.numberWithOptions(decimal: true),
-                        decoration: InputDecoration(
-                          labelText: 'Discount',
-                          suffixText: _discountMode == 'percent'
-                              ? '%'
-                              : widget.currencyCode,
-                          border: const OutlineInputBorder(),
-                        ),
+                    items: const [
+                      DropdownMenuItem(value: 'amount', child: Text('Amount')),
+                      DropdownMenuItem(
+                        value: 'percent',
+                        child: Text('Percentage'),
                       ),
-                    ),
-                  ],
+                    ],
+                    onChanged: (value) => setState(() {
+                      _discountMode = value ?? 'amount';
+                      _discount.text = '0';
+                    }),
+                  ),
                 ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: _roundOff,
-                        readOnly: true,
-                        decoration: const InputDecoration(
-                          labelText: 'Round off (Automatic)',
-                          helperText: 'Matches authoritative server rounding',
-                          border: OutlineInputBorder(),
-                        ),
-                      ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: TextField(
+                    controller: _discount,
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
                     ),
-                    const SizedBox(width: 10),
-                    OutlinedButton.icon(
-                      onPressed: _autoRound,
-                      icon: const Icon(Icons.auto_fix_high_rounded),
-                      label: const Text('Auto'),
+                    decoration: InputDecoration(
+                      labelText: 'Discount',
+                      suffixText: _discountMode == 'percent'
+                          ? '%'
+                          : widget.currencyCode,
+                      border: const OutlineInputBorder(),
                     ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: _notes,
-                  minLines: 2,
-                  maxLines: 4,
-                  decoration: const InputDecoration(
-                    labelText: 'Order note (optional)',
-                    hintText: 'Add a note for this sale',
-                    border: OutlineInputBorder(),
                   ),
                 ),
               ],
             ),
-          ),
-        ],
-      );
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _roundOff,
+                    readOnly: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Round off (Automatic)',
+                      helperText: 'Matches authoritative server rounding',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                OutlinedButton.icon(
+                  onPressed: _autoRound,
+                  icon: const Icon(Icons.auto_fix_high_rounded),
+                  label: const Text('Auto'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _notes,
+              minLines: 2,
+              maxLines: 4,
+              decoration: const InputDecoration(
+                labelText: 'Order note (optional)',
+                hintText: 'Add a note for this sale',
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+      ),
+    ],
+  );
 
   Widget _rightColumn() => Column(
+    children: [
+      _section(
+        title: 'Payment method',
+        icon: Icons.payments_outlined,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                _methodButton('cash', 'Cash', Icons.payments_rounded),
+                _methodButton('card', 'Card', Icons.credit_card_rounded),
+                _methodButton('upi', 'UPI', Icons.qr_code_2_rounded),
+                _methodButton('bank', 'Bank', Icons.account_balance_rounded),
+                _methodButton('credit', 'Credit', Icons.schedule_rounded),
+                _methodButton('split', 'Split', Icons.call_split_rounded),
+              ],
+            ),
+            const SizedBox(height: 14),
+            if (_method == 'split') _splitEditor() else _singlePayment(),
+          ],
+        ),
+      ),
+      const SizedBox(height: 14),
+      _section(
+        title: 'Order total',
+        icon: Icons.calculate_outlined,
+        child: Column(
+          children: [
+            _totalRow('Subtotal', _subtotal),
+            _totalRow('Discount', -_discountValue),
+            _totalRow('Tax', _tax),
+            _totalRow('Round off', _roundOffValue),
+            const Divider(height: 22, color: _line),
+            Row(
+              children: [
+                const Expanded(
+                  child: Text(
+                    'Total amount',
+                    style: TextStyle(
+                      fontSize: 17,
+                      color: _ink,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                Text(
+                  _money(_total),
+                  style: const TextStyle(
+                    fontSize: 21,
+                    color: _accent,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+      const SizedBox(height: 14),
+      Row(
         children: [
-          _section(
-            title: 'Payment method',
-            icon: Icons.payments_outlined,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    _methodButton('cash', 'Cash', Icons.payments_rounded),
-                    _methodButton('card', 'Card', Icons.credit_card_rounded),
-                    _methodButton('upi', 'UPI', Icons.qr_code_2_rounded),
-                    _methodButton(
-                      'bank',
-                      'Bank',
-                      Icons.account_balance_rounded,
-                    ),
-                    _methodButton('credit', 'Credit', Icons.schedule_rounded),
-                    _methodButton('split', 'Split', Icons.call_split_rounded),
-                  ],
-                ),
-                const SizedBox(height: 14),
-                if (_method == 'split') _splitEditor() else _singlePayment(),
-              ],
+          Expanded(
+            child: OutlinedButton.icon(
+              onPressed: () => Navigator.of(context).pop(),
+              icon: const Icon(Icons.arrow_back_rounded),
+              label: const Text('Back to cart'),
+              style: OutlinedButton.styleFrom(
+                minimumSize: const Size.fromHeight(52),
+              ),
             ),
           ),
-          const SizedBox(height: 14),
-          _section(
-            title: 'Order total',
-            icon: Icons.calculate_outlined,
-            child: Column(
-              children: [
-                _totalRow('Subtotal', _subtotal),
-                _totalRow('Discount', -_discountValue),
-                _totalRow('Tax', _tax),
-                _totalRow('Round off', _roundOffValue),
-                const Divider(height: 22, color: _line),
-                Row(
-                  children: [
-                    const Expanded(
-                      child: Text(
-                        'Total amount',
-                        style: TextStyle(
-                          fontSize: 17,
-                          color: _ink,
-                          fontWeight: FontWeight.w900,
-                        ),
-                      ),
-                    ),
-                    Text(
-                      _money(_total),
-                      style: const TextStyle(
-                        fontSize: 21,
-                        color: _accent,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
+          const SizedBox(width: 10),
+          Expanded(
+            flex: 2,
+            child: FilledButton.icon(
+              onPressed: _complete,
+              icon: const Icon(Icons.check_circle_outline_rounded),
+              label: const Text('Complete sale'),
+              style: FilledButton.styleFrom(
+                minimumSize: const Size.fromHeight(52),
+                backgroundColor: _success,
+                foregroundColor: Theme.of(context).colorScheme.surface,
+                textStyle: const TextStyle(fontWeight: FontWeight.w600),
+              ),
             ),
-          ),
-          const SizedBox(height: 14),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: () => Navigator.of(context).pop(),
-                  icon: const Icon(Icons.arrow_back_rounded),
-                  label: const Text('Back to cart'),
-                  style: OutlinedButton.styleFrom(
-                    minimumSize: const Size.fromHeight(52),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                flex: 2,
-                child: FilledButton.icon(
-                  onPressed: _complete,
-                  icon: const Icon(Icons.check_circle_outline_rounded),
-                  label: const Text('Complete sale'),
-                  style: FilledButton.styleFrom(
-                    minimumSize: const Size.fromHeight(52),
-                    backgroundColor: _success,
-                    foregroundColor: Colors.white,
-                    textStyle: const TextStyle(fontWeight: FontWeight.w800),
-                  ),
-                ),
-              ),
-            ],
           ),
         ],
-      );
+      ),
+    ],
+  );
 
   Widget _singlePayment() {
     if (_method == 'credit') {
@@ -666,7 +659,7 @@ class _MobilePosPaymentScreenState extends State<MobilePosPaymentScreen> {
                     'Change due',
                     style: TextStyle(
                       color: _success,
-                      fontWeight: FontWeight.w800,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ),
@@ -674,7 +667,7 @@ class _MobilePosPaymentScreenState extends State<MobilePosPaymentScreen> {
                   _money(_change),
                   style: const TextStyle(
                     color: _success,
-                    fontWeight: FontWeight.w900,
+                    fontWeight: FontWeight.w600,
                     fontSize: 17,
                   ),
                 ),
@@ -716,7 +709,7 @@ class _MobilePosPaymentScreenState extends State<MobilePosPaymentScreen> {
               'Balance ${_money(balance)}',
               style: TextStyle(
                 color: balance.abs() <= 0.01 ? _success : _muted,
-                fontWeight: FontWeight.w800,
+                fontWeight: FontWeight.w600,
               ),
             ),
           ],
@@ -726,84 +719,72 @@ class _MobilePosPaymentScreenState extends State<MobilePosPaymentScreen> {
   }
 
   Widget _splitRow(int index, _SplitDraft row) => Container(
-        padding: const EdgeInsets.all(10),
-        decoration: BoxDecoration(
-          color: _surface,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: _line),
-        ),
-        child: Column(
+    padding: const EdgeInsets.all(10),
+    decoration: BoxDecoration(
+      color: _surface,
+      borderRadius: BorderRadius.circular(12),
+      border: Border.all(color: _line),
+    ),
+    child: Column(
+      children: [
+        Row(
           children: [
-            Row(
-              children: [
-                Expanded(
-                  child: DropdownButtonFormField<String>(
-                    initialValue: row.method,
-                    decoration: const InputDecoration(
-                      labelText: 'Method',
-                      border: OutlineInputBorder(),
+            Expanded(
+              child: DropdownButtonFormField<String>(
+                initialValue: row.method,
+                decoration: const InputDecoration(
+                  labelText: 'Method',
+                  border: OutlineInputBorder(),
+                ),
+                items: [
+                  const DropdownMenuItem(value: 'cash', child: Text('Cash')),
+                  const DropdownMenuItem(value: 'card', child: Text('Card')),
+                  const DropdownMenuItem(value: 'upi', child: Text('UPI')),
+                  const DropdownMenuItem(value: 'bank', child: Text('Bank')),
+                  if (widget.allowCredit)
+                    const DropdownMenuItem(
+                      value: 'credit',
+                      child: Text('Credit'),
                     ),
-                    items: [
-                      const DropdownMenuItem(
-                        value: 'cash',
-                        child: Text('Cash'),
-                      ),
-                      const DropdownMenuItem(
-                        value: 'card',
-                        child: Text('Card'),
-                      ),
-                      const DropdownMenuItem(
-                        value: 'upi',
-                        child: Text('UPI'),
-                      ),
-                      const DropdownMenuItem(
-                        value: 'bank',
-                        child: Text('Bank'),
-                      ),
-                      if (widget.allowCredit)
-                        const DropdownMenuItem(
-                          value: 'credit',
-                          child: Text('Credit'),
-                        ),
-                    ],
-                    onChanged: (value) => setState(() {
-                      row.method = value ?? 'cash';
-                    }),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: TextField(
-                    controller: row.amountController,
-                    onChanged: (_) => setState(() {}),
-                    keyboardType:
-                        const TextInputType.numberWithOptions(decimal: true),
-                    decoration: InputDecoration(
-                      labelText: 'Amount',
-                      prefixText: '${widget.currencyCode} ',
-                      border: const OutlineInputBorder(),
-                    ),
-                  ),
-                ),
-                IconButton(
-                  tooltip: 'Remove payment',
-                  onPressed:
-                      _split.length <= 1 ? null : () => _removeSplit(index),
-                  icon: const Icon(Icons.close_rounded),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: row.reference,
-              decoration: const InputDecoration(
-                labelText: 'Reference (optional)',
-                border: OutlineInputBorder(),
+                ],
+                onChanged: (value) => setState(() {
+                  row.method = value ?? 'cash';
+                }),
               ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: TextField(
+                controller: row.amountController,
+                onChanged: (_) => setState(() {}),
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+                decoration: InputDecoration(
+                  labelText: 'Amount',
+                  prefixText: '${widget.currencyCode} ',
+                  border: const OutlineInputBorder(),
+                ),
+              ),
+            ),
+            IconButton(
+              tooltip: 'Remove payment',
+              onPressed: _split.length <= 1 ? null : () => _removeSplit(index),
+              icon: const Icon(Icons.close_rounded),
             ),
           ],
         ),
-      );
+        const SizedBox(height: 8),
+        TextField(
+          controller: row.reference,
+          decoration: const InputDecoration(
+            labelText: 'Reference (optional)',
+            border: OutlineInputBorder(),
+          ),
+        ),
+      ],
+    ),
+  );
 
   Widget _methodButton(String code, String label, IconData icon) {
     final selected = _method == code;
@@ -817,7 +798,9 @@ class _MobilePosPaymentScreenState extends State<MobilePosPaymentScreen> {
           duration: const Duration(milliseconds: 140),
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
           decoration: BoxDecoration(
-            color: selected ? const Color(0xFFEAF3FF) : Colors.white,
+            color: selected
+                ? Theme.of(context).colorScheme.primaryContainer
+                : Theme.of(context).colorScheme.surface,
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
               color: selected ? _accent : _line,
@@ -835,7 +818,7 @@ class _MobilePosPaymentScreenState extends State<MobilePosPaymentScreen> {
                 label,
                 style: TextStyle(
                   color: disabled ? _muted.withValues(alpha: 0.55) : _ink,
-                  fontWeight: FontWeight.w800,
+                  fontWeight: FontWeight.w600,
                   fontSize: 12,
                 ),
               ),
@@ -847,128 +830,118 @@ class _MobilePosPaymentScreenState extends State<MobilePosPaymentScreen> {
   }
 
   Widget _orderLine(int index, MobilePaymentLine line) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 9),
-        child: Row(
-          children: [
-            Container(
-              width: 30,
-              height: 30,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: _surface,
-                borderRadius: BorderRadius.circular(9),
-              ),
-              child: Text(
-                '$index',
+    padding: const EdgeInsets.symmetric(vertical: 9),
+    child: Row(
+      children: [
+        Container(
+          width: 30,
+          height: 30,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: _surface,
+            borderRadius: BorderRadius.circular(9),
+          ),
+          child: Text(
+            '$index',
+            style: const TextStyle(color: _muted, fontWeight: FontWeight.w600),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                line.name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
-                  color: _muted,
-                  fontWeight: FontWeight.w800,
+                  color: _ink,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    line.name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: _ink,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                  Text(
-                    '${line.quantity.toStringAsFixed(line.quantity % 1 == 0 ? 0 : 2)} ${line.unitCode} × ${_money(line.unitPrice)}${line.sku.isEmpty ? '' : '  •  ${line.sku}'}',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(color: _muted, fontSize: 11),
-                  ),
-                ],
+              Text(
+                '${line.quantity.toStringAsFixed(line.quantity % 1 == 0 ? 0 : 2)} ${line.unitCode} × ${_money(line.unitPrice)}${line.sku.isEmpty ? '' : '  •  ${line.sku}'}',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(color: _muted, fontSize: 11),
               ),
-            ),
-            const SizedBox(width: 10),
-            Text(
-              _money(line.gross),
-              style: const TextStyle(
-                color: _ink,
-                fontWeight: FontWeight.w900,
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
-      );
+        const SizedBox(width: 10),
+        Text(
+          _money(line.gross),
+          style: const TextStyle(color: _ink, fontWeight: FontWeight.w600),
+        ),
+      ],
+    ),
+  );
 
   Widget _totalRow(String label, double value) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 5),
-        child: Row(
-          children: [
-            Expanded(
-              child: Text(label, style: const TextStyle(color: _muted)),
-            ),
-            Text(
-              _money(value),
-              style: const TextStyle(
-                color: _ink,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-          ],
+    padding: const EdgeInsets.symmetric(vertical: 5),
+    child: Row(
+      children: [
+        Expanded(
+          child: Text(label, style: const TextStyle(color: _muted)),
         ),
-      );
+        Text(
+          _money(value),
+          style: const TextStyle(color: _ink, fontWeight: FontWeight.w600),
+        ),
+      ],
+    ),
+  );
 
   Widget _section({
     required String title,
     required IconData icon,
     required Widget child,
-  }) =>
-      Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: _line),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.025),
-              blurRadius: 14,
-              offset: const Offset(0, 4),
-            ),
-          ],
+  }) => Container(
+    width: double.infinity,
+    padding: const EdgeInsets.all(14),
+    decoration: BoxDecoration(
+      color: Theme.of(context).colorScheme.surface,
+      borderRadius: BorderRadius.circular(16),
+      border: Border.all(color: _line),
+      boxShadow: [
+        BoxShadow(
+          color: Colors.black.withValues(alpha: 0.025),
+          blurRadius: 14,
+          offset: const Offset(0, 4),
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+      ],
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
           children: [
-            Row(
-              children: [
-                Container(
-                  width: 34,
-                  height: 34,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFEAF3FF),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Icon(icon, color: _accent, size: 19),
-                ),
-                const SizedBox(width: 9),
-                Text(
-                  title,
-                  style: const TextStyle(
-                    color: _ink,
-                    fontWeight: FontWeight.w900,
-                    fontSize: 15,
-                  ),
-                ),
-              ],
+            Container(
+              width: 34,
+              height: 34,
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.primaryContainer,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(icon, color: _accent, size: 19),
             ),
-            const SizedBox(height: 14),
-            child,
+            const SizedBox(width: 9),
+            Text(
+              title,
+              style: const TextStyle(
+                color: _ink,
+                fontWeight: FontWeight.w600,
+                fontSize: 15,
+              ),
+            ),
           ],
         ),
-      );
+        const SizedBox(height: 14),
+        child,
+      ],
+    ),
+  );
 }
 
 class _SplitDraft {
@@ -977,8 +950,7 @@ class _SplitDraft {
   final TextEditingController reference = TextEditingController();
 
   _SplitDraft({required this.method, required double amount})
-      : amountController =
-            TextEditingController(text: amount.toStringAsFixed(2));
+    : amountController = TextEditingController(text: amount.toStringAsFixed(2));
 
   double get amount => double.tryParse(amountController.text.trim()) ?? 0;
 

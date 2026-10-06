@@ -218,13 +218,13 @@ class _LoanScreenState extends State<LoanScreen> {
   }
 
   Color _statusColor(String status) => switch (status) {
-    'active' => Colors.green,
-    'approved' => Colors.teal,
-    'submitted' => Colors.blue,
-    'defaulted' => Colors.red,
-    'closed' => Colors.grey,
-    'cancelled' || 'rejected' => Colors.deepOrange,
-    _ => Colors.amber.shade800,
+    'active' => Theme.of(context).colorScheme.primary,
+    'approved' => Theme.of(context).colorScheme.primary,
+    'submitted' => Theme.of(context).colorScheme.secondary,
+    'defaulted' => Theme.of(context).colorScheme.error,
+    'closed' => Theme.of(context).colorScheme.onSurfaceVariant,
+    'cancelled' || 'rejected' => context.thqSemanticColors.warning,
+    _ => context.thqSemanticColors.warning,
   };
 
   @override
@@ -266,7 +266,11 @@ class _LoanScreenState extends State<LoanScreen> {
           _header(),
           if (_warning != null) ...[
             const SizedBox(height: 6),
-            _banner(_warning!, Colors.orange, Icons.warning_amber_outlined),
+            _banner(
+              _warning!,
+              context.thqSemanticColors.warning,
+              Icons.warning_amber_outlined,
+            ),
           ],
           const SizedBox(height: 6),
           _metrics(),
@@ -319,7 +323,7 @@ class _LoanScreenState extends State<LoanScreen> {
               children: [
                 Text(
                   'Loans & Credit',
-                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.w900),
+                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
                 ),
                 Text(
                   'Given and taken loans, schedules and repayments',
@@ -474,7 +478,7 @@ class _LoanScreenState extends State<LoanScreen> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontSize: 10.5,
+                    fontSize: 11,
                     color: scheme.onSurfaceVariant,
                   ),
                 ),
@@ -484,7 +488,7 @@ class _LoanScreenState extends State<LoanScreen> {
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     fontSize: 11.5,
-                    fontWeight: FontWeight.w800,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ],
@@ -510,10 +514,10 @@ class _LoanScreenState extends State<LoanScreen> {
       children: _warnings.take(12).map((warning) {
         final severity = warning['severity']?.toString() ?? 'info';
         final color = severity == 'danger'
-            ? Colors.red
+            ? Theme.of(context).colorScheme.error
             : severity == 'warning'
-            ? Colors.orange
-            : Colors.blue;
+            ? context.thqSemanticColors.warning
+            : Theme.of(context).colorScheme.secondary;
         return ListTile(
           dense: true,
           leading: Icon(Icons.circle, size: 12, color: color),
@@ -697,10 +701,10 @@ class _LoanScreenState extends State<LoanScreen> {
               _banner(
                 warning,
                 warningLevel == 'danger'
-                    ? Colors.red
+                    ? Theme.of(context).colorScheme.error
                     : warningLevel == 'warning'
-                    ? Colors.orange
-                    : Colors.blue,
+                    ? context.thqSemanticColors.warning
+                    : Theme.of(context).colorScheme.secondary,
                 warningLevel == 'danger'
                     ? Icons.error_outline
                     : Icons.warning_amber_outlined,
@@ -859,7 +863,7 @@ class _LoanScreenState extends State<LoanScreen> {
 
   Future<void> _loanSettings() async {
     var enabled = _loanAccountingEnabled;
-    final save = await showDialog<bool>(
+    final save = await showThqDialog<bool>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setLocal) => AlertDialog(
@@ -1016,7 +1020,7 @@ class _LoanScreenState extends State<LoanScreen> {
       lastDate: DateTime(2200),
     );
 
-    final result = await showDialog<Map<String, dynamic>>(
+    final result = await showThqDialog<Map<String, dynamic>>(
       context: context,
       barrierDismissible: false,
       builder: (dialogContext) => StatefulBuilder(
@@ -1561,7 +1565,7 @@ class _LoanScreenState extends State<LoanScreen> {
     int maxLines = 2,
   }) async {
     final controller = TextEditingController(text: initial);
-    final value = await showDialog<String>(
+    final value = await showThqDialog<String>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: Text(title),
@@ -1629,7 +1633,7 @@ class _LoanScreenState extends State<LoanScreen> {
     DateTime date = DateTime.now();
     String method = 'bank';
     final reference = TextEditingController();
-    final proceed = await showDialog<bool>(
+    final proceed = await showThqDialog<bool>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (dialogContext, setLocal) => AlertDialog(
@@ -1743,7 +1747,7 @@ class _LoanScreenState extends State<LoanScreen> {
     final notes = TextEditingController();
     DateTime date = DateTime.now();
     String method = 'cash';
-    final proceed = await showDialog<bool>(
+    final proceed = await showThqDialog<bool>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (dialogContext, setLocal) => AlertDialog(
@@ -1916,7 +1920,7 @@ class _LoanScreenState extends State<LoanScreen> {
     );
     final reason = TextEditingController();
     DateTime effective = DateTime.now();
-    final proceed = await showDialog<bool>(
+    final proceed = await showThqDialog<bool>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (dialogContext, setLocal) => AlertDialog(
@@ -2045,7 +2049,7 @@ class _LoanScreenState extends State<LoanScreen> {
     final reference = TextEditingController();
     final value = TextEditingController();
     final notes = TextEditingController();
-    final proceed = await showDialog<bool>(
+    final proceed = await showThqDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: Text('Add Collateral • ${loan['loan_number']}'),
@@ -2147,7 +2151,7 @@ class _LoanScreenState extends State<LoanScreen> {
     final email = TextEditingController();
     final amount = TextEditingController();
     final notes = TextEditingController();
-    final proceed = await showDialog<bool>(
+    final proceed = await showThqDialog<bool>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (dialogContext, setLocal) => AlertDialog(
@@ -2280,7 +2284,7 @@ class _LoanScreenState extends State<LoanScreen> {
   }
 
   Future<bool> _confirm(String title, String body) async =>
-      await showDialog<bool>(
+      await showThqDialog<bool>(
         context: context,
         builder: (dialogContext) => AlertDialog(
           title: Text(title),
@@ -2363,7 +2367,7 @@ class _LoanScreenState extends State<LoanScreen> {
               _n(nextOpen['interest_paid']) -
               _n(nextOpen['penalty_paid']));
 
-    await showDialog<void>(
+    await showThqDialog<void>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: Text(

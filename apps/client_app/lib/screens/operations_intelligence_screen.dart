@@ -170,7 +170,7 @@ class _OperationsIntelligenceScreenState
               children: [
                 Text(
                   'Operations Intelligence',
-                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
+                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.w600),
                 ),
                 SizedBox(height: 2),
                 Text(
@@ -227,7 +227,7 @@ class _OperationsIntelligenceScreenState
               const SizedBox(height: 12),
               const Text(
                 'Operations Intelligence could not load.',
-                style: TextStyle(fontWeight: FontWeight.w800),
+                style: TextStyle(fontWeight: FontWeight.w600),
               ),
               const SizedBox(height: 8),
               Text(_error ?? '', textAlign: TextAlign.center),
@@ -359,7 +359,7 @@ class _OperationsIntelligenceScreenState
                                   item.$2,
                                   style: const TextStyle(
                                     fontSize: 18,
-                                    fontWeight: FontWeight.w800,
+                                    fontWeight: FontWeight.w600,
                                   ),
                                 ),
                               ],
@@ -382,7 +382,7 @@ class _OperationsIntelligenceScreenState
               children: [
                 const Text(
                   'What needs attention',
-                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800),
+                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
                 ),
                 const SizedBox(height: 8),
                 Text(
@@ -576,7 +576,7 @@ class _OperationsIntelligenceScreenState
             ),
             title: Text(
               '${row['order_number']} • ${row['supplier_name']}',
-              style: const TextStyle(fontWeight: FontWeight.w800),
+              style: const TextStyle(fontWeight: FontWeight.w600),
             ),
             subtitle: Text(
               '${row['location_name']} • ${row['order_date']} • ${row['item_count']} items • ${_money(row['grand_total'])}',
@@ -625,7 +625,7 @@ class _OperationsIntelligenceScreenState
       if (action == 'approve' || action == 'reject') {
         var draftNote = '';
         final approving = action == 'approve';
-        final note = await showDialog<String>(
+        final note = await showThqDialog<String>(
           context: context,
           builder: (dialogContext) => AlertDialog(
             title: Text(
@@ -667,7 +667,7 @@ class _OperationsIntelligenceScreenState
         String reason = '';
         if (action == 'cancelled') {
           var draftReason = '';
-          final result = await showDialog<String>(
+          final result = await showThqDialog<String>(
             context: context,
             builder: (dialogContext) => AlertDialog(
               title: const Text('Cancel purchase order'),
@@ -728,7 +728,7 @@ class _OperationsIntelligenceScreenState
           .whereType<Map>()
           .map((e) => Map<String, dynamic>.from(e))
           .toList();
-      await showDialog<void>(
+      await showThqDialog<void>(
         context: context,
         builder: (dialogContext) => AlertDialog(
           title: Text(
@@ -757,7 +757,7 @@ class _OperationsIntelligenceScreenState
                   const Divider(),
                   const Text(
                     'Status history',
-                    style: TextStyle(fontWeight: FontWeight.w800),
+                    style: TextStyle(fontWeight: FontWeight.w600),
                   ),
                   ...history.map(
                     (h) => ListTile(
@@ -877,7 +877,7 @@ class _OperationsIntelligenceScreenState
                 (c) => DataColumn(
                   label: Text(
                     c,
-                    style: const TextStyle(fontWeight: FontWeight.w800),
+                    style: const TextStyle(fontWeight: FontWeight.w600),
                   ),
                 ),
               ),
@@ -929,7 +929,10 @@ class _OperationsIntelligenceScreenState
     final color = severe
         ? Theme.of(context).colorScheme.errorContainer
         : warn
-        ? Theme.of(context).colorScheme.tertiaryContainer
+        ? Color.alphaBlend(
+            context.thqSemanticColors.warning.withValues(alpha: .12),
+            Theme.of(context).colorScheme.surface,
+          )
         : Theme.of(context).colorScheme.secondaryContainer;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -939,7 +942,7 @@ class _OperationsIntelligenceScreenState
       ),
       child: Text(
         text.isEmpty ? '—' : text.toUpperCase(),
-        style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800),
+        style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600),
       ),
     );
   }

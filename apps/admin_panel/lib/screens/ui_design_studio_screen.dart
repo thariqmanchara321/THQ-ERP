@@ -40,7 +40,7 @@ class _UiDesignStudioScreenState extends State<UiDesignStudioScreen>
   }
 
   Future<void> _editTemplate([Map<String, dynamic>? row]) async {
-    final changed = await showDialog<bool>(
+    final changed = await showThqDialog<bool>(
       context: context,
       barrierDismissible: false,
       builder: (_) => _DesignTemplateDialog(service: _service, template: row),

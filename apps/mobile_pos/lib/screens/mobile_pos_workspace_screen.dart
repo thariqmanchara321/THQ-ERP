@@ -74,16 +74,13 @@ class _MobilePosWorkspaceScreenState extends State<MobilePosWorkspaceScreen> {
       final text = result.conflicts > 0
           ? '${result.synced} synced â€¢ ${result.conflicts} conflict(s) need review'
           : result.pending > 0
-              ? '${result.synced} synced â€¢ ${result.pending} still waiting'
-              : '${result.synced} synced â€¢ queue checked';
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(text)),
-      );
+          ? '${result.synced} synced â€¢ ${result.pending} still waiting'
+          : '${result.synced} synced â€¢ queue checked';
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
     } catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Sync unavailable: $error')),
-        );
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Sync unavailable: $error')));
       }
     } finally {
       if (mounted) setState(() => _syncing = false);
@@ -91,9 +88,8 @@ class _MobilePosWorkspaceScreenState extends State<MobilePosWorkspaceScreen> {
   }
 
   Future<T?> _push<T>(Widget page) async {
-    final result = await Navigator.of(context).push<T>(
-      MaterialPageRoute(builder: (_) => page),
-    );
+    final result = await Navigator.of(context)
+        .push<T>(MaterialPageRoute(builder: (_) => page));
     if (mounted) _refreshSummary();
     return result;
   }
@@ -103,9 +99,8 @@ class _MobilePosWorkspaceScreenState extends State<MobilePosWorkspaceScreen> {
     if (notice != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(notice)),
-        );
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text(notice)));
       });
     }
   }
@@ -120,33 +115,22 @@ class _MobilePosWorkspaceScreenState extends State<MobilePosWorkspaceScreen> {
         local: _local,
         syncing: _syncing,
         onSync: _syncNow,
-        onOpenQueue: () => _push(
-          OfflineQueueScreen(session: widget.session),
-        ),
-        onOpenReport: () => _push(
-          MobilePosReportScreen(session: widget.session),
-        ),
+        onOpenQueue: () => _push(OfflineQueueScreen(session: widget.session)),
+        onOpenReport: () =>
+            _push(MobilePosReportScreen(session: widget.session)),
       ),
       _OperationsWorkspace(
         session: widget.session,
         onPurchase: () => _push(
-          MobilePosPurchaseScreen(
-            session: widget.session,
-            offlineMode: false,
-          ),
+          MobilePosPurchaseScreen(session: widget.session, offlineMode: false),
         ),
         onExpense: () => _push(
-          MobilePosExpenseScreen(
-            session: widget.session,
-            offlineMode: false,
-          ),
+          MobilePosExpenseScreen(session: widget.session, offlineMode: false),
         ),
-        onCashier: () => _push(
-          MobileCashierShiftScreen(session: widget.session),
-        ),
-        onPartyPayments: () => _push(
-          MobilePartyPaymentsScreen(session: widget.session),
-        ),
+        onCashier: () =>
+            _push(MobileCashierShiftScreen(session: widget.session)),
+        onPartyPayments: () =>
+            _push(MobilePartyPaymentsScreen(session: widget.session)),
         onLogistics: () => _push(
           LogisticsOperationsWorkspace(
             tenantId: widget.session.tenantId,
@@ -159,9 +143,7 @@ class _MobilePosWorkspaceScreenState extends State<MobilePosWorkspaceScreen> {
             locationId: widget.session.locationId,
           ),
         ),
-        onQueue: () => _push(
-          OfflineQueueScreen(session: widget.session),
-        ),
+        onQueue: () => _push(OfflineQueueScreen(session: widget.session)),
         onRestaurant: () => _goSell(
           'Restaurant / KOT continues inside Sell so the existing billing and GST route stay unchanged.',
         ),
@@ -170,23 +152,17 @@ class _MobilePosWorkspaceScreenState extends State<MobilePosWorkspaceScreen> {
         key: ValueKey('reports-$_refreshKey'),
         session: widget.session,
         local: _local,
-        onOpenReport: () => _push(
-          MobilePosReportScreen(session: widget.session),
-        ),
-        onOpenQueue: () => _push(
-          OfflineQueueScreen(session: widget.session),
-        ),
+        onOpenReport: () =>
+            _push(MobilePosReportScreen(session: widget.session)),
+        onOpenQueue: () => _push(OfflineQueueScreen(session: widget.session)),
       ),
       _MoreWorkspace(
         session: widget.session,
         syncing: _syncing,
         onSync: _syncNow,
-        onOpenQueue: () => _push(
-          OfflineQueueScreen(session: widget.session),
-        ),
-        onOpenReport: () => _push(
-          MobilePosReportScreen(session: widget.session),
-        ),
+        onOpenQueue: () => _push(OfflineQueueScreen(session: widget.session)),
+        onOpenReport: () =>
+            _push(MobilePosReportScreen(session: widget.session)),
       ),
     ];
 
@@ -290,54 +266,50 @@ class _WorkspacePage extends StatelessWidget {
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(14, 14, 14, 18),
         children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  width: 46,
-                  height: 46,
-                  decoration: BoxDecoration(
-                    color: scheme.primaryContainer,
-                    borderRadius: BorderRadius.circular(15),
-                  ),
-                  child: Icon(icon, color: scheme.onPrimaryContainer),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 46,
+                height: 46,
+                decoration: BoxDecoration(
+                  color: scheme.primaryContainer,
+                  borderRadius: BorderRadius.circular(15),
                 ),
-                const SizedBox(width: 11),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        eyebrow.toUpperCase(),
-                        style: TextStyle(
-                          color: scheme.primary,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: 1.0,
-                        ),
+                child: Icon(icon, color: scheme.onPrimaryContainer),
+              ),
+              const SizedBox(width: 11),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      eyebrow.toUpperCase(),
+                      style: TextStyle(
+                        color: scheme.primary,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 1.0,
                       ),
-                      const SizedBox(height: 2),
-                      Text(
-                        title,
-                        style: Theme.of(context).textTheme.headlineSmall,
-                      ),
-                      const SizedBox(height: 3),
-                      Text(
-                        subtitle,
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: scheme.onSurfaceVariant,
-                            ),
-                      ),
-                    ],
-                  ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      title,
+                      style: Theme.of(context).textTheme.headlineSmall,
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      subtitle,
+                      style: Theme.of(context).textTheme.bodySmall
+                          ?.copyWith(color: scheme.onSurfaceVariant),
+                    ),
+                  ],
                 ),
-                if (trailing != null) ...[
-                  const SizedBox(width: 8),
-                  trailing!,
-                ],
-              ],
-            ),
-            const SizedBox(height: 16),
+              ),
+              if (trailing != null) ...[const SizedBox(width: 8), trailing!],
+            ],
+          ),
+          const SizedBox(height: 16),
           ...children,
         ],
       ),
@@ -378,10 +350,10 @@ class _OrdersWorkspaceState extends State<_OrdersWorkspace> {
   }
 
   Future<List<LocalInvoice>> _load() => widget.local.queue(
-        widget.session.tenantId,
-        widget.session.deviceId,
-        limit: 80,
-      );
+    widget.session.tenantId,
+    widget.session.deviceId,
+    limit: 80,
+  );
 
   Future<void> _refresh() async {
     final next = _load();
@@ -396,32 +368,37 @@ class _OrdersWorkspaceState extends State<_OrdersWorkspace> {
       builder: (context, snapshot) {
         final rows = snapshot.data ?? const <LocalInvoice>[];
         final pending = rows
-            .where((row) =>
-                row.status == 'pending' ||
-                row.status == 'error' ||
-                row.status == 'syncing')
+            .where(
+              (row) =>
+                  row.status == 'pending' ||
+                  row.status == 'error' ||
+                  row.status == 'syncing',
+            )
             .length;
         final conflicts = rows.where((row) => row.status == 'conflict').length;
         final synced = rows.where((row) => row.status == 'synced').length;
-        final visibleRows = rows.where((row) {
-          switch (_filter) {
-            case 'waiting':
-              return row.status == 'pending' ||
-                  row.status == 'error' ||
-                  row.status == 'syncing';
-            case 'conflict':
-              return row.status == 'conflict';
-            case 'synced':
-              return row.status == 'synced';
-            default:
-              return true;
-          }
-        }).toList(growable: false);
+        final visibleRows = rows
+            .where((row) {
+              switch (_filter) {
+                case 'waiting':
+                  return row.status == 'pending' ||
+                      row.status == 'error' ||
+                      row.status == 'syncing';
+                case 'conflict':
+                  return row.status == 'conflict';
+                case 'synced':
+                  return row.status == 'synced';
+                default:
+                  return true;
+              }
+            })
+            .toList(growable: false);
 
         return _WorkspacePage(
           eyebrow: 'Mobile POS',
           title: 'Orders',
-          subtitle: 'Local invoice queue, sync state and recent terminal sales.',
+          subtitle:
+              'Local invoice queue, sync state and recent terminal sales.',
           icon: Icons.receipt_long_rounded,
           trailing: IconButton(
             tooltip: 'Refresh',
@@ -493,7 +470,8 @@ class _OrdersWorkspaceState extends State<_OrdersWorkspace> {
                   ButtonSegment(value: 'synced', label: Text('Synced')),
                 ],
                 selected: <String>{_filter},
-                onSelectionChanged: (value) => setState(() => _filter = value.first),
+                onSelectionChanged: (value) =>
+                    setState(() => _filter = value.first),
                 showSelectedIcon: false,
               ),
             ),
@@ -517,7 +495,9 @@ class _OrdersWorkspaceState extends State<_OrdersWorkspace> {
                 message: 'New Mobile POS sales will appear here immediately.',
               )
             else
-              ...visibleRows.take(20).map(
+              ...visibleRows
+                  .take(20)
+                  .map(
                     (row) => Padding(
                       padding: const EdgeInsets.only(bottom: 8),
                       child: _OrderCard(
@@ -603,8 +583,7 @@ class _OperationsWorkspace extends StatelessWidget {
           _OperationCard(
             icon: Icons.restaurant_menu_rounded,
             title: 'Restaurant / KOT',
-            subtitle:
-                'Use the proven restaurant flow inside Sell; billing authority stays unchanged.',
+            subtitle: 'Use the proven restaurant flow inside Sell; billing authority stays unchanged.',
             onTap: onRestaurant,
           ),
           const SizedBox(height: 8),
@@ -698,7 +677,8 @@ class _ReportsWorkspaceState extends State<_ReportsWorkspace> {
         return _WorkspacePage(
           eyebrow: 'Mobile POS',
           title: 'Reports',
-          subtitle: 'Terminal-level visibility with local fallback when offline.',
+          subtitle:
+              'Terminal-level visibility with local fallback when offline.',
           icon: Icons.analytics_rounded,
           children: [
             Row(
@@ -731,16 +711,14 @@ class _ReportsWorkspaceState extends State<_ReportsWorkspace> {
             _OperationCard(
               icon: Icons.bar_chart_rounded,
               title: 'Terminal daily report',
-              subtitle:
-                  'Server summary, invoice drill-down, payments, purchases and expenses.',
+              subtitle: 'Server summary, invoice drill-down, payments, purchases and expenses.',
               onTap: widget.onOpenReport,
             ),
             const SizedBox(height: 8),
             _OperationCard(
               icon: Icons.sync_alt_rounded,
               title: 'Sync diagnostics',
-              subtitle:
-                  'Inspect the local queue before relying on final server totals.',
+              subtitle: 'Inspect the local queue before relying on final server totals.',
               onTap: widget.onOpenQueue,
             ),
           ],
@@ -775,7 +753,7 @@ class _MoreWorkspace extends StatelessWidget {
   }
 
   Future<void> _deactivate(BuildContext context) async {
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showThqDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('Deactivate this terminal?'),
@@ -807,7 +785,8 @@ class _MoreWorkspace extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final release = session.release;
-    final releaseText = release.updateAvailable && release.latestVersion.isNotEmpty
+    final releaseText =
+        release.updateAvailable && release.latestVersion.isNotEmpty
         ? 'Update available: ${release.latestVersion}'
         : 'Release status: ${release.status}';
 
@@ -839,8 +818,7 @@ class _MoreWorkspace extends StatelessWidget {
         _OperationCard(
           icon: Icons.sync_rounded,
           title: syncing ? 'Synchronizingâ€¦' : 'Sync now',
-          subtitle:
-              'Retry the authoritative Mobile POS queue and refresh local stock after successful sync.',
+          subtitle: 'Retry the authoritative Mobile POS queue and refresh local stock after successful sync.',
           onTap: syncing ? null : onSync,
         ),
         const SizedBox(height: 8),
@@ -899,7 +877,9 @@ class _MetricTile extends StatelessWidget {
         color: background,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: attention ? scheme.error.withValues(alpha: 0.18) : scheme.outline,
+          color: attention
+              ? scheme.error.withValues(alpha: 0.18)
+              : scheme.outline,
         ),
       ),
       child: Column(
@@ -911,7 +891,7 @@ class _MetricTile extends StatelessWidget {
             value,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w900),
+            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 2),
           Text(
@@ -980,15 +960,14 @@ class _OperationCard extends StatelessWidget {
                       title,
                       style: const TextStyle(
                         fontSize: 13,
-                        fontWeight: FontWeight.w800,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                     const SizedBox(height: 2),
                     Text(
                       subtitle,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: scheme.onSurfaceVariant,
-                          ),
+                      style: Theme.of(context).textTheme.bodySmall
+                          ?.copyWith(color: scheme.onSurfaceVariant),
                     ),
                   ],
                 ),
@@ -1019,8 +998,8 @@ class _OrderCard extends StatelessWidget {
 
   String get _customer =>
       invoice.payload['customer_name']?.toString().trim().isNotEmpty == true
-          ? invoice.payload['customer_name'].toString()
-          : 'Customer';
+      ? invoice.payload['customer_name'].toString()
+      : 'Customer';
 
   @override
   Widget build(BuildContext context) {
@@ -1030,13 +1009,13 @@ class _OrderCard extends StatelessWidget {
     final statusBg = problem
         ? scheme.errorContainer
         : status == 'synced'
-            ? const Color(0xFFEAF8F1)
-            : scheme.primaryContainer;
+        ? Theme.of(context).colorScheme.primaryContainer
+        : scheme.primaryContainer;
     final statusFg = problem
         ? scheme.onErrorContainer
         : status == 'synced'
-            ? const Color(0xFF16734A)
-            : scheme.onPrimaryContainer;
+        ? const Color(0xFF16734A)
+        : scheme.onPrimaryContainer;
 
     return Container(
       padding: const EdgeInsets.all(12),
@@ -1058,7 +1037,7 @@ class _OrderCard extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     fontSize: 13,
-                    fontWeight: FontWeight.w900,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ),
@@ -1073,8 +1052,8 @@ class _OrderCard extends StatelessWidget {
                   status.toUpperCase(),
                   style: TextStyle(
                     color: statusFg,
-                    fontSize: 9,
-                    fontWeight: FontWeight.w900,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ),
@@ -1093,16 +1072,16 @@ class _OrderCard extends StatelessWidget {
               ),
               Text(
                 '$currencyCode ${_total.toStringAsFixed(2)}',
-                style: const TextStyle(fontWeight: FontWeight.w800),
+                style: const TextStyle(fontWeight: FontWeight.w600),
               ),
             ],
           ),
           const SizedBox(height: 4),
           Text(
-            DateFormat('dd MMM â€¢ hh:mm a').format(invoice.createdAt.toLocal()),
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: scheme.onSurfaceVariant,
-                ),
+            DateFormat('dd MMM â€¢ hh:mm a')
+                .format(invoice.createdAt.toLocal()),
+            style: Theme.of(context).textTheme.bodySmall
+                ?.copyWith(color: scheme.onSurfaceVariant),
           ),
           if (invoice.conflictMessage.trim().isNotEmpty) ...[
             const SizedBox(height: 6),
@@ -1110,10 +1089,8 @@ class _OrderCard extends StatelessWidget {
               invoice.conflictMessage,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: scheme.error,
-                    fontWeight: FontWeight.w700,
-                  ),
+              style: Theme.of(context).textTheme.bodySmall
+                  ?.copyWith(color: scheme.error, fontWeight: FontWeight.w700),
             ),
           ],
         ],
@@ -1151,9 +1128,8 @@ class _IdentityCard extends StatelessWidget {
                   width: 74,
                   child: Text(
                     rows[index].$1,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: scheme.onSurfaceVariant,
-                        ),
+                    style: Theme.of(context).textTheme.bodySmall
+                        ?.copyWith(color: scheme.onSurfaceVariant),
                   ),
                 ),
                 Expanded(
@@ -1187,13 +1163,13 @@ class _SectionHeading extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Row(
-        children: [
-          Expanded(
-            child: Text(title, style: Theme.of(context).textTheme.titleMedium),
-          ),
-          ?action,
-        ],
-      );
+    children: [
+      Expanded(
+        child: Text(title, style: Theme.of(context).textTheme.titleMedium),
+      ),
+      ?action,
+    ],
+  );
 }
 
 class _LoadingCard extends StatelessWidget {
@@ -1201,9 +1177,9 @@ class _LoadingCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => const SizedBox(
-        height: 110,
-        child: Center(child: CircularProgressIndicator(strokeWidth: 2.4)),
-      );
+    height: 110,
+    child: Center(child: CircularProgressIndicator(strokeWidth: 2.4)),
+  );
 }
 
 class _ErrorCard extends StatelessWidget {
@@ -1220,10 +1196,7 @@ class _ErrorCard extends StatelessWidget {
         color: scheme.errorContainer,
         borderRadius: BorderRadius.circular(16),
       ),
-      child: Text(
-        message,
-        style: TextStyle(color: scheme.onErrorContainer),
-      ),
+      child: Text(message, style: TextStyle(color: scheme.onErrorContainer)),
     );
   }
 }
@@ -1253,7 +1226,7 @@ class _EmptyCard extends StatelessWidget {
         children: [
           Icon(icon, color: scheme.primary),
           const SizedBox(height: 8),
-          Text(title, style: const TextStyle(fontWeight: FontWeight.w800)),
+          Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
           const SizedBox(height: 3),
           Text(
             message,

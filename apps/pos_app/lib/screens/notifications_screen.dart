@@ -61,13 +61,13 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                         'Notifications',
                         style: TextStyle(
                           fontSize: 14.5,
-                          fontWeight: FontWeight.w900,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                       Text(
                         'Stock, payment, approval and system alerts',
                         style: TextStyle(
-                          fontSize: 8.3,
+                          fontSize: 11,
                           color: scheme.onSurfaceVariant,
                         ),
                       ),
@@ -159,9 +159,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
                                       style: TextStyle(
-                                        fontSize: 8.8,
+                                        fontSize: 11,
                                         fontWeight: unread
-                                            ? FontWeight.w900
+                                            ? FontWeight.w600
                                             : FontWeight.w700,
                                       ),
                                     ),
@@ -170,7 +170,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
                                       style: TextStyle(
-                                        fontSize: 7.5,
+                                        fontSize: 11,
                                         color: scheme.onSurfaceVariant,
                                       ),
                                     ),
@@ -178,7 +178,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                                       row['created_at']?.toString() ?? '',
                                       maxLines: 1,
                                       style: TextStyle(
-                                        fontSize: 6.8,
+                                        fontSize: 11,
                                         color: scheme.onSurfaceVariant,
                                       ),
                                     ),

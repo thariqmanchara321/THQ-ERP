@@ -88,7 +88,7 @@ class _SupportScreenState extends State<SupportScreen> {
               children: [
                 const Text(
                   'Support Centre',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
                 ),
                 const SizedBox(height: 4),
                 Text(

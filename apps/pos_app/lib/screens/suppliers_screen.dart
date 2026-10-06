@@ -71,7 +71,7 @@ class _SuppliersScreenState extends State<SuppliersScreen> {
   }
 
   Future<void> _addSupplier() async {
-    final changed = await showDialog<bool>(
+    final changed = await showThqDialog<bool>(
       context: context,
       barrierDismissible: false,
       builder: (_) => _SupplierFormDialog(session: widget.session),
@@ -94,7 +94,7 @@ class _SuppliersScreenState extends State<SuppliersScreen> {
       return;
     }
 
-    final changed = await showDialog<bool>(
+    final changed = await showThqDialog<bool>(
       context: context,
       barrierDismissible: false,
       builder: (_) =>
@@ -169,13 +169,13 @@ class _SuppliersScreenState extends State<SuppliersScreen> {
                         'Suppliers',
                         style: TextStyle(
                           fontSize: 14.5,
-                          fontWeight: FontWeight.w900,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                       Text(
                         'Supplier master and statements',
                         style: TextStyle(
-                          fontSize: 10.5,
+                          fontSize: 11,
                           color: scheme.onSurfaceVariant,
                         ),
                       ),
@@ -283,8 +283,8 @@ class _SuppliersScreenState extends State<SuppliersScreen> {
                               child: Text(
                                 'Supplier',
                                 style: TextStyle(
-                                  fontSize: 10.5,
-                                  fontWeight: FontWeight.w900,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
                                 ),
                               ),
                             ),
@@ -293,8 +293,8 @@ class _SuppliersScreenState extends State<SuppliersScreen> {
                               child: Text(
                                 'Contact',
                                 style: TextStyle(
-                                  fontSize: 10.5,
-                                  fontWeight: FontWeight.w900,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
                                 ),
                               ),
                             ),
@@ -303,8 +303,8 @@ class _SuppliersScreenState extends State<SuppliersScreen> {
                               child: Text(
                                 'Tax / Location',
                                 style: TextStyle(
-                                  fontSize: 10.5,
-                                  fontWeight: FontWeight.w900,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
                                 ),
                               ),
                             ),
@@ -314,8 +314,8 @@ class _SuppliersScreenState extends State<SuppliersScreen> {
                                 'Status',
                                 textAlign: TextAlign.center,
                                 style: TextStyle(
-                                  fontSize: 10.5,
-                                  fontWeight: FontWeight.w900,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
                                 ),
                               ),
                             ),
@@ -412,7 +412,7 @@ class _SupplierCard extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
                           fontSize: 11,
-                          fontWeight: FontWeight.w800,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                       Text(
@@ -423,7 +423,7 @@ class _SupplierCard extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                          fontSize: 10,
+                          fontSize: 11,
                           color: scheme.onSurfaceVariant,
                         ),
                       ),
@@ -443,14 +443,14 @@ class _SupplierCard extends StatelessWidget {
                   supplier.phone ?? 'No phone',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 10.5),
+                  style: const TextStyle(fontSize: 11),
                 ),
                 Text(
                   supplier.email ?? '',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontSize: 10,
+                    fontSize: 11,
                     color: scheme.onSurfaceVariant,
                   ),
                 ),
@@ -467,14 +467,14 @@ class _SupplierCard extends StatelessWidget {
                   supplier.taxNumber ?? 'No Tax ID',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 10.5),
+                  style: const TextStyle(fontSize: 11),
                 ),
                 Text(
                   location,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontSize: 10,
+                    fontSize: 11,
                     color: scheme.onSurfaceVariant,
                   ),
                 ),
@@ -488,8 +488,8 @@ class _SupplierCard extends StatelessWidget {
               textAlign: TextAlign.center,
               maxLines: 1,
               style: TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.w900,
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
                 color: supplier.isActive
                     ? scheme.primary
                     : scheme.onSurfaceVariant,
@@ -986,7 +986,7 @@ class _SupplierFormDialogState extends State<_SupplierFormDialog> {
                     padding: const EdgeInsets.all(12),
 
                     decoration: BoxDecoration(
-                      color: Colors.red.shade50,
+                      color: Theme.of(context).colorScheme.error,
 
                       borderRadius: BorderRadius.circular(8),
                     ),
@@ -994,7 +994,9 @@ class _SupplierFormDialogState extends State<_SupplierFormDialog> {
                     child: Text(
                       _error!,
 
-                      style: TextStyle(color: Colors.red.shade700),
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onError,
+                      ),
                     ),
                   ),
                 ],
@@ -1092,7 +1094,9 @@ class _EmptySuppliers extends StatelessWidget {
                 ? 'Create your first supplier to start recording purchases.'
                 : 'No suppliers have been created yet.',
 
-            style: TextStyle(color: Colors.grey.shade600),
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
           ),
 
           if (canManage) ...[

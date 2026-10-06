@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:thq_ui/thq_ui.dart';
+
 import '../widgets/admin_home_button.dart';
 
 import '../models/business_user.dart';
@@ -38,7 +39,7 @@ class _BusinessUsersScreenState extends State<BusinessUsersScreen> {
   }
 
   Future<void> _addUser(List<BusinessUserRole> roles) async {
-    final created = await showDialog<bool>(
+    final created = await showThqDialog<bool>(
       context: context,
       barrierDismissible: false,
       builder: (_) => _AddUserDialog(tenantId: widget.tenantId, roles: roles),
@@ -55,7 +56,7 @@ class _BusinessUsersScreenState extends State<BusinessUsersScreen> {
   }
 
   Future<void> _resetPassword(BusinessUser user) async {
-    final changed = await showDialog<bool>(
+    final changed = await showThqDialog<bool>(
       context: context,
       barrierDismissible: false,
       builder: (_) =>
@@ -75,7 +76,7 @@ class _BusinessUsersScreenState extends State<BusinessUsersScreen> {
   }
 
   Future<void> _deleteUser(BusinessUser user) async {
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showThqDialog<bool>(
       context: context,
       builder: (context) {
         return AlertDialog(
@@ -124,7 +125,7 @@ class _BusinessUsersScreenState extends State<BusinessUsersScreen> {
         return;
       }
 
-      await showDialog<void>(
+      await showThqDialog<void>(
         context: context,
         builder: (context) {
           return AlertDialog(
@@ -163,7 +164,7 @@ class _BusinessUsersScreenState extends State<BusinessUsersScreen> {
         toolbarHeight: 42,
         title: const Text(
           'Business Users',
-          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900),
+          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
         ),
         actions: const [AdminHomeButton()],
       ),
@@ -217,14 +218,14 @@ class _BusinessUsersScreenState extends State<BusinessUsersScreen> {
                               overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
                                 fontSize: 11,
-                                fontWeight: FontWeight.w900,
+                                fontWeight: FontWeight.w600,
                               ),
                             ),
                             Text(
                               '${data.users.length} user(s) | '
                               '${data.roles.length} role(s)',
                               style: TextStyle(
-                                fontSize: 7.8,
+                                fontSize: 11,
                                 color: scheme.onSurfaceVariant,
                               ),
                             ),
@@ -263,7 +264,7 @@ class _BusinessUsersScreenState extends State<BusinessUsersScreen> {
                     child: Text(
                       'This business does not have any roles yet.',
                       style: TextStyle(
-                        fontSize: 8,
+                        fontSize: 11,
                         color: scheme.onErrorContainer,
                       ),
                     ),
@@ -300,8 +301,8 @@ class _BusinessUsersScreenState extends State<BusinessUsersScreen> {
                                       child: Text(
                                         'User',
                                         style: TextStyle(
-                                          fontSize: 8.8,
-                                          fontWeight: FontWeight.w900,
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w600,
                                         ),
                                       ),
                                     ),
@@ -310,8 +311,8 @@ class _BusinessUsersScreenState extends State<BusinessUsersScreen> {
                                       child: Text(
                                         'Roles',
                                         style: TextStyle(
-                                          fontSize: 8.8,
-                                          fontWeight: FontWeight.w900,
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w600,
                                         ),
                                       ),
                                     ),
@@ -321,8 +322,8 @@ class _BusinessUsersScreenState extends State<BusinessUsersScreen> {
                                         'Status',
                                         textAlign: TextAlign.center,
                                         style: TextStyle(
-                                          fontSize: 8.8,
-                                          fontWeight: FontWeight.w900,
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w600,
                                         ),
                                       ),
                                     ),
@@ -411,8 +412,8 @@ class _UserCard extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
-                          fontSize: 8.8,
-                          fontWeight: FontWeight.w800,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                       Text(
@@ -422,7 +423,7 @@ class _UserCard extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                          fontSize: 7.2,
+                          fontSize: 11,
                           color: scheme.onSurfaceVariant,
                         ),
                       ),
@@ -440,7 +441,7 @@ class _UserCard extends StatelessWidget {
                   : user.roles.map((r) => r.name).join(', '),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 8),
+              style: const TextStyle(fontSize: 11),
             ),
           ),
           SizedBox(
@@ -449,8 +450,8 @@ class _UserCard extends StatelessWidget {
               user.status.toUpperCase(),
               textAlign: TextAlign.center,
               style: TextStyle(
-                fontSize: 7,
-                fontWeight: FontWeight.w900,
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
                 color: active ? scheme.primary : scheme.onSurfaceVariant,
               ),
             ),
@@ -583,7 +584,7 @@ class _AddUserDialogState extends State<_AddUserDialog> {
         return;
       }
 
-      await showDialog<void>(
+      await showThqDialog<void>(
         context: context,
         barrierDismissible: false,
         builder: (dialogContext) => AlertDialog(
@@ -757,12 +758,14 @@ class _AddUserDialogState extends State<_AddUserDialog> {
                   width: double.infinity,
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: Colors.red.shade50,
+                    color: Theme.of(context).colorScheme.error,
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
                     _error!,
-                    style: TextStyle(color: Colors.red.shade700),
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onError,
+                    ),
                   ),
                 ),
               ],
@@ -857,7 +860,7 @@ class _ResetPasswordDialogState extends State<_ResetPasswordDialog> {
       final display = widget.user.username.isNotEmpty
           ? widget.user.username
           : widget.user.name;
-      await showDialog<void>(
+      await showThqDialog<void>(
         context: context,
         barrierDismissible: false,
         builder: (dialogContext) => AlertDialog(
@@ -982,7 +985,10 @@ class _ResetPasswordDialogState extends State<_ResetPasswordDialog> {
             if (_error != null) ...[
               const SizedBox(height: 14),
 
-              Text(_error!, style: const TextStyle(color: Colors.red)),
+              Text(
+                _error!,
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
             ],
           ],
         ),

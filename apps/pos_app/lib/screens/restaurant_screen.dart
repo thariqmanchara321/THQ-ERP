@@ -224,7 +224,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      fontSize: 9.8,
+                      fontSize: 11,
                       color: scheme.onErrorContainer,
                     ),
                   ),
@@ -301,7 +301,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                          fontSize: 9.2,
+                          fontSize: 11,
                           color: scheme.onSurfaceVariant,
                           fontWeight: FontWeight.w700,
                         ),
@@ -312,7 +312,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
                           fontSize: 13,
-                          fontWeight: FontWeight.w900,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                       Text(
@@ -320,7 +320,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                          fontSize: 8.6,
+                          fontSize: 11,
                           color: scheme.onSurfaceVariant,
                         ),
                       ),
@@ -443,7 +443,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
     final capacity = TextEditingController(text: '4');
     final area = TextEditingController();
 
-    await showDialog<void>(
+    await showThqDialog<void>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('Add Restaurant Table'),
@@ -560,7 +560,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
           product.categoryName!.trim(),
     }.toList()..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
 
-    await showDialog<void>(
+    await showThqDialog<void>(
       context: context,
       barrierDismissible: false,
       builder: (dialogContext) => StatefulBuilder(
@@ -1051,7 +1051,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                                                     overflow:
                                                         TextOverflow.ellipsis,
                                                     style: TextStyle(
-                                                      fontSize: 9,
+                                                      fontSize: 11,
                                                       color: scheme
                                                           .onSurfaceVariant,
                                                       fontWeight:
@@ -1065,8 +1065,8 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                                                       : 'SERVICE',
                                                   maxLines: 1,
                                                   style: TextStyle(
-                                                    fontSize: 9,
-                                                    fontWeight: FontWeight.w900,
+                                                    fontSize: 11,
+                                                    fontWeight: FontWeight.w600,
                                                     color: stockBlocked
                                                         ? scheme.error
                                                         : scheme.primary,
@@ -1083,7 +1083,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                                                 style: TextStyle(
                                                   color: scheme.onSurface,
                                                   fontSize: 12,
-                                                  fontWeight: FontWeight.w900,
+                                                  fontWeight: FontWeight.w600,
                                                 ),
                                               ),
                                             ),
@@ -1093,7 +1093,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                                               overflow: TextOverflow.ellipsis,
                                               style: TextStyle(
                                                 color: scheme.onSurfaceVariant,
-                                                fontSize: 9,
+                                                fontSize: 11,
                                               ),
                                             ),
                                             const SizedBox(height: 4),
@@ -1106,7 +1106,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                                                       color: scheme.onSurface,
                                                       fontSize: 12.5,
                                                       fontWeight:
-                                                          FontWeight.w900,
+                                                          FontWeight.w600,
                                                     ),
                                                   ),
                                                 ),
@@ -1179,7 +1179,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                             style: TextStyle(
                               color: scheme.onSurface,
                               fontSize: 12,
-                              fontWeight: FontWeight.w900,
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
                         ),
@@ -1251,7 +1251,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                                                 style: TextStyle(
                                                   color: scheme.onSurface,
                                                   fontSize: 11,
-                                                  fontWeight: FontWeight.w900,
+                                                  fontWeight: FontWeight.w600,
                                                 ),
                                               ),
                                               Text(
@@ -1260,7 +1260,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                                                 style: TextStyle(
                                                   color:
                                                       scheme.onSurfaceVariant,
-                                                  fontSize: 9,
+                                                  fontSize: 11,
                                                 ),
                                               ),
                                             ],
@@ -1343,7 +1343,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                                             textAlign: TextAlign.center,
                                             style: TextStyle(
                                               color: scheme.onSurface,
-                                              fontWeight: FontWeight.w900,
+                                              fontWeight: FontWeight.w600,
                                             ),
                                           ),
                                         ),
@@ -1370,7 +1370,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                                               ),
                                               style: TextStyle(
                                                 color: scheme.onSurfaceVariant,
-                                                fontSize: 9,
+                                                fontSize: 11,
                                               ),
                                             ),
                                             Text(
@@ -1378,7 +1378,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                                               style: TextStyle(
                                                 color: scheme.onSurface,
                                                 fontSize: 12,
-                                                fontWeight: FontWeight.w900,
+                                                fontWeight: FontWeight.w600,
                                               ),
                                             ),
                                           ],
@@ -1437,7 +1437,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                               style: TextStyle(
                                 color: scheme.onSurface,
                                 fontSize: 15,
-                                fontWeight: FontWeight.w900,
+                                fontWeight: FontWeight.w600,
                               ),
                             ),
                             const Spacer(),
@@ -1446,7 +1446,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                               style: TextStyle(
                                 color: scheme.onSurface,
                                 fontSize: 18,
-                                fontWeight: FontWeight.w900,
+                                fontWeight: FontWeight.w600,
                               ),
                             ),
                           ],
@@ -1702,7 +1702,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                                 style: TextStyle(
                                   color: scheme.onSurface,
                                   fontSize: 17,
-                                  fontWeight: FontWeight.w900,
+                                  fontWeight: FontWeight.w600,
                                 ),
                               ),
                               Text(
@@ -1711,7 +1711,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                                 overflow: TextOverflow.ellipsis,
                                 style: TextStyle(
                                   color: scheme.onSurfaceVariant,
-                                  fontSize: 10,
+                                  fontSize: 11,
                                 ),
                               ),
                             ],
@@ -1823,7 +1823,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
         text: orderMap['delivery_address']?.toString() ?? '',
       );
 
-      final saved = await showDialog<bool>(
+      final saved = await showThqDialog<bool>(
         context: context,
         builder: (dialogContext) => StatefulBuilder(
           builder: (context, setLocalState) => AlertDialog(
@@ -2036,7 +2036,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
     final search = TextEditingController();
     final cart = <_RestaurantLine>[];
 
-    final added = await showDialog<bool>(
+    final added = await showThqDialog<bool>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setLocalState) {
@@ -2332,7 +2332,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
       text: table['reservation_note']?.toString() ?? '',
     );
 
-    final saved = await showDialog<bool>(
+    final saved = await showThqDialog<bool>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setLocalState) {
@@ -2637,7 +2637,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
     final preferredArea = TextEditingController();
     final note = TextEditingController();
 
-    final saved = await showDialog<bool>(
+    final saved = await showThqDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('Add Guest to Waitlist'),
@@ -2852,7 +2852,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
 
     String tableId = availableTables.first['id'].toString();
 
-    final selected = await showDialog<String>(
+    final selected = await showThqDialog<String>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setLocalState) => AlertDialog(
@@ -3049,7 +3049,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
       Map<String, dynamic>? moveResult;
       Map<String, dynamic>? selectedTarget;
 
-      final saved = await showDialog<bool>(
+      final saved = await showThqDialog<bool>(
         context: context,
         builder: (dialogContext) => StatefulBuilder(
           builder: (context, setLocalState) {
@@ -3081,7 +3081,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                         'Choose an existing occupied table/order and the exact '
                         'item quantities to move.',
                         style: const TextStyle(
-                          fontSize: 10.5,
+                          fontSize: 11,
                           fontWeight: FontWeight.w700,
                         ),
                       ),
@@ -3116,8 +3116,8 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                     const Text(
                       'Items to move',
                       style: TextStyle(
-                        fontSize: 10.5,
-                        fontWeight: FontWeight.w900,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                     const SizedBox(height: 5),
@@ -3148,15 +3148,15 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                                         maxLines: 1,
                                         overflow: TextOverflow.ellipsis,
                                         style: const TextStyle(
-                                          fontSize: 10.5,
-                                          fontWeight: FontWeight.w800,
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w600,
                                         ),
                                       ),
                                       Text(
                                         'Available ${quantityText(active)}'
                                         '${sent > 0 ? ' - KOT sent ${quantityText(sent)}' : ''}',
                                         style: TextStyle(
-                                          fontSize: 9,
+                                          fontSize: 11,
                                           color: Theme.of(
                                             context,
                                           ).colorScheme.onSurfaceVariant,
@@ -3195,14 +3195,14 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                       title: const Text(
                         'Send target table unsent items to kitchen',
                         style: TextStyle(
-                          fontSize: 10.5,
-                          fontWeight: FontWeight.w800,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                       subtitle: const Text(
                         'Recommended. This queues all currently unsent items '
                         'on the destination order after the move.',
-                        style: TextStyle(fontSize: 9),
+                        style: TextStyle(fontSize: 11),
                       ),
                       onChanged: (value) {
                         setLocalState(() => sendTargetUnsentToKitchen = value);
@@ -3549,7 +3549,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
       var destinationTableId = availableTables.first['id'].toString();
       Map<String, dynamic>? splitResult;
 
-      final saved = await showDialog<bool>(
+      final saved = await showThqDialog<bool>(
         context: context,
         builder: (dialogContext) => StatefulBuilder(
           builder: (context, setLocalState) {
@@ -3586,7 +3586,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                         '$sourceGuests guest(s). Select the guests and item '
                         'quantities moving to the new table.',
                         style: const TextStyle(
-                          fontSize: 10.5,
+                          fontSize: 11,
                           fontWeight: FontWeight.w700,
                         ),
                       ),
@@ -3656,9 +3656,9 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                                 'another table or move fewer guests.'
                           : '$capacity seats available at the destination.',
                       style: TextStyle(
-                        fontSize: 9.5,
+                        fontSize: 11,
                         fontWeight: capacity < movingGuests
-                            ? FontWeight.w800
+                            ? FontWeight.w600
                             : FontWeight.w500,
                         color: capacity < movingGuests
                             ? Theme.of(context).colorScheme.error
@@ -3669,8 +3669,8 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                     const Text(
                       'Items to move',
                       style: TextStyle(
-                        fontSize: 10.5,
-                        fontWeight: FontWeight.w900,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                     const SizedBox(height: 5),
@@ -3701,15 +3701,15 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                                         maxLines: 1,
                                         overflow: TextOverflow.ellipsis,
                                         style: const TextStyle(
-                                          fontSize: 10.5,
-                                          fontWeight: FontWeight.w800,
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w600,
                                         ),
                                       ),
                                       Text(
                                         'Available ${quantityText(active)}'
                                         '${sent > 0 ? ' - KOT sent ${quantityText(sent)}' : ''}',
                                         style: TextStyle(
-                                          fontSize: 9,
+                                          fontSize: 11,
                                           color: Theme.of(
                                             context,
                                           ).colorScheme.onSurfaceVariant,
@@ -4036,7 +4036,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
     String sourceOrderId = candidates.first['id'].toString();
     final note = TextEditingController();
 
-    final result = await showDialog<Map<String, dynamic>>(
+    final result = await showThqDialog<Map<String, dynamic>>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setLocalState) {
@@ -4055,7 +4055,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                     alignment: Alignment.centerLeft,
                     child: Text(
                       'Keep as target: $targetLabel',
-                      style: const TextStyle(fontWeight: FontWeight.w800),
+                      style: const TextStyle(fontWeight: FontWeight.w600),
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -4200,7 +4200,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
     String toTableId = availableTables.first['id'].toString();
     final note = TextEditingController();
 
-    final result = await showDialog<Map<String, dynamic>>(
+    final result = await showThqDialog<Map<String, dynamic>>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setLocalState) => AlertDialog(
@@ -4366,7 +4366,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
         return (quantity - cancelled).clamp(0, double.infinity).toDouble();
       }
 
-      final voidResult = await showDialog<Map<String, dynamic>>(
+      final voidResult = await showThqDialog<Map<String, dynamic>>(
         context: context,
         builder: (dialogContext) => StatefulBuilder(
           builder: (context, setLocalState) {
@@ -4700,7 +4700,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
         return null;
       }
 
-      final chosen = await showDialog<List<String>>(
+      final chosen = await showThqDialog<List<String>>(
         context: context,
         barrierDismissible: false,
         builder: (dialogContext) => StatefulBuilder(
@@ -4723,7 +4723,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                       product!.productName,
                       style: const TextStyle(
                         fontSize: 12,
-                        fontWeight: FontWeight.w900,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                     const SizedBox(height: 3),
@@ -4731,7 +4731,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                       'Select exactly $required available serial '
                       'number${required == 1 ? '' : 's'}.',
                       style: TextStyle(
-                        fontSize: 10,
+                        fontSize: 11,
                         color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                     ),
@@ -4771,7 +4771,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                             title: Text(
                               serial,
                               style: const TextStyle(
-                                fontSize: 10.5,
+                                fontSize: 11,
                                 fontWeight: FontWeight.w700,
                               ),
                             ),
@@ -4784,10 +4784,10 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                       '${selected.length} / $required selected',
                       textAlign: TextAlign.right,
                       style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w800,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
                         color: selected.length == required
-                            ? const Color(0xFF198754)
+                            ? Theme.of(context).colorScheme.primary
                             : Theme.of(context).colorScheme.error,
                       ),
                     ),
@@ -5147,7 +5147,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
       return null;
     }
 
-    final result = await showDialog<_RestaurantBillingChoice>(
+    final result = await showThqDialog<_RestaurantBillingChoice>(
       context: context,
       barrierDismissible: false,
       builder: (dialogContext) => StatefulBuilder(
@@ -5328,8 +5328,8 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                       color: strong
                           ? scheme.onSurface
                           : scheme.onSurfaceVariant,
-                      fontSize: strong ? 12 : 10.5,
-                      fontWeight: strong ? FontWeight.w900 : FontWeight.w600,
+                      fontSize: strong ? 12 : 11,
+                      fontWeight: strong ? FontWeight.w600 : FontWeight.w600,
                     ),
                   ),
                   const Spacer(),
@@ -5337,8 +5337,8 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                     _money(value),
                     style: TextStyle(
                       color: valueColor ?? scheme.onSurface,
-                      fontSize: strong ? 15 : 10.5,
-                      fontWeight: strong ? FontWeight.w900 : FontWeight.w700,
+                      fontSize: strong ? 15 : 11,
+                      fontWeight: strong ? FontWeight.w600 : FontWeight.w700,
                     ),
                   ),
                 ],
@@ -5377,7 +5377,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                             style: TextStyle(
                               color: scheme.onSurface,
                               fontSize: 12,
-                              fontWeight: FontWeight.w900,
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
                         ),
@@ -5431,8 +5431,8 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                                 '${quantityText(activeQty)}x',
                                 style: TextStyle(
                                   color: scheme.onPrimaryContainer,
-                                  fontSize: 9.5,
-                                  fontWeight: FontWeight.w900,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
                                 ),
                               ),
                             ),
@@ -5448,7 +5448,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                                     style: TextStyle(
                                       color: scheme.onSurface,
                                       fontSize: 11,
-                                      fontWeight: FontWeight.w900,
+                                      fontWeight: FontWeight.w600,
                                     ),
                                   ),
                                   const SizedBox(height: 2),
@@ -5457,7 +5457,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                                     'Tax ${taxRate.toStringAsFixed(0)}%',
                                     style: TextStyle(
                                       color: scheme.onSurfaceVariant,
-                                      fontSize: 9,
+                                      fontSize: 11,
                                     ),
                                   ),
                                   if (activeDiscount > .005)
@@ -5465,7 +5465,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                                       'Line discount ${_money(activeDiscount)}',
                                       style: TextStyle(
                                         color: scheme.primary,
-                                        fontSize: 9,
+                                        fontSize: 11,
                                         fontWeight: FontWeight.w700,
                                       ),
                                     ),
@@ -5478,7 +5478,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                               style: TextStyle(
                                 color: scheme.onSurface,
                                 fontSize: 11,
-                                fontWeight: FontWeight.w900,
+                                fontWeight: FontWeight.w600,
                               ),
                             ),
                           ],
@@ -5575,7 +5575,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                           'Discount & Additional Charges',
                           style: TextStyle(
                             fontSize: 11,
-                            fontWeight: FontWeight.w900,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
                       ),
@@ -5589,8 +5589,8 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                         Text(
                           'GST CLASSIFIED',
                           style: TextStyle(
-                            fontSize: 8,
-                            fontWeight: FontWeight.w900,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
                             color: scheme.primary,
                           ),
                         ),
@@ -5737,7 +5737,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                                 'from Products â†’ Additional Charges.'
                           : 'Additional Charges are disabled in Business Settings.',
                       style: TextStyle(
-                        fontSize: 8.8,
+                        fontSize: 11,
                         color: scheme.onSurfaceVariant,
                       ),
                     ),
@@ -5785,7 +5785,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        fontSize: 8.8,
+                        fontSize: 11,
                         fontWeight: FontWeight.w700,
                         color: scheme.onSurfaceVariant,
                       ),
@@ -5798,7 +5798,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        fontSize: 8.8,
+                        fontSize: 11,
                         fontWeight: FontWeight.w700,
                         color: scheme.error,
                       ),
@@ -5826,7 +5826,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                       style: TextStyle(
                         color: scheme.onSurface,
                         fontSize: 13,
-                        fontWeight: FontWeight.w900,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                     const SizedBox(height: 10),
@@ -5883,8 +5883,8 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                             child: Text(
                               'Automatic Round Off',
                               style: TextStyle(
-                                fontSize: 10.5,
-                                fontWeight: FontWeight.w800,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
                               ),
                             ),
                           ),
@@ -5893,7 +5893,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                             style: TextStyle(
                               color: scheme.onSurface,
                               fontSize: 11,
-                              fontWeight: FontWeight.w900,
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
                         ],
@@ -5957,7 +5957,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                             amountRow(
                               'Cash change',
                               cashChange,
-                              valueColor: const Color(0xFF198754),
+                              valueColor: Theme.of(context).colorScheme.primary,
                             ),
                           if (remaining > .005)
                             amountRow(
@@ -5974,8 +5974,8 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                         'Credit requires a named customer.',
                         style: TextStyle(
                           color: scheme.error,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w800,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                     ],
@@ -5985,8 +5985,8 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                         'Electronic payment cannot exceed the remaining total.',
                         style: TextStyle(
                           color: scheme.error,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w800,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                     ],
@@ -6030,7 +6030,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                             style: TextStyle(
                               color: scheme.onSurface,
                               fontSize: 17,
-                              fontWeight: FontWeight.w900,
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
                         ),
@@ -6112,7 +6112,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                               'Final total',
                               style: TextStyle(
                                 color: scheme.onSurfaceVariant,
-                                fontSize: 9.5,
+                                fontSize: 11,
                               ),
                             ),
                             Text(
@@ -6120,7 +6120,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                               style: TextStyle(
                                 color: scheme.onSurface,
                                 fontSize: 17,
-                                fontWeight: FontWeight.w900,
+                                fontWeight: FontWeight.w600,
                               ),
                             ),
                           ],
@@ -6194,9 +6194,9 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
     Color statusColor() {
       switch (status) {
         case 'preparing':
-          return const Color(0xFFE58A00);
+          return context.thqSemanticColors.warning;
         case 'ready':
-          return const Color(0xFF198754);
+          return Theme.of(context).colorScheme.primary;
         case 'served':
           return const Color(0xFF0F8B8D);
         case 'cancelled':
@@ -6270,8 +6270,8 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                   color: scheme.onSurface,
-                  fontSize: 10.5,
-                  fontWeight: FontWeight.w800,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
             ),
@@ -6285,8 +6285,8 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                 statusLabel(),
                 style: TextStyle(
                   color: color,
-                  fontSize: 8.7,
-                  fontWeight: FontWeight.w900,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
             ),
@@ -6295,8 +6295,8 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
               _money(order['total']),
               style: TextStyle(
                 color: scheme.onSurface,
-                fontSize: 10,
-                fontWeight: FontWeight.w900,
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
               ),
             ),
           ],
@@ -6363,7 +6363,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                               style: TextStyle(
                                 color: scheme.onSurface,
                                 fontSize: 12,
-                                fontWeight: FontWeight.w900,
+                                fontWeight: FontWeight.w600,
                               ),
                             ),
                           ),
@@ -6375,7 +6375,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(
                                 color: scheme.onSurfaceVariant,
-                                fontSize: 10,
+                                fontSize: 11,
                                 fontWeight: FontWeight.w700,
                               ),
                             ),
@@ -6394,7 +6394,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           color: scheme.onSurfaceVariant,
-                          fontSize: 9.2,
+                          fontSize: 11,
                         ),
                       ),
                     ],
@@ -6415,8 +6415,8 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                     statusLabel(),
                     style: TextStyle(
                       color: color,
-                      fontSize: 9,
-                      fontWeight: FontWeight.w900,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ),
@@ -6426,7 +6426,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                   style: TextStyle(
                     color: scheme.onSurface,
                     fontSize: 13,
-                    fontWeight: FontWeight.w900,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ],
@@ -6451,7 +6451,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         color: scheme.onSurfaceVariant,
-                        fontSize: 9.2,
+                        fontSize: 11,
                       ),
                     ),
                   ),
@@ -6671,7 +6671,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
       return ((safe / 2).round() * 2).clamp(0, 100).toDouble();
     }
 
-    final saved = await showDialog<bool>(
+    final saved = await showThqDialog<bool>(
       context: context,
       barrierDismissible: false,
       builder: (dialogContext) => StatefulBuilder(
@@ -6732,7 +6732,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
 
           Future<void> createFloor() async {
             final controller = TextEditingController();
-            final result = await showDialog<String>(
+            final result = await showThqDialog<String>(
               context: dialogContext,
               builder: (nameContext) => AlertDialog(
                 title: const Text('New Floor / Area'),
@@ -6803,7 +6803,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                 table?['operational_status']?.toString() ?? 'available';
             String shape = table?['shape']?.toString() ?? 'rect';
 
-            final confirmed = await showDialog<bool>(
+            final confirmed = await showThqDialog<bool>(
               context: dialogContext,
               builder: (detailsContext) => StatefulBuilder(
                 builder: (context, setDetailsState) => AlertDialog(
@@ -7064,7 +7064,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
               text: '${table['name'] ?? 'Table'} Copy',
             );
 
-            final confirmed = await showDialog<bool>(
+            final confirmed = await showThqDialog<bool>(
               context: dialogContext,
               builder: (copyContext) => AlertDialog(
                 title: const Text('Duplicate Table'),
@@ -7147,7 +7147,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
           }
 
           Future<void> deactivateSelected(Map<String, dynamic> table) async {
-            final confirmed = await showDialog<bool>(
+            final confirmed = await showThqDialog<bool>(
               context: dialogContext,
               builder: (confirmContext) => AlertDialog(
                 title: const Text('Delete / Deactivate Table?'),
@@ -7264,12 +7264,12 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                                 'Advanced Restaurant Floor Editor',
                                 style: TextStyle(
                                   fontSize: 15,
-                                  fontWeight: FontWeight.w900,
+                                  fontWeight: FontWeight.w600,
                                 ),
                               ),
                               Text(
                                 'Drag, resize, rotate, lock, duplicate, edit or safely deactivate tables',
-                                style: TextStyle(fontSize: 9),
+                                style: TextStyle(fontSize: 11),
                               ),
                             ],
                           ),
@@ -7409,8 +7409,8 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                                                 '$currentFloor | '
                                                 '${floorRows.length} table(s)',
                                                 style: TextStyle(
-                                                  fontSize: 9.5,
-                                                  fontWeight: FontWeight.w900,
+                                                  fontSize: 11,
+                                                  fontWeight: FontWeight.w600,
                                                   color:
                                                       scheme.onSurfaceVariant,
                                                 ),
@@ -7592,11 +7592,11 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                                                                       overflow:
                                                                           TextOverflow
                                                                               .ellipsis,
-                                                                      style: const TextStyle(
+                                                                      style: TextStyle(
                                                                         fontSize:
-                                                                            10.5,
+                                                                            11,
                                                                         fontWeight:
-                                                                            FontWeight.w900,
+                                                                            FontWeight.w600,
                                                                       ),
                                                                     ),
                                                                     Text(
@@ -7606,16 +7606,16 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                                                                       overflow:
                                                                           TextOverflow
                                                                               .ellipsis,
-                                                                      style: const TextStyle(
+                                                                      style: TextStyle(
                                                                         fontSize:
-                                                                            8.7,
+                                                                            11,
                                                                       ),
                                                                     ),
                                                                     Text(
                                                                       '${table['capacity'] ?? 0} seats',
                                                                       style: TextStyle(
                                                                         fontSize:
-                                                                            8,
+                                                                            11,
                                                                         color: scheme
                                                                             .onSurfaceVariant,
                                                                       ),
@@ -7670,7 +7670,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                                         'Select a table to edit its layout.',
                                         textAlign: TextAlign.center,
                                         style: TextStyle(
-                                          fontSize: 10,
+                                          fontSize: 11,
                                           color: scheme.onSurfaceVariant,
                                         ),
                                       ),
@@ -7687,7 +7687,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                                             overflow: TextOverflow.ellipsis,
                                             style: const TextStyle(
                                               fontSize: 13,
-                                              fontWeight: FontWeight.w900,
+                                              fontWeight: FontWeight.w600,
                                             ),
                                           ),
                                           const SizedBox(height: 3),
@@ -7695,7 +7695,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                                             '${selectedTable['capacity']} seats | '
                                             '${selectedTable['operational_status'] ?? 'available'}',
                                             style: TextStyle(
-                                              fontSize: 9,
+                                              fontSize: 11,
                                               color: scheme.onSurfaceVariant,
                                             ),
                                           ),
@@ -7770,8 +7770,8 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                                             'Width '
                                             '${number(selectedTable['width_percent'], 14).toStringAsFixed(0)}%',
                                             style: const TextStyle(
-                                              fontSize: 9.5,
-                                              fontWeight: FontWeight.w800,
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.w600,
                                             ),
                                           ),
                                           Slider(
@@ -7794,8 +7794,8 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                                             'Height '
                                             '${number(selectedTable['height_percent'], 12).toStringAsFixed(0)}%',
                                             style: const TextStyle(
-                                              fontSize: 9.5,
-                                              fontWeight: FontWeight.w800,
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.w600,
                                             ),
                                           ),
                                           Slider(
@@ -7818,8 +7818,8 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                                             'Rotation '
                                             '${number(selectedTable['rotation_degrees'], 0).toStringAsFixed(0)}Â°',
                                             style: const TextStyle(
-                                              fontSize: 9.5,
-                                              fontWeight: FontWeight.w800,
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.w600,
                                             ),
                                           ),
                                           Slider(
@@ -7846,11 +7846,11 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                                             ),
                                             title: const Text(
                                               'Lock position',
-                                              style: TextStyle(fontSize: 10),
+                                              style: TextStyle(fontSize: 11),
                                             ),
                                             subtitle: const Text(
                                               'Prevents accidental dragging',
-                                              style: TextStyle(fontSize: 8.5),
+                                              style: TextStyle(fontSize: 11),
                                             ),
                                             onChanged: (value) {
                                               setLocalState(
@@ -7865,7 +7865,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                                             'X ${number(selectedTable['position_x'], 0).toStringAsFixed(1)}%  |  '
                                             'Y ${number(selectedTable['position_y'], 0).toStringAsFixed(1)}%',
                                             style: TextStyle(
-                                              fontSize: 9,
+                                              fontSize: 11,
                                               color: scheme.onSurfaceVariant,
                                             ),
                                           ),
@@ -7930,7 +7930,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                           'Positions use responsive percentages. '
                           'Delete is a safe soft-delete and preserves history.',
                           style: TextStyle(
-                            fontSize: 9,
+                            fontSize: 11,
                             color: scheme.onSurfaceVariant,
                           ),
                         ),
@@ -8027,7 +8027,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
             const SizedBox(height: 7),
             const Text(
               'No restaurant tables configured.',
-              style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800),
+              style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 8),
             if (widget.session.hasPermission('restaurant.manage'))
@@ -8104,9 +8104,9 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                         floor,
                         style: TextStyle(
                           color: floor == selectedFloor
-                              ? Colors.white
+                              ? Theme.of(context).colorScheme.onSurface
                               : scheme.onSurface,
-                          fontWeight: FontWeight.w800,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                       selectedColor: scheme.primary,
@@ -8156,8 +8156,8 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                       child: Text(
                         '$selectedFloor • ${visible.length} table(s)',
                         style: TextStyle(
-                          fontSize: 9.5,
-                          fontWeight: FontWeight.w800,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
                           color: scheme.onSurfaceVariant,
                         ),
                       ),
@@ -8269,14 +8269,14 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                                         overflow: TextOverflow.ellipsis,
                                         style: const TextStyle(
                                           fontSize: 11,
-                                          fontWeight: FontWeight.w900,
+                                          fontWeight: FontWeight.w600,
                                         ),
                                       ),
                                       Text(
                                         '${table['name'] ?? ''}',
                                         maxLines: 1,
                                         overflow: TextOverflow.ellipsis,
-                                        style: const TextStyle(fontSize: 9),
+                                        style: const TextStyle(fontSize: 11),
                                       ),
                                       const SizedBox(height: 2),
                                       Text(
@@ -8290,8 +8290,8 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                                         maxLines: 1,
                                         overflow: TextOverflow.ellipsis,
                                         style: TextStyle(
-                                          fontSize: 8.5,
-                                          fontWeight: FontWeight.w900,
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w600,
                                           color: statusColor,
                                         ),
                                       ),
@@ -8302,7 +8302,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                                         maxLines: 1,
                                         overflow: TextOverflow.ellipsis,
                                         style: TextStyle(
-                                          fontSize: 8.2,
+                                          fontSize: 11,
                                           color: scheme.onSurfaceVariant,
                                         ),
                                       ),
@@ -8383,8 +8383,8 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
           '$label ${countFor(value)}',
           style: TextStyle(
             color: selected ? scheme.onPrimary : scheme.onSurface,
-            fontSize: 9.8,
-            fontWeight: FontWeight.w800,
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
           ),
         ),
         onSelected: (_) {
@@ -8421,7 +8421,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                       style: TextStyle(
                         color: scheme.onSurface,
                         fontSize: 12,
-                        fontWeight: FontWeight.w900,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                     Text(
@@ -8430,7 +8430,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         color: scheme.onSurfaceVariant,
-                        fontSize: 9.2,
+                        fontSize: 11,
                       ),
                     ),
                   ],
@@ -8664,7 +8664,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      fontSize: 9.5,
+                      fontSize: 11,
                       color: scheme.onSurfaceVariant,
                     ),
                   ),
@@ -8674,7 +8674,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                       fontSize: 15,
-                      fontWeight: FontWeight.w900,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                   Text(
@@ -8682,7 +8682,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      fontSize: 8.5,
+                      fontSize: 11,
                       color: scheme.onSurfaceVariant,
                     ),
                   ),
@@ -8724,8 +8724,8 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                     child: Text(
                       title,
                       style: const TextStyle(
-                        fontSize: 10.5,
-                        fontWeight: FontWeight.w900,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ),
@@ -8738,7 +8738,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                       child: Text(
                         'No data for this period.',
                         style: TextStyle(
-                          fontSize: 9.5,
+                          fontSize: 11,
                           color: scheme.onSurfaceVariant,
                         ),
                       ),
@@ -8763,8 +8763,8 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                             child: Text(
                               '${index + 1}',
                               style: const TextStyle(
-                                fontSize: 8,
-                                fontWeight: FontWeight.w900,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
                               ),
                             ),
                           ),
@@ -8773,8 +8773,8 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
-                              fontSize: 9.5,
-                              fontWeight: FontWeight.w800,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
                           subtitle: subtitle == null || subtitle.isEmpty
@@ -8783,13 +8783,13 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                                   subtitle,
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(fontSize: 8.5),
+                                  style: const TextStyle(fontSize: 11),
                                 ),
                           trailing: Text(
                             valueFor(row),
                             style: const TextStyle(
-                              fontSize: 9.5,
-                              fontWeight: FontWeight.w900,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
                         );
@@ -8824,7 +8824,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                       style: TextStyle(
                         color: scheme.onSurface,
                         fontSize: 11.5,
-                        fontWeight: FontWeight.w900,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                     Text(
@@ -8833,7 +8833,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         color: scheme.onSurfaceVariant,
-                        fontSize: 8.8,
+                        fontSize: 11,
                       ),
                     ),
                   ],
@@ -8884,7 +8884,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                         Text(
                           snapshot.error.toString(),
                           textAlign: TextAlign.center,
-                          style: const TextStyle(fontSize: 10),
+                          style: const TextStyle(fontSize: 11),
                         ),
                         const SizedBox(height: 8),
                         OutlinedButton.icon(
@@ -9101,8 +9101,8 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                   Text(
                     '${rows.length} waiting guest group(s)',
                     style: const TextStyle(
-                      fontSize: 10.5,
-                      fontWeight: FontWeight.w800,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                   const Spacer(),
@@ -9137,7 +9137,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                             'No guests are currently waiting.',
                             style: TextStyle(
                               fontSize: 11.5,
-                              fontWeight: FontWeight.w800,
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
                           const SizedBox(height: 8),
@@ -9189,7 +9189,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                                     '$guests',
                                     style: const TextStyle(
                                       fontSize: 11,
-                                      fontWeight: FontWeight.w900,
+                                      fontWeight: FontWeight.w600,
                                     ),
                                   ),
                                 ),
@@ -9207,7 +9207,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                                                   'Guest',
                                               style: const TextStyle(
                                                 fontSize: 12,
-                                                fontWeight: FontWeight.w900,
+                                                fontWeight: FontWeight.w600,
                                               ),
                                             ),
                                           ),
@@ -9228,8 +9228,8 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                                                   .replaceAll('_', ' ')
                                                   .toUpperCase(),
                                               style: const TextStyle(
-                                                fontSize: 9,
-                                                fontWeight: FontWeight.w900,
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.w600,
                                               ),
                                             ),
                                           ),
@@ -9253,7 +9253,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                                             entry['preferred_area'].toString(),
                                         ].join(' • '),
                                         style: TextStyle(
-                                          fontSize: 9.8,
+                                          fontSize: 11,
                                           color: scheme.onSurfaceVariant,
                                         ),
                                       ),
@@ -9271,9 +9271,9 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                                           Text(
                                             'Waiting $waited min • estimate $estimate min',
                                             style: TextStyle(
-                                              fontSize: 9.8,
+                                              fontSize: 11,
                                               fontWeight: overdue
-                                                  ? FontWeight.w900
+                                                  ? FontWeight.w600
                                                   : FontWeight.w600,
                                               color: overdue
                                                   ? scheme.error
@@ -9293,7 +9293,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                                           maxLines: 2,
                                           overflow: TextOverflow.ellipsis,
                                           style: const TextStyle(
-                                            fontSize: 9.6,
+                                            fontSize: 11,
                                             fontStyle: FontStyle.italic,
                                           ),
                                         ),
@@ -9493,7 +9493,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
           .join(' • ');
     }
 
-    await showDialog<void>(
+    await showThqDialog<void>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setLocalState) {
@@ -9507,7 +9507,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                 const Expanded(
                   child: Text(
                     'KOT History / Reprint',
-                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900),
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
                   ),
                 ),
                 for (final range in const [7, 30, 90]) ...[
@@ -9561,7 +9561,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                             Text(
                               snapshot.error.toString(),
                               textAlign: TextAlign.center,
-                              style: const TextStyle(fontSize: 10.5),
+                              style: const TextStyle(fontSize: 11),
                             ),
                             const SizedBox(height: 8),
                             OutlinedButton.icon(
@@ -9585,7 +9585,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                     return const Center(
                       child: Text(
                         'No KOT history was found for this period.',
-                        style: TextStyle(fontSize: 10.5),
+                        style: TextStyle(fontSize: 11),
                       ),
                     );
                   }
@@ -9596,8 +9596,8 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                       Text(
                         '${rows.length} historical KOT(s) • last $days day(s)',
                         style: const TextStyle(
-                          fontSize: 9.5,
-                          fontWeight: FontWeight.w800,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                       const SizedBox(height: 5),
@@ -9651,8 +9651,8 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                                         Text(
                                           isVoid ? 'VOID' : 'KOT',
                                           style: const TextStyle(
-                                            fontSize: 8.5,
-                                            fontWeight: FontWeight.w900,
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w600,
                                           ),
                                         ),
                                         Text(
@@ -9660,8 +9660,8 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                                           maxLines: 1,
                                           overflow: TextOverflow.ellipsis,
                                           style: const TextStyle(
-                                            fontSize: 9.5,
-                                            fontWeight: FontWeight.w900,
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w600,
                                           ),
                                         ),
                                       ],
@@ -9682,15 +9682,15 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                                                 maxLines: 1,
                                                 overflow: TextOverflow.ellipsis,
                                                 style: const TextStyle(
-                                                  fontSize: 10.5,
-                                                  fontWeight: FontWeight.w900,
+                                                  fontSize: 11,
+                                                  fontWeight: FontWeight.w600,
                                                 ),
                                               ),
                                             ),
                                             Text(
                                               displayTime(kot['sent_at']),
                                               style: TextStyle(
-                                                fontSize: 8.8,
+                                                fontSize: 11,
                                                 color: Theme.of(
                                                   context,
                                                 ).colorScheme.onSurfaceVariant,
@@ -9704,7 +9704,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                                           maxLines: 2,
                                           overflow: TextOverflow.ellipsis,
                                           style: const TextStyle(
-                                            fontSize: 9.5,
+                                            fontSize: 11,
                                             fontWeight: FontWeight.w600,
                                           ),
                                         ),
@@ -9727,7 +9727,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                                           maxLines: 1,
                                           overflow: TextOverflow.ellipsis,
                                           style: TextStyle(
-                                            fontSize: 8.8,
+                                            fontSize: 11,
                                             color: Theme.of(
                                               context,
                                             ).colorScheme.onSurfaceVariant,
@@ -9794,8 +9794,8 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
               labelColor: scheme.onPrimary,
               unselectedLabelColor: scheme.onSurface,
               labelStyle: const TextStyle(
-                fontSize: 10.5,
-                fontWeight: FontWeight.w900,
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
               ),
               tabs: const [
                 Tab(
@@ -9951,8 +9951,8 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                         child: Text(
                           isVoid ? 'VOID KOT' : kind.toUpperCase(),
                           style: TextStyle(
-                            fontSize: 9,
-                            fontWeight: FontWeight.w900,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
                             color: isVoid
                                 ? scheme.onErrorContainer
                                 : scheme.onPrimaryContainer,
@@ -9968,16 +9968,16 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
                             fontSize: 11.5,
-                            fontWeight: FontWeight.w900,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
                       ),
                       Text(
                         '$elapsed min',
                         style: TextStyle(
-                          fontSize: 10,
+                          fontSize: 11,
                           fontWeight: elapsed >= 20
-                              ? FontWeight.w900
+                              ? FontWeight.w600
                               : FontWeight.w700,
                           color: elapsed >= 20
                               ? scheme.error
@@ -9997,7 +9997,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      fontSize: 9.8,
+                      fontSize: 11,
                       color: scheme.onSurfaceVariant,
                     ),
                   ),
@@ -10023,7 +10023,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                               false)
                             'KOT: ${kot['note']}',
                         ].join('\n'),
-                        style: const TextStyle(fontSize: 9.8),
+                        style: const TextStyle(fontSize: 11),
                       ),
                     ),
                   ],
@@ -10041,8 +10041,8 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                             child: Text(
                               '${item['quantity'] ?? 1} x',
                               style: const TextStyle(
-                                fontSize: 10.5,
-                                fontWeight: FontWeight.w900,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
                               ),
                             ),
                           ),
@@ -10056,15 +10056,15 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                                       item['sku']?.toString() ??
                                       'Item',
                                   style: const TextStyle(
-                                    fontSize: 10.5,
-                                    fontWeight: FontWeight.w800,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
                                   ),
                                 ),
                                 if (modifiers.isNotEmpty)
                                   Text(
                                     '+ $modifiers',
                                     style: TextStyle(
-                                      fontSize: 9.3,
+                                      fontSize: 11,
                                       color: scheme.onSurfaceVariant,
                                     ),
                                   ),
@@ -10072,7 +10072,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                                   Text(
                                     itemNote,
                                     style: TextStyle(
-                                      fontSize: 9.3,
+                                      fontSize: 11,
                                       fontStyle: FontStyle.italic,
                                       color: isVoid
                                           ? scheme.error
@@ -10092,8 +10092,8 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                       Text(
                         status.replaceAll('_', ' ').toUpperCase(),
                         style: TextStyle(
-                          fontSize: 9.5,
-                          fontWeight: FontWeight.w900,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
                           color: scheme.primary,
                         ),
                       ),
@@ -10127,15 +10127,15 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                         child: Text(
                           label,
                           style: const TextStyle(
-                            fontSize: 10.5,
-                            fontWeight: FontWeight.w900,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
                       ),
                       Text(
                         '${columnRows.length}',
                         style: TextStyle(
-                          fontSize: 10.5,
+                          fontSize: 11,
                           color: scheme.onSurfaceVariant,
                         ),
                       ),
@@ -10148,7 +10148,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                           child: Text(
                             'No ${label.toLowerCase()} KOTs',
                             style: TextStyle(
-                              fontSize: 10.5,
+                              fontSize: 11,
                               color: scheme.onSurfaceVariant,
                             ),
                           ),
@@ -10174,8 +10174,8 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                   Text(
                     '${rows.length} live kitchen ticket(s)',
                     style: const TextStyle(
-                      fontSize: 10.5,
-                      fontWeight: FontWeight.w800,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                   const Spacer(),
@@ -10241,7 +10241,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
   }
 
   Future<void> _showRestaurantWaitlist() async {
-    await showDialog<void>(
+    await showThqDialog<void>(
       context: context,
       builder: (dialogContext) {
         final size = MediaQuery.sizeOf(dialogContext);
@@ -10279,7 +10279,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                           'Restaurant Waitlist',
                           style: TextStyle(
                             fontSize: 13,
-                            fontWeight: FontWeight.w900,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
                       ),
@@ -10376,7 +10376,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                         style: TextStyle(
                           color: scheme.onSurface,
                           fontSize: 14.5,
-                          fontWeight: FontWeight.w900,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                       Text(
@@ -10384,7 +10384,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                          fontSize: 10.2,
+                          fontSize: 11,
                           color: scheme.onSurfaceVariant,
                         ),
                       ),
@@ -10440,10 +10440,7 @@ class _RestaurantScreenState extends State<RestaurantScreen> {
               child: Text(
                 _error!,
                 maxLines: 2,
-                style: TextStyle(
-                  fontSize: 10.5,
-                  color: scheme.onErrorContainer,
-                ),
+                style: TextStyle(fontSize: 11, color: scheme.onErrorContainer),
               ),
             ),
           ],
@@ -10513,8 +10510,8 @@ class _RestaurantCheckoutStep extends StatelessWidget {
             complete ? '\u2713' : number,
             style: TextStyle(
               color: foreground,
-              fontSize: 10,
-              fontWeight: FontWeight.w900,
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
             ),
           ),
           const SizedBox(width: 5),
@@ -10522,8 +10519,8 @@ class _RestaurantCheckoutStep extends StatelessWidget {
             label,
             style: TextStyle(
               color: foreground,
-              fontSize: 10,
-              fontWeight: FontWeight.w800,
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
             ),
           ),
         ],

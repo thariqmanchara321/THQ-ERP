@@ -1,3 +1,4 @@
+import 'package:thq_ui/thq_ui.dart';
 import 'package:flutter/material.dart';
 
 import '../models/client_session.dart';
@@ -120,7 +121,7 @@ class _AggregateVehiclesScreenState extends State<AggregateVehiclesScreen> {
     }
 
     try {
-      final saved = await showDialog<bool>(
+      final saved = await showThqDialog<bool>(
         context: context,
         barrierDismissible: false,
         builder: (dialogContext) => StatefulBuilder(
@@ -326,7 +327,7 @@ class _AggregateVehiclesScreenState extends State<AggregateVehiclesScreen> {
     bool saving = false;
     String? error;
     try {
-      final saved = await showDialog<bool>(
+      final saved = await showThqDialog<bool>(
         context: context,
         barrierDismissible: false,
         builder: (dialogContext) => StatefulBuilder(
@@ -437,7 +438,7 @@ class _AggregateVehiclesScreenState extends State<AggregateVehiclesScreen> {
     );
 
     try {
-      final saved = await showDialog<bool>(
+      final saved = await showThqDialog<bool>(
         context: context,
         barrierDismissible: false,
         builder: (dialogContext) => StatefulBuilder(
@@ -698,7 +699,7 @@ class _AggregateVehiclesScreenState extends State<AggregateVehiclesScreen> {
                   ),
                   title: Text(
                     '${row['registration_number'] ?? ''}',
-                    style: const TextStyle(fontWeight: FontWeight.w800),
+                    style: const TextStyle(fontWeight: FontWeight.w600),
                   ),
                   subtitle: Text(
                     '${row['vehicle_type'] ?? 'Truck'}'

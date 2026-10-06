@@ -60,7 +60,7 @@ class _PlatformSupportScreenState extends State<PlatformSupportScreen> {
         children: [
           const Text(
             'Support Tickets',
-            style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w900),
+            style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w600),
           ),
           const Text(
             'Business issues arrive with tenant/device/application context.',
@@ -122,7 +122,7 @@ class _PlatformSupportScreenState extends State<PlatformSupportScreen> {
                                     Text(
                                       '${row['ticket_number']} • ${row['subject']}',
                                       style: const TextStyle(
-                                        fontWeight: FontWeight.w800,
+                                        fontWeight: FontWeight.w600,
                                       ),
                                     ),
                                     Text(

@@ -1,3 +1,4 @@
+import 'package:thq_ui/thq_ui.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -64,7 +65,7 @@ class _GstV520EntryScreenState extends State<GstV520EntryScreen> {
   }
 
   Future<void> _configure({bool changing = false}) async {
-    final choice = await showDialog<_TaxModeChoice>(
+    final choice = await showThqDialog<_TaxModeChoice>(
       context: context,
       barrierDismissible: false,
       builder: (_) => _TaxModeDialog(currentMode: _taxMode, changing: changing),
@@ -237,7 +238,7 @@ class _TaxModeRequired extends StatelessWidget {
                 Text(
                   'Choose the business tax mode',
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.w800,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
                 const SizedBox(height: 10),

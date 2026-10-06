@@ -300,7 +300,7 @@ class _OpeningBalancesV500ScreenState extends State<OpeningBalancesV500Screen> {
                 const Divider(),
                 const Text(
                   'Posted opening batches',
-                  style: TextStyle(fontWeight: FontWeight.w800),
+                  style: TextStyle(fontWeight: FontWeight.w600),
                 ),
                 ..._history.map(
                   (history) => ListTile(

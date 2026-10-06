@@ -1,4 +1,6 @@
+import 'package:thq_ui/thq_ui.dart';
 import 'package:flutter/material.dart';
+
 import '../widgets/admin_home_button.dart';
 
 import '../models/platform_models.dart';
@@ -29,7 +31,7 @@ class _SubscriptionPlansScreenState extends State<SubscriptionPlansScreen> {
   Future<void> _open([SubscriptionPlan? plan]) async {
     final modules = await _service.getModules();
     if (!mounted) return;
-    final changed = await showDialog<bool>(
+    final changed = await showThqDialog<bool>(
       context: context,
       barrierDismissible: false,
       builder: (_) =>
@@ -73,7 +75,9 @@ class _SubscriptionPlansScreenState extends State<SubscriptionPlansScreen> {
                 const SizedBox(height: 6),
                 Text(
                   'Plans control commercial entitlements and usage limits; tenant modules and user permissions remain separate controls.',
-                  style: TextStyle(color: Colors.grey.shade600),
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
                 ),
                 const SizedBox(height: 6),
                 Wrap(
@@ -115,7 +119,7 @@ class _SubscriptionPlansScreenState extends State<SubscriptionPlansScreen> {
                                   Text(
                                     '${p.currencyCode} ${p.monthlyPrice.toStringAsFixed(0)} / month',
                                     style: const TextStyle(
-                                      fontSize: 10.5,
+                                      fontSize: 11,
                                       fontWeight: FontWeight.w600,
                                     ),
                                   ),
@@ -446,7 +450,10 @@ class _PlanDialogState extends State<_PlanDialog> {
               ),
             ),
             if (_error != null)
-              Text(_error!, style: const TextStyle(color: Colors.red)),
+              Text(
+                _error!,
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
           ],
         ),
       ),

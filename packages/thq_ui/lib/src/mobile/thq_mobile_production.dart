@@ -22,13 +22,13 @@ class ThqMobileProductionFrame extends StatelessWidget {
     final safeScale = requestedScale.isFinite && requestedScale > maxTextScale
         ? maxTextScale
         : requestedScale.isFinite && requestedScale > 0
-            ? requestedScale
-            : 1.0;
+        ? requestedScale
+        : 1.0;
     final scheme = Theme.of(context).colorScheme;
     final navigationBrightness =
         ThemeData.estimateBrightnessForColor(scheme.surface) == Brightness.dark
-            ? Brightness.light
-            : Brightness.dark;
+        ? Brightness.light
+        : Brightness.dark;
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle(
@@ -84,7 +84,11 @@ class ThqMobileReleaseBanner extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(Icons.system_update_alt_rounded, size: 19, color: scheme.primary),
+            Icon(
+              Icons.system_update_alt_rounded,
+              size: 19,
+              color: scheme.primary,
+            ),
             const SizedBox(width: 9),
             Expanded(
               child: Column(
@@ -105,7 +109,9 @@ class ThqMobileReleaseBanner extends StatelessWidget {
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        color: scheme.onPrimaryContainer.withValues(alpha: 0.78),
+                        color: scheme.onPrimaryContainer.withValues(
+                          alpha: 0.78,
+                        ),
                         fontSize: 10.5,
                         height: 1.3,
                         fontWeight: FontWeight.w600,

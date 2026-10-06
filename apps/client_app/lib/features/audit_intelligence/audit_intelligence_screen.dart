@@ -88,7 +88,7 @@ class _AuditIntelligenceScreenState extends State<AuditIntelligenceScreen> {
                         'Audit Intelligence & Explainability',
                         style: TextStyle(
                           fontSize: 19,
-                          fontWeight: FontWeight.w800,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                       Text(
@@ -629,7 +629,7 @@ class _AuditIntelligenceScreenState extends State<AuditIntelligenceScreen> {
       ThqNotify.success(context, 'Audit risk rules updated.');
     }
 
-    await showDialog<void>(
+    await showThqDialog<void>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setDialogState) {
@@ -794,7 +794,7 @@ class _AuditIntelligenceScreenState extends State<AuditIntelligenceScreen> {
 
     final finding = _map(detail['finding']);
     final controller = TextEditingController();
-    await showDialog<void>(
+    await showThqDialog<void>(
       context: context,
       builder: (dialogContext) => Dialog(
         child: ConstrainedBox(
@@ -805,7 +805,7 @@ class _AuditIntelligenceScreenState extends State<AuditIntelligenceScreen> {
                 leading: Icon(_severityIcon(_text(finding['severity']))),
                 title: Text(
                   _text(finding['title']),
-                  style: const TextStyle(fontWeight: FontWeight.w800),
+                  style: const TextStyle(fontWeight: FontWeight.w600),
                 ),
                 subtitle: Text(
                   '${_text(finding['severity'])} • ${_text(finding['status'])}',
@@ -982,7 +982,7 @@ class _AuditIntelligenceScreenState extends State<AuditIntelligenceScreen> {
     if (!mounted) return;
     final equation = _map(data['equation']);
     final product = _map(data['product']);
-    await showDialog<void>(
+    await showThqDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         title: Text(
@@ -1082,7 +1082,7 @@ class _RiskCard extends StatelessWidget {
                     '$value',
                     style: TextStyle(
                       fontSize: 23,
-                      fontWeight: FontWeight.w900,
+                      fontWeight: FontWeight.w600,
                       color: emphasis && value > 0
                           ? Theme.of(context).colorScheme.error
                           : null,
@@ -1135,7 +1135,7 @@ class _LargeMetric extends StatelessWidget {
           const SizedBox(height: 4),
           SelectableText(
             value,
-            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
+            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
           ),
         ],
       ),
@@ -1187,7 +1187,7 @@ class _SectionHeader extends StatelessWidget {
           title,
           style: Theme.of(
             context,
-          ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+          ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
         ),
         const SizedBox(height: 2),
         Text(subtitle, style: Theme.of(context).textTheme.bodySmall),
@@ -1227,7 +1227,7 @@ class _ErrorPanel extends StatelessWidget {
             const SizedBox(height: 10),
             const Text(
               'Audit Intelligence could not load.',
-              style: TextStyle(fontWeight: FontWeight.w800),
+              style: TextStyle(fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 6),
             SelectableText(

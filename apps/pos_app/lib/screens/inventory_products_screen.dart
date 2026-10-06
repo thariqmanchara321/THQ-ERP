@@ -161,13 +161,13 @@ class _InventoryProductsScreenState extends State<InventoryProductsScreen> {
                         'Inventory',
                         style: TextStyle(
                           fontSize: 14.5,
-                          fontWeight: FontWeight.w900,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                       Text(
                         'Products, stock and pricing',
                         style: TextStyle(
-                          fontSize: 10.5,
+                          fontSize: 11,
                           color: scheme.onSurfaceVariant,
                         ),
                       ),
@@ -275,8 +275,8 @@ class _InventoryProductsScreenState extends State<InventoryProductsScreen> {
                               child: Text(
                                 'Product',
                                 style: TextStyle(
-                                  fontSize: 10.5,
-                                  fontWeight: FontWeight.w900,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
                                 ),
                               ),
                             ),
@@ -285,8 +285,8 @@ class _InventoryProductsScreenState extends State<InventoryProductsScreen> {
                               child: Text(
                                 'SKU / Part',
                                 style: TextStyle(
-                                  fontSize: 10.5,
-                                  fontWeight: FontWeight.w900,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
                                 ),
                               ),
                             ),
@@ -296,8 +296,8 @@ class _InventoryProductsScreenState extends State<InventoryProductsScreen> {
                                 'Price',
                                 textAlign: TextAlign.right,
                                 style: TextStyle(
-                                  fontSize: 10.5,
-                                  fontWeight: FontWeight.w900,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
                                 ),
                               ),
                             ),
@@ -307,8 +307,8 @@ class _InventoryProductsScreenState extends State<InventoryProductsScreen> {
                                 'Stock',
                                 textAlign: TextAlign.right,
                                 style: TextStyle(
-                                  fontSize: 10.5,
-                                  fontWeight: FontWeight.w900,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
                                 ),
                               ),
                             ),
@@ -414,7 +414,7 @@ class _ProductCard extends StatelessWidget {
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
                               fontSize: 11,
-                              fontWeight: FontWeight.w800,
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
                           Text(
@@ -425,7 +425,7 @@ class _ProductCard extends StatelessWidget {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
-                              fontSize: 10,
+                              fontSize: 11,
                               color: scheme.onSurfaceVariant,
                             ),
                           ),
@@ -443,7 +443,7 @@ class _ProductCard extends StatelessWidget {
                       : '${product.sku}${(product.partNumber ?? '').isEmpty ? '' : ' | ${product.partNumber}'}',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 10.5),
+                  style: const TextStyle(fontSize: 11),
                 ),
               ),
               Expanded(
@@ -456,8 +456,8 @@ class _ProductCard extends StatelessWidget {
                       _money(product.sellingPrice),
                       maxLines: 1,
                       style: const TextStyle(
-                        fontSize: 10.5,
-                        fontWeight: FontWeight.w900,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                     if (!compact)
@@ -465,7 +465,7 @@ class _ProductCard extends StatelessWidget {
                         'Cost ${_money(product.costPrice)}',
                         maxLines: 1,
                         style: TextStyle(
-                          fontSize: 10,
+                          fontSize: 11,
                           color: scheme.onSurfaceVariant,
                         ),
                       ),
@@ -484,16 +484,16 @@ class _ProductCard extends StatelessWidget {
                           : product.itemType.toUpperCase(),
                       maxLines: 1,
                       style: const TextStyle(
-                        fontSize: 10.5,
-                        fontWeight: FontWeight.w800,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                     if (lowStock)
                       Text(
                         'LOW STOCK',
                         style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w900,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
                           color: scheme.error,
                         ),
                       ),
@@ -539,7 +539,9 @@ class _EmptyInventory extends StatelessWidget {
             canManage
                 ? 'Create your first product and opening stock.'
                 : 'No products have been created yet.',
-            style: TextStyle(color: Colors.grey.shade600),
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
           ),
 
           if (canManage) ...[

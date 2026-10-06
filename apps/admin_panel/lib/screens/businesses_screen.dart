@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:thq_ui/thq_ui.dart';
+
 import '../widgets/admin_home_button.dart';
 
 import '../models/business.dart';
@@ -71,7 +72,7 @@ class _BusinessesScreenState extends State<BusinessesScreen> {
     final name = TextEditingController();
     final invoicePrefix = TextEditingController();
 
-    final accepted = await showDialog<bool>(
+    final accepted = await showThqDialog<bool>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
@@ -295,7 +296,7 @@ class _BusinessesScreenState extends State<BusinessesScreen> {
         toolbarHeight: 42,
         title: const Text(
           'Businesses',
-          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900),
+          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
         ),
         actions: const [AdminHomeButton()],
       ),
@@ -331,13 +332,13 @@ class _BusinessesScreenState extends State<BusinessesScreen> {
                           'Business Registry',
                           style: TextStyle(
                             fontSize: 14.5,
-                            fontWeight: FontWeight.w900,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
                         Text(
                           'Tenants, divisions, stores and module access',
                           style: TextStyle(
-                            fontSize: 8.3,
+                            fontSize: 11,
                             color: scheme.onSurfaceVariant,
                           ),
                         ),
@@ -451,8 +452,8 @@ class _BusinessesScreenState extends State<BusinessesScreen> {
                                       child: Text(
                                         'Business',
                                         style: TextStyle(
-                                          fontSize: 8.8,
-                                          fontWeight: FontWeight.w900,
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w600,
                                         ),
                                       ),
                                     ),
@@ -461,8 +462,8 @@ class _BusinessesScreenState extends State<BusinessesScreen> {
                                       child: Text(
                                         'Type / Division',
                                         style: TextStyle(
-                                          fontSize: 8.8,
-                                          fontWeight: FontWeight.w900,
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w600,
                                         ),
                                       ),
                                     ),
@@ -472,8 +473,8 @@ class _BusinessesScreenState extends State<BusinessesScreen> {
                                         'Modules',
                                         textAlign: TextAlign.right,
                                         style: TextStyle(
-                                          fontSize: 8.8,
-                                          fontWeight: FontWeight.w900,
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w600,
                                         ),
                                       ),
                                     ),
@@ -483,8 +484,8 @@ class _BusinessesScreenState extends State<BusinessesScreen> {
                                         'Status',
                                         textAlign: TextAlign.center,
                                         style: TextStyle(
-                                          fontSize: 8.8,
-                                          fontWeight: FontWeight.w900,
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w600,
                                         ),
                                       ),
                                     ),
@@ -549,15 +550,15 @@ class _BusinessesScreenState extends State<BusinessesScreen> {
                   value,
                   maxLines: 1,
                   style: const TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w900,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
                 Text(
                   label,
                   maxLines: 1,
                   style: TextStyle(
-                    fontSize: 7.3,
+                    fontSize: 11,
                     color: scheme.onSurfaceVariant,
                   ),
                 ),
@@ -624,8 +625,8 @@ class _BusinessCard extends StatelessWidget {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
-                              fontSize: 9,
-                              fontWeight: FontWeight.w800,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
                           Text(
@@ -633,7 +634,7 @@ class _BusinessCard extends StatelessWidget {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
-                              fontSize: 7.3,
+                              fontSize: 11,
                               color: scheme.onSurfaceVariant,
                             ),
                           ),
@@ -653,14 +654,14 @@ class _BusinessCard extends StatelessWidget {
                       business.businessType ?? 'General Business',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontSize: 8.2),
+                      style: const TextStyle(fontSize: 11),
                     ),
                     Text(
                       division,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        fontSize: 7.2,
+                        fontSize: 11,
                         color: scheme.onSurfaceVariant,
                       ),
                     ),
@@ -673,8 +674,8 @@ class _BusinessCard extends StatelessWidget {
                   '${business.moduleCount}',
                   textAlign: TextAlign.right,
                   style: const TextStyle(
-                    fontSize: 8.6,
-                    fontWeight: FontWeight.w900,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ),
@@ -684,8 +685,8 @@ class _BusinessCard extends StatelessWidget {
                   business.status.toUpperCase(),
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    fontSize: 7,
-                    fontWeight: FontWeight.w900,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
                     color: active ? scheme.primary : scheme.onSurfaceVariant,
                   ),
                 ),
@@ -714,9 +715,11 @@ class _EmptyBusinesses extends StatelessWidget {
         width: 500,
         padding: const EdgeInsets.all(42),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: Theme.of(context).colorScheme.surface,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Colors.grey.shade200),
+          border: Border.all(
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -730,7 +733,9 @@ class _EmptyBusinesses extends StatelessWidget {
             const SizedBox(height: 8),
             Text(
               'Create your first THQ business.',
-              style: TextStyle(color: Colors.grey.shade600),
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
             ),
             const SizedBox(height: 24),
             FilledButton.icon(

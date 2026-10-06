@@ -67,7 +67,7 @@ class _TrackingWorkspaceScreenState extends State<TrackingWorkspaceScreen> {
         serialId: row['serial_id'].toString(),
       );
       if (!mounted) return;
-      await showDialog<void>(
+      await showThqDialog<void>(
         context: context,
         builder: (_) => _HistoryDialog(
           title: 'Serial ${row['serial_number']}',
@@ -88,7 +88,7 @@ class _TrackingWorkspaceScreenState extends State<TrackingWorkspaceScreen> {
         batchId: row['batch_id'].toString(),
       );
       if (!mounted) return;
-      await showDialog<void>(
+      await showThqDialog<void>(
         context: context,
         builder: (_) => _HistoryDialog(
           title: 'Batch ${row['batch_number']}',
@@ -142,7 +142,7 @@ class _TrackingWorkspaceScreenState extends State<TrackingWorkspaceScreen> {
                       'Serial / Batch / Warranty',
                       style: TextStyle(
                         fontSize: 14.5,
-                        fontWeight: FontWeight.w900,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ),
@@ -165,8 +165,8 @@ class _TrackingWorkspaceScreenState extends State<TrackingWorkspaceScreen> {
               ),
               child: const TabBar(
                 labelStyle: TextStyle(
-                  fontSize: 10.5,
-                  fontWeight: FontWeight.w800,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
                 ),
                 tabs: [
                   Tab(
@@ -233,7 +233,7 @@ class _TrackingWorkspaceScreenState extends State<TrackingWorkspaceScreen> {
                   _error!,
                   maxLines: 2,
                   style: TextStyle(
-                    fontSize: 10.5,
+                    fontSize: 11,
                     color: scheme.onErrorContainer,
                   ),
                 ),

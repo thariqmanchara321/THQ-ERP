@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../widgets/admin_home_button.dart';
 
 import '../models/platform_models.dart';
@@ -151,7 +152,7 @@ class _CreateBusinessScreenState extends State<CreateBusinessScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         title: const Text(
           'Create Business',
@@ -190,9 +191,11 @@ class _CreateBusinessScreenState extends State<CreateBusinessScreen> {
                     width: 900,
                     padding: const EdgeInsets.all(32),
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: Theme.of(context).colorScheme.surface,
                       borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: Colors.grey.shade200),
+                      border: Border.all(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -413,7 +416,11 @@ class _CreateBusinessScreenState extends State<CreateBusinessScreen> {
                         const SizedBox(height: 6),
                         Text(
                           'Modules can be customized after applying a template. Dashboard is always required.',
-                          style: TextStyle(color: Colors.grey.shade600),
+                          style: TextStyle(
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurfaceVariant,
+                          ),
                         ),
                         const SizedBox(height: 14),
                         ...modules.map((m) {
@@ -460,7 +467,9 @@ class _CreateBusinessScreenState extends State<CreateBusinessScreen> {
                             padding: const EdgeInsets.only(top: 16),
                             child: Text(
                               _error!,
-                              style: const TextStyle(color: Colors.red),
+                              style: TextStyle(
+                                color: Theme.of(context).colorScheme.error,
+                              ),
                             ),
                           ),
                         const SizedBox(height: 24),

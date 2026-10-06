@@ -58,7 +58,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       return;
     }
 
-    await showDialog<void>(
+    await showThqDialog<void>(
       context: context,
       barrierDismissible: false,
       builder: (_) => AdditionalChargesDialog(
@@ -211,7 +211,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       return;
     }
 
-    final changed = await showDialog<bool>(
+    final changed = await showThqDialog<bool>(
       context: context,
       barrierDismissible: false,
       builder: (_) =>
@@ -239,7 +239,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       return;
     }
 
-    final changed = await showDialog<bool>(
+    final changed = await showThqDialog<bool>(
       context: context,
       barrierDismissible: false,
       builder: (_) =>
@@ -264,7 +264,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
 
       appBar: AppBar(
         title: const Text(
@@ -374,7 +374,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           width: 68,
           height: 68,
           decoration: BoxDecoration(
-            color: Colors.indigo.shade50,
+            color: Theme.of(context).colorScheme.primary,
             borderRadius: BorderRadius.circular(18),
           ),
           child: const Icon(Icons.inventory_2_outlined, size: 34),
@@ -400,7 +400,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                 [product.brandName, product.categoryName]
                     .where((value) => value != null && value.isNotEmpty)
                     .join(' • '),
-                style: TextStyle(color: Colors.grey.shade600),
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
               ),
 
               if (product.description != null &&
@@ -559,13 +561,13 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
               decoration: BoxDecoration(
-                color: Colors.orange.shade50,
+                color: context.thqSemanticColors.warning,
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Text(
                 'LOW STOCK',
                 style: TextStyle(
-                  color: Colors.orange.shade800,
+                  color: context.thqSemanticColors.warning,
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -587,7 +589,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                   product.itemType == 'stock'
                       ? 'No stock movements yet.'
                       : 'Stock is not tracked for this item.',
-                  style: TextStyle(color: Colors.grey.shade600),
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
                 ),
               ),
             )
@@ -1063,12 +1067,14 @@ class _EditProductDialogState extends State<_EditProductDialog> {
                     width: double.infinity,
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: Colors.red.shade50,
+                      color: Theme.of(context).colorScheme.error,
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
                       _error!,
-                      style: TextStyle(color: Colors.red.shade700),
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onError,
+                      ),
                     ),
                   ),
                 ],
@@ -1284,7 +1290,10 @@ class _StockAdjustmentDialogState extends State<_StockAdjustmentDialog> {
             if (_error != null) ...[
               const SizedBox(height: 16),
 
-              Text(_error!, style: TextStyle(color: Colors.red.shade700)),
+              Text(
+                _error!,
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
             ],
           ],
         ),
@@ -1322,9 +1331,11 @@ class _SectionCard extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
+        ),
       ),
 
       child: Column(
@@ -1370,7 +1381,10 @@ class _InfoItem extends StatelessWidget {
         children: [
           Text(
             label,
-            style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+            style: TextStyle(
+              fontSize: 12,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
           ),
 
           const SizedBox(height: 5),
@@ -1395,7 +1409,12 @@ class _LargeValue extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: TextStyle(color: Colors.grey.shade600)),
+          Text(
+            label,
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
 
           const SizedBox(height: 6),
 
@@ -1432,7 +1451,11 @@ class _MovementRow extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 14),
       decoration: BoxDecoration(
-        border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
+        border: Border(
+          bottom: BorderSide(
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+        ),
       ),
 
       child: Row(
@@ -1441,12 +1464,16 @@ class _MovementRow extends StatelessWidget {
             width: 42,
             height: 42,
             decoration: BoxDecoration(
-              color: incoming ? Colors.green.shade50 : Colors.red.shade50,
+              color: incoming
+                  ? Theme.of(context).colorScheme.primary
+                  : Theme.of(context).colorScheme.error,
               borderRadius: BorderRadius.circular(10),
             ),
             child: Icon(
               incoming ? Icons.arrow_downward : Icons.arrow_upward,
-              color: incoming ? Colors.green.shade700 : Colors.red.shade700,
+              color: incoming
+                  ? Theme.of(context).colorScheme.primary
+                  : Theme.of(context).colorScheme.error,
             ),
           ),
 
@@ -1472,7 +1499,10 @@ class _MovementRow extends StatelessWidget {
                     movement.note,
                     movement.referenceNumber,
                   ].where((value) => value != null && value.isNotEmpty).join(' • '),
-                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
                 ),
               ],
             ),
@@ -1487,7 +1517,9 @@ class _MovementRow extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
-                  color: incoming ? Colors.green.shade700 : Colors.red.shade700,
+                  color: incoming
+                      ? Theme.of(context).colorScheme.primary
+                      : Theme.of(context).colorScheme.error,
                 ),
               ),
 
@@ -1495,7 +1527,10 @@ class _MovementRow extends StatelessWidget {
 
               Text(
                 date,
-                style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                style: TextStyle(
+                  fontSize: 11,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
               ),
             ],
           ),

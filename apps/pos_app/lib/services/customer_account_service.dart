@@ -83,4 +83,5 @@ class CustomerAccountService {
     return result is Map
         ? Map<String, dynamic>.from(result)
         : <String, dynamic>{};
-  }}
+  }
+}

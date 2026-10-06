@@ -23,7 +23,7 @@ class ThqSplitPane extends StatelessWidget {
   final double gap;
   final double collapseBelow;
   final Widget Function(BuildContext context, Widget primary, Widget secondary)?
-      compactBuilder;
+  compactBuilder;
 
   @override
   Widget build(BuildContext context) {
@@ -85,7 +85,9 @@ class ThqWorkspacePane extends StatelessWidget {
         child: Column(
           children: [
             if (header != null) header!,
-            Expanded(child: Padding(padding: padding, child: child)),
+            Expanded(
+              child: Padding(padding: padding, child: child),
+            ),
             if (footer != null) footer!,
           ],
         ),

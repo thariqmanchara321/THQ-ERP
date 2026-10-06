@@ -85,7 +85,7 @@ class _ProductionScreenState extends State<ProductionScreen> {
         notes = TextEditingController();
     String output = _products.first.variantId;
     final inputs = <Map<String, dynamic>>[];
-    await showDialog<void>(
+    await showThqDialog<void>(
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setLocal) => AlertDialog(
@@ -274,7 +274,7 @@ class _ProductionScreenState extends State<ProductionScreen> {
     String recipe = _recipes.first['id'].toString();
     final batches = TextEditingController(text: '1'),
         notes = TextEditingController();
-    await showDialog<void>(
+    await showThqDialog<void>(
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setLocal) => AlertDialog(
@@ -317,7 +317,9 @@ class _ProductionScreenState extends State<ProductionScreen> {
                 const SizedBox(height: 10),
                 Text(
                   'Production origin: selected store. Stock posting uses the current inventory engine/location.',
-                  style: TextStyle(color: Colors.grey.shade600),
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
                 ),
               ],
             ),
@@ -415,7 +417,10 @@ class _ProductionScreenState extends State<ProductionScreen> {
           if (_error != null)
             Padding(
               padding: const EdgeInsets.only(top: 12),
-              child: Text(_error!, style: const TextStyle(color: Colors.red)),
+              child: Text(
+                _error!,
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
             ),
           const SizedBox(height: 18),
           Wrap(
@@ -485,9 +490,9 @@ class _ProductionScreenState extends State<ProductionScreen> {
     width: 230,
     padding: const EdgeInsets.all(16),
     decoration: BoxDecoration(
-      color: Colors.white,
+      color: Theme.of(context).colorScheme.surface,
       borderRadius: BorderRadius.circular(16),
-      border: Border.all(color: Colors.grey.shade200),
+      border: Border.all(color: Theme.of(context).colorScheme.onSurfaceVariant),
     ),
     child: Row(
       children: [
@@ -497,7 +502,12 @@ class _ProductionScreenState extends State<ProductionScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(label, style: TextStyle(color: Colors.grey.shade600)),
+              Text(
+                label,
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+              ),
               Text(
                 value,
                 maxLines: 1,

@@ -180,7 +180,7 @@ class _BusinessDetailsScreenState extends State<BusinessDetailsScreen> {
       if (!mounted) return;
       String? selected = widget.business.divisionId;
       String role = widget.business.divisionRole ?? 'child';
-      final saved = await showDialog<bool>(
+      final saved = await showThqDialog<bool>(
         context: context,
         builder: (dialogContext) => StatefulBuilder(
           builder: (context, setDialogState) => AlertDialog(
@@ -276,7 +276,7 @@ class _BusinessDetailsScreenState extends State<BusinessDetailsScreen> {
 
   Future<void> _archiveBusiness() async {
     final reason = TextEditingController();
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showThqDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('Archive Business'),
@@ -342,7 +342,7 @@ class _BusinessDetailsScreenState extends State<BusinessDetailsScreen> {
     final password = TextEditingController();
     final confirmation = TextEditingController();
     bool obscure = true;
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showThqDialog<bool>(
       context: context,
       barrierDismissible: false,
       builder: (dialogContext) => StatefulBuilder(
@@ -447,7 +447,7 @@ class _BusinessDetailsScreenState extends State<BusinessDetailsScreen> {
           business.name,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w900),
+          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
         ),
       ),
       body: Padding(
@@ -489,7 +489,7 @@ class _BusinessDetailsScreenState extends State<BusinessDetailsScreen> {
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
                             fontSize: 11,
-                            fontWeight: FontWeight.w900,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
                         Text(
@@ -498,7 +498,7 @@ class _BusinessDetailsScreenState extends State<BusinessDetailsScreen> {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                            fontSize: 7.8,
+                            fontSize: 11,
                             color: scheme.onSurfaceVariant,
                           ),
                         ),
@@ -510,7 +510,7 @@ class _BusinessDetailsScreenState extends State<BusinessDetailsScreen> {
                   Text(
                     '${_selectedModules.length} modules',
                     style: TextStyle(
-                      fontSize: 7.8,
+                      fontSize: 11,
                       color: scheme.onSurfaceVariant,
                     ),
                   ),
@@ -663,8 +663,8 @@ class _BusinessDetailsScreenState extends State<BusinessDetailsScreen> {
                             child: Text(
                               'MODULE ACCESS',
                               style: TextStyle(
-                                fontSize: 8.8,
-                                fontWeight: FontWeight.w900,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
                                 letterSpacing: .3,
                               ),
                             ),
@@ -672,7 +672,7 @@ class _BusinessDetailsScreenState extends State<BusinessDetailsScreen> {
                           Text(
                             '${_selectedModules.length} selected',
                             style: TextStyle(
-                              fontSize: 7.5,
+                              fontSize: 11,
                               color: scheme.onSurfaceVariant,
                             ),
                           ),
@@ -691,7 +691,7 @@ class _BusinessDetailsScreenState extends State<BusinessDetailsScreen> {
                           _error!,
                           maxLines: 2,
                           style: TextStyle(
-                            fontSize: 8,
+                            fontSize: 11,
                             color: scheme.onErrorContainer,
                           ),
                         ),
@@ -745,58 +745,60 @@ class _BusinessDetailsScreenState extends State<BusinessDetailsScreen> {
                                   color: Colors.transparent,
                                   child: CheckboxListTile(
                                     dense: true,
-                                  contentPadding: const EdgeInsets.symmetric(
-                                    horizontal: 8,
-                                  ),
-                                  value: selected,
-                                  controlAffinity:
-                                      ListTileControlAffinity.leading,
-                                  title: Text(
-                                    module.name,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(
-                                      fontSize: 8.8,
-                                      fontWeight: FontWeight.w800,
+                                    contentPadding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
                                     ),
-                                  ),
-                                  subtitle: Text(
-                                    [
-                                      if ((module.description ?? '')
-                                          .trim()
-                                          .isNotEmpty)
-                                        module.description!.trim(),
-                                      module.category,
-                                    ].join(' | '),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: TextStyle(
-                                      fontSize: 7.2,
-                                      color: scheme.onSurfaceVariant,
+                                    value: selected,
+                                    controlAffinity:
+                                        ListTileControlAffinity.leading,
+                                    title: Text(
+                                      module.name,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w600,
+                                      ),
                                     ),
-                                  ),
-                                  secondary: Wrap(
-                                    spacing: 3,
-                                    children: [
-                                      if (isDashboard)
-                                        const Chip(label: Text('Required')),
-                                      if (module.isCore)
-                                        const Chip(label: Text('Core')),
-                                    ],
-                                  ),
-                                  onChanged: isDashboard || _saving
-                                      ? null
-                                      : (value) {
-                                          setState(() {
-                                            if (value == true) {
-                                              _selectedModules.add(module.key);
-                                            } else {
-                                              _selectedModules.remove(
-                                                module.key,
-                                              );
-                                            }
-                                          });
-                                        },
+                                    subtitle: Text(
+                                      [
+                                        if ((module.description ?? '')
+                                            .trim()
+                                            .isNotEmpty)
+                                          module.description!.trim(),
+                                        module.category,
+                                      ].join(' | '),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: scheme.onSurfaceVariant,
+                                      ),
+                                    ),
+                                    secondary: Wrap(
+                                      spacing: 3,
+                                      children: [
+                                        if (isDashboard)
+                                          const Chip(label: Text('Required')),
+                                        if (module.isCore)
+                                          const Chip(label: Text('Core')),
+                                      ],
+                                    ),
+                                    onChanged: isDashboard || _saving
+                                        ? null
+                                        : (value) {
+                                            setState(() {
+                                              if (value == true) {
+                                                _selectedModules.add(
+                                                  module.key,
+                                                );
+                                              } else {
+                                                _selectedModules.remove(
+                                                  module.key,
+                                                );
+                                              }
+                                            });
+                                          },
                                   ),
                                 ),
                               );
@@ -867,14 +869,17 @@ class _BusinessDetailsScreenState extends State<BusinessDetailsScreen> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    fontSize: 8.6,
-                    fontWeight: FontWeight.w900,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
                 Text(
                   label,
                   maxLines: 1,
-                  style: TextStyle(fontSize: 7, color: scheme.onSurfaceVariant),
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: scheme.onSurfaceVariant,
+                  ),
                 ),
               ],
             ),
@@ -901,7 +906,10 @@ class _InfoItem extends StatelessWidget {
         children: [
           Text(
             label,
-            style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+            style: TextStyle(
+              fontSize: 12,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
           ),
 
           const SizedBox(height: 5),
@@ -928,14 +936,18 @@ class _StatusBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
       decoration: BoxDecoration(
-        color: active ? Colors.green.shade50 : Colors.grey.shade100,
+        color: active
+            ? Theme.of(context).colorScheme.primary
+            : Theme.of(context).colorScheme.onSurfaceVariant,
         borderRadius: BorderRadius.circular(20),
       ),
       child: Text(
         status.toUpperCase(),
         style: TextStyle(
           fontWeight: FontWeight.w600,
-          color: active ? Colors.green.shade700 : Colors.grey.shade700,
+          color: active
+              ? Theme.of(context).colorScheme.primary
+              : Theme.of(context).colorScheme.onSurfaceVariant,
         ),
       ),
     );
@@ -954,7 +966,7 @@ class _LoadError extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.red.shade50,
+        color: Theme.of(context).colorScheme.error,
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(

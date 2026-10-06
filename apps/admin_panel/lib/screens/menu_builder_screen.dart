@@ -136,7 +136,7 @@ class _MenuBuilderScreenState extends State<MenuBuilderScreen> {
     var enabled = node?['enabled'] != false;
     var collapsed = node?['collapsed_by_default'] == true;
 
-    final ok = await showDialog<bool>(
+    final ok = await showThqDialog<bool>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setLocal) => AlertDialog(
@@ -352,7 +352,7 @@ class _MenuBuilderScreenState extends State<MenuBuilderScreen> {
   }
 
   Future<void> _delete(Map<String, dynamic> node) async {
-    final ok = await showDialog<bool>(
+    final ok = await showThqDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: Text('Delete ${node['label']}?'),
@@ -405,11 +405,11 @@ class _MenuBuilderScreenState extends State<MenuBuilderScreen> {
         children: [
           const Text(
             'Dynamic Client & POS Navigation',
-            style: TextStyle(fontSize: 11, fontWeight: FontWeight.w900),
+            style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
           ),
           const Text(
             'Rename, nest, reorder, hide and role-filter menu groups without changing stable feature IDs.',
-            style: TextStyle(fontSize: 10.5),
+            style: TextStyle(fontSize: 11),
           ),
           const SizedBox(height: 10),
           Wrap(
@@ -519,7 +519,7 @@ class _MenuBuilderScreenState extends State<MenuBuilderScreen> {
           ),
           title: Text(
             node['label']?.toString() ?? '',
-            style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 12.5),
+            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12.5),
           ),
           subtitle: Text(
             [
@@ -527,7 +527,7 @@ class _MenuBuilderScreenState extends State<MenuBuilderScreen> {
               if (roles.isNotEmpty) 'roles: $roles',
               if (permissions.isNotEmpty) 'permission: $permissions',
             ].join(' • '),
-            style: const TextStyle(fontSize: 9.5),
+            style: const TextStyle(fontSize: 11),
           ),
           trailing: Row(
             mainAxisSize: MainAxisSize.min,

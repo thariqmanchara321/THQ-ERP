@@ -17,7 +17,6 @@ import '../services/location_scope_service.dart';
 import '../services/navigation_service.dart';
 import '../services/thq_api_service.dart';
 import '../services/ui_design_service.dart';
-import '../ui/v43_theme.dart';
 import '../ui/v600_client_theme.dart';
 import 'accounting_screen.dart';
 import 'aggregate_yard_screen.dart';
@@ -508,15 +507,12 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
   }
 
   Widget _desktop(ClientModule selected, UiDesignProfile profile) {
-    final width = _navCollapsed ? 56.0 : 208.0;
+    final width = _navCollapsed ? 64.0 : 176.0;
     final workspaceBackground = Color.alphaBlend(
       profile.primary.withValues(alpha: .035),
       profile.background,
     );
-    final sidebarBackground = Color.alphaBlend(
-      profile.primary.withValues(alpha: .055),
-      profile.surface,
-    );
+    final sidebarBackground = profile.sidebar;
 
     return Scaffold(
       backgroundColor: workspaceBackground,
@@ -524,7 +520,9 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
         children: [
           AnimatedContainer(
             width: width,
-            duration: const Duration(milliseconds: 180),
+            duration: (MediaQuery.maybeDisableAnimationsOf(context) ?? false)
+                ? Duration.zero
+                : const Duration(milliseconds: 180),
             curve: Curves.easeOut,
             decoration: BoxDecoration(
               color: sidebarBackground,
@@ -574,14 +572,9 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
                   if (!_navCollapsed)
                     Padding(
                       padding: const EdgeInsets.fromLTRB(12, 2, 12, 8),
-                      child: Text(
-                        'v${ThqReleaseContract.appVersion}  |  Build ${ThqReleaseContract.buildNumber}',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 9.5,
-                          fontWeight: FontWeight.w600,
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
+                      child: const ThqVersionClock(
+                        version: ThqReleaseContract.appVersion,
+                        buildNumber: ThqReleaseContract.buildNumber,
                       ),
                     )
                   else
@@ -626,12 +619,16 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
                                   key: ValueKey(
                                     '${selected.key}:${locationId ?? 'all'}:$_contentGeneration',
                                   ),
-                                  child: _ModulePage(
-                                    module: selected,
-                                    session: _session,
-                                    onBack: () => setState(
-                                      () => _selectedModuleKey =
-                                          _preferredLandingModuleKey(_modules),
+                                  child: ThqPageEntrance(
+                                    child: _ModulePage(
+                                      module: selected,
+                                      session: _session,
+                                      onBack: () => setState(
+                                        () => _selectedModuleKey =
+                                            _preferredLandingModuleKey(
+                                              _modules,
+                                            ),
+                                      ),
                                     ),
                                   ),
                                 ),
@@ -667,6 +664,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
                   )
                 : const Icon(Icons.refresh),
           ),
+          const ThqMotionButton(),
           IconButton(
             tooltip: 'Search THQ',
             onPressed: () => _openSearch(),
@@ -768,12 +766,15 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
               gradient: LinearGradient(
                 colors: [
                   profile?.primary ?? Theme.of(context).colorScheme.primary,
-                  profile?.accent ?? Theme.of(context).colorScheme.tertiary,
+                  profile?.accent ?? context.thqSemanticColors.warning,
                 ],
               ),
               borderRadius: BorderRadius.circular(14),
             ),
-            child: const Icon(Icons.grid_view_rounded, color: Colors.white),
+            child: Icon(
+              Icons.grid_view_rounded,
+              color: Theme.of(context).colorScheme.onSurface,
+            ),
           ),
           if (!collapsed) ...[
             const SizedBox(width: 12),
@@ -787,7 +788,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                       fontSize: 16,
-                      fontWeight: FontWeight.w800,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                   const SizedBox(height: 2),
@@ -967,8 +968,8 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
-                              fontSize: 9,
-                              fontWeight: FontWeight.w800,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
                               letterSpacing: .35,
                               color: Theme.of(
                                 context,
@@ -1142,8 +1143,8 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
           child: Text(
             'OTHER ENABLED MODULES',
             style: TextStyle(
-              fontSize: 8.5,
-              fontWeight: FontWeight.w800,
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
               letterSpacing: .45,
               color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
@@ -1315,7 +1316,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     fontSize: 14,
-                    fontWeight: FontWeight.w800,
+                    fontWeight: FontWeight.w600,
                     letterSpacing: -.15,
                   ),
                 ),
@@ -1330,7 +1331,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontSize: 9.5,
+                    fontSize: 11,
                     color: scheme.onSurfaceVariant,
                   ),
                 ),
@@ -1355,6 +1356,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
                     child: const Icon(Icons.refresh_rounded, size: 19),
                   ),
           ),
+          const ThqMotionButton(),
           IconButton(
             tooltip: 'Search THQ',
             visualDensity: VisualDensity.compact,
@@ -1381,8 +1383,8 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
                           ? '?'
                           : _session.username.substring(0, 1).toUpperCase(),
                       style: const TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w800,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ),
@@ -1393,7 +1395,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
-                        fontSize: 10.5,
+                        fontSize: 11,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
@@ -1485,7 +1487,10 @@ class _SubscriptionBanner extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
       color: blocked
           ? Theme.of(context).colorScheme.errorContainer
-          : Theme.of(context).colorScheme.tertiaryContainer,
+          : Color.alphaBlend(
+              context.thqSemanticColors.warning.withValues(alpha: .12),
+              Theme.of(context).colorScheme.surface,
+            ),
       child: Row(
         children: [
           Icon(
@@ -1601,7 +1606,7 @@ class _ComingSoon extends StatelessWidget {
                     module.name,
                     style: const TextStyle(
                       fontSize: 26,
-                      fontWeight: FontWeight.w800,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                   const SizedBox(height: 8),

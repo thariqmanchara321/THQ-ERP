@@ -83,7 +83,9 @@ class _ActivationViewState extends State<_ActivationView> {
   Future<void> _activate() async {
     if (_busy) return;
     if (_business.text.trim().isEmpty || _code.text.trim().isEmpty) {
-      setState(() => _error = 'Enter both the business code and activation code.');
+      setState(
+        () => _error = 'Enter both the business code and activation code.',
+      );
       return;
     }
     setState(() {
@@ -108,13 +110,12 @@ class _ActivationViewState extends State<_ActivationView> {
     return ThqMobileAccessScaffold(
       eyebrow: 'THQ POS • SECURE TERMINAL',
       title: 'Connect this counter',
-      subtitle:
-          'Activate once with the POS terminal code issued from THQ Admin. Sales remain bound to this authorized device and store.',
+      subtitle: 'Activate once with the POS terminal code issued from THQ Admin. Sales remain bound to this authorized device and store.',
       icon: Icons.point_of_sale_rounded,
       versionLabel: ThqPosMobileReleaseContract.versionLabel,
       footer: const Text(
         'THQ ERP • Mobile POS',
-        style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700),
+        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
       ),
       child: Column(
         children: [
@@ -224,7 +225,7 @@ class _LoginViewState extends State<_LoginView> {
       versionLabel: ThqPosMobileReleaseContract.versionLabel,
       footer: const Text(
         'Offline-ready • GST-authoritative sync',
-        style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700),
+        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
       ),
       child: AutofillGroup(
         child: Column(

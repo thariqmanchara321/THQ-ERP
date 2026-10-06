@@ -1,3 +1,4 @@
+import 'package:thq_ui/thq_ui.dart';
 import 'package:uuid/uuid.dart';
 
 import '../services/staff_load_service.dart';
@@ -185,7 +186,7 @@ class _AggregateLoadsScreenState extends State<AggregateLoadsScreen> {
     var saving = false;
 
     try {
-      final created = await showDialog<bool>(
+      final created = await showThqDialog<bool>(
         context: context,
         barrierDismissible: false,
         builder: (dialogContext) => StatefulBuilder(
@@ -288,7 +289,7 @@ class _AggregateLoadsScreenState extends State<AggregateLoadsScreen> {
                             'Direct delivery is available for operational '
                             'tracking only in this stage. Purchase/Sale posting '
                             'is locked until the transit-stock workflow is installed.',
-                            style: TextStyle(fontSize: 10.5, height: 1.3),
+                            style: TextStyle(fontSize: 11, height: 1.3),
                           ),
                         ),
                       ],
@@ -397,7 +398,7 @@ class _AggregateLoadsScreenState extends State<AggregateLoadsScreen> {
                           alignment: Alignment.centerLeft,
                           child: Text(
                             'Calculated: ${calculated.toStringAsFixed(3)} CFT',
-                            style: const TextStyle(fontWeight: FontWeight.w800),
+                            style: const TextStyle(fontWeight: FontWeight.w600),
                           ),
                         ),
                       ] else
@@ -875,7 +876,7 @@ class _AggregateLoadsScreenState extends State<AggregateLoadsScreen> {
   Future<void> _confirmLoad(Map<String, dynamic> row) async {
     if (!_canConfirm(row)) return;
 
-    final accepted = await showDialog<bool>(
+    final accepted = await showThqDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('Confirm Load'),
@@ -915,8 +916,9 @@ class _AggregateLoadsScreenState extends State<AggregateLoadsScreen> {
       await _reload();
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(error.toString())));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.toString())));
     } finally {
       if (mounted) setState(() => _busyLoads.remove(loadId));
     }
@@ -935,7 +937,7 @@ class _AggregateLoadsScreenState extends State<AggregateLoadsScreen> {
   Future<void> _deleteLoad(Map<String, dynamic> row) async {
     if (!_canDelete(row)) return;
 
-    final accepted = await showDialog<bool>(
+    final accepted = await showThqDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('Cancel unconfirmed load'),
@@ -980,8 +982,9 @@ class _AggregateLoadsScreenState extends State<AggregateLoadsScreen> {
       await _reload();
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(error.toString())));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.toString())));
     }
   }
 
@@ -1091,16 +1094,16 @@ class _AggregateLoadsScreenState extends State<AggregateLoadsScreen> {
         text: _id(detail['capacity_override_reason']) ?? '',
       );
       final notes = TextEditingController(text: _id(detail['notes']) ?? '');
-      var costs = StaffLoadService.rows(detail['costs'])
-          .where((c) => c['status'] == 'draft')
-          .toList();
+      var costs = StaffLoadService.rows(
+        detail['costs'],
+      ).where((c) => c['status'] == 'draft').toList();
       var delivery = detail['delivery'] is Map
           ? Map<String, dynamic>.from(detail['delivery'] as Map)
           : <String, dynamic>{};
       var saving = false;
 
       try {
-        final saved = await showDialog<bool>(
+        final saved = await showThqDialog<bool>(
           context: context,
           barrierDismissible: false,
           builder: (dialogContext) => StatefulBuilder(
@@ -1285,7 +1288,7 @@ class _AggregateLoadsScreenState extends State<AggregateLoadsScreen> {
                             child: Text(
                               'Calculated: ${calculated.toStringAsFixed(3)} CFT',
                               style: const TextStyle(
-                                fontWeight: FontWeight.w800,
+                                fontWeight: FontWeight.w600,
                               ),
                             ),
                           ),
@@ -1636,8 +1639,9 @@ class _AggregateLoadsScreenState extends State<AggregateLoadsScreen> {
       }
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(error.toString())));
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.toString())));
     }
   }
 
@@ -1742,7 +1746,8 @@ class _AggregateLoadsScreenState extends State<AggregateLoadsScreen> {
                       decoration: const InputDecoration(
                         isDense: true,
                         prefixIcon: Icon(Icons.search_rounded),
-                        hintText: 'Load no, material, truck, driver, supplier, customer...',
+                        hintText:
+                            'Load no, material, truck, driver, supplier, customer...',
                       ),
                       onSubmitted: (_) => _reload(),
                     ),
@@ -1857,7 +1862,7 @@ class _AggregateLoadsScreenState extends State<AggregateLoadsScreen> {
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: const TextStyle(
-                                  fontWeight: FontWeight.w800,
+                                  fontWeight: FontWeight.w600,
                                 ),
                               ),
                               subtitle: Text(

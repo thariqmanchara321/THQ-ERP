@@ -222,6 +222,7 @@ class _MobileHomeScreenState extends State<MobileHomeScreen> {
                 ],
               ),
               actions: [
+                const ThqMotionButton(),
                 if (widget.session.canViewAllLocations)
                   IconButton(
                     tooltip: 'Change store scope',
@@ -296,7 +297,7 @@ class _MobileHomeScreenState extends State<MobileHomeScreen> {
   }
 
   Future<void> _deactivate() async {
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showThqDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Deactivate this phone?'),
@@ -705,7 +706,7 @@ class _OverviewTab extends StatelessWidget {
     BuildContext context,
     ThqMobileReleaseStatus release,
   ) async {
-    await showDialog<void>(
+    await showThqDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         title: Text(
@@ -1005,7 +1006,7 @@ class _AttentionTile extends StatelessWidget {
           child: Text(
             value,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontWeight: FontWeight.w900),
+            style: const TextStyle(fontWeight: FontWeight.w600),
           ),
         ),
         const SizedBox(width: 4),

@@ -42,7 +42,7 @@ class _ErrorLogsScreenState extends State<ErrorLogsScreen> {
   }
 
   Future<void> _reportIssue() async {
-    final result = await showDialog<_IssueReport>(
+    final result = await showThqDialog<_IssueReport>(
       context: context,
       builder: (_) => const _ReportIssueDialog(),
     );
@@ -109,7 +109,7 @@ class _ErrorLogsScreenState extends State<ErrorLogsScreen> {
                     'System Logs',
                     style: TextStyle(
                       fontSize: 14.5,
-                      fontWeight: FontWeight.w900,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ),
@@ -205,8 +205,8 @@ class _ErrorLogsScreenState extends State<ErrorLogsScreen> {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
-                              fontSize: 10.5,
-                              fontWeight: FontWeight.w800,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
                           subtitle: Text(
@@ -215,7 +215,7 @@ class _ErrorLogsScreenState extends State<ErrorLogsScreen> {
                             '${_date(item.createdAt)}',
                             maxLines: 1,
                             style: TextStyle(
-                              fontSize: 10,
+                              fontSize: 11,
                               color: scheme.onSurfaceVariant,
                             ),
                           ),
@@ -228,7 +228,7 @@ class _ErrorLogsScreenState extends State<ErrorLogsScreen> {
                                     .withValues(alpha: .35),
                                 child: SelectableText(
                                   item.stackTrace!,
-                                  style: const TextStyle(fontSize: 10),
+                                  style: const TextStyle(fontSize: 11),
                                 ),
                               ),
                           ],

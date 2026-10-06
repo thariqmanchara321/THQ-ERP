@@ -691,7 +691,7 @@ class _TransactionBulkImportPanelState
                       children: [
                         Text(
                           '$validCount valid',
-                          style: const TextStyle(fontWeight: FontWeight.w800),
+                          style: const TextStyle(fontWeight: FontWeight.w600),
                         ),
                         const SizedBox(width: 14),
                         Text('$invalidCount invalid'),
@@ -713,7 +713,7 @@ class _TransactionBulkImportPanelState
                                     ? Icons.check_circle_outline
                                     : Icons.error_outline,
                                 color: valid
-                                    ? Colors.green
+                                    ? Theme.of(context).colorScheme.primary
                                     : Theme.of(context).colorScheme.error,
                               ),
                               title: Text(

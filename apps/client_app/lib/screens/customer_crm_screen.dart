@@ -71,7 +71,7 @@ class _CustomerCrmScreenState extends State<CustomerCrmScreen> {
         toolbarHeight: 46,
         title: Text(
           'CRM - ${widget.customer.name}',
-          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
         ),
         actions: [
           IconButton(
@@ -179,8 +179,8 @@ class _CustomerCrmScreenState extends State<CustomerCrmScreen> {
                                     Text(
                                       'CUSTOMER PROFILE',
                                       style: TextStyle(
-                                        fontSize: 9,
-                                        fontWeight: FontWeight.w900,
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w600,
                                         letterSpacing: .4,
                                       ),
                                     ),
@@ -247,7 +247,7 @@ class _CustomerCrmScreenState extends State<CustomerCrmScreen> {
                                         child: Text(
                                           'Customer-specific pricing, statements, sales history, returns, payments and loans remain linked through the existing THQ workspaces.',
                                           style: TextStyle(
-                                            fontSize: 9,
+                                            fontSize: 11,
                                             color: scheme.onSurfaceVariant,
                                           ),
                                         ),
@@ -301,7 +301,7 @@ class _CustomerCrmScreenState extends State<CustomerCrmScreen> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontSize: 8.4,
+                    fontSize: 11,
                     color: scheme.onSurfaceVariant,
                   ),
                 ),
@@ -310,8 +310,8 @@ class _CustomerCrmScreenState extends State<CustomerCrmScreen> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    fontSize: 10.3,
-                    fontWeight: FontWeight.w800,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ],
@@ -339,7 +339,7 @@ class _CustomerCrmScreenState extends State<CustomerCrmScreen> {
             child: Text(
               label,
               style: TextStyle(
-                fontSize: 9,
+                fontSize: 11,
                 fontWeight: FontWeight.w700,
                 color: scheme.onSurfaceVariant,
               ),
@@ -349,10 +349,7 @@ class _CustomerCrmScreenState extends State<CustomerCrmScreen> {
           Expanded(
             child: SelectableText(
               value,
-              style: const TextStyle(
-                fontSize: 9.5,
-                fontWeight: FontWeight.w600,
-              ),
+              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
             ),
           ),
         ],

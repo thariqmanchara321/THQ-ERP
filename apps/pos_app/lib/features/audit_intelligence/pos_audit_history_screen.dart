@@ -1,3 +1,4 @@
+import 'package:thq_ui/thq_ui.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -85,7 +86,7 @@ class _PosAuditHistoryScreenState extends State<PosAuditHistoryScreen> {
           )
         : <String, dynamic>{};
 
-    await showDialog<void>(
+    await showThqDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         title: Text('${entity['number'] ?? entityType} • Why / History'),

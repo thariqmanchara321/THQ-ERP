@@ -1,3 +1,4 @@
+import 'package:thq_ui/thq_ui.dart';
 import 'package:flutter/material.dart';
 
 import '../models/client_session.dart';
@@ -88,7 +89,7 @@ class _AggregateYardStockScreenState extends State<AggregateYardStockScreen> {
     bool saving = false;
     String? error;
     try {
-      final saved = await showDialog<bool>(
+      final saved = await showThqDialog<bool>(
         context: context,
         barrierDismissible: false,
         builder: (dialogContext) => StatefulBuilder(
@@ -194,7 +195,7 @@ class _AggregateYardStockScreenState extends State<AggregateYardStockScreen> {
       if (!mounted) {
         return;
       }
-      await showDialog<void>(
+      await showThqDialog<void>(
         context: context,
         builder: (context) => AlertDialog(
           title: Text('Batch ${batch['batch_number']} history'),
@@ -231,8 +232,9 @@ class _AggregateYardStockScreenState extends State<AggregateYardStockScreen> {
       );
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(e.toString())));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.toString())));
       }
     }
   }

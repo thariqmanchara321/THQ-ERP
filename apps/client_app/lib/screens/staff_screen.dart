@@ -1,3 +1,4 @@
+import 'package:thq_ui/thq_ui.dart';
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
 
@@ -341,7 +342,7 @@ class _StaffScreenState extends State<StaffScreen> {
         'location_scope': scopeLabel,
       }, currency: widget.session.currencyCode);
       if (!mounted) return;
-      await showDialog<void>(
+      await showThqDialog<void>(
         context: context,
         builder: (_) =>
             StaffStatementDialog(session: widget.session, statement: statement),

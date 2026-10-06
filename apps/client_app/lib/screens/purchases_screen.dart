@@ -211,7 +211,7 @@ class _PurchasesScreenState extends State<PurchasesScreen> {
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
                           fontSize: 17,
-                          fontWeight: FontWeight.w900,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                       Text(
@@ -285,7 +285,7 @@ class _PurchasesScreenState extends State<PurchasesScreen> {
                           'No purchases yet',
                           style: TextStyle(
                             fontSize: 17,
-                            fontWeight: FontWeight.w800,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
                         if (_canManage && !widget.historyOnly) ...[
@@ -366,7 +366,7 @@ class _PurchasesScreenState extends State<PurchasesScreen> {
               value,
               textAlign: align,
               maxLines: 1,
-              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w900),
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
             ),
           ),
         );
@@ -384,7 +384,7 @@ class _PurchasesScreenState extends State<PurchasesScreen> {
           width: 104,
           child: Text(
             'Status',
-            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w900),
+            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
           ),
         ),
         const SizedBox(width: 28),
@@ -436,7 +436,7 @@ class _PurchasesScreenState extends State<PurchasesScreen> {
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         fontSize: 11,
-                        fontWeight: FontWeight.w800,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                     if (veryCompact)
@@ -756,7 +756,7 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
       final material = product;
       WidgetsBinding.instance.addPostFrameCallback((_) async {
         if (!mounted) return;
-        final line = await showDialog<_PurchaseLine>(
+        final line = await showThqDialog<_PurchaseLine>(
           context: context,
           barrierDismissible: false,
           builder: (_) => _AddPurchaseItemDialog(
@@ -906,7 +906,7 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
       return;
     }
 
-    final line = await showDialog<_PurchaseLine>(
+    final line = await showThqDialog<_PurchaseLine>(
       context: context,
       barrierDismissible: false,
       builder: (_) => _AddPurchaseItemDialog(products: available),
@@ -943,7 +943,7 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
       return;
     }
 
-    final line = await showDialog<_PurchaseLine>(
+    final line = await showThqDialog<_PurchaseLine>(
       context: context,
       barrierDismissible: false,
       builder: (_) => _AddPurchaseItemDialog(products: available),
@@ -1021,7 +1021,8 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
     final supplierInvoiceNumber = _invoiceController.text.trim();
     if (supplierInvoiceNumber.isEmpty) {
       setState(() {
-        _error = 'Supplier invoice number is required for an authoritative GST purchase.';
+        _error =
+            'Supplier invoice number is required for an authoritative GST purchase.';
       });
       return;
     }
@@ -1059,8 +1060,8 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
           .map(
             (line) => <String, dynamic>{
               'variant_id': line.product.variantId,
-            'tracking_revision': line.product.trackingRevision,
-            'tracking_mode': line.product.trackingMode,
+              'tracking_revision': line.product.trackingRevision,
+              'tracking_mode': line.product.trackingMode,
               'quantity': line.quantity,
               'unit_id': line.unit?.unitId,
               'unit_cost': line.unitCost,
@@ -1227,7 +1228,9 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
         : LayoutBuilder(
             builder: (context, constraints) {
               final desktopWorkspace =
-                  constraints.maxWidth >= 1080 && constraints.maxHeight >= 650;
+                  constraints.maxWidth >= 1080 &&
+                  constraints.maxHeight >= 600 &&
+                  MediaQuery.textScalerOf(context).scale(1) <= 1.3;
 
               if (desktopWorkspace) {
                 return _desktopPurchaseWorkspace(constraints);
@@ -1261,11 +1264,14 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
           );
 
     if (widget.embedded) {
-      return ColoredBox(color: const Color(0xFFF5F7FA), child: content);
+      return ColoredBox(
+        color: Theme.of(context).scaffoldBackgroundColor,
+        child: content,
+      );
     }
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         title: const Text(
           'New Purchase',
@@ -1277,7 +1283,7 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
   }
 
   Widget _desktopPurchaseWorkspace(BoxConstraints constraints) {
-    final summaryWidth = constraints.maxWidth >= 1320 ? 378.0 : 350.0;
+    final summaryWidth = constraints.maxWidth >= 1320 ? 330.0 : 310.0;
 
     return Padding(
       padding: const EdgeInsets.all(10),
@@ -1358,13 +1364,13 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
                   'New Purchase',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                 ),
                 Text(
                   'Fast entry | GST-aware | stock linked',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(fontSize: 10.5),
+                  style: TextStyle(fontSize: 11),
                 ),
               ],
             ),
@@ -1381,11 +1387,11 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
               children: [
                 Text(
                   'PURCHASE NO.',
-                  style: TextStyle(fontSize: 8.5, fontWeight: FontWeight.w700),
+                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
                 ),
                 Text(
                   'AUTO ON CONFIRM',
-                  style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800),
+                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
                 ),
               ],
             ),
@@ -1535,13 +1541,13 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(label, style: const TextStyle(fontSize: 9)),
+                Text(label, style: const TextStyle(fontSize: 11)),
                 Text(
                   value,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    fontSize: 10.5,
+                    fontSize: 11,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -1574,7 +1580,7 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
           Text(
             '$label: ',
             style: TextStyle(
-              fontSize: 9.5,
+              fontSize: 11,
               fontWeight: FontWeight.w600,
               color: scheme.onSurfaceVariant,
             ),
@@ -1584,10 +1590,7 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
               value,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                fontSize: 10.5,
-                fontWeight: FontWeight.w700,
-              ),
+              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
             ),
           ),
         ],
@@ -1619,7 +1622,7 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
                     'Items (${_lines.length})',
                     style: const TextStyle(
                       fontSize: 12,
-                      fontWeight: FontWeight.w800,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                   const Spacer(),
@@ -1659,7 +1662,7 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
                         Text(
                           'Rows scroll vertically. Remove stays visible at the right.',
                           style: TextStyle(
-                            fontSize: 10.5,
+                            fontSize: 11,
                             color: scheme.onSurfaceVariant,
                           ),
                         ),
@@ -1733,7 +1736,7 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
                 SizedBox(width: 7),
                 Text(
                   'Totals & Payment',
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
                 ),
               ],
             ),
@@ -1777,10 +1780,7 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
                 children: [
                   const Text(
                     'Payment Method',
-                    style: TextStyle(
-                      fontSize: 10.5,
-                      fontWeight: FontWeight.w800,
-                    ),
+                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
                   ),
                   const SizedBox(height: 6),
                   _desktopPurchasePaymentMethods(),
@@ -1837,7 +1837,7 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
                   Text(
                     'GST figures shown here are a preview. Confirm uses the authoritative GST v5.2 quote and snapshot.',
                     style: TextStyle(
-                      fontSize: 9.5,
+                      fontSize: 11,
                       color: scheme.onSurfaceVariant,
                     ),
                   ),
@@ -1853,7 +1853,7 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
                       child: Text(
                         _error!,
                         style: TextStyle(
-                          fontSize: 10.5,
+                          fontSize: 11,
                           color: scheme.onErrorContainer,
                           fontWeight: FontWeight.w600,
                         ),
@@ -1914,9 +1914,9 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
                       methods[index].$2,
                       maxLines: 1,
                       style: TextStyle(
-                        fontSize: 9.5,
+                        fontSize: 11,
                         fontWeight: _paymentMethod == methods[index].$1
-                            ? FontWeight.w800
+                            ? FontWeight.w600
                             : FontWeight.w600,
                         color: _paymentMethod == methods[index].$1
                             ? scheme.onPrimaryContainer
@@ -1946,16 +1946,16 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
             child: Text(
               label,
               style: TextStyle(
-                fontSize: strong ? 11 : 10,
-                fontWeight: strong ? FontWeight.w800 : FontWeight.w500,
+                fontSize: strong ? 11 : 11,
+                fontWeight: strong ? FontWeight.w600 : FontWeight.w500,
               ),
             ),
           ),
           Text(
             value,
             style: TextStyle(
-              fontSize: strong ? 12 : 10.5,
-              fontWeight: strong ? FontWeight.w900 : FontWeight.w700,
+              fontSize: strong ? 12 : 11,
+              fontWeight: strong ? FontWeight.w600 : FontWeight.w700,
             ),
           ),
         ],
@@ -1993,7 +1993,7 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
-                fontSize: 10.5,
+                fontSize: 11,
                 fontWeight: FontWeight.w600,
                 color: _error == null ? scheme.onSurfaceVariant : scheme.error,
               ),
@@ -2039,9 +2039,9 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFE3E7EE)),
+        border: Border.all(color: Theme.of(context).colorScheme.outline),
       ),
       child: Row(
         children: [
@@ -2053,16 +2053,21 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
             ),
             const SizedBox(width: 12),
           ],
-          const Expanded(
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   'NEW PURCHASE',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
                 ),
                 SizedBox(height: 2),
-                Text('Purchase Entry', style: TextStyle(color: Colors.black54)),
+                Text(
+                  'Purchase Entry',
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
               ],
             ),
           ),
@@ -2073,7 +2078,7 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
               SizedBox(height: 3),
               Text(
                 'AUTO ON CONFIRM',
-                style: TextStyle(fontWeight: FontWeight.w800),
+                style: TextStyle(fontWeight: FontWeight.w600),
               ),
             ],
           ),
@@ -2252,7 +2257,7 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
                     horizontal: 8,
                     vertical: 10,
                   ),
-                  color: const Color(0xFFF1F4F8),
+                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
                   child: Row(
                     children: [
                       _purchaseHeaderCell('#', 1),
@@ -2287,7 +2292,7 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
       flex: flex,
       child: Text(
         label,
-        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
+        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
       ),
     );
   }
@@ -2298,7 +2303,7 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
       children: [
         const Text(
           'Payment & Charges',
-          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
+          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
         ),
         const SizedBox(height: 10),
         LayoutBuilder(
@@ -2419,9 +2424,12 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
           ),
         ),
         const SizedBox(height: 6),
-        const Text(
+        Text(
           'For a credit purchase, leave Initial Payment at ₹0.00.',
-          style: TextStyle(fontSize: 11, color: Colors.black54),
+          style: TextStyle(
+            fontSize: 11,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
         ),
       ],
     );
@@ -2448,10 +2456,13 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
           bold: true,
         ),
         const SizedBox(height: 8),
-        const Text(
+        Text(
           'GST split shown here is an estimate. The confirmed purchase uses the '
           'authoritative GST v5.2 snapshot.',
-          style: TextStyle(fontSize: 10, color: Colors.black54),
+          style: TextStyle(
+            fontSize: 11,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
         ),
       ],
     );
@@ -2487,12 +2498,12 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
               width: double.infinity,
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.red.shade50,
+                color: Theme.of(context).colorScheme.error,
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(
                 _error!,
-                style: TextStyle(color: Colors.red.shade700),
+                style: TextStyle(color: Theme.of(context).colorScheme.onError),
               ),
             ),
           ],
@@ -2751,7 +2762,8 @@ class _AddPurchaseItemDialogState extends State<_AddPurchaseItemDialog> {
     if (product == null || product.trackingMode != 'serial') return;
     if (baseQuantity <= 0 || baseQuantity != baseQuantity.truncateToDouble()) {
       setState(() {
-        _error = 'Enter a whole base-unit quantity before generating serial numbers.';
+        _error =
+            'Enter a whole base-unit quantity before generating serial numbers.';
       });
       return;
     }
@@ -2821,7 +2833,7 @@ class _AddPurchaseItemDialogState extends State<_AddPurchaseItemDialog> {
       return;
     }
 
-    final batch = await showDialog<Map<String, dynamic>>(
+    final batch = await showThqDialog<Map<String, dynamic>>(
       context: context,
       builder: (_) => _PurchaseBatchDialog(
         initialBatchNumber: _autoBatchNumber(product),
@@ -2849,7 +2861,7 @@ class _AddPurchaseItemDialogState extends State<_AddPurchaseItemDialog> {
       .toList();
 
   Future<void> _addBatch() async {
-    final batch = await showDialog<Map<String, dynamic>>(
+    final batch = await showThqDialog<Map<String, dynamic>>(
       context: context,
       builder: (_) => _PurchaseBatchDialog(
         initialCostBase:
@@ -3275,7 +3287,10 @@ class _AddPurchaseItemDialogState extends State<_AddPurchaseItemDialog> {
 
             if (_error != null) ...[
               const SizedBox(height: 14),
-              Text(_error!, style: TextStyle(color: Colors.red.shade700)),
+              Text(
+                _error!,
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
             ],
           ],
         ),
@@ -3502,7 +3517,11 @@ class _PurchaseLineRow extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
       decoration: BoxDecoration(
-        border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
+        border: Border(
+          bottom: BorderSide(
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+        ),
       ),
       child: Row(
         children: [
@@ -3519,7 +3538,10 @@ class _PurchaseLineRow extends StatelessWidget {
                 ),
                 Text(
                   line.product.sku,
-                  style: const TextStyle(fontSize: 11, color: Colors.black54),
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
                 ),
               ],
             ),
@@ -3533,7 +3555,7 @@ class _PurchaseLineRow extends StatelessWidget {
           cell(
             Text(
               money(line.total),
-              style: const TextStyle(fontWeight: FontWeight.w800),
+              style: const TextStyle(fontWeight: FontWeight.w600),
             ),
             2,
           ),
@@ -3568,9 +3590,11 @@ class _PurchaseCard extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -3648,10 +3672,10 @@ class _PaymentBadge extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
         color: status == 'paid'
-            ? Colors.green.shade50
+            ? Theme.of(context).colorScheme.primary
             : status == 'partial'
-            ? Colors.orange.shade50
-            : Colors.red.shade50,
+            ? context.thqSemanticColors.warning
+            : Theme.of(context).colorScheme.error,
         borderRadius: BorderRadius.circular(20),
       ),
       child: Text(

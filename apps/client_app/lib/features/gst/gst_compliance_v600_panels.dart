@@ -1,3 +1,4 @@
+import 'package:thq_ui/thq_ui.dart';
 import 'dart:convert';
 import 'dart:math';
 
@@ -573,7 +574,7 @@ class _GstEinvoiceV600PanelState extends State<GstEinvoiceV600Panel> {
   }
 
   Future<void> _cancel() async {
-    final value = await showDialog<_CancelValue>(
+    final value = await showThqDialog<_CancelValue>(
       context: context,
       builder: (_) => const _CancelDialog(title: 'Cancel IRN'),
     );
@@ -948,7 +949,7 @@ class _GstEwaybillV600PanelState extends State<GstEwaybillV600Panel> {
   }
 
   Future<void> _cancel() async {
-    final value = await showDialog<_CancelValue>(
+    final value = await showThqDialog<_CancelValue>(
       context: context,
       builder: (_) => const _CancelDialog(title: 'Cancel E-Way Bill'),
     );
@@ -1091,7 +1092,7 @@ class _V600Page extends StatelessWidget {
                       Text(
                         title,
                         style: Theme.of(context).textTheme.titleMedium
-                            ?.copyWith(fontWeight: FontWeight.w800),
+                            ?.copyWith(fontWeight: FontWeight.w600),
                       ),
                       const SizedBox(height: 2),
                       Text(
@@ -1139,7 +1140,7 @@ class _V600Card extends StatelessWidget {
           children: [
             Text(
               title,
-              style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 13),
+              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
             ),
             const SizedBox(height: 10),
             child,
@@ -1248,7 +1249,7 @@ class _V600Pill extends StatelessWidget {
       ),
       child: Text(
         label,
-        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800),
+        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
       ),
     );
   }

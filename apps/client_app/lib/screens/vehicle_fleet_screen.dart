@@ -124,7 +124,7 @@ class _VehicleFleetScreenState extends State<VehicleFleetScreen> {
     bool active = vehicle?['active'] != false;
     String? validationError;
 
-    final saved = await showDialog<bool>(
+    final saved = await showThqDialog<bool>(
       context: context,
       barrierDismissible: false,
       builder: (dialogContext) => StatefulBuilder(
@@ -441,8 +441,9 @@ class _VehicleFleetScreenState extends State<VehicleFleetScreen> {
                 children: [
                   Text(
                     'Fleet master',
-                    style: Theme.of(context).textTheme.titleLarge
-                        ?.copyWith(fontWeight: FontWeight.w700),
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                   const SizedBox(height: 4),
                   const Text(

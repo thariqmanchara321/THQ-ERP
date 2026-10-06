@@ -1,6 +1,7 @@
 // ignore_for_file: curly_braces_in_flow_control_structures
 import 'package:flutter/material.dart';
 import 'package:thq_ui/thq_ui.dart';
+
 import '../widgets/admin_home_button.dart';
 
 import '../services/location_device_service.dart';
@@ -147,7 +148,7 @@ class _BusinessLocationsDevicesScreenState
       }
     }
 
-    await showDialog<void>(
+    await showThqDialog<void>(
       context: context,
       barrierDismissible: false,
       builder: (dialogContext) {
@@ -583,7 +584,7 @@ class _BusinessLocationsDevicesScreenState
     final invoicePrefix = TextEditingController(text: suggestedPrefix);
     final selectedModules = <String>{'sales'};
 
-    await showDialog<void>(
+    await showThqDialog<void>(
       context: context,
       barrierDismissible: false,
       builder: (dialogContext) => StatefulBuilder(
@@ -754,7 +755,9 @@ class _BusinessLocationsDevicesScreenState
                     const SizedBox(height: 4),
                     Text(
                       'Choose exactly what this terminal should show. Cashier Shift and Terminal Daily are independent and can be enabled or disabled separately.',
-                      style: TextStyle(color: Colors.grey.shade600),
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
                     ),
                     const SizedBox(height: 10),
                     Wrap(
@@ -838,7 +841,7 @@ class _BusinessLocationsDevicesScreenState
       _message('There are no pending or inactive systems to activate.');
       return;
     }
-    final selected = await showDialog<Map<String, dynamic>>(
+    final selected = await showThqDialog<Map<String, dynamic>>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('Activate System'),
@@ -881,7 +884,7 @@ class _BusinessLocationsDevicesScreenState
         deviceId: selected['id'].toString(),
       );
       if (!mounted) return;
-      await showDialog<void>(
+      await showThqDialog<void>(
         context: context,
         barrierDismissible: false,
         builder: (codeContext) => AlertDialog(
@@ -926,7 +929,7 @@ class _BusinessLocationsDevicesScreenState
         .map((value) => value.toString())
         .toSet();
 
-    await showDialog<void>(
+    await showThqDialog<void>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (dialogContext, setLocalState) => AlertDialog(
@@ -1025,7 +1028,9 @@ class _BusinessLocationsDevicesScreenState
                     const SizedBox(height: 4),
                     Text(
                       'Cashier Shifts and Terminal Daily are operational modules and can be enabled per POS.',
-                      style: TextStyle(color: Colors.grey.shade600),
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
                     ),
                     const SizedBox(height: 8),
                     Wrap(
@@ -1097,10 +1102,13 @@ class _BusinessLocationsDevicesScreenState
   }
 
   Future<void> _deleteSystem(Map<String, dynamic> device) async {
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showThqDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        icon: const Icon(Icons.delete_outline, color: Colors.red),
+        icon: Icon(
+          Icons.delete_outline,
+          color: Theme.of(context).colorScheme.error,
+        ),
         title: const Text('Delete / archive system?'),
         content: Text(
           '${device['device_code']} • ${device['name']}\n\n'
@@ -1112,7 +1120,9 @@ class _BusinessLocationsDevicesScreenState
             child: const Text('Cancel'),
           ),
           FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+            ),
             onPressed: () => Navigator.pop(dialogContext, true),
             child: const Text('Continue'),
           ),
@@ -1139,10 +1149,13 @@ class _BusinessLocationsDevicesScreenState
       _message('MAIN STORE cannot be deleted.');
       return;
     }
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showThqDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        icon: const Icon(Icons.delete_outline, color: Colors.red),
+        icon: Icon(
+          Icons.delete_outline,
+          color: Theme.of(context).colorScheme.error,
+        ),
         title: const Text('Delete / archive store?'),
         content: Text(
           '${location['location_code']} • ${location['name']}\n\n'
@@ -1154,7 +1167,9 @@ class _BusinessLocationsDevicesScreenState
             child: const Text('Cancel'),
           ),
           FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+            ),
             onPressed: () => Navigator.pop(dialogContext, true),
             child: const Text('Continue'),
           ),
@@ -1176,7 +1191,7 @@ class _BusinessLocationsDevicesScreenState
   }
 
   void _showActivationDetails(Map<String, dynamic> device) {
-    showDialog<void>(
+    showThqDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Activation Details'),
@@ -1271,12 +1286,18 @@ class _BusinessLocationsDevicesScreenState
                   _message(error.toString());
                 }
               },
-              icon: const Icon(Icons.power_settings_new, color: Colors.orange),
+              icon: Icon(
+                Icons.power_settings_new,
+                color: context.thqSemanticColors.warning,
+              ),
             ),
           IconButton(
             tooltip: 'Delete / archive system',
             onPressed: () => _deleteSystem(device),
-            icon: const Icon(Icons.delete_outline, color: Colors.red),
+            icon: Icon(
+              Icons.delete_outline,
+              color: Theme.of(context).colorScheme.error,
+            ),
           ),
         ],
       ),
@@ -1300,7 +1321,7 @@ class _BusinessLocationsDevicesScreenState
           '${widget.businessName} | Locations & Systems',
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w900),
+          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
         ),
         actions: const [AdminHomeButton()],
       ),
@@ -1341,7 +1362,7 @@ class _BusinessLocationsDevicesScreenState
                                 'Business Structure',
                                 style: TextStyle(
                                   fontSize: 11,
-                                  fontWeight: FontWeight.w900,
+                                  fontWeight: FontWeight.w600,
                                 ),
                               ),
                               Text(
@@ -1351,7 +1372,7 @@ class _BusinessLocationsDevicesScreenState
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: TextStyle(
-                                  fontSize: 7.6,
+                                  fontSize: 11,
                                   color: scheme.onSurfaceVariant,
                                 ),
                               ),
@@ -1405,7 +1426,7 @@ class _BusinessLocationsDevicesScreenState
                         Text(
                           'Business Code',
                           style: TextStyle(
-                            fontSize: 7.5,
+                            fontSize: 11,
                             color: scheme.onSurfaceVariant,
                           ),
                         ),
@@ -1416,7 +1437,7 @@ class _BusinessLocationsDevicesScreenState
                             maxLines: 1,
                             style: const TextStyle(
                               fontSize: 13,
-                              fontWeight: FontWeight.w900,
+                              fontWeight: FontWeight.w600,
                               letterSpacing: .5,
                             ),
                           ),
@@ -1424,7 +1445,7 @@ class _BusinessLocationsDevicesScreenState
                         Text(
                           'Use with one-time system activation code',
                           style: TextStyle(
-                            fontSize: 7.3,
+                            fontSize: 11,
                             color: scheme.onSurfaceVariant,
                           ),
                         ),
@@ -1447,7 +1468,7 @@ class _BusinessLocationsDevicesScreenState
                         _error!,
                         maxLines: 2,
                         style: TextStyle(
-                          fontSize: 8,
+                          fontSize: 11,
                           color: scheme.onErrorContainer,
                         ),
                       ),
@@ -1530,9 +1551,9 @@ class _BusinessLocationsDevicesScreenState
                                                     overflow:
                                                         TextOverflow.ellipsis,
                                                     style: const TextStyle(
-                                                      fontSize: 8.8,
+                                                      fontSize: 11,
                                                       fontWeight:
-                                                          FontWeight.w900,
+                                                          FontWeight.w600,
                                                     ),
                                                   ),
                                                   Text(
@@ -1543,7 +1564,7 @@ class _BusinessLocationsDevicesScreenState
                                                     overflow:
                                                         TextOverflow.ellipsis,
                                                     style: TextStyle(
-                                                      fontSize: 7.2,
+                                                      fontSize: 11,
                                                       color: scheme
                                                           .onSurfaceVariant,
                                                     ),
@@ -1554,7 +1575,7 @@ class _BusinessLocationsDevicesScreenState
                                             Text(
                                               '${systems.length} system(s)',
                                               style: TextStyle(
-                                                fontSize: 7.4,
+                                                fontSize: 11,
                                                 color: scheme.onSurfaceVariant,
                                               ),
                                             ),
@@ -1564,8 +1585,8 @@ class _BusinessLocationsDevicesScreenState
                                                   ? 'INACTIVE'
                                                   : 'ACTIVE',
                                               style: TextStyle(
-                                                fontSize: 7,
-                                                fontWeight: FontWeight.w900,
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.w600,
                                                 color:
                                                     location['active'] == false
                                                     ? scheme.onSurfaceVariant
@@ -1608,7 +1629,7 @@ class _BusinessLocationsDevicesScreenState
                                             child: Text(
                                               'No systems assigned to this location.',
                                               style: TextStyle(
-                                                fontSize: 7.6,
+                                                fontSize: 11,
                                                 color: scheme.onSurfaceVariant,
                                               ),
                                             ),

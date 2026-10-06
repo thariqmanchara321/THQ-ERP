@@ -1,3 +1,4 @@
+import 'package:thq_ui/thq_ui.dart';
 import 'package:flutter/material.dart';
 
 import '../models/client_session.dart';
@@ -41,7 +42,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
   void _reload() => setState(_load);
 
   Future<void> _commercialReport() async {
-    await showDialog<void>(
+    await showThqDialog<void>(
       context: context,
       barrierDismissible: false,
       builder: (_) => CommercialPricingReportDialog(
@@ -121,7 +122,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                     'Reports',
                     style: TextStyle(
                       fontSize: 14.5,
-                      fontWeight: FontWeight.w900,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ),
@@ -281,7 +282,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
             row.label,
             maxLines: 1,
             style: TextStyle(
-              fontSize: 7.5,
+              fontSize: 11,
               fontWeight: FontWeight.w700,
               color: scheme.onSurfaceVariant,
             ),
@@ -290,13 +291,13 @@ class _ReportsScreenState extends State<ReportsScreen> {
             row.value,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w900),
+            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
           ),
           Text(
             row.caption,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: TextStyle(fontSize: 7, color: scheme.onSurfaceVariant),
+            style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant),
           ),
         ],
       ),

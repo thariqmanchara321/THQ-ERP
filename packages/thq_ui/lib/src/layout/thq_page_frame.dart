@@ -36,7 +36,8 @@ class ThqPageFrame extends StatelessWidget {
       builder: (context, constraints) {
         final layout = ThqBreakpoints.classify(constraints.maxWidth);
         final mobile = layout == ThqLayoutClass.mobile;
-        final effectivePadding = padding ??
+        final effectivePadding =
+            padding ??
             EdgeInsets.symmetric(
               horizontal: mobile ? ThqTokens.space12 : ThqTokens.space16,
               vertical: mobile ? ThqTokens.space10 : ThqTokens.space12,

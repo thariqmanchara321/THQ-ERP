@@ -845,7 +845,7 @@ class _GstComplianceV520ScreenState extends State<GstComplianceV520Screen> {
   }
 
   Future<void> _openRegistrationDialog({Map<String, dynamic>? existing}) async {
-    final result = await showDialog<_RegistrationFormValue>(
+    final result = await showThqDialog<_RegistrationFormValue>(
       context: context,
       builder: (context) => _RegistrationDialog(existing: existing),
     );
@@ -885,7 +885,7 @@ class _GstComplianceV520ScreenState extends State<GstComplianceV520Screen> {
       );
 
       if (!mounted) return;
-      await showDialog<void>(
+      await showThqDialog<void>(
         context: context,
         builder: (context) => _JsonDetailDialog(
           title: 'Registration configuration',
@@ -904,7 +904,7 @@ class _GstComplianceV520ScreenState extends State<GstComplianceV520Screen> {
 
       if (!mounted) return;
 
-      final value = await showDialog<_LocationMappingValue>(
+      final value = await showThqDialog<_LocationMappingValue>(
         context: context,
         builder: (context) => _LocationMappingDialog(
           locations: _locations,
@@ -990,7 +990,7 @@ class _GstComplianceV520ScreenState extends State<GstComplianceV520Screen> {
   }
 
   Future<void> _validateImportedProfiles() async {
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showThqDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('Validate imported GST profiles?'),
@@ -1071,7 +1071,7 @@ class _GstComplianceV520ScreenState extends State<GstComplianceV520Screen> {
     }
 
     if (!mounted) return;
-    final result = await showDialog<_ProductGstFormValue>(
+    final result = await showThqDialog<_ProductGstFormValue>(
       context: context,
       builder: (context) => _ProductGstDialog(
         existing: existing,
@@ -1206,7 +1206,7 @@ class _GstComplianceV520ScreenState extends State<GstComplianceV520Screen> {
     }
 
     if (!mounted) return;
-    final result = await showDialog<_PartyGstFormValue>(
+    final result = await showThqDialog<_PartyGstFormValue>(
       context: context,
       builder: (context) => _PartyGstDialog(
         existing: existing,
@@ -1254,7 +1254,7 @@ class _GstComplianceV520ScreenState extends State<GstComplianceV520Screen> {
 
     if (!mounted) return null;
 
-    return showDialog<Map<String, dynamic>>(
+    return showThqDialog<Map<String, dynamic>>(
       context: context,
       builder: (context) => _LookupDialog(
         title: title,
@@ -1448,7 +1448,7 @@ class _GstComplianceV520ScreenState extends State<GstComplianceV520Screen> {
       );
 
       if (!mounted) return;
-      await showDialog<void>(
+      await showThqDialog<void>(
         context: context,
         builder: (context) => _EvidenceDialog(data: detail),
       );
@@ -1786,7 +1786,7 @@ class _MetricCard extends StatelessWidget {
                 Text(
                   value,
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w800,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ],
@@ -3832,7 +3832,7 @@ class _EvidenceDialog extends StatelessWidget {
                 Text(
                   title,
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w800,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
                 if (subtitle != null) ...[
@@ -3928,7 +3928,7 @@ class _EvidenceDialog extends StatelessWidget {
             _money(value),
             style: Theme.of(
               context,
-            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w900),
+            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
           ),
         ],
       ),
@@ -4101,7 +4101,7 @@ class _EvidenceDialog extends StatelessWidget {
 
     final scheme = Theme.of(context).colorScheme;
     final headerStyle = Theme.of(context).textTheme.labelSmall?.copyWith(
-      fontWeight: FontWeight.w800,
+      fontWeight: FontWeight.w600,
       color: scheme.onSurfaceVariant,
     );
 
@@ -4385,7 +4385,7 @@ class _EvidenceDialog extends StatelessWidget {
           const Expanded(
             child: Text(
               'GST Evidence',
-              style: TextStyle(fontWeight: FontWeight.w800),
+              style: TextStyle(fontWeight: FontWeight.w600),
             ),
           ),
           _StatusPill(

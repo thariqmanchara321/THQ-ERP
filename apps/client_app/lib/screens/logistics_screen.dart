@@ -164,7 +164,7 @@ class _LogisticsScreenState extends State<LogisticsScreen> {
       _trips.where((trip) => trip['status']?.toString() == status).length;
 
   Future<String?> _selectTripMode() async {
-    return showDialog<String>(
+    return showThqDialog<String>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('Create Trip'),
@@ -318,7 +318,7 @@ class _LogisticsScreenState extends State<LogisticsScreen> {
     final notes = TextEditingController();
     DateTime planned = DateTime.now();
 
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showThqDialog<bool>(
       context: context,
       barrierDismissible: false,
       builder: (dialogContext) => StatefulBuilder(
@@ -553,7 +553,7 @@ class _LogisticsScreenState extends State<LogisticsScreen> {
   }
 
   Future<void> _openTrip(String tripId) async {
-    await showDialog<void>(
+    await showThqDialog<void>(
       context: context,
       builder: (_) => LogisticsTripDialog(
         session: widget.session,
@@ -929,7 +929,7 @@ class _LogisticsTripDialogState extends State<LogisticsTripDialog> {
     String message, {
     String action = 'Confirm',
   }) async =>
-      await showDialog<bool>(
+      await showThqDialog<bool>(
         context: context,
         builder: (context) => AlertDialog(
           title: Text(title),
@@ -954,7 +954,7 @@ class _LogisticsTripDialogState extends State<LogisticsTripDialog> {
     bool required = false,
   }) async {
     final controller = TextEditingController();
-    final value = await showDialog<String>(
+    final value = await showThqDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
         title: Text(title),
@@ -1047,7 +1047,7 @@ class _LogisticsTripDialogState extends State<LogisticsTripDialog> {
         return;
       }
 
-      final draft = await showDialog<Map<String, dynamic>>(
+      final draft = await showThqDialog<Map<String, dynamic>>(
         context: context,
         barrierDismissible: false,
         builder: (context) =>

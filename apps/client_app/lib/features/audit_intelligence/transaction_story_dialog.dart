@@ -1,3 +1,4 @@
+import 'package:thq_ui/thq_ui.dart';
 import 'package:flutter/material.dart';
 
 import 'audit_intelligence_service.dart';
@@ -9,7 +10,7 @@ Future<void> showTransactionStoryDialog({
   required String entityType,
   required String entityId,
 }) {
-  return showDialog<void>(
+  return showThqDialog<void>(
     context: context,
     builder: (_) => _TransactionStoryDialog(
       service: service,
@@ -66,7 +67,7 @@ class _TransactionStoryDialog extends StatelessWidget {
                   leading: const Icon(Icons.account_tree_outlined),
                   title: Text(
                     '${_text(entity['number'], fallback: entityType)} • Transaction Story',
-                    style: const TextStyle(fontWeight: FontWeight.w800),
+                    style: const TextStyle(fontWeight: FontWeight.w600),
                   ),
                   subtitle: Text(
                     _qualityLabel(entity['timeline_quality']?.toString()),
@@ -106,7 +107,7 @@ class _TransactionStoryDialog extends StatelessWidget {
                       Text(
                         'Business effect',
                         style: Theme.of(context).textTheme.titleMedium
-                            ?.copyWith(fontWeight: FontWeight.w800),
+                            ?.copyWith(fontWeight: FontWeight.w600),
                       ),
                       const SizedBox(height: 8),
                       Wrap(
@@ -144,7 +145,7 @@ class _TransactionStoryDialog extends StatelessWidget {
                       Text(
                         'Timeline',
                         style: Theme.of(context).textTheme.titleMedium
-                            ?.copyWith(fontWeight: FontWeight.w800),
+                            ?.copyWith(fontWeight: FontWeight.w600),
                       ),
                       const SizedBox(height: 8),
                       if (timeline.isEmpty)
@@ -241,7 +242,7 @@ class _Fact extends StatelessWidget {
                 label.toUpperCase(),
                 style: Theme.of(
                   context,
-                ).textTheme.labelSmall?.copyWith(fontWeight: FontWeight.w800),
+                ).textTheme.labelSmall?.copyWith(fontWeight: FontWeight.w600),
               ),
               const SizedBox(height: 5),
               SelectableText(value),

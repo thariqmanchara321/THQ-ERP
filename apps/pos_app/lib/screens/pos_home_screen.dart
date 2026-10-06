@@ -14,7 +14,6 @@ import '../services/location_scope_service.dart';
 import '../services/navigation_service.dart';
 import '../services/thq_api_service.dart';
 import '../services/ui_design_service.dart';
-import '../ui/v43_theme.dart';
 import '../ui/v600_pos_theme.dart';
 import 'cashier_shift_screen.dart';
 import 'customers_screen.dart';
@@ -535,7 +534,7 @@ class _PosHomeScreenState extends State<PosHomeScreen> {
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         fontSize: 11.5,
-                        fontWeight: FontWeight.w800,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ),
@@ -555,7 +554,7 @@ class _PosHomeScreenState extends State<PosHomeScreen> {
   Future<void> _requestRefresh() async {
     if (_refreshing) return;
     if (_selectedKey == 'sales' || _billingVisited) {
-      final proceed = await showDialog<bool>(
+      final proceed = await showThqDialog<bool>(
         context: context,
         builder: (dialogContext) => AlertDialog(
           title: const Text('Refresh POS?'),
@@ -730,8 +729,11 @@ class _PosHomeScreenState extends State<PosHomeScreen> {
               body: Row(
                 children: [
                   AnimatedContainer(
-                    duration: const Duration(milliseconds: 160),
-                    width: expanded ? 178 : 52,
+                    duration:
+                        (MediaQuery.maybeDisableAnimationsOf(context) ?? false)
+                        ? Duration.zero
+                        : const Duration(milliseconds: 160),
+                    width: expanded ? 176 : 64,
                     decoration: BoxDecoration(
                       color: profile.sidebar,
                       border: Border(right: BorderSide(color: profile.border)),
@@ -743,29 +745,7 @@ class _PosHomeScreenState extends State<PosHomeScreen> {
                           const Divider(height: 1),
                           Expanded(child: _nav(expanded, profile)),
                           const Divider(height: 1),
-                          _user(expanded),
-                          if (!narrow)
-                            _action(
-                              expanded
-                                  ? Icons.keyboard_double_arrow_left
-                                  : Icons.keyboard_double_arrow_right,
-                              expanded ? 'Collapse' : 'Expand',
-                              expanded,
-                              () => setState(() => _expanded = !_expanded),
-                            ),
-                          _action(
-                            Icons.refresh,
-                            _refreshing
-                                ? 'Refreshing…'
-                                : (_updatesAvailable
-                                      ? 'Updates • Refresh'
-                                      : 'Refresh'),
-                            expanded,
-                            _refreshing ? () {} : _requestRefresh,
-                          ),
-                          _action(Icons.logout, 'Sign Out', expanded, _logout),
-                          _release(expanded, profile),
-                          const SizedBox(height: 4),
+                          _footer(expanded, narrow, profile),
                         ],
                       ),
                     ),
@@ -785,7 +765,10 @@ class _PosHomeScreenState extends State<PosHomeScreen> {
                         node: _workspaceFocusScope,
                         child: FocusTraversalGroup(
                           policy: WidgetOrderTraversalPolicy(),
-                          child: _workspaceContent(page),
+                          child: ThqPageEntrance(
+                            key: ValueKey(page.key),
+                            child: _workspaceContent(page),
+                          ),
                         ),
                       ),
                     ),
@@ -801,57 +784,123 @@ class _PosHomeScreenState extends State<PosHomeScreen> {
 
   Widget _brand(bool expanded, UiDesignProfile profile) {
     final logo = _session.setting('business.logo_url', '')?.toString() ?? '';
-    return Padding(
-      padding: const EdgeInsets.all(7),
-      child: Row(
-        mainAxisAlignment: expanded
-            ? MainAxisAlignment.start
-            : MainAxisAlignment.center,
-        children: [
-          Container(
-            width: 34,
-            height: 36,
-            clipBehavior: Clip.antiAlias,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(8),
-              color: profile.primary.withValues(alpha: .10),
-            ),
-            child: logo.isNotEmpty
-                ? Image.network(
-                    logo,
-                    fit: BoxFit.contain,
-                    errorBuilder: (_, _, _) =>
-                        Icon(Icons.point_of_sale, color: profile.primary),
-                  )
-                : Icon(Icons.point_of_sale, color: profile.primary),
-          ),
-          if (expanded) ...[
-            const SizedBox(width: 7),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    _session.business.name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w900,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final showExpanded = expanded && constraints.maxWidth >= 140;
+        return ValueListenableBuilder<bool>(
+          valueListenable: ThqMotionSettings.enabled,
+          builder: (context, motionEnabled, _) => PopupMenuButton<String>(
+            tooltip: 'Terminal actions',
+            onSelected: (action) {
+              if (action == 'refresh') {
+                unawaited(_requestRefresh());
+              } else if (action == 'motion') {
+                ThqMotionSettings.enabled.value = !motionEnabled;
+              }
+            },
+            itemBuilder: (context) => [
+              PopupMenuItem<String>(
+                enabled: false,
+                child: Text('${_session.username} · ${_session.roleLabel}'),
+              ),
+              PopupMenuItem<String>(
+                value: 'refresh',
+                enabled: !_refreshing,
+                child: Row(
+                  children: [
+                    const Icon(Icons.refresh, size: 18),
+                    const SizedBox(width: 8),
+                    Text(
+                      _refreshing
+                          ? 'Refreshing…'
+                          : (_updatesAvailable
+                                ? 'Updates • Refresh'
+                                : 'Refresh POS'),
                     ),
+                  ],
+                ),
+              ),
+              PopupMenuItem<String>(
+                value: 'motion',
+                child: Row(
+                  children: [
+                    Icon(
+                      motionEnabled
+                          ? Icons.animation_outlined
+                          : Icons.motion_photos_off_outlined,
+                      size: 18,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(motionEnabled ? 'Reduce motion' : 'Enable motion'),
+                  ],
+                ),
+              ),
+            ],
+            child: Padding(
+              padding: const EdgeInsets.all(7),
+              child: Row(
+                mainAxisAlignment: showExpanded
+                    ? MainAxisAlignment.start
+                    : MainAxisAlignment.center,
+                children: [
+                  Container(
+                    width: 34,
+                    height: 36,
+                    clipBehavior: Clip.antiAlias,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(8),
+                      color: profile.primary.withValues(alpha: .10),
+                    ),
+                    child: logo.isNotEmpty
+                        ? Image.network(
+                            logo,
+                            fit: BoxFit.contain,
+                            errorBuilder: (_, _, _) => Icon(
+                              Icons.point_of_sale,
+                              color: profile.primary,
+                            ),
+                          )
+                        : Icon(Icons.point_of_sale, color: profile.primary),
                   ),
-                  Text(
-                    '${_session.device?.locationCode ?? ''} • ${_session.device?.deviceCode ?? ''}',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 8.5),
-                  ),
+                  if (showExpanded) ...[
+                    const SizedBox(width: 7),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            _session.business.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          Text(
+                            '${_session.device?.locationCode ?? ''} • ${_session.device?.deviceCode ?? ''}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(fontSize: 11),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 3),
+                    Icon(
+                      _updatesAvailable ? Icons.update : Icons.expand_more,
+                      size: 14,
+                      color: _updatesAvailable
+                          ? profile.primary
+                          : profile.textSecondary,
+                    ),
+                  ],
                 ],
               ),
             ),
-          ],
-        ],
-      ),
+          ),
+        );
+      },
     );
   }
 
@@ -928,7 +977,7 @@ class _PosHomeScreenState extends State<PosHomeScreen> {
                         style: TextStyle(
                           fontSize: 11.5,
                           fontWeight: active
-                              ? FontWeight.w800
+                              ? FontWeight.w600
                               : FontWeight.w600,
                         ),
                       ),
@@ -944,50 +993,46 @@ class _PosHomeScreenState extends State<PosHomeScreen> {
     );
   }
 
-  Widget _user(bool expanded) => Padding(
-    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 5),
-    child: Row(
-      mainAxisAlignment: expanded
-          ? MainAxisAlignment.start
-          : MainAxisAlignment.center,
-      children: [
-        CircleAvatar(
-          radius: 13,
-          child: Text(
-            _session.username.isEmpty
-                ? '?'
-                : _session.username[0].toUpperCase(),
-            style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w800),
-          ),
-        ),
-        if (expanded) ...[
-          const SizedBox(width: 7),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  _session.username,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 11.5,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                Text(
-                  _session.roleLabel,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 9.5),
-                ),
+  Widget _footer(bool expanded, bool narrow, UiDesignProfile profile) {
+    final signOut = _action(Icons.logout, 'Sign Out', expanded, _logout);
+    final collapse = _action(
+      expanded
+          ? Icons.keyboard_double_arrow_left
+          : Icons.keyboard_double_arrow_right,
+      expanded ? 'Collapse' : 'Expand',
+      expanded,
+      () => setState(() => _expanded = !_expanded),
+    );
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final horizontal =
+            expanded &&
+            constraints.maxWidth >= 160 &&
+            MediaQuery.textScalerOf(context).scale(1) <= 1.2;
+        return Padding(
+          key: const ValueKey('pos-sidebar-footer'),
+          padding: const EdgeInsets.symmetric(vertical: 4),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (horizontal)
+                Row(
+                  children: [
+                    Expanded(child: signOut),
+                    if (!narrow) Expanded(child: collapse),
+                  ],
+                )
+              else ...[
+                signOut,
+                if (!narrow) collapse,
               ],
-            ),
+              _release(expanded, profile),
+            ],
           ),
-        ],
-      ],
-    ),
-  );
+        );
+      },
+    );
+  }
 
   Widget _action(
     IconData icon,
@@ -1021,7 +1066,7 @@ class _PosHomeScreenState extends State<PosHomeScreen> {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
-                        fontSize: 10.8,
+                        fontSize: 11,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -1037,35 +1082,18 @@ class _PosHomeScreenState extends State<PosHomeScreen> {
 
   Widget _release(bool expanded, UiDesignProfile profile) {
     final text =
-        'v${ThqReleaseContract.appVersion}  Build ${ThqReleaseContract.buildNumber}';
-
-    if (!expanded) {
-      return Tooltip(
-        message: text,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 3),
-          child: Icon(
-            Icons.info_outline,
-            size: 12,
-            color: profile.textSecondary.withValues(alpha: .70),
-          ),
-        ),
-      );
-    }
-
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(11, 2, 7, 3),
-      child: Align(
-        alignment: Alignment.centerLeft,
+        'v${ThqReleaseContract.appVersion} · Build ${ThqReleaseContract.buildNumber}';
+    return Tooltip(
+      message: text,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 3),
         child: Text(
-          text,
+          expanded
+              ? text
+              : 'v${ThqReleaseContract.appVersion.split('.').first}',
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            fontSize: 9,
-            fontWeight: FontWeight.w600,
-            color: profile.textSecondary.withValues(alpha: .72),
-          ),
+          style: TextStyle(fontSize: 10, color: profile.textSecondary),
         ),
       ),
     );

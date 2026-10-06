@@ -41,7 +41,8 @@ class ThqFormSection extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(title, style: theme.textTheme.titleMedium),
-                      if (description != null && description!.trim().isNotEmpty) ...[
+                      if (description != null &&
+                          description!.trim().isNotEmpty) ...[
                         const SizedBox(height: ThqTokens.space2),
                         Text(description!, style: theme.textTheme.bodySmall),
                       ],
@@ -91,7 +92,9 @@ class ThqFormGrid extends StatelessWidget {
           ThqLayoutClass.compact => compactColumns,
           ThqLayoutClass.desktop || ThqLayoutClass.wide => desktopColumns,
         };
-        columns = columns.clamp(1, children.isEmpty ? 1 : children.length).toInt();
+        columns = columns
+            .clamp(1, children.isEmpty ? 1 : children.length)
+            .toInt();
         while (columns > 1) {
           final candidate =
               (constraints.maxWidth - ((columns - 1) * spacing)) / columns;
@@ -165,7 +168,10 @@ class ThqStickyActionBar extends StatelessWidget {
               }
               return Row(
                 children: [
-                  if (message != null) Expanded(child: message!) else const Spacer(),
+                  if (message != null)
+                    Expanded(child: message!)
+                  else
+                    const Spacer(),
                   const SizedBox(width: ThqTokens.space12),
                   actions,
                 ],

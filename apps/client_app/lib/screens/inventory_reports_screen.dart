@@ -1,3 +1,4 @@
+import 'package:thq_ui/thq_ui.dart';
 import 'dart:async';
 
 import 'package:file_saver/file_saver.dart';
@@ -268,7 +269,7 @@ class _InventoryReportsScreenState extends State<InventoryReportsScreen> {
     final filters = Map<String, String>.from(_filters);
     final unit = TextEditingController(text: filters['unit_code'] ?? ''),
         status = TextEditingController(text: filters['status'] ?? '');
-    final applied = await showDialog<bool>(
+    final applied = await showThqDialog<bool>(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, update) {
@@ -946,7 +947,7 @@ class _InventoryReportsScreenState extends State<InventoryReportsScreen> {
             padding: const EdgeInsets.only(top: 3, bottom: 4),
             child: Text(
               _period,
-              style: TextStyle(fontSize: 10.5, color: colors.onSurfaceVariant),
+              style: TextStyle(fontSize: 11, color: colors.onSurfaceVariant),
             ),
           ),
         if (report != null && _showSummary) _summary(report),
@@ -987,8 +988,14 @@ class _InventoryReportsScreenState extends State<InventoryReportsScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               ConstrainedBox(
-                constraints: BoxConstraints(maxHeight: space.maxHeight * .36),
-                child: SingleChildScrollView(child: _controls()),
+                constraints: BoxConstraints(
+                  maxHeight:
+                      space.maxHeight * (space.maxHeight < 560 ? .55 : .4),
+                ),
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.only(top: 6),
+                  child: _controls(),
+                ),
               ),
               const SizedBox(height: 6),
               Expanded(

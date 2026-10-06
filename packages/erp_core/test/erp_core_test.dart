@@ -2,13 +2,19 @@ import 'package:erp_core/erp_core.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  test('THQ v6.2.8 Build 13 release contract keeps migration 213 compatibility', () {
-    expect(ThqReleaseContract.appVersion, '6.2.8');
-    expect(ThqReleaseContract.buildNumber, 13);
-    expect(ThqReleaseContract.releaseName, 'Production Validation & Client Readiness');
-    expect(ThqReleaseContract.minimumMigration, 213);
-    expect(ThqReleaseContract.apiVersion, 'v1');
-  });
+  test(
+    'THQ v7.0.0 Build 14 release contract keeps migration 213 compatibility',
+    () {
+      expect(ThqReleaseContract.appVersion, '7.0.0');
+      expect(ThqReleaseContract.buildNumber, 14);
+      expect(
+        ThqReleaseContract.releaseName,
+        'Futuristic UI & Compact Workspaces',
+      );
+      expect(ThqReleaseContract.minimumMigration, 213);
+      expect(ThqReleaseContract.apiVersion, 'v1');
+    },
+  );
 
   test(
     'sync version drift separates POS master data from transaction drift',

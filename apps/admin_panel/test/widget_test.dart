@@ -5,6 +5,8 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   testWidgets('shows THQ Super Admin login', (tester) async {
     await tester.pumpWidget(const ThqAdminApp(authenticatedOverride: false));
+    await tester.pump(const Duration(milliseconds: 3600));
+    await tester.pumpAndSettle();
 
     expect(find.text('THQ'), findsOneWidget);
     expect(find.text('Super Admin'), findsOneWidget);

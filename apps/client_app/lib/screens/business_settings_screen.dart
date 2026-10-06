@@ -88,7 +88,9 @@ class _BusinessSettingsScreenState extends State<BusinessSettingsScreen> {
               const SizedBox(height: 6),
               Text(
                 'Tenant-level behavior. These settings override platform/template defaults.',
-                style: TextStyle(color: Colors.grey.shade600),
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
               ),
               const SizedBox(height: 22),
               _section('Business & GST Details', [
@@ -244,7 +246,7 @@ class _BusinessSettingsScreenState extends State<BusinessSettingsScreen> {
                         children: [
                           Text(
                             'Enable Additional Charges',
-                            style: TextStyle(fontWeight: FontWeight.w800),
+                            style: TextStyle(fontWeight: FontWeight.w600),
                           ),
                           SizedBox(height: 3),
                           Text(
@@ -288,7 +290,7 @@ class _BusinessSettingsScreenState extends State<BusinessSettingsScreen> {
                   onTap: !_canManage
                       ? null
                       : () async {
-                          await showDialog<void>(
+                          await showThqDialog<void>(
                             context: context,
                             barrierDismissible: false,
                             builder: (_) => AdditionalChargesDialog(
@@ -393,7 +395,9 @@ class _BusinessSettingsScreenState extends State<BusinessSettingsScreen> {
                   padding: const EdgeInsets.only(top: 16),
                   child: Text(
                     _error!,
-                    style: const TextStyle(color: Colors.red),
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.error,
+                    ),
                   ),
                 ),
               const SizedBox(height: 20),

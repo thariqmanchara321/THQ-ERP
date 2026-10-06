@@ -307,14 +307,14 @@ class _TerminalDayScreenState extends State<TerminalDayScreen> {
               children: [
                 const Text(
                   'Terminal Daily',
-                  style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w900),
+                  style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w600),
                 ),
                 Text(
                   '${widget.session.device?.locationCode ?? ''} | '
                   '${widget.session.device?.deviceCode ?? ''}',
                   maxLines: 1,
                   style: TextStyle(
-                    fontSize: 8.3,
+                    fontSize: 11,
                     color: scheme.onSurfaceVariant,
                   ),
                 ),
@@ -518,7 +518,7 @@ class _TerminalDayScreenState extends State<TerminalDayScreen> {
                         'Invoices',
                         style: TextStyle(
                           fontSize: 17,
-                          fontWeight: FontWeight.w900,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                       Text(
@@ -611,7 +611,7 @@ class _TerminalDayScreenState extends State<TerminalDayScreen> {
             '$invoice${customer.isEmpty ? '' : ' • $customer'}',
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontWeight: FontWeight.w800),
+            style: const TextStyle(fontWeight: FontWeight.w600),
           ),
           subtitle: Text(
             [
@@ -626,7 +626,7 @@ class _TerminalDayScreenState extends State<TerminalDayScreen> {
           ),
           trailing: Text(
             _money(row['grand_total']),
-            style: const TextStyle(fontWeight: FontWeight.w900),
+            style: const TextStyle(fontWeight: FontWeight.w600),
           ),
         ),
       ),
@@ -657,7 +657,7 @@ class _TerminalDayScreenState extends State<TerminalDayScreen> {
                         title,
                         style: const TextStyle(
                           fontSize: 17,
-                          fontWeight: FontWeight.w900,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                       if (subtitle != null)
@@ -706,7 +706,7 @@ class _TerminalDayScreenState extends State<TerminalDayScreen> {
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
                   fontSize: 17,
-                  fontWeight: FontWeight.w900,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
               const SizedBox(height: 2),

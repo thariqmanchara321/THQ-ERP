@@ -14,18 +14,18 @@ abstract final class ThqMobileReleaseContract {
 }
 
 abstract final class ThqClientMobileReleaseContract {
-  static const String appVersion = '6.2.8';
-  static const int buildNumber = 13;
-  static const String releaseName = 'Production Validation & Client Readiness';
+  static const String appVersion = '7.0.0';
+  static const int buildNumber = 14;
+  static const String releaseName = 'Futuristic UI & Compact Workspaces';
   static const String platform = 'android';
 
   static const String versionLabel = 'v$appVersion • Build $buildNumber';
 }
 
 abstract final class ThqPosMobileReleaseContract {
-  static const String appVersion = '6.2.8';
-  static const int buildNumber = 13;
-  static const String releaseName = 'Production Validation & Client Readiness';
+  static const String appVersion = '7.0.0';
+  static const int buildNumber = 14;
+  static const String releaseName = 'Futuristic UI & Compact Workspaces';
   static const String platform = 'android';
 
   static const String versionLabel = 'v$appVersion • Build $buildNumber';
@@ -49,12 +49,12 @@ class ThqMobileReleaseStatus {
   });
 
   const ThqMobileReleaseStatus.unknown()
-      : status = 'unknown',
-        latestVersion = '',
-        mandatory = false,
-        releaseNotes = '',
-        downloadUrl = null,
-        backend = const <String, dynamic>{};
+    : status = 'unknown',
+      latestVersion = '',
+      mandatory = false,
+      releaseNotes = '',
+      downloadUrl = null,
+      backend = const <String, dynamic>{};
 
   factory ThqMobileReleaseStatus.fromMap(Map<String, dynamic> map) {
     final backendRaw = map['backend'];

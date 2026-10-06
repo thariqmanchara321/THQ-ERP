@@ -264,7 +264,7 @@ class _PosSettingsScreenState extends State<PosSettingsScreen> {
     }
 
     if (!mounted) return;
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showThqDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('Change Store / Business?'),
@@ -339,7 +339,7 @@ class _PosSettingsScreenState extends State<PosSettingsScreen> {
                       'POS Settings',
                       style: TextStyle(
                         fontSize: 14.5,
-                        fontWeight: FontWeight.w900,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ),
@@ -602,8 +602,8 @@ class _PosSettingsScreenState extends State<PosSettingsScreen> {
               Text(
                 title,
                 style: const TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w800,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
             ],

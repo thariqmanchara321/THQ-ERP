@@ -88,7 +88,9 @@ class _BusinessSettingsScreenState extends State<BusinessSettingsScreen> {
               const SizedBox(height: 6),
               Text(
                 'Tenant-level behavior. These settings override platform/template defaults.',
-                style: TextStyle(color: Colors.grey.shade600),
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
               ),
               const SizedBox(height: 22),
               _section('Sales & POS', [
@@ -187,7 +189,9 @@ class _BusinessSettingsScreenState extends State<BusinessSettingsScreen> {
                   padding: const EdgeInsets.only(top: 16),
                   child: Text(
                     _error!,
-                    style: const TextStyle(color: Colors.red),
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.error,
+                    ),
                   ),
                 ),
               const SizedBox(height: 20),

@@ -166,7 +166,7 @@ class _TransportServiceScreenState extends State<TransportServiceScreen> {
     );
     bool active = vehicle?['active'] != false;
 
-    final saved = await showDialog<bool>(
+    final saved = await showThqDialog<bool>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setLocalState) => AlertDialog(
@@ -371,7 +371,7 @@ class _TransportServiceScreenState extends State<TransportServiceScreen> {
     );
     final notes = TextEditingController(text: job?['notes']?.toString() ?? '');
 
-    final saved = await showDialog<bool>(
+    final saved = await showThqDialog<bool>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setLocalState) => AlertDialog(
@@ -704,7 +704,7 @@ class _TransportServiceScreenState extends State<TransportServiceScreen> {
     bool quoteLoading = false;
     final referenceController = TextEditingController();
 
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showThqDialog<bool>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setLocalState) {
@@ -873,9 +873,9 @@ class _TransportServiceScreenState extends State<TransportServiceScreen> {
                                 'GST preview is calculated by the server. Flutter does not calculate tax.',
                                 style: TextStyle(
                                   fontSize: 11,
-                                  color: Theme.of(context)
-                                      .colorScheme
-                                      .onSurfaceVariant,
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.onSurfaceVariant,
                                 ),
                               ),
                             ),
@@ -989,7 +989,7 @@ class _TransportServiceScreenState extends State<TransportServiceScreen> {
   Future<void> _linkExistingSale(Map<String, dynamic> job) async {
     if (job['sale_id'] != null) return;
     final controller = TextEditingController();
-    final ok = await showDialog<bool>(
+    final ok = await showThqDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: Text('Link Sale to ${job['job_number']}'),
@@ -1046,7 +1046,9 @@ class _TransportServiceScreenState extends State<TransportServiceScreen> {
                 children: [
                   Icon(
                     Icons.local_shipping_outlined,
-                    color: active ? Colors.green.shade700 : Colors.grey,
+                    color: active
+                        ? Theme.of(context).colorScheme.primary
+                        : Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
                   const SizedBox(width: 8),
                   Expanded(
@@ -1246,7 +1248,7 @@ class _TransportServiceScreenState extends State<TransportServiceScreen> {
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     fontSize: 16,
-                    fontWeight: FontWeight.w800,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
                 Text(
@@ -1284,7 +1286,7 @@ class _TransportServiceScreenState extends State<TransportServiceScreen> {
             value,
             style: TextStyle(
               fontSize: strong ? 17 : 14,
-              fontWeight: strong ? FontWeight.w800 : FontWeight.w600,
+              fontWeight: strong ? FontWeight.w600 : FontWeight.w600,
             ),
           ),
         ],
@@ -1342,7 +1344,7 @@ class _TransportServiceScreenState extends State<TransportServiceScreen> {
                     'Transport / Service',
                     style: TextStyle(
                       fontSize: 22,
-                      fontWeight: FontWeight.w800,
+                      fontWeight: FontWeight.w600,
                       letterSpacing: -.25,
                     ),
                   ),
@@ -1421,7 +1423,7 @@ class _TransportServiceScreenState extends State<TransportServiceScreen> {
                       'Fleet',
                       style: TextStyle(
                         fontSize: 17,
-                        fontWeight: FontWeight.w800,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                     Text(
@@ -1463,7 +1465,7 @@ class _TransportServiceScreenState extends State<TransportServiceScreen> {
               const Expanded(
                 child: Text(
                   'Service Jobs',
-                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800),
+                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
                 ),
               ),
               Text(

@@ -105,7 +105,7 @@ class _WorkshopScreenState extends State<WorkshopScreen>
       text: row?['chassis_number']?.toString() ?? '',
     );
     final notes = TextEditingController(text: row?['notes']?.toString() ?? '');
-    final saved = await showDialog<bool>(
+    final saved = await showThqDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: Text(row == null ? 'Add Vehicle' : 'Edit Vehicle'),
@@ -260,7 +260,7 @@ class _WorkshopScreenState extends State<WorkshopScreen>
     }
     var vehicleId = vehicles.first['id'].toString();
     final complaint = TextEditingController();
-    final saved = await showDialog<bool>(
+    final saved = await showThqDialog<bool>(
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setLocal) => AlertDialog(
@@ -454,7 +454,10 @@ class _WorkshopScreenState extends State<WorkshopScreen>
           if (_error != null)
             Padding(
               padding: const EdgeInsets.only(top: 12),
-              child: Text(_error!, style: const TextStyle(color: Colors.red)),
+              child: Text(
+                _error!,
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
             ),
           const SizedBox(height: 14),
           Expanded(
@@ -592,7 +595,11 @@ class _WorkshopScreenState extends State<WorkshopScreen>
                                 true)
                               Text(
                                 v['customer_name'].toString(),
-                                style: TextStyle(color: Colors.grey.shade600),
+                                style: TextStyle(
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.onSurfaceVariant,
+                                ),
                               ),
                           ],
                         ),

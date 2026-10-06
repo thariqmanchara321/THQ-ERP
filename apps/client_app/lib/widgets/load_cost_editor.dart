@@ -68,7 +68,8 @@ class _LoadCostEditorState extends State<LoadCostEditor> {
             'hsn_sac',
             'Correct SAC for this service',
             required: true,
-            help: 'Use the classification applicable to the service being supplied.',
+            help:
+                'Use the classification applicable to the service being supplied.',
           ),
           OperationalField(
             'taxability',
@@ -157,7 +158,8 @@ class _LoadCostEditorState extends State<LoadCostEditor> {
         const OperationalField(
           'payee',
           'External payee name',
-          help: 'Required for an external payee. Linked staff names are saved automatically.',
+          help:
+              'Required for an external payee. Linked staff names are saved automatically.',
         ),
         const OperationalField(
           'staff_mode',
@@ -166,7 +168,8 @@ class _LoadCostEditorState extends State<LoadCostEditor> {
             'extra_wage': 'Additional wage owed to staff',
             'salary_allocation': 'Allocate monthly salary to this load',
           },
-          help: 'Salary allocation tracks load cost without posting monthly payroll again. Choose additional wage when it is extra pay.',
+          help:
+              'Salary allocation tracks load cost without posting monthly payroll again. Choose additional wage when it is extra pay.',
         ),
         const OperationalField(
           'quantity',
@@ -185,7 +188,8 @@ class _LoadCostEditorState extends State<LoadCostEditor> {
             'bill_amount',
             'Amount charged to customer before GST',
             number: true,
-            help: 'Zero keeps this as an internal expense. This amount may differ from your cost.',
+            help:
+                'Zero keeps this as an internal expense. This amount may differ from your cost.',
           ),
           OperationalField(
             'billing_variant_id',
@@ -202,7 +206,8 @@ class _LoadCostEditorState extends State<LoadCostEditor> {
           'initial_payment',
           'Pay on load confirmation',
           number: true,
-          help: 'Zero leaves the expense unpaid. Salary allocations are paid through Staff payroll.',
+          help:
+              'Zero leaves the expense unpaid. Salary allocations are paid through Staff payroll.',
         ),
         const OperationalField(
           'payment_method',

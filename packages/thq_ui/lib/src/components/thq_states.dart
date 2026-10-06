@@ -55,7 +55,10 @@ class ThqErrorState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return _ThqCenteredState(
-      icon: Icon(Icons.error_outline, color: Theme.of(context).colorScheme.error),
+      icon: Icon(
+        Icons.error_outline,
+        color: Theme.of(context).colorScheme.error,
+      ),
       title: title,
       message: message,
       action: onRetry == null
@@ -91,7 +94,11 @@ class _ThqCenteredState extends StatelessWidget {
             children: [
               icon,
               const SizedBox(height: ThqTokens.space12),
-              Text(title, textAlign: TextAlign.center, style: theme.textTheme.titleMedium),
+              Text(
+                title,
+                textAlign: TextAlign.center,
+                style: theme.textTheme.titleMedium,
+              ),
               if (message != null && message!.trim().isNotEmpty) ...[
                 const SizedBox(height: ThqTokens.space8),
                 Text(

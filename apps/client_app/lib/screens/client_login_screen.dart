@@ -1,3 +1,4 @@
+import 'package:thq_ui/thq_ui.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -89,7 +90,7 @@ class _ClientLoginScreenState extends State<ClientLoginScreen> {
     final adminPassword = TextEditingController();
     var hidePassword = true;
 
-    final credentials = await showDialog<Map<String, String>>(
+    final credentials = await showThqDialog<Map<String, String>>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
@@ -217,112 +218,113 @@ class _ClientLoginScreenState extends State<ClientLoginScreen> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-                  TextField(
-                    controller: _usernameController,
-                    enabled: !_loading,
-                    autofillHints: const [AutofillHints.username],
-                    textInputAction: TextInputAction.next,
-                    decoration: const InputDecoration(
-                      labelText: 'Username',
-                      prefixIcon: Icon(Icons.person_outline),
-                      border: OutlineInputBorder(),
-                    ),
+            TextField(
+              controller: _usernameController,
+              enabled: !_loading,
+              autofillHints: const [AutofillHints.username],
+              textInputAction: TextInputAction.next,
+              decoration: const InputDecoration(
+                labelText: 'Username',
+                prefixIcon: Icon(Icons.person_outline),
+                border: OutlineInputBorder(),
+              ),
+            ),
+
+            const SizedBox(height: 18),
+
+            TextField(
+              controller: _passwordController,
+              enabled: !_loading,
+              obscureText: _hidePassword,
+              autofillHints: const [AutofillHints.password],
+              textInputAction: TextInputAction.done,
+
+              onSubmitted: (_) {
+                if (!_loading) {
+                  _login();
+                }
+              },
+
+              decoration: InputDecoration(
+                labelText: 'Password',
+                prefixIcon: const Icon(Icons.lock_outline),
+                border: const OutlineInputBorder(),
+                suffixIcon: IconButton(
+                  onPressed: _loading
+                      ? null
+                      : () {
+                          setState(() {
+                            _hidePassword = !_hidePassword;
+                          });
+                        },
+                  icon: Icon(
+                    _hidePassword
+                        ? Icons.visibility_outlined
+                        : Icons.visibility_off_outlined,
                   ),
+                ),
+              ),
+            ),
 
-                  const SizedBox(height: 18),
+            if (_error != null) ...[
+              const SizedBox(height: 16),
 
-                  TextField(
-                    controller: _passwordController,
-                    enabled: !_loading,
-                    obscureText: _hidePassword,
-                    autofillHints: const [AutofillHints.password],
-                    textInputAction: TextInputAction.done,
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.error,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(
+                      Icons.error_outline,
+                      size: 20,
+                      color: Theme.of(context).colorScheme.onError,
+                    ),
 
-                    onSubmitted: (_) {
-                      if (!_loading) {
-                        _login();
-                      }
-                    },
+                    const SizedBox(width: 8),
 
-                    decoration: InputDecoration(
-                      labelText: 'Password',
-                      prefixIcon: const Icon(Icons.lock_outline),
-                      border: const OutlineInputBorder(),
-                      suffixIcon: IconButton(
-                        onPressed: _loading
-                            ? null
-                            : () {
-                                setState(() {
-                                  _hidePassword = !_hidePassword;
-                                });
-                              },
-                        icon: Icon(
-                          _hidePassword
-                              ? Icons.visibility_outlined
-                              : Icons.visibility_off_outlined,
+                    Expanded(
+                      child: Text(
+                        _error!,
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.onError,
                         ),
                       ),
                     ),
-                  ),
-
-                  if (_error != null) ...[
-                    const SizedBox(height: 16),
-
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.red.shade50,
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Icon(
-                            Icons.error_outline,
-                            size: 20,
-                            color: Colors.red.shade700,
-                          ),
-
-                          const SizedBox(width: 8),
-
-                          Expanded(
-                            child: Text(
-                              _error!,
-                              style: TextStyle(color: Colors.red.shade700),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
                   ],
+                ),
+              ),
+            ],
 
-                  const SizedBox(height: 24),
+            const SizedBox(height: 24),
 
-                  SizedBox(
-                    height: 50,
-                    child: FilledButton(
-                      onPressed: _loading ? null : _login,
-                      child: _loading
-                          ? const SizedBox(
-                              width: 22,
-                              height: 22,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Text('Sign In'),
-                    ),
-                  ),
+            SizedBox(
+              height: 50,
+              child: FilledButton(
+                onPressed: _loading ? null : _login,
+                child: _loading
+                    ? const SizedBox(
+                        width: 22,
+                        height: 22,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Text('Sign In'),
+              ),
+            ),
 
-                  const SizedBox(height: 8),
+            const SizedBox(height: 8),
 
-                  TextButton.icon(
-                    onPressed: _loading ? null : _changeBusiness,
-                    icon: const Icon(Icons.swap_horiz),
-                    label: const Text('Change Store / Business'),
-                  ),
+            TextButton.icon(
+              onPressed: _loading ? null : _changeBusiness,
+              icon: const Icon(Icons.swap_horiz),
+              label: const Text('Change Store / Business'),
+            ),
           ],
         ),
       ),
     );
   }
-
 }

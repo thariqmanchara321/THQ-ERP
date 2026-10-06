@@ -1,3 +1,4 @@
+import 'package:thq_ui/thq_ui.dart';
 import 'package:flutter/material.dart';
 
 class OperationalField {
@@ -30,7 +31,7 @@ Future<bool?> showOperationalForm(
   String saveLabel = 'Save',
   String Function(Map<String, dynamic>)? preview,
 }) {
-  return showDialog<bool>(
+  return showThqDialog<bool>(
     context: context,
     barrierDismissible: false,
     builder: (_) => _OperationalFormDialog(

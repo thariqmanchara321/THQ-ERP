@@ -1,6 +1,8 @@
+import 'package:thq_ui/thq_ui.dart';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+
 import '../widgets/admin_home_button.dart';
 
 import '../models/platform_models.dart';
@@ -43,7 +45,7 @@ class _PlatformSettingsScreenState extends State<PlatformSettingsScreen> {
     final controller = TextEditingController(text: _display(setting.value));
     String? error;
     bool saving = false;
-    final changed = await showDialog<bool>(
+    final changed = await showThqDialog<bool>(
       context: context,
       barrierDismissible: false,
       builder: (dialogContext) => StatefulBuilder(
@@ -72,7 +74,9 @@ class _PlatformSettingsScreenState extends State<PlatformSettingsScreen> {
                     padding: const EdgeInsets.only(top: 10),
                     child: Text(
                       error!,
-                      style: const TextStyle(color: Colors.red),
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.error,
+                      ),
                     ),
                   ),
               ],
@@ -145,7 +149,9 @@ class _PlatformSettingsScreenState extends State<PlatformSettingsScreen> {
                 const SizedBox(height: 6),
                 Text(
                   'Global defaults only. Tenant-specific business settings continue to override these values.',
-                  style: TextStyle(color: Colors.grey.shade600),
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
                 ),
                 const SizedBox(height: 6),
                 ...rows.map(

@@ -6,21 +6,44 @@ import 'location_scope_service.dart';
 class TrackingService {
   SupabaseClient get _supabase => Supabase.instance.client;
 
-  Future<Map<String, dynamic>> previewConversion({required String tenantId, required String variantId}) async {
-    final result = await _supabase.rpc('inventory_tracking_conversion_preview_v633',
-      params: {'p_tenant_id': tenantId, 'p_variant_id': variantId});
-    if (result is! Map) throw const FormatException('Tracking conversion details could not be loaded.');
+  Future<Map<String, dynamic>> previewConversion({
+    required String tenantId,
+    required String variantId,
+  }) async {
+    final result = await _supabase.rpc(
+      'inventory_tracking_conversion_preview_v633',
+      params: {'p_tenant_id': tenantId, 'p_variant_id': variantId},
+    );
+    if (result is! Map)
+      throw const FormatException(
+        'Tracking conversion details could not be loaded.',
+      );
     return Map<String, dynamic>.from(result);
   }
 
-  Future<void> convert({required String tenantId, required String variantId, required String mode,
-    required int revision, required Map<String, dynamic> conversion, required Map<String, dynamic> policy,
-    required String requestId}) async {
-    await _supabase.rpc('inventory_tracking_convert_v633', params: {
-      'p_tenant_id': tenantId, 'p_variant_id': variantId, 'p_mode': mode, 'p_expected_revision': revision,
-      'p_locations': conversion['locations'], 'p_reason': conversion['reason'], 'p_request_id': requestId,
-      'p_devices_synced': true, 'p_policy': policy,
-    });
+  Future<void> convert({
+    required String tenantId,
+    required String variantId,
+    required String mode,
+    required int revision,
+    required Map<String, dynamic> conversion,
+    required Map<String, dynamic> policy,
+    required String requestId,
+  }) async {
+    await _supabase.rpc(
+      'inventory_tracking_convert_v633',
+      params: {
+        'p_tenant_id': tenantId,
+        'p_variant_id': variantId,
+        'p_mode': mode,
+        'p_expected_revision': revision,
+        'p_locations': conversion['locations'],
+        'p_reason': conversion['reason'],
+        'p_request_id': requestId,
+        'p_devices_synced': true,
+        'p_policy': policy,
+      },
+    );
   }
 
   Future<Map<String, dynamic>> syncWarranties({

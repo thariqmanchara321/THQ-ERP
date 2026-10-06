@@ -32,7 +32,7 @@ class ThqDesktopShell extends StatelessWidget {
     this.sidebarFooter,
     this.collapsed = false,
     this.onCollapsedChanged,
-    this.sidebarWidth = 224,
+    this.sidebarWidth = 176,
     this.collapsedWidth = 64,
     this.mobileDrawerHeader,
     super.key,
@@ -71,7 +71,10 @@ class ThqDesktopShell extends StatelessWidget {
           body: Row(
             children: [
               AnimatedContainer(
-                duration: ThqTokens.motionStandard,
+                duration:
+                    (MediaQuery.maybeDisableAnimationsOf(context) ?? false)
+                    ? Duration.zero
+                    : ThqTokens.motionStandard,
                 curve: Curves.easeOut,
                 width: collapsed ? collapsedWidth : sidebarWidth,
                 child: _Sidebar(
@@ -124,7 +127,7 @@ class _Sidebar extends StatelessWidget {
     final theme = Theme.of(context);
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
+        color: theme.colorScheme.surfaceContainerLow,
         border: Border(right: BorderSide(color: theme.dividerColor)),
       ),
       child: SafeArea(
@@ -233,10 +236,11 @@ class _DestinationTile extends StatelessWidget {
       ),
     );
 
-    if (!collapsed) return Padding(
-      padding: const EdgeInsets.only(bottom: ThqTokens.space2),
-      child: tile,
-    );
+    if (!collapsed)
+      return Padding(
+        padding: const EdgeInsets.only(bottom: ThqTokens.space2),
+        child: tile,
+      );
     return Padding(
       padding: const EdgeInsets.only(bottom: ThqTokens.space2),
       child: Tooltip(message: destination.label, child: tile),
@@ -322,10 +326,12 @@ class _MobileShell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: topBar == null ? null : PreferredSize(
-        preferredSize: const Size.fromHeight(56),
-        child: topBar!,
-      ),
+      appBar: topBar == null
+          ? null
+          : PreferredSize(
+              preferredSize: const Size.fromHeight(56),
+              child: topBar!,
+            ),
       drawer: Drawer(
         child: SafeArea(
           child: Column(

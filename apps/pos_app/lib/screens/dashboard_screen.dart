@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../models/client_session.dart';
 import '../models/dashboard_data.dart';
 import '../models/dashboard_insights.dart';
@@ -72,13 +73,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         'Dashboard',
                         style: TextStyle(
                           fontSize: 14.5,
-                          fontWeight: FontWeight.w900,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                       Text(
                         'Sales, cash flow, stock and customer performance',
                         style: TextStyle(
-                          fontSize: 8.3,
+                          fontSize: 11,
                           color: scheme.onSurfaceVariant,
                         ),
                       ),
@@ -303,15 +304,15 @@ class _Metric extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w900,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
                 Text(
                   label,
                   maxLines: 1,
                   style: TextStyle(
-                    fontSize: 7.5,
+                    fontSize: 11,
                     color: scheme.onSurfaceVariant,
                   ),
                 ),
@@ -344,13 +345,13 @@ class _ListCard extends StatelessWidget {
         children: [
           Text(
             title,
-            style: const TextStyle(fontSize: 9.5, fontWeight: FontWeight.w900),
+            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 4),
           if (rows.isEmpty)
             Text(
               'No data yet.',
-              style: TextStyle(fontSize: 8, color: scheme.onSurfaceVariant),
+              style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant),
             )
           else
             ...rows
@@ -365,7 +366,7 @@ class _ListCard extends StatelessWidget {
                             x.$1,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(fontSize: 7.8),
+                            style: const TextStyle(fontSize: 11),
                           ),
                         ),
                         const SizedBox(width: 6),
@@ -373,8 +374,8 @@ class _ListCard extends StatelessWidget {
                           x.$2,
                           maxLines: 1,
                           style: const TextStyle(
-                            fontSize: 7.8,
-                            fontWeight: FontWeight.w800,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
                       ],

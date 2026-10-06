@@ -19,12 +19,12 @@ class ThqMobileVersionPill extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.verified_outlined, size: 14, color: scheme.onPrimary),
+            Icon(Icons.verified_outlined, size: 14, color: scheme.onSurface),
             const SizedBox(width: 5),
             Text(
               label,
               style: TextStyle(
-                color: scheme.onPrimary,
+                color: scheme.onSurface,
                 fontSize: 10.5,
                 fontWeight: FontWeight.w800,
               ),
@@ -80,8 +80,8 @@ class ThqMobileAccessScaffold extends StatelessWidget {
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
                       colors: [
-                        scheme.primary,
-                        Color.lerp(scheme.primary, scheme.secondary, 0.78)!,
+                        scheme.surfaceContainerLow,
+                        scheme.surfaceContainerHighest,
                       ],
                     ),
                     borderRadius: const BorderRadius.vertical(
@@ -109,7 +109,9 @@ class ThqMobileAccessScaffold extends StatelessWidget {
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                   style: TextStyle(
-                                    color: scheme.onPrimary.withValues(alpha: 0.78),
+                                    color: scheme.onSurface.withValues(
+                                      alpha: 0.78,
+                                    ),
                                     fontSize: 10.5,
                                     fontWeight: FontWeight.w900,
                                     letterSpacing: 1.15,
@@ -123,7 +125,7 @@ class ThqMobileAccessScaffold extends StatelessWidget {
                           Text(
                             title,
                             style: TextStyle(
-                              color: scheme.onPrimary,
+                              color: scheme.onSurface,
                               fontSize: 28,
                               height: 1.08,
                               fontWeight: FontWeight.w900,
@@ -134,7 +136,7 @@ class ThqMobileAccessScaffold extends StatelessWidget {
                           Text(
                             subtitle,
                             style: TextStyle(
-                              color: scheme.onPrimary.withValues(alpha: 0.78),
+                              color: scheme.onSurface.withValues(alpha: 0.78),
                               fontSize: 13,
                               height: 1.45,
                               fontWeight: FontWeight.w500,
@@ -294,8 +296,8 @@ class ThqMobileFailurePage extends StatelessWidget {
                     message,
                     textAlign: TextAlign.center,
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: scheme.onSurfaceVariant,
-                        ),
+                      color: scheme.onSurfaceVariant,
+                    ),
                   ),
                   if (onRetry != null) ...[
                     const SizedBox(height: 20),
@@ -336,31 +338,28 @@ class ThqMobileSectionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Row(
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title, style: Theme.of(context).textTheme.titleLarge),
-                if (subtitle != null && subtitle!.isNotEmpty) ...[
-                  const SizedBox(height: 2),
-                  Text(
-                    subtitle!,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-          if (trailing != null) ...[
-            const SizedBox(width: 10),
-            trailing!,
+    crossAxisAlignment: CrossAxisAlignment.end,
+    children: [
+      Expanded(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(title, style: Theme.of(context).textTheme.titleLarge),
+            if (subtitle != null && subtitle!.isNotEmpty) ...[
+              const SizedBox(height: 2),
+              Text(
+                subtitle!,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
           ],
-        ],
-      );
+        ),
+      ),
+      if (trailing != null) ...[const SizedBox(width: 10), trailing!],
+    ],
+  );
 }
 
 class ThqMobileMetricCard extends StatelessWidget {
@@ -402,9 +401,9 @@ class ThqMobileMetricCard extends StatelessWidget {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: -0.2,
-                ),
+              fontWeight: FontWeight.w900,
+              letterSpacing: -0.2,
+            ),
           ),
           const SizedBox(height: 2),
           Text(
@@ -412,9 +411,9 @@ class ThqMobileMetricCard extends StatelessWidget {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: scheme.onSurfaceVariant,
-                  fontWeight: FontWeight.w700,
-                ),
+              color: scheme.onSurfaceVariant,
+              fontWeight: FontWeight.w700,
+            ),
           ),
           if (helper != null && helper!.isNotEmpty) ...[
             const SizedBox(height: 4),
@@ -423,9 +422,9 @@ class ThqMobileMetricCard extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: scheme.onSurfaceVariant,
-                    fontSize: 10,
-                  ),
+                color: scheme.onSurfaceVariant,
+                fontSize: 10,
+              ),
             ),
           ],
         ],
@@ -433,9 +432,7 @@ class ThqMobileMetricCard extends StatelessWidget {
     );
     return Card(
       clipBehavior: Clip.antiAlias,
-      child: onTap == null
-          ? content
-          : InkWell(onTap: onTap, child: content),
+      child: onTap == null ? content : InkWell(onTap: onTap, child: content),
     );
   }
 }
@@ -444,23 +441,30 @@ class ThqMobileStatusChip extends StatelessWidget {
   final String label;
   final IconData? icon;
 
-  const ThqMobileStatusChip({
-    super.key,
-    required this.label,
-    this.icon,
-  });
+  const ThqMobileStatusChip({super.key, required this.label, this.icon});
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final value = label.trim().toLowerCase();
     final (Color bg, Color fg) = switch (value) {
-      'paid' || 'active' || 'success' || 'approved' || 'normal' =>
-        (const Color(0xFFEAF8F1), const Color(0xFF137A4F)),
-      'overdue' || 'critical_overdue' || 'critical' || 'high_risk' || 'rejected' || 'out_of_stock' || 'expired' =>
-        (scheme.errorContainer, scheme.onErrorContainer),
-      'pending' || 'warning' || 'needs_review' || 'low_stock' || 'under_review' =>
-        (const Color(0xFFFFF4DA), const Color(0xFF9A6700)),
+      'paid' ||
+      'active' ||
+      'success' ||
+      'approved' ||
+      'normal' => (const Color(0xFFEAF8F1), const Color(0xFF137A4F)),
+      'overdue' ||
+      'critical_overdue' ||
+      'critical' ||
+      'high_risk' ||
+      'rejected' ||
+      'out_of_stock' ||
+      'expired' => (scheme.errorContainer, scheme.onErrorContainer),
+      'pending' ||
+      'warning' ||
+      'needs_review' ||
+      'low_stock' ||
+      'under_review' => (const Color(0xFFFFF4DA), const Color(0xFF9A6700)),
       _ => (scheme.surfaceContainer, scheme.onSurfaceVariant),
     };
     return Container(
@@ -508,23 +512,23 @@ class ThqMobileSearchField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => TextField(
-        controller: controller,
-        textInputAction: TextInputAction.search,
-        autocorrect: false,
-        onChanged: onChanged,
-        onSubmitted: onSubmitted,
-        decoration: InputDecoration(
-          hintText: hintText,
-          prefixIcon: const Icon(Icons.search_rounded),
-          suffixIcon: controller.text.isEmpty
-              ? null
-              : IconButton(
-                  tooltip: 'Clear',
-                  onPressed: onClear,
-                  icon: const Icon(Icons.close_rounded),
-                ),
-        ),
-      );
+    controller: controller,
+    textInputAction: TextInputAction.search,
+    autocorrect: false,
+    onChanged: onChanged,
+    onSubmitted: onSubmitted,
+    decoration: InputDecoration(
+      hintText: hintText,
+      prefixIcon: const Icon(Icons.search_rounded),
+      suffixIcon: controller.text.isEmpty
+          ? null
+          : IconButton(
+              tooltip: 'Clear',
+              onPressed: onClear,
+              icon: const Icon(Icons.close_rounded),
+            ),
+    ),
+  );
 }
 
 class ThqMobileEmptyState extends StatelessWidget {
@@ -568,14 +572,11 @@ class ThqMobileEmptyState extends StatelessWidget {
           Text(
             message,
             textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: scheme.onSurfaceVariant,
-                ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
           ),
-          if (action != null) ...[
-            const SizedBox(height: 16),
-            action!,
-          ],
+          if (action != null) ...[const SizedBox(height: 16), action!],
         ],
       ),
     );
@@ -621,9 +622,7 @@ class ThqMobileUpdateBanner extends StatelessWidget {
                   mandatory
                       ? Icons.system_update_alt_rounded
                       : Icons.new_releases_outlined,
-                  color: mandatory
-                      ? scheme.onErrorContainer
-                      : scheme.primary,
+                  color: mandatory ? scheme.onErrorContainer : scheme.primary,
                   size: 20,
                 ),
               ),
@@ -644,8 +643,8 @@ class ThqMobileUpdateBanner extends StatelessWidget {
                       maxLines: 3,
                       overflow: TextOverflow.ellipsis,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: scheme.onSurfaceVariant,
-                          ),
+                        color: scheme.onSurfaceVariant,
+                      ),
                     ),
                   ],
                 ),

@@ -114,7 +114,7 @@ class _ReturnsRegisterScreenState extends State<ReturnsRegisterScreen> {
         toolbarHeight: 46,
         title: const Text(
           'Returns Register',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
         ),
       ),
       body: Padding(
@@ -275,7 +275,7 @@ class _ReturnsRegisterScreenState extends State<ReturnsRegisterScreen> {
                                           'Return',
                                           style: TextStyle(
                                             fontSize: 11,
-                                            fontWeight: FontWeight.w800,
+                                            fontWeight: FontWeight.w600,
                                           ),
                                         ),
                                       ),
@@ -285,7 +285,7 @@ class _ReturnsRegisterScreenState extends State<ReturnsRegisterScreen> {
                                           'Type',
                                           style: TextStyle(
                                             fontSize: 11,
-                                            fontWeight: FontWeight.w800,
+                                            fontWeight: FontWeight.w600,
                                           ),
                                         ),
                                       ),
@@ -295,7 +295,7 @@ class _ReturnsRegisterScreenState extends State<ReturnsRegisterScreen> {
                                           'Party / Reference',
                                           style: TextStyle(
                                             fontSize: 11,
-                                            fontWeight: FontWeight.w800,
+                                            fontWeight: FontWeight.w600,
                                           ),
                                         ),
                                       ),
@@ -305,7 +305,7 @@ class _ReturnsRegisterScreenState extends State<ReturnsRegisterScreen> {
                                           'Store / Device',
                                           style: TextStyle(
                                             fontSize: 11,
-                                            fontWeight: FontWeight.w800,
+                                            fontWeight: FontWeight.w600,
                                           ),
                                         ),
                                       ),
@@ -316,7 +316,7 @@ class _ReturnsRegisterScreenState extends State<ReturnsRegisterScreen> {
                                           textAlign: TextAlign.right,
                                           style: TextStyle(
                                             fontSize: 11,
-                                            fontWeight: FontWeight.w800,
+                                            fontWeight: FontWeight.w600,
                                           ),
                                         ),
                                       ),
@@ -371,7 +371,7 @@ class _ReturnsRegisterScreenState extends State<ReturnsRegisterScreen> {
                                                     style: const TextStyle(
                                                       fontSize: 11,
                                                       fontWeight:
-                                                          FontWeight.w800,
+                                                          FontWeight.w600,
                                                     ),
                                                   ),
                                                   Text(
@@ -380,7 +380,7 @@ class _ReturnsRegisterScreenState extends State<ReturnsRegisterScreen> {
                                                     overflow:
                                                         TextOverflow.ellipsis,
                                                     style: TextStyle(
-                                                      fontSize: 10.5,
+                                                      fontSize: 11,
                                                       color: scheme
                                                           .onSurfaceVariant,
                                                     ),
@@ -392,7 +392,7 @@ class _ReturnsRegisterScreenState extends State<ReturnsRegisterScreen> {
                                               _money(row['grand_total']),
                                               style: const TextStyle(
                                                 fontSize: 11,
-                                                fontWeight: FontWeight.w900,
+                                                fontWeight: FontWeight.w600,
                                               ),
                                             ),
                                           ],
@@ -436,7 +436,7 @@ class _ReturnsRegisterScreenState extends State<ReturnsRegisterScreen> {
                                               maxLines: 1,
                                               style: const TextStyle(
                                                 fontSize: 11,
-                                                fontWeight: FontWeight.w800,
+                                                fontWeight: FontWeight.w600,
                                               ),
                                             ),
                                             2,
@@ -448,7 +448,7 @@ class _ReturnsRegisterScreenState extends State<ReturnsRegisterScreen> {
                                                   : 'Purchase Return',
                                               maxLines: 1,
                                               style: const TextStyle(
-                                                fontSize: 10.5,
+                                                fontSize: 11,
                                               ),
                                             ),
                                             2,
@@ -470,7 +470,7 @@ class _ReturnsRegisterScreenState extends State<ReturnsRegisterScreen> {
                                               maxLines: 1,
                                               overflow: TextOverflow.ellipsis,
                                               style: TextStyle(
-                                                fontSize: 10.5,
+                                                fontSize: 11,
                                                 color: scheme.onSurfaceVariant,
                                               ),
                                             ),
@@ -482,7 +482,7 @@ class _ReturnsRegisterScreenState extends State<ReturnsRegisterScreen> {
                                               maxLines: 1,
                                               style: const TextStyle(
                                                 fontSize: 11,
-                                                fontWeight: FontWeight.w900,
+                                                fontWeight: FontWeight.w600,
                                               ),
                                             ),
                                             2,
@@ -531,14 +531,14 @@ class _MiniMetric extends StatelessWidget {
             label,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: TextStyle(fontSize: 10.5, color: scheme.onSurfaceVariant),
+            style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant),
           ),
           const SizedBox(height: 2),
           Text(
             value,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w900),
+            style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600),
           ),
         ],
       ),

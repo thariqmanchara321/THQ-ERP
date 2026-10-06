@@ -71,7 +71,7 @@ class _BackupExportScreenState extends State<BackupExportScreen> {
                       'Backup & Export',
                       style: TextStyle(
                         fontSize: 24,
-                        fontWeight: FontWeight.w800,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                     SizedBox(height: 4),

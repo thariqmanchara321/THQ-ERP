@@ -84,7 +84,7 @@ class _DivisionOverviewScreenState extends State<DivisionOverviewScreen> {
                         'Division Overview',
                         style: TextStyle(
                           fontSize: 22,
-                          fontWeight: FontWeight.w900,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                       SizedBox(height: 3),
@@ -153,7 +153,7 @@ class _DivisionOverviewScreenState extends State<DivisionOverviewScreen> {
                             'Business Division',
                         style: const TextStyle(
                           fontSize: 17,
-                          fontWeight: FontWeight.w800,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                       const SizedBox(height: 10),
@@ -220,7 +220,7 @@ class _DivisionOverviewScreenState extends State<DivisionOverviewScreen> {
                                             Text(
                                               row['name']?.toString() ?? '',
                                               style: const TextStyle(
-                                                fontWeight: FontWeight.w800,
+                                                fontWeight: FontWeight.w600,
                                               ),
                                             ),
                                             Text(
@@ -306,7 +306,7 @@ class _Metric extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
                   fontSize: 16,
-                  fontWeight: FontWeight.w900,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
             ],
@@ -330,7 +330,7 @@ class _SmallValue extends StatelessWidget {
         Text(
           label,
           style: TextStyle(
-            fontSize: 10,
+            fontSize: 11,
             color: Theme.of(context).colorScheme.onSurfaceVariant,
           ),
         ),

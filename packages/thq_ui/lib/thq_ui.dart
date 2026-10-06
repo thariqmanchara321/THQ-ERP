@@ -1,5 +1,9 @@
 library;
 
+export 'src/components/thq_dialog.dart';
+export 'src/components/thq_product_selection_header.dart';
+export 'src/components/thq_invoice_paper_scope.dart';
+
 export 'src/components/thq_buttons.dart';
 export 'src/components/thq_card.dart';
 export 'src/components/thq_command_surface.dart';
@@ -25,3 +29,7 @@ export 'src/navigation/thq_top_bar.dart';
 export 'src/status/thq_status.dart';
 export 'src/theme/thq_semantic_colors.dart';
 export 'src/theme/thq_theme.dart';
+
+export 'src/theme/thq_v7_theme.dart';
+export 'src/theme/thq_design_profile.dart';
+export 'src/layout/thq_v7_workspace.dart';

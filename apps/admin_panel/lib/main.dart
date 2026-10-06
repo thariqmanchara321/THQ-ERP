@@ -9,7 +9,7 @@ import 'config/supabase_config.dart';
 import 'screens/admin_dashboard_v600.dart';
 import 'screens/login_screen.dart';
 import 'services/app_log_service.dart';
-import 'ui/v43_theme.dart';
+import 'ui/thq_brand_experience.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -44,8 +44,15 @@ class ThqAdminApp extends StatelessWidget {
     return MaterialApp(
       title: 'THQ Admin',
       debugShowCheckedModeBanner: false,
-      builder: (context, child) => ThqNotificationHost(
-        child: NumericZeroAutoSelect(child: child ?? const SizedBox.shrink()),
+      builder: (context, child) => ThqMotionScope(
+        child: ThqStartupGate(
+          appName: 'THQ Admin',
+          child: ThqNotificationHost(
+            child: NumericZeroAutoSelect(
+              child: child ?? const SizedBox.shrink(),
+            ),
+          ),
+        ),
       ),
       theme: UiDesignProfile.fallback('client').theme(),
       home: authenticated ? const AdminDashboardV600() : const LoginScreen(),

@@ -1,4 +1,6 @@
+import 'package:thq_ui/thq_ui.dart';
 import 'package:flutter/material.dart';
+
 import '../widgets/admin_home_button.dart';
 
 import '../services/owner_service.dart';
@@ -85,7 +87,7 @@ class _CreateOwnerScreenState extends State<CreateOwnerScreen> {
         return;
       }
 
-      await showDialog<void>(
+      await showThqDialog<void>(
         context: context,
         barrierDismissible: false,
         builder: (dialogContext) => AlertDialog(
@@ -134,7 +136,7 @@ class _CreateOwnerScreenState extends State<CreateOwnerScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
 
       appBar: AppBar(
         title: const Text(
@@ -154,9 +156,11 @@ class _CreateOwnerScreenState extends State<CreateOwnerScreen> {
             padding: const EdgeInsets.all(32),
 
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: Theme.of(context).colorScheme.surface,
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: Colors.grey.shade200),
+              border: Border.all(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
             ),
 
             child: Column(
@@ -175,7 +179,10 @@ class _CreateOwnerScreenState extends State<CreateOwnerScreen> {
 
                 Text(
                   widget.businessName,
-                  style: TextStyle(fontSize: 16, color: Colors.grey.shade600),
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
                 ),
 
                 const SizedBox(height: 30),
@@ -271,21 +278,28 @@ class _CreateOwnerScreenState extends State<CreateOwnerScreen> {
                     width: double.infinity,
                     padding: const EdgeInsets.all(14),
                     decoration: BoxDecoration(
-                      color: Colors.red.shade50,
+                      color: Theme.of(context).colorScheme.error,
                       borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: Colors.red.shade100),
+                      border: Border.all(
+                        color: Theme.of(context).colorScheme.error,
+                      ),
                     ),
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Icon(Icons.error_outline, color: Colors.red.shade700),
+                        Icon(
+                          Icons.error_outline,
+                          color: Theme.of(context).colorScheme.onError,
+                        ),
 
                         const SizedBox(width: 10),
 
                         Expanded(
                           child: Text(
                             _error!,
-                            style: TextStyle(color: Colors.red.shade700),
+                            style: TextStyle(
+                              color: Theme.of(context).colorScheme.onError,
+                            ),
                           ),
                         ),
                       ],

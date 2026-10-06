@@ -98,7 +98,7 @@ class _CommercialPricingReportDialogState
           Text(
             label,
             style: TextStyle(
-              fontSize: 9,
+              fontSize: 11,
               fontWeight: FontWeight.w700,
               color: scheme.onSurfaceVariant,
             ),
@@ -107,13 +107,13 @@ class _CommercialPricingReportDialogState
             value,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900),
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
           ),
           Text(
             caption,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: TextStyle(fontSize: 8.5, color: scheme.onSurfaceVariant),
+            style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant),
           ),
         ],
       ),
@@ -153,13 +153,13 @@ class _CommercialPricingReportDialogState
                           'Commercial Pricing Report',
                           style: TextStyle(
                             fontSize: 15,
-                            fontWeight: FontWeight.w900,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
                         Text(
                           '${_date(widget.from)} â†’ ${_date(widget.to)}',
                           style: TextStyle(
-                            fontSize: 9,
+                            fontSize: 11,
                             color: scheme.onSurfaceVariant,
                           ),
                         ),
@@ -346,7 +346,7 @@ class _CommercialPricingReportDialogState
         children: [
           Text(
             title,
-            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w900),
+            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 8),
           child,
@@ -367,22 +367,22 @@ class _CommercialPricingReportDialogState
               children: [
                 Text(
                   title,
-                  style: const TextStyle(fontWeight: FontWeight.w800),
+                  style: const TextStyle(fontWeight: FontWeight.w600),
                 ),
-                Text(subtitle, style: const TextStyle(fontSize: 10)),
+                Text(subtitle, style: const TextStyle(fontSize: 11)),
               ],
             ),
           ),
           Expanded(
             flex: 3,
-            child: Text(detail, style: const TextStyle(fontSize: 10)),
+            child: Text(detail, style: const TextStyle(fontSize: 11)),
           ),
           SizedBox(
             width: 120,
             child: Text(
               value,
               textAlign: TextAlign.right,
-              style: const TextStyle(fontWeight: FontWeight.w900),
+              style: const TextStyle(fontWeight: FontWeight.w600),
             ),
           ),
         ],

@@ -1,3 +1,4 @@
+import 'package:thq_ui/thq_ui.dart';
 import 'package:flutter/material.dart';
 import 'package:thq_logistics/thq_logistics.dart';
 
@@ -133,7 +134,7 @@ class _TransportLogisticsHubScreenState
   };
 
   Future<void> _newTrip() async {
-    final mode = await showDialog<String>(
+    final mode = await showThqDialog<String>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('New Trip'),
@@ -341,7 +342,7 @@ class _TransportLogisticsHubScreenState
     final date = row['source_date']?.toString() ?? '-';
     final billed = row['sale_id'] != null;
 
-    final openFull = await showDialog<bool>(
+    final openFull = await showThqDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: Text(row['trip_number']?.toString() ?? source),
@@ -454,7 +455,7 @@ class _TransportLogisticsHubScreenState
                       '$value',
                       style: const TextStyle(
                         fontSize: 18,
-                        fontWeight: FontWeight.w800,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                     Text(label, style: const TextStyle(fontSize: 11)),
@@ -628,7 +629,7 @@ class _TransportLogisticsHubScreenState
                                 visualDensity: VisualDensity.compact,
                                 label: Text(
                                   status.replaceAll('_', ' ').toUpperCase(),
-                                  style: const TextStyle(fontSize: 10),
+                                  style: const TextStyle(fontSize: 11),
                                 ),
                               ),
                             ],
@@ -699,7 +700,7 @@ class _TransportLogisticsHubScreenState
                         'Transport & Logistics',
                         style: TextStyle(
                           fontSize: 20,
-                          fontWeight: FontWeight.w800,
+                          fontWeight: FontWeight.w600,
                           letterSpacing: -.25,
                         ),
                       ),

@@ -39,7 +39,7 @@ class _MobileApprovalsPageState extends State<MobileApprovalsPage> {
   }
 
   Future<void> _decide(Map<String, dynamic> row, bool approve) async {
-    final note = await showDialog<String>(
+    final note = await showThqDialog<String>(
       context: context,
       builder: (context) => _ApprovalNoteDialog(
         title: approve ? 'Approve request' : 'Reject request',
@@ -1124,7 +1124,7 @@ class _MobileReportsPageState extends State<MobileReportsPage> {
                           entry.value?.toString() ?? '—',
                           textAlign: TextAlign.end,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(fontWeight: FontWeight.w800),
+                          style: const TextStyle(fontWeight: FontWeight.w600),
                         ),
                       ),
                     ),

@@ -324,7 +324,7 @@ class _AccountingScreenState extends State<AccountingScreen> {
     );
     var type = account?['account_type']?.toString() ?? 'asset';
     var active = account?['active'] != false;
-    final ok = await showDialog<bool>(
+    final ok = await showThqDialog<bool>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
@@ -477,7 +477,7 @@ class _AccountingScreenState extends State<AccountingScreen> {
       selected[key.$1] =
           row?['account_id']?.toString() ?? _accounts.first['id'].toString();
     }
-    final saved = await showDialog<bool>(
+    final saved = await showThqDialog<bool>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
@@ -554,7 +554,7 @@ class _AccountingScreenState extends State<AccountingScreen> {
       );
       return;
     }
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showThqDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('Archive Account'),
@@ -632,7 +632,7 @@ class _AccountingScreenState extends State<AccountingScreen> {
         );
         return;
       }
-      final draft = await showDialog<Map<String, dynamic>>(
+      final draft = await showThqDialog<Map<String, dynamic>>(
         context: context,
         barrierDismissible: false,
         builder: (_) =>
@@ -747,7 +747,7 @@ class _AccountingScreenState extends State<AccountingScreen> {
                   'ACCOUNTING',
                   style: TextStyle(
                     fontSize: 11.5,
-                    fontWeight: FontWeight.w900,
+                    fontWeight: FontWeight.w600,
                     letterSpacing: .5,
                   ),
                 ),
@@ -807,7 +807,7 @@ class _AccountingScreenState extends State<AccountingScreen> {
                                 style: TextStyle(
                                   fontSize: 11.5,
                                   fontWeight: selected
-                                      ? FontWeight.w800
+                                      ? FontWeight.w600
                                       : FontWeight.w600,
                                   color: selected
                                       ? scheme.onPrimaryContainer
@@ -909,7 +909,7 @@ class _AccountingScreenState extends State<AccountingScreen> {
                 const Text(
                   'Accounting',
                   maxLines: 1,
-                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.w900),
+                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
                 ),
                 Text(
                   _sectionLabel(_section),
@@ -1333,7 +1333,7 @@ class _AccountingScreenState extends State<AccountingScreen> {
                                 'Code',
                                 style: TextStyle(
                                   fontSize: 11,
-                                  fontWeight: FontWeight.w800,
+                                  fontWeight: FontWeight.w600,
                                 ),
                               ),
                             ),
@@ -1343,7 +1343,7 @@ class _AccountingScreenState extends State<AccountingScreen> {
                                 'Account',
                                 style: TextStyle(
                                   fontSize: 11,
-                                  fontWeight: FontWeight.w800,
+                                  fontWeight: FontWeight.w600,
                                 ),
                               ),
                             ),
@@ -1353,7 +1353,7 @@ class _AccountingScreenState extends State<AccountingScreen> {
                                 'Type',
                                 style: TextStyle(
                                   fontSize: 11,
-                                  fontWeight: FontWeight.w800,
+                                  fontWeight: FontWeight.w600,
                                 ),
                               ),
                             ),
@@ -1364,7 +1364,7 @@ class _AccountingScreenState extends State<AccountingScreen> {
                                 textAlign: TextAlign.right,
                                 style: TextStyle(
                                   fontSize: 11,
-                                  fontWeight: FontWeight.w800,
+                                  fontWeight: FontWeight.w600,
                                 ),
                               ),
                             ),
@@ -1420,7 +1420,7 @@ class _AccountingScreenState extends State<AccountingScreen> {
                     : 'A',
                 style: TextStyle(
                   fontSize: 12,
-                  fontWeight: FontWeight.w900,
+                  fontWeight: FontWeight.w600,
                   color: scheme.primary,
                 ),
               ),
@@ -1437,7 +1437,7 @@ class _AccountingScreenState extends State<AccountingScreen> {
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                       fontSize: 12,
-                      fontWeight: FontWeight.w800,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                   Text(
@@ -1456,7 +1456,7 @@ class _AccountingScreenState extends State<AccountingScreen> {
             ),
             Text(
               _money(account['balance']),
-              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
             ),
             if (_canManage)
               IconButton(
@@ -1493,7 +1493,7 @@ class _AccountingScreenState extends State<AccountingScreen> {
               maxLines: 1,
               style: const TextStyle(
                 fontSize: 11.5,
-                fontWeight: FontWeight.w800,
+                fontWeight: FontWeight.w600,
               ),
             ),
             2,
@@ -1519,7 +1519,7 @@ class _AccountingScreenState extends State<AccountingScreen> {
                       'SYSTEM',
                       style: TextStyle(
                         fontSize: 11,
-                        fontWeight: FontWeight.w900,
+                        fontWeight: FontWeight.w600,
                         color: scheme.primary,
                       ),
                     ),
@@ -1542,7 +1542,7 @@ class _AccountingScreenState extends State<AccountingScreen> {
               maxLines: 1,
               style: TextStyle(
                 fontSize: 11.5,
-                fontWeight: FontWeight.w800,
+                fontWeight: FontWeight.w600,
                 color: archived ? scheme.onSurfaceVariant : scheme.onSurface,
               ),
             ),
@@ -1640,7 +1640,7 @@ class _AccountingScreenState extends State<AccountingScreen> {
             label,
             textAlign: align,
             maxLines: 1,
-            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800),
+            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
           ),
         );
 
@@ -1712,7 +1712,7 @@ class _AccountingScreenState extends State<AccountingScreen> {
                     'DR ${_money(debit)}',
                     style: const TextStyle(
                       fontSize: 11,
-                      fontWeight: FontWeight.w800,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 if (credit.abs() > .0001)
@@ -1720,7 +1720,7 @@ class _AccountingScreenState extends State<AccountingScreen> {
                     'CR ${_money(credit)}',
                     style: const TextStyle(
                       fontSize: 11,
-                      fontWeight: FontWeight.w800,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
               ],
@@ -1815,7 +1815,7 @@ class _AccountingScreenState extends State<AccountingScreen> {
                     maxLines: 1,
                     style: const TextStyle(
                       fontSize: 11.5,
-                      fontWeight: FontWeight.w800,
+                      fontWeight: FontWeight.w600,
                     ),
                   )
                 : const SizedBox.shrink(),
@@ -1829,7 +1829,7 @@ class _AccountingScreenState extends State<AccountingScreen> {
                     maxLines: 1,
                     style: const TextStyle(
                       fontSize: 11.5,
-                      fontWeight: FontWeight.w800,
+                      fontWeight: FontWeight.w600,
                     ),
                   )
                 : const SizedBox.shrink(),
@@ -1953,7 +1953,7 @@ class _AccountingScreenState extends State<AccountingScreen> {
                                       'Code',
                                       style: TextStyle(
                                         fontSize: 11,
-                                        fontWeight: FontWeight.w800,
+                                        fontWeight: FontWeight.w600,
                                       ),
                                     ),
                                   ),
@@ -1963,7 +1963,7 @@ class _AccountingScreenState extends State<AccountingScreen> {
                                       'Account',
                                       style: TextStyle(
                                         fontSize: 11,
-                                        fontWeight: FontWeight.w800,
+                                        fontWeight: FontWeight.w600,
                                       ),
                                     ),
                                   ),
@@ -1973,7 +1973,7 @@ class _AccountingScreenState extends State<AccountingScreen> {
                                       'Type',
                                       style: TextStyle(
                                         fontSize: 11,
-                                        fontWeight: FontWeight.w800,
+                                        fontWeight: FontWeight.w600,
                                       ),
                                     ),
                                   ),
@@ -1988,7 +1988,7 @@ class _AccountingScreenState extends State<AccountingScreen> {
                                       textAlign: TextAlign.right,
                                       style: const TextStyle(
                                         fontSize: 11,
-                                        fontWeight: FontWeight.w800,
+                                        fontWeight: FontWeight.w600,
                                       ),
                                     ),
                                   ),
@@ -2071,7 +2071,7 @@ class _AccountingScreenState extends State<AccountingScreen> {
               maxLines: 1,
               style: const TextStyle(
                 fontSize: 11.5,
-                fontWeight: FontWeight.w800,
+                fontWeight: FontWeight.w600,
               ),
             ),
           ],
@@ -2123,7 +2123,7 @@ class _AccountingScreenState extends State<AccountingScreen> {
                   maxLines: 1,
                   style: const TextStyle(
                     fontSize: 11.5,
-                    fontWeight: FontWeight.w800,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
                 if (secondary.isNotEmpty)
@@ -2200,7 +2200,7 @@ class _MetricCard extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     fontSize: 12,
-                    fontWeight: FontWeight.w900,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ],
@@ -2237,7 +2237,7 @@ class _MiniMetric extends StatelessWidget {
           value,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w800),
+          style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600),
         ),
       ],
     );
@@ -2277,7 +2277,7 @@ class _StatementMetric extends StatelessWidget {
             value,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w900),
+            style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600),
           ),
         ],
       ),

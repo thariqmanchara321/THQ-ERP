@@ -224,7 +224,7 @@ class _InvoiceDesignerScreenState extends State<InvoiceDesignerScreen>
     final controller = TextEditingController(
       text: '${row['template_name'] ?? 'Invoice'} Copy',
     );
-    final name = await showDialog<String>(
+    final name = await showThqDialog<String>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('Create Custom Template'),
@@ -291,7 +291,7 @@ class _InvoiceDesignerScreenState extends State<InvoiceDesignerScreen>
     }
     String? selectedDevice;
 
-    final scope = await showDialog<Map<String, String?>>(
+    final scope = await showThqDialog<Map<String, String?>>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setLocal) {
@@ -505,7 +505,7 @@ class _InvoiceDesignerScreenState extends State<InvoiceDesignerScreen>
           .toList(),
     };
 
-    final save = await showDialog<bool>(
+    final save = await showThqDialog<bool>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setLocal) {

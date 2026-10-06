@@ -20,19 +20,12 @@ Future<void> main() async {
   FlutterError.onError = (details) {
     FlutterError.presentError(details);
     unawaited(
-      MobileAppLogService().log(
-        error: details.exception,
-        stack: details.stack,
-      ),
+      MobileAppLogService().log(error: details.exception, stack: details.stack),
     );
   };
   PlatformDispatcher.instance.onError = (error, stack) {
     unawaited(
-      MobileAppLogService().log(
-        error: error,
-        stack: stack,
-        severity: 'fatal',
-      ),
+      MobileAppLogService().log(error: error, stack: stack, severity: 'fatal'),
     );
     return true;
   };
@@ -49,11 +42,11 @@ class ThqMobilePosApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       title: 'THQ Mobile POS',
       // THQ_BRANDING_START
-      builder: (context, child) => ThqStartupGate(
-        appName: 'THQ Mobile POS',
-        child: ThqMobileProductionFrame(
-          child: ThqNotificationHost(
-            child: child ?? const SizedBox.shrink(),
+      builder: (context, child) => ThqMotionScope(
+        child: ThqStartupGate(
+          appName: 'THQ Mobile POS',
+          child: ThqMobileProductionFrame(
+            child: ThqNotificationHost(child: child ?? const SizedBox.shrink()),
           ),
         ),
       ),

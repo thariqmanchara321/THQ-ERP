@@ -1,3 +1,4 @@
+import 'package:thq_ui/thq_ui.dart';
 import 'package:flutter/material.dart';
 import '../models/record_presentation.dart';
 
@@ -77,7 +78,7 @@ class RecordPreview extends StatelessWidget {
     required String title,
     required Map<String, dynamic> record,
     String currency = '',
-  }) => showDialog<void>(
+  }) => showThqDialog<void>(
     context: context,
     builder: (dialogContext) => AlertDialog(
       title: Text(title),

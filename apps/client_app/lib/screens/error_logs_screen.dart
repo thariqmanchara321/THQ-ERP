@@ -42,7 +42,7 @@ class _ErrorLogsScreenState extends State<ErrorLogsScreen> {
   }
 
   Future<void> _reportIssue() async {
-    final result = await showDialog<_IssueReport>(
+    final result = await showThqDialog<_IssueReport>(
       context: context,
       builder: (_) => const _ReportIssueDialog(),
     );

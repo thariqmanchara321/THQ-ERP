@@ -213,7 +213,7 @@ class _SalesScreenState extends State<SalesScreen> {
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
                           fontSize: 17,
-                          fontWeight: FontWeight.w900,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                       Text(
@@ -287,7 +287,7 @@ class _SalesScreenState extends State<SalesScreen> {
                           'No sales yet',
                           style: TextStyle(
                             fontSize: 17,
-                            fontWeight: FontWeight.w800,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
                         if (_canManage && !widget.historyOnly) ...[
@@ -368,7 +368,7 @@ class _SalesScreenState extends State<SalesScreen> {
               value,
               textAlign: align,
               maxLines: 1,
-              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w900),
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
             ),
           ),
         );
@@ -386,7 +386,7 @@ class _SalesScreenState extends State<SalesScreen> {
           width: 104,
           child: Text(
             'Status',
-            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w900),
+            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
           ),
         ),
         const SizedBox(width: 28),
@@ -438,7 +438,7 @@ class _SalesScreenState extends State<SalesScreen> {
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         fontSize: 11,
-                        fontWeight: FontWeight.w800,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                     if (veryCompact)
@@ -576,6 +576,9 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
   final TransactionPrintService _printService = TransactionPrintService();
 
   final TextEditingController _notesController = TextEditingController();
+  final GlobalKey _paymentEditorKey = GlobalKey(
+    debugLabel: 'sale-payment-allocations',
+  );
   final TextEditingController _commercialChargeAmount = TextEditingController(
     text: '0.00',
   );
@@ -859,7 +862,7 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
     if (product.trackingMode != 'none') {
       if (!mounted) return;
       final material = product;
-      final selected = await showDialog<_SaleLine>(
+      final selected = await showThqDialog<_SaleLine>(
         context: context,
         barrierDismissible: false,
         builder: (_) => _AddSaleItemDialog(
@@ -933,8 +936,8 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
       .map(
         (line) => <String, dynamic>{
           'variant_id': line.product.variantId,
-            'tracking_revision': line.product.trackingRevision,
-            'tracking_mode': line.product.trackingMode,
+          'tracking_revision': line.product.trackingRevision,
+          'tracking_mode': line.product.trackingMode,
           'quantity': line.quantity,
           'unit_id': line.unitId,
           'unit_price': line.unitPrice,
@@ -1194,7 +1197,7 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
         child: Text(
           'No Additional Charges are configured. Open Settings → '
           'Additional Charges to add Packaging, Delivery or custom charges.',
-          style: TextStyle(fontSize: 10, color: scheme.onSurfaceVariant),
+          style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant),
         ),
       );
     }
@@ -1226,7 +1229,7 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
               const Expanded(
                 child: Text(
                   'Additional Charges',
-                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w900),
+                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
                 ),
               ),
               if (_commercialQuoteLoading)
@@ -1239,8 +1242,8 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
                 Text(
                   'GST CLASSIFIED',
                   style: TextStyle(
-                    fontSize: 8,
-                    fontWeight: FontWeight.w900,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
                     color: scheme.primary,
                   ),
                 ),
@@ -1340,7 +1343,7 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
                 color: scheme.error,
-                fontSize: 9.5,
+                fontSize: 11,
                 fontWeight: FontWeight.w700,
               ),
             ),
@@ -1601,7 +1604,7 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
         initialVariantId != null &&
         available.any((product) => product.variantId == initialVariantId);
 
-    final line = await showDialog<_SaleLine>(
+    final line = await showThqDialog<_SaleLine>(
       context: context,
       barrierDismissible: false,
       builder: (_) => _AddSaleItemDialog(
@@ -1644,7 +1647,7 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
 
   Future<void> _editLine(int index) async {
     final current = _lines[index];
-    final edited = await showDialog<_SaleLine>(
+    final edited = await showThqDialog<_SaleLine>(
       context: context,
       barrierDismissible: false,
       builder: (_) => _AddSaleItemDialog(
@@ -1756,7 +1759,8 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
     }
     if (_requiresDueDate && _dueDate == null) {
       setState(() {
-        _error = 'Choose a due date because this invoice has an unpaid / credit balance.';
+        _error =
+            'Choose a due date because this invoice has an unpaid / credit balance.';
       });
       return;
     }
@@ -1912,11 +1916,14 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
           );
 
     if (widget.embedded) {
-      return ColoredBox(color: const Color(0xFFF5F7FA), child: content);
+      return ColoredBox(
+        color: Theme.of(context).scaffoldBackgroundColor,
+        child: content,
+      );
     }
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         title: const Text(
           'New Sale',
@@ -1931,45 +1938,76 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFE3E7EE)),
+        border: Border.all(color: Theme.of(context).colorScheme.outline),
       ),
-      child: Row(
-        children: [
-          if (widget.embedded) ...[
-            IconButton.filledTonal(
-              tooltip: 'Back',
-              onPressed: _saving ? null : () => widget.onFinished?.call(false),
-              icon: const Icon(Icons.arrow_back),
-            ),
-            const SizedBox(width: 12),
-          ],
-          const Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'NEW SALE',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final heading = Row(
+            children: [
+              if (widget.embedded) ...[
+                IconButton.filledTonal(
+                  tooltip: 'Back',
+                  onPressed: _saving
+                      ? null
+                      : () => widget.onFinished?.call(false),
+                  icon: const Icon(Icons.arrow_back),
                 ),
-                SizedBox(height: 2),
-                Text('Sales Entry', style: TextStyle(color: Colors.black54)),
+                const SizedBox(width: 12),
               ],
-            ),
-          ),
-          const Column(
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'NEW SALE',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    SizedBox(height: 2),
+                    Text(
+                      'Sales Entry',
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          );
+          final invoice = const Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text('INVOICE NO.', style: TextStyle(fontSize: 11)),
               SizedBox(height: 3),
               Text(
                 'AUTO ON CONFIRM',
-                style: TextStyle(fontWeight: FontWeight.w800),
+                style: TextStyle(fontWeight: FontWeight.w600),
               ),
             ],
-          ),
-        ],
+          );
+          if (constraints.maxWidth < 520 ||
+              MediaQuery.textScalerOf(context).scale(1) > 1.3) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                heading,
+                const SizedBox(height: 8),
+                Align(alignment: Alignment.centerRight, child: invoice),
+              ],
+            );
+          }
+          return Row(
+            children: [
+              Expanded(child: heading),
+              invoice,
+            ],
+          );
+        },
       ),
     );
   }
@@ -2046,7 +2084,8 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
                     maxLength: 2,
                     decoration: const InputDecoration(
                       labelText: 'Place of supply: GST state code',
-                      helperText: 'GST invoices with services require this code. Example: 32 for Kerala.',
+                      helperText:
+                          'GST invoices with services require this code. Example: 32 for Kerala.',
                     ),
                     onChanged: (v) {
                       _placeOfSupplyCode = v.trim().isEmpty ? null : v.trim();
@@ -2085,9 +2124,9 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
               if (customer?.isWalkIn == true)
                 SizedBox(
                   width: compact ? constraints.maxWidth : fieldWidth * 2 + gap,
-                  child: const Text(
+                  child: Text(
                     'Walk-in sales must be fully paid before confirmation.',
-                    style: TextStyle(color: Colors.deepOrange),
+                    style: TextStyle(color: context.thqSemanticColors.warning),
                   ),
                 ),
             ],
@@ -2139,7 +2178,7 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
                     horizontal: 8,
                     vertical: 10,
                   ),
-                  color: const Color(0xFFF1F4F8),
+                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
                   child: Row(
                     children: [
                       _saleHeaderCell('#', 1),
@@ -2172,7 +2211,7 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
       flex: flex,
       child: Text(
         label,
-        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
+        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
       ),
     );
   }
@@ -2235,6 +2274,7 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
                     const SizedBox(height: 12),
                   ],
                   MultiPaymentEditor(
+                    key: _paymentEditorKey,
                     tenantId: widget.session.business.id,
                     total: _grandTotal,
                     customerIsWalkIn: _selectedCustomer?.isWalkIn ?? true,
@@ -2252,7 +2292,9 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
                     width: double.infinity,
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: Colors.blueGrey.withValues(alpha: .06),
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.onSurfaceVariant.withValues(alpha: .06),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: const Text(
@@ -2294,12 +2336,12 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
               width: double.infinity,
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.red.shade50,
+                color: Theme.of(context).colorScheme.error,
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(
                 _error!,
-                style: TextStyle(color: Colors.red.shade700),
+                style: TextStyle(color: Theme.of(context).colorScheme.onError),
               ),
             ),
           ],
@@ -2698,7 +2740,7 @@ class _AddSaleItemDialogState extends State<_AddSaleItemDialog> {
       setState(() => _error = 'Enter the sale quantity first.');
       return;
     }
-    final selected = await showDialog<List<Map<String, dynamic>>>(
+    final selected = await showThqDialog<List<Map<String, dynamic>>>(
       context: context,
       builder: (_) => BatchAllocationDialog(
         tenantId: widget.tenantId,
@@ -3044,7 +3086,8 @@ class _AddSaleItemDialogState extends State<_AddSaleItemDialog> {
               controller: _descriptionController,
               decoration: const InputDecoration(
                 labelText: 'Invoice description (optional)',
-                helperText: 'Saved on this invoice. Product master details stay available in Inventory.',
+                helperText:
+                    'Saved on this invoice. Product master details stay available in Inventory.',
               ),
             ),
             const SizedBox(height: 16),
@@ -3193,7 +3236,7 @@ class _AddSaleItemDialogState extends State<_AddSaleItemDialog> {
                 child: Text(
                   _error!,
 
-                  style: TextStyle(color: Colors.red.shade700),
+                  style: TextStyle(color: Theme.of(context).colorScheme.error),
                 ),
               ),
             ],
@@ -3248,7 +3291,11 @@ class _SaleLineRow extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
       decoration: BoxDecoration(
-        border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
+        border: Border(
+          bottom: BorderSide(
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+        ),
       ),
       child: Row(
         children: [
@@ -3282,12 +3329,18 @@ class _SaleLineRow extends StatelessWidget {
                 if ((line.product.partNumber ?? '').isNotEmpty)
                   Text(
                     line.product.partNumber!,
-                    style: const TextStyle(fontSize: 11, color: Colors.black54),
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
                   ),
                 if (line.cuttingCharge > 0)
                   Text(
                     'Cutting ${money(line.cuttingCharge)}',
-                    style: const TextStyle(fontSize: 10, color: Colors.black54),
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
                   ),
               ],
             ),
@@ -3300,7 +3353,7 @@ class _SaleLineRow extends StatelessWidget {
           cell(
             Text(
               money(line.total),
-              style: const TextStyle(fontWeight: FontWeight.w800),
+              style: const TextStyle(fontWeight: FontWeight.w600),
             ),
             2,
           ),
@@ -3343,11 +3396,13 @@ class _SaleCard extends StatelessWidget {
       padding: const EdgeInsets.all(22),
 
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).colorScheme.surface,
 
         borderRadius: BorderRadius.circular(18),
 
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
+        ),
       ),
 
       child: Column(
@@ -3438,19 +3493,19 @@ class _SalePaymentBadge extends StatelessWidget {
 
     switch (status) {
       case 'paid':
-        background = Colors.green.shade50;
+        background = Theme.of(context).colorScheme.primary;
 
-        foreground = Colors.green.shade700;
+        foreground = Theme.of(context).colorScheme.primary;
 
       case 'partial':
-        background = Colors.orange.shade50;
+        background = context.thqSemanticColors.warning;
 
-        foreground = Colors.orange.shade800;
+        foreground = context.thqSemanticColors.warning;
 
       default:
-        background = Colors.red.shade50;
+        background = Theme.of(context).colorScheme.error;
 
-        foreground = Colors.red.shade700;
+        foreground = Theme.of(context).colorScheme.error;
     }
 
     return Container(

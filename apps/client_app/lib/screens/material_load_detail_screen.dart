@@ -1,3 +1,4 @@
+import 'package:thq_ui/thq_ui.dart';
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
 
@@ -141,7 +142,7 @@ class _MaterialLoadDetailScreenState extends State<MaterialLoadDetailScreen> {
       String? error;
       final linked =
           _record['sale_id'] != null || _record['purchase_id'] != null;
-      final success = await showDialog<bool>(
+      final success = await showThqDialog<bool>(
         context: context,
         barrierDismissible: false,
         builder: (ctx) => StatefulBuilder(

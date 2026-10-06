@@ -216,6 +216,7 @@ class _AdminDashboardV600State extends State<AdminDashboardV600> {
           },
         ),
         actions: [
+          const ThqMotionButton(),
           IconButton(
             tooltip: 'Refresh Platform',
             onPressed: _refreshing ? null : _refresh,
@@ -455,7 +456,7 @@ class _AdminBrand extends StatelessWidget {
         'T',
         style: Theme.of(
           context,
-        ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w900),
+        ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
       ),
     );
     return LayoutBuilder(

@@ -8,7 +8,6 @@ import '../models/inventory_product.dart';
 import '../models/inventory_report.dart';
 import '../services/inventory_service.dart';
 import '../services/location_scope_service.dart';
-import '../ui/v43_theme.dart';
 import 'add_product_screen.dart';
 import 'inventory_movement_history_screen.dart';
 import 'inventory_reports_screen.dart';
@@ -154,7 +153,7 @@ class _InventoryProductsScreenState extends State<InventoryProductsScreen> {
       return null;
     }
 
-    return showDialog<ClientLocationAccess>(
+    return showThqDialog<ClientLocationAccess>(
       context: context,
       builder: (dialogContext) => SimpleDialog(
         title: const Text('Choose product store'),
@@ -268,7 +267,7 @@ class _InventoryProductsScreenState extends State<InventoryProductsScreen> {
                           'Inventory',
                           style: TextStyle(
                             fontSize: 17,
-                            fontWeight: FontWeight.w900,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
                         Text(
@@ -548,7 +547,7 @@ class _InventoryProductsScreenState extends State<InventoryProductsScreen> {
                                                     style: TextStyle(
                                                       fontSize: 11,
                                                       fontWeight:
-                                                          FontWeight.w800,
+                                                          FontWeight.w600,
                                                     ),
                                                   ),
                                                 ),
@@ -559,7 +558,7 @@ class _InventoryProductsScreenState extends State<InventoryProductsScreen> {
                                                     style: TextStyle(
                                                       fontSize: 11,
                                                       fontWeight:
-                                                          FontWeight.w800,
+                                                          FontWeight.w600,
                                                     ),
                                                   ),
                                                 ),
@@ -571,7 +570,7 @@ class _InventoryProductsScreenState extends State<InventoryProductsScreen> {
                                                     style: TextStyle(
                                                       fontSize: 11,
                                                       fontWeight:
-                                                          FontWeight.w800,
+                                                          FontWeight.w600,
                                                     ),
                                                   ),
                                                 ),
@@ -583,7 +582,7 @@ class _InventoryProductsScreenState extends State<InventoryProductsScreen> {
                                                     style: TextStyle(
                                                       fontSize: 11,
                                                       fontWeight:
-                                                          FontWeight.w800,
+                                                          FontWeight.w600,
                                                     ),
                                                   ),
                                                 ),
@@ -595,7 +594,7 @@ class _InventoryProductsScreenState extends State<InventoryProductsScreen> {
                                                     style: TextStyle(
                                                       fontSize: 11,
                                                       fontWeight:
-                                                          FontWeight.w800,
+                                                          FontWeight.w600,
                                                     ),
                                                   ),
                                                 ),
@@ -696,7 +695,7 @@ class _InventoryProductsScreenState extends State<InventoryProductsScreen> {
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     fontSize: 13,
-                    fontWeight: FontWeight.w900,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
                 if (subtitle != null)
@@ -705,7 +704,7 @@ class _InventoryProductsScreenState extends State<InventoryProductsScreen> {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      fontSize: 10.5,
+                      fontSize: 11,
                       color: scheme.onSurfaceVariant,
                     ),
                   ),
@@ -785,7 +784,7 @@ class _ProductCard extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
                           fontSize: 11.5,
-                          fontWeight: FontWeight.w800,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                       Text(
@@ -822,7 +821,7 @@ class _ProductCard extends StatelessWidget {
                         maxLines: 1,
                         style: const TextStyle(
                           fontSize: 11.5,
-                          fontWeight: FontWeight.w800,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                     ],
@@ -874,7 +873,7 @@ class _ProductCard extends StatelessWidget {
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
                               fontSize: 11.5,
-                              fontWeight: FontWeight.w800,
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
                           Text(
@@ -885,7 +884,7 @@ class _ProductCard extends StatelessWidget {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
-                              fontSize: 10.5,
+                              fontSize: 11,
                               color: scheme.onSurfaceVariant,
                             ),
                           ),
@@ -915,7 +914,7 @@ class _ProductCard extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        fontSize: 10.5,
+                        fontSize: 11,
                         color: scheme.onSurfaceVariant,
                       ),
                     ),
@@ -953,7 +952,7 @@ class _ProductCard extends StatelessWidget {
                   textAlign: TextAlign.right,
                   style: const TextStyle(
                     fontSize: 11.5,
-                    fontWeight: FontWeight.w800,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ),
@@ -966,8 +965,8 @@ class _ProductCard extends StatelessWidget {
                             : 'LOW STOCK',
                         textAlign: TextAlign.center,
                         style: TextStyle(
-                          fontSize: 10.5,
-                          fontWeight: FontWeight.w900,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
                           color: scheme.error,
                         ),
                       )
@@ -975,7 +974,7 @@ class _ProductCard extends StatelessWidget {
                         product.itemType.toUpperCase(),
                         textAlign: TextAlign.center,
                         style: TextStyle(
-                          fontSize: 10.5,
+                          fontSize: 11,
                           fontWeight: FontWeight.w700,
                           color: scheme.onSurfaceVariant,
                         ),
@@ -1020,7 +1019,9 @@ class _EmptyInventory extends StatelessWidget {
             canManage
                 ? 'Create your first product and opening stock.'
                 : 'No products have been created yet.',
-            style: TextStyle(color: Colors.grey.shade600),
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
           ),
 
           if (canManage) ...[

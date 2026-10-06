@@ -9,7 +9,6 @@ import 'ui/thq_brand_experience.dart';
 import 'config/supabase_config.dart';
 import 'screens/pos_entry_screen.dart';
 import 'services/app_log_service.dart';
-import 'ui/v43_theme.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -48,10 +47,14 @@ class ThqPosApp extends StatelessWidget {
       title: 'THQ POS',
       debugShowCheckedModeBanner: false,
       // THQ_BRANDING_START
-      builder: (context, child) => ThqStartupGate(
-        appName: 'THQ POS',
-        child: ThqNotificationHost(
-          child: NumericZeroAutoSelect(child: child ?? const SizedBox.shrink()),
+      builder: (context, child) => ThqMotionScope(
+        child: ThqStartupGate(
+          appName: 'THQ POS',
+          child: ThqNotificationHost(
+            child: NumericZeroAutoSelect(
+              child: child ?? const SizedBox.shrink(),
+            ),
+          ),
         ),
       ),
       // THQ_BRANDING_END

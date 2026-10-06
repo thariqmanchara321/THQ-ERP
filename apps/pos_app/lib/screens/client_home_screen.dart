@@ -1,3 +1,4 @@
+import 'package:thq_ui/thq_ui.dart';
 import 'package:erp_core/erp_core.dart';
 import 'package:flutter/material.dart';
 
@@ -160,13 +161,13 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
 
   Widget _buildDesktop(ClientModule selectedModule) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
 
       body: Row(
         children: [
           Container(
             width: 250,
-            color: Colors.white,
+            color: Theme.of(context).colorScheme.surface,
             child: Column(
               children: [
                 _BusinessHeader(session: widget.session),
@@ -209,11 +210,14 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
                   title: const Text('Sign Out'),
                   onTap: _logout,
                 ),
-                const Padding(
+                Padding(
                   padding: EdgeInsets.fromLTRB(16, 0, 16, 8),
                   child: Text(
                     'v${ThqReleaseContract.appVersion} | Build ${ThqReleaseContract.buildNumber}',
-                    style: TextStyle(fontSize: 10.5, color: Color(0xFF6B7280)),
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
                   ),
                 ),
 
@@ -244,7 +248,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
 
   Widget _buildMobile(ClientModule selectedModule) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
 
       appBar: AppBar(title: Text(widget.session.business.name)),
 
@@ -285,11 +289,14 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
                 title: const Text('Sign Out'),
                 onTap: _logout,
               ),
-              const Padding(
+              Padding(
                 padding: EdgeInsets.fromLTRB(16, 0, 16, 8),
                 child: Text(
                   'v${ThqReleaseContract.appVersion} | Build ${ThqReleaseContract.buildNumber}',
-                  style: TextStyle(fontSize: 10.5, color: Color(0xFF6B7280)),
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
                 ),
               ),
             ],
@@ -325,7 +332,9 @@ class _SubscriptionBanner extends StatelessWidget {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
-      color: blocked ? Colors.red.shade50 : Colors.orange.shade50,
+      color: blocked
+          ? Theme.of(context).colorScheme.error
+          : context.thqSemanticColors.warning,
       child: Row(
         children: [
           Icon(
@@ -360,7 +369,7 @@ class _BusinessHeader extends StatelessWidget {
             height: 44,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(12),
-              color: Colors.indigo.shade50,
+              color: Theme.of(context).colorScheme.primary,
             ),
             child: const Icon(Icons.storefront_outlined),
           ),
@@ -384,7 +393,10 @@ class _BusinessHeader extends StatelessWidget {
                   session.roles.isEmpty
                       ? 'User'
                       : session.roles.map(_niceName).join(', '),
-                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
                 ),
 
                 if (session.subscription.hasPlan) ...[
@@ -395,7 +407,7 @@ class _BusinessHeader extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       fontSize: 11.5,
-                      color: Colors.grey.shade500,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
                   ),
                 ],
@@ -499,7 +511,10 @@ class _ModulePage extends StatelessWidget {
 
           Text(
             module.description ?? 'THQ Business module',
-            style: TextStyle(color: Colors.grey.shade600, fontSize: 15),
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+              fontSize: 15,
+            ),
           ),
 
           const SizedBox(height: 30),
@@ -509,9 +524,11 @@ class _ModulePage extends StatelessWidget {
               width: double.infinity,
               padding: const EdgeInsets.all(30),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: Theme.of(context).colorScheme.surface,
                 borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: Colors.grey.shade200),
+                border: Border.all(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
               ),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -532,14 +549,19 @@ class _ModulePage extends StatelessWidget {
 
                   Text(
                     'We will build this module next.',
-                    style: TextStyle(color: Colors.grey.shade600),
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
                   ),
 
                   const SizedBox(height: 20),
 
                   Text(
                     'Currency: ${session.currencyCode}   •   Locale: ${session.locale}',
-                    style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
                   ),
                 ],
               ),

@@ -100,7 +100,7 @@ class _TransactionControlScreenState extends State<TransactionControlScreen> {
   }
 
   Future<void> _edit(Map<String, dynamic> row) async {
-    final changed = await showDialog<bool>(
+    final changed = await showThqDialog<bool>(
       context: context,
       barrierDismissible: false,
       builder: (_) => _TransactionEditDialog(
@@ -119,7 +119,7 @@ class _TransactionControlScreenState extends State<TransactionControlScreen> {
 
   Future<void> _void(Map<String, dynamic> row) async {
     final reason = TextEditingController();
-    final ok = await showDialog<bool>(
+    final ok = await showThqDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: Text('Void ${row['entity_type']} ${row['reference']}?'),
@@ -202,7 +202,7 @@ class _TransactionControlScreenState extends State<TransactionControlScreen> {
             children: [
               const Text(
                 'Cross-business Transaction Control',
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w900),
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
               ),
               const SizedBox(height: 3),
               const Text(
@@ -340,7 +340,7 @@ class _TransactionControlScreenState extends State<TransactionControlScreen> {
                                                     '',
                                                 overflow: TextOverflow.ellipsis,
                                                 style: const TextStyle(
-                                                  fontWeight: FontWeight.w800,
+                                                  fontWeight: FontWeight.w600,
                                                 ),
                                               ),
                                             ),
@@ -412,7 +412,7 @@ class _Cell extends StatelessWidget {
         Text(
           label,
           style: TextStyle(
-            fontSize: 10,
+            fontSize: 11,
             color: Theme.of(context).colorScheme.onSurfaceVariant,
           ),
         ),
@@ -440,8 +440,8 @@ class _TypeBadge extends StatelessWidget {
     child: Text(
       type.toUpperCase(),
       style: TextStyle(
-        fontSize: 9,
-        fontWeight: FontWeight.w800,
+        fontSize: 11,
+        fontWeight: FontWeight.w600,
         color: Theme.of(context).colorScheme.primary,
       ),
     ),
@@ -689,7 +689,7 @@ class _TransactionEditDialogState extends State<_TransactionEditDialog> {
                       _isReturn
                           ? 'Protected return correction: quantity changes reverse/repost the return journal and adjust only the original store stock. THQ keeps before/after audit history.'
                           : 'Protected correction: THQ records before/after values and recalculates stock/accounting when quantities or values change. Returned documents block unsafe original-item edits.',
-                      style: const TextStyle(fontSize: 10.5),
+                      style: const TextStyle(fontSize: 11),
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -736,7 +736,7 @@ class _TransactionEditDialogState extends State<_TransactionEditDialog> {
                               alignment: Alignment.centerLeft,
                               child: Text(
                                 'Items',
-                                style: TextStyle(fontWeight: FontWeight.w800),
+                                style: TextStyle(fontWeight: FontWeight.w600),
                               ),
                             ),
                             ..._items.map(_itemRow),
@@ -746,7 +746,7 @@ class _TransactionEditDialogState extends State<_TransactionEditDialog> {
                                 alignment: Alignment.centerLeft,
                                 child: Text(
                                   'Payments',
-                                  style: TextStyle(fontWeight: FontWeight.w800),
+                                  style: TextStyle(fontWeight: FontWeight.w600),
                                 ),
                               ),
                               ..._payments.map(_paymentRow),
@@ -790,7 +790,7 @@ class _TransactionEditDialogState extends State<_TransactionEditDialog> {
                               alignment: Alignment.centerLeft,
                               child: Text(
                                 'Returned Items • quantity correction only',
-                                style: TextStyle(fontWeight: FontWeight.w800),
+                                style: TextStyle(fontWeight: FontWeight.w600),
                               ),
                             ),
                             ..._items.map(_itemRow),
@@ -938,7 +938,7 @@ class _TransactionEditDialogState extends State<_TransactionEditDialog> {
                     ),
                     Text(
                       '${item.raw['sku'] ?? ''} • ${_isSaleLike ? 'Rate' : 'Cost'} ${item.price.text} • Tax ${item.tax.text}%',
-                      style: const TextStyle(fontSize: 9.5),
+                      style: const TextStyle(fontSize: 11),
                     ),
                   ],
                 ),

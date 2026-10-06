@@ -1,4 +1,6 @@
+import 'package:thq_ui/thq_ui.dart';
 import 'package:flutter/material.dart';
+
 import '../widgets/admin_home_button.dart';
 
 import '../models/platform_models.dart';
@@ -29,7 +31,7 @@ class _TemplatesScreenState extends State<TemplatesScreen> {
   Future<void> _open([BusinessTemplate? template]) async {
     final modules = await _service.getModules();
     if (!mounted) return;
-    final changed = await showDialog<bool>(
+    final changed = await showThqDialog<bool>(
       context: context,
       barrierDismissible: false,
       builder: (_) => _TemplateDialog(
@@ -76,7 +78,9 @@ class _TemplatesScreenState extends State<TemplatesScreen> {
                 const SizedBox(height: 6),
                 Text(
                   'Reusable starting configurations for retail, restaurant, workshop, healthcare, labs and custom businesses.',
-                  style: TextStyle(color: Colors.grey.shade600),
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
                 ),
                 const SizedBox(height: 6),
                 ...rows.map(
@@ -285,7 +289,10 @@ class _TemplateDialogState extends State<_TemplateDialog> {
               ),
             ),
             if (_error != null)
-              Text(_error!, style: const TextStyle(color: Colors.red)),
+              Text(
+                _error!,
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
           ],
         ),
       ),

@@ -433,7 +433,7 @@ class InventoryReportTable extends StatelessWidget {
               subtitle,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(fontSize: 10.5, color: color.onSurfaceVariant),
+              style: TextStyle(fontSize: 11, color: color.onSurfaceVariant),
             ),
         ],
       );
@@ -454,7 +454,7 @@ class InventoryReportTable extends StatelessWidget {
             '${DateFormat('HH:mm').format(date)}${date.isUtc ? ' UTC' : ''}',
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: TextStyle(fontSize: 10.5, color: color.onSurfaceVariant),
+            style: TextStyle(fontSize: 11, color: color.onSurfaceVariant),
           ),
         ],
       );
@@ -505,7 +505,7 @@ class InventoryReportTable extends StatelessWidget {
             child,
             Text(
               'Trace only',
-              style: TextStyle(fontSize: 10, color: color.primary),
+              style: TextStyle(fontSize: 11, color: color.primary),
             ),
           ],
         );
@@ -660,7 +660,7 @@ class InventoryReportTable extends StatelessWidget {
                                       Text(
                                         _label(c),
                                         style: TextStyle(
-                                          fontSize: 10,
+                                          fontSize: 11,
                                           color: colors.onSurfaceVariant,
                                         ),
                                       ),
@@ -739,7 +739,7 @@ class InventoryReportTable extends StatelessWidget {
               child: Text(
                 '${report.offset + index + 1}',
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 10, color: colors.onSurfaceVariant),
+                style: TextStyle(fontSize: 11, color: colors.onSurfaceVariant),
               ),
             ),
           for (var i = 0; i < fields.length; i++)
@@ -781,7 +781,7 @@ class InventoryReportTable extends StatelessWidget {
                       '#',
                       textAlign: TextAlign.center,
                       style: TextStyle(
-                        fontSize: 10,
+                        fontSize: 11,
                         color: colors.onSurfaceVariant,
                       ),
                     ),

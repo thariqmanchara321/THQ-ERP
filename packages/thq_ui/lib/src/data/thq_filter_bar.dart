@@ -59,10 +59,7 @@ class ThqFilterBar extends StatelessWidget {
                 Wrap(
                   spacing: ThqTokens.space8,
                   runSpacing: ThqTokens.space8,
-                  children: [
-                    ...filters,
-                    if (clear != null) clear,
-                  ],
+                  children: [...filters, if (clear != null) clear],
                 ),
               ],
               if (actions.isNotEmpty) ...[
@@ -89,8 +86,7 @@ class ThqFilterBar extends StatelessWidget {
                   child: Row(
                     children: [
                       for (var index = 0; index < filters.length; index++) ...[
-                        if (index > 0)
-                          const SizedBox(width: ThqTokens.space8),
+                        if (index > 0) const SizedBox(width: ThqTokens.space8),
                         filters[index],
                       ],
                       if (clear != null) ...[

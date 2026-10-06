@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../models/client_session.dart';
 import '../models/party_statement.dart';
 import '../services/party_statement_service.dart';
@@ -44,7 +45,7 @@ class _PartyStatementScreenState extends State<PartyStatementScreen> {
       '${v.day.toString().padLeft(2, '0')}-${v.month.toString().padLeft(2, '0')}-${v.year}';
   @override
   Widget build(BuildContext context) => Scaffold(
-    backgroundColor: const Color(0xFFF5F7FA),
+    backgroundColor: Theme.of(context).scaffoldBackgroundColor,
     appBar: AppBar(title: Text(widget.title)),
     body: FutureBuilder<PartyStatement>(
       future: _future,
@@ -88,9 +89,11 @@ class _PartyStatementScreenState extends State<PartyStatementScreen> {
               Expanded(
                 child: Container(
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: Theme.of(context).colorScheme.surface,
                     borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: Colors.grey.shade200),
+                    border: Border.all(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
                   ),
                   child: d.rows.isEmpty
                       ? const Center(child: Text('No transactions.'))
@@ -139,14 +142,20 @@ class _Box extends StatelessWidget {
     width: 210,
     padding: const EdgeInsets.all(14),
     decoration: BoxDecoration(
-      color: Colors.white,
+      color: Theme.of(context).colorScheme.surface,
       borderRadius: BorderRadius.circular(12),
-      border: Border.all(color: Colors.grey.shade200),
+      border: Border.all(color: Theme.of(context).colorScheme.onSurfaceVariant),
     ),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(l, style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+        Text(
+          l,
+          style: TextStyle(
+            fontSize: 12,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+        ),
         const SizedBox(height: 4),
         Text(
           v,

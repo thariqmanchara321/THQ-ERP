@@ -1,3 +1,4 @@
+import 'package:thq_ui/thq_ui.dart';
 import 'package:flutter/material.dart';
 import 'package:erp_core/erp_core.dart';
 
@@ -247,7 +248,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
 
       appBar: AppBar(
         title: const Text(
@@ -266,9 +267,11 @@ class _AddProductScreenState extends State<AddProductScreen> {
             padding: const EdgeInsets.all(30),
 
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: Theme.of(context).colorScheme.surface,
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: Colors.grey.shade200),
+              border: Border.all(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
             ),
 
             child: Form(
@@ -286,7 +289,9 @@ class _AddProductScreenState extends State<AddProductScreen> {
 
                   Text(
                     'Create a product, SKU and opening stock for this terminal store.',
-                    style: TextStyle(color: Colors.grey.shade600),
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
                   ),
                   const SizedBox(height: 10),
                   Align(
@@ -565,7 +570,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
                       onPressed: _saving
                           ? null
                           : () async {
-                              await showDialog<void>(
+                              await showThqDialog<void>(
                                 context: context,
                                 barrierDismissible: false,
                                 builder: (_) => AdditionalChargesDialog(
@@ -636,13 +641,17 @@ class _AddProductScreenState extends State<AddProductScreen> {
                       width: double.infinity,
                       padding: const EdgeInsets.all(14),
                       decoration: BoxDecoration(
-                        color: Colors.red.shade50,
+                        color: Theme.of(context).colorScheme.error,
                         borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: Colors.red.shade100),
+                        border: Border.all(
+                          color: Theme.of(context).colorScheme.error,
+                        ),
                       ),
                       child: Text(
                         _error!,
-                        style: TextStyle(color: Colors.red.shade700),
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.onError,
+                        ),
                       ),
                     ),
                   ],

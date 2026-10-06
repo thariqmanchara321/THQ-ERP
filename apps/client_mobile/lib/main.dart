@@ -42,11 +42,11 @@ class ThqClientMobileApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       title: 'THQ Client Mobile',
       // THQ_BRANDING_START
-      builder: (context, child) => ThqStartupGate(
-        appName: 'THQ Client Mobile',
-        child: ThqMobileProductionFrame(
-          child: ThqNotificationHost(
-            child: child ?? const SizedBox.shrink(),
+      builder: (context, child) => ThqMotionScope(
+        child: ThqStartupGate(
+          appName: 'THQ Client Mobile',
+          child: ThqMobileProductionFrame(
+            child: ThqNotificationHost(child: child ?? const SizedBox.shrink()),
           ),
         ),
       ),
