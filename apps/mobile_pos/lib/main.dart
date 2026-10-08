@@ -30,29 +30,39 @@ Future<void> main() async {
     return true;
   };
 
-  runApp(const ThqMobilePosApp());
+  final appearance = ThqAppearanceController(appKey: 'mobile_pos');
+  await appearance.load();
+  runApp(ThqMobilePosApp(appearance: appearance));
 }
 
 class ThqMobilePosApp extends StatelessWidget {
-  const ThqMobilePosApp({super.key});
+  final ThqAppearanceController? appearance;
+  const ThqMobilePosApp({super.key, this.appearance});
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      title: 'THQ Mobile POS',
-      // THQ_BRANDING_START
-      builder: (context, child) => ThqMotionScope(
-        child: ThqStartupGate(
-          appName: 'THQ Mobile POS',
-          child: ThqMobileProductionFrame(
-            child: ThqNotificationHost(child: child ?? const SizedBox.shrink()),
+    return ThqAppearanceHost(
+      appKey: 'mobile_pos',
+      controller: appearance,
+      builder: (context, mode) => MaterialApp(
+        debugShowCheckedModeBanner: false,
+        themeAnimationDuration: Duration.zero,
+        title: 'THQ Mobile POS',
+        // THQ_BRANDING_START
+        builder: (context, child) => ThqMotionScope(
+          child: ThqStartupGate(
+            appName: 'THQ Mobile POS',
+            child: ThqMobileProductionFrame(
+              child: ThqNotificationHost(
+                child: child ?? const SizedBox.shrink(),
+              ),
+            ),
           ),
         ),
+        // THQ_BRANDING_END
+        theme: ThqMobileTheme.pos(appearance: mode),
+        home: const MobilePosEntryScreen(),
       ),
-      // THQ_BRANDING_END
-      theme: ThqMobileTheme.pos(),
-      home: const MobilePosEntryScreen(),
     );
   }
 }

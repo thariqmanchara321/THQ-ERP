@@ -14,10 +14,11 @@ class TrackingService {
       'inventory_tracking_conversion_preview_v633',
       params: {'p_tenant_id': tenantId, 'p_variant_id': variantId},
     );
-    if (result is! Map)
+    if (result is! Map) {
       throw const FormatException(
         'Tracking conversion details could not be loaded.',
       );
+    }
     return Map<String, dynamic>.from(result);
   }
 

@@ -55,12 +55,14 @@ class _TrackingConversionDialogState extends State<TrackingConversionDialog> {
 
   void _confirm() {
     try {
-      if (!_synced)
+      if (!_synced) {
         throw const FormatException('Confirm that all devices have synced.');
-      if (_reason.text.trim().length < 5)
+      }
+      if (_reason.text.trim().length < 5) {
         throw const FormatException(
           'Enter a reason with at least 5 characters.',
         );
+      }
       final locations = <Map<String, dynamic>>[];
       for (var i = 0; i < _locations.length; i++) {
         final q = _number(_locations[i]['quantity']);

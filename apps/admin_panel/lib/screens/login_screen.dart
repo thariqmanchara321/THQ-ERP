@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:thq_ui/thq_ui.dart' show ThqAppearanceButton;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'admin_dashboard.dart';
@@ -93,7 +94,7 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: UiDesignProfile.fallback('client').background,
+      backgroundColor: UiDesignScope.of(context, appKey: 'admin').background,
       body: AutofillGroup(
         child: Center(
           child: SingleChildScrollView(
@@ -102,7 +103,7 @@ class _LoginScreenState extends State<LoginScreen> {
               width: 420,
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
-                color: UiDesignProfile.fallback('client').surface,
+                color: UiDesignScope.of(context, appKey: 'admin').surface,
                 borderRadius: BorderRadius.circular(14),
                 border: Border.all(
                   color: Theme.of(context).colorScheme.outline,
@@ -118,9 +119,12 @@ class _LoginScreenState extends State<LoginScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const ThqBrandMark(
-                    size: 72,
-                    fallbackIcon: Icons.admin_panel_settings_outlined,
+                  const Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      ThqBrandMark(size: 72, fallbackIcon: Icons.admin_panel_settings_outlined),
+                      Positioned(right: 0, child: ThqAppearanceButton()),
+                    ],
                   ),
 
                   const SizedBox(height: 20),

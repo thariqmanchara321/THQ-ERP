@@ -576,6 +576,10 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
   final TransactionPrintService _printService = TransactionPrintService();
 
   final TextEditingController _notesController = TextEditingController();
+  final ScrollController _invoiceScroll = ScrollController();
+  final GlobalKey _detailsSectionKey = GlobalKey(debugLabel: 'sale-details');
+  final GlobalKey _itemsSectionKey = GlobalKey(debugLabel: 'sale-items');
+  final GlobalKey _paymentSectionKey = GlobalKey(debugLabel: 'sale-payment');
   final GlobalKey _paymentEditorKey = GlobalKey(
     debugLabel: 'sale-payment-allocations',
   );
@@ -615,35 +619,47 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
   final List<_SaleLine> _lines = [];
   bool _initialPrefillApplied = false;
   SaleInvoiceContext? _invoiceContext;
+  String? _invoiceContextError;
   bool get _gstApplicable => _invoiceContext?.gstApplicable == true;
   bool get _customerLocked => _invoiceContext?.lockedCustomerId != null;
 
   Future<void> _refreshInvoiceContext() async {
-    final context = await _salesService.invoiceContext(
-      tenantId: widget.session.business.id,
-      locationId: widget.locationId,
-      saleDate: _saleDate,
-      materialLoadId: widget.materialLoadId,
-    );
-    if (!mounted) return;
-    final locked = context.lockedCustomerId;
-    if (locked != null && !_customerById.containsKey(locked)) {
-      throw StateError(
-        'The confirmed Load Ticket customer is inactive or unavailable. Update the Load Ticket customer before billing.',
+    try {
+      final context = await _salesService.invoiceContext(
+        tenantId: widget.session.business.id,
+        locationId: widget.locationId,
+        saleDate: _saleDate,
+        materialLoadId: widget.materialLoadId,
       );
-    }
-    setState(() {
-      _invoiceContext = context;
-      if (locked != null) _customerId = locked;
-      if (!context.gstApplicable) _placeOfSupplyCode = null;
-      for (var i = 0; i < _lines.length; i++) {
-        _lines[i] = _lines[i].copyWith(
-          taxRate: context.gstApplicable ? _lines[i].taxRate : 0,
-          resetTax: true,
-          clearTaxOverride: !context.gstApplicable,
+      if (!mounted) return;
+      final locked = context.lockedCustomerId;
+      if (locked != null && !_customerById.containsKey(locked)) {
+        throw StateError(
+          'The confirmed Load Ticket customer is inactive or unavailable. Update the Load Ticket customer before billing.',
         );
       }
-    });
+      setState(() {
+        if (_error == _invoiceContextError) {
+          _error = null;
+        }
+        _invoiceContext = context;
+        _invoiceContextError = null;
+        if (locked != null) _customerId = locked;
+        if (!context.gstApplicable) _placeOfSupplyCode = null;
+        for (var i = 0; i < _lines.length; i++) {
+          _lines[i] = _lines[i].copyWith(
+            taxRate: context.gstApplicable ? _lines[i].taxRate : 0,
+            resetTax: true,
+            clearTaxOverride: !context.gstApplicable,
+          );
+        }
+      });
+    } catch (error) {
+      if (mounted) {
+        setState(() => _invoiceContextError = error.toString());
+      }
+      rethrow;
+    }
   }
 
   Customer? get _selectedCustomer {
@@ -1874,6 +1890,7 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
 
   @override
   void dispose() {
+    _invoiceScroll.dispose();
     _notesController.dispose();
     _commercialChargeAmount.dispose();
 
@@ -1882,37 +1899,84 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final invoiceError =
+        _invoiceContextError ?? _error ?? _commercialQuoteError;
     final content = _loading
         ? const Center(child: CircularProgressIndicator())
         : _customers.isEmpty
         ? const Center(child: Text('No active customers available.'))
         : LayoutBuilder(
-            builder: (context, constraints) {
-              return SingleChildScrollView(
-                padding: EdgeInsets.fromLTRB(
-                  constraints.maxWidth < 720 ? 10 : 18,
-                  12,
-                  constraints.maxWidth < 720 ? 10 : 18,
-                  24,
-                ),
-                child: Center(
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 1280),
-                    child: Column(
-                      children: [
-                        _documentHeader(),
-                        const SizedBox(height: 12),
-                        _customerCard(),
-                        const SizedBox(height: 12),
-                        _itemsCard(),
-                        const SizedBox(height: 12),
-                        _paymentCard(),
-                      ],
+            builder: (context, constraints) => Column(
+              children: [
+                if (invoiceError != null)
+                  ConstrainedBox(
+                    key: const ValueKey('sale-error-banner'),
+                    constraints: BoxConstraints(
+                      maxHeight: constraints.maxHeight * .22,
+                    ),
+                    child: SingleChildScrollView(
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 8,
+                        ),
+                        color: Theme.of(context).colorScheme.errorContainer,
+                        child: SelectableText(
+                          invoiceError,
+                          style: TextStyle(
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onErrorContainer,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                Expanded(
+                  child: Scrollbar(
+                    controller: _invoiceScroll,
+                    thumbVisibility: true,
+                    child: SingleChildScrollView(
+                      key: const ValueKey('sale-invoice-scroll'),
+                      controller: _invoiceScroll,
+                      padding: EdgeInsets.fromLTRB(
+                        constraints.maxWidth < 720 ? 10 : 14,
+                        10,
+                        constraints.maxWidth < 720 ? 10 : 14,
+                        14,
+                      ),
+                      child: Center(
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 1280),
+                          child: Column(
+                            children: [
+                              _documentHeader(),
+                              const SizedBox(height: 10),
+                              KeyedSubtree(
+                                key: _detailsSectionKey,
+                                child: _customerCard(),
+                              ),
+                              const SizedBox(height: 10),
+                              KeyedSubtree(
+                                key: _itemsSectionKey,
+                                child: _itemsCard(),
+                              ),
+                              const SizedBox(height: 10),
+                              KeyedSubtree(
+                                key: _paymentSectionKey,
+                                child: _paymentCard(),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
                     ),
                   ),
                 ),
-              );
-            },
+                SafeArea(top: false, child: _invoiceActions()),
+              ],
+            ),
           );
 
     if (widget.embedded) {
@@ -1934,9 +1998,22 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
     );
   }
 
+  void _showInvoiceSection(GlobalKey key) {
+    final target = key.currentContext;
+    if (target != null) {
+      unawaited(
+        Scrollable.ensureVisible(
+          target,
+          duration: const Duration(milliseconds: 220),
+          curve: Curves.easeOut,
+        ),
+      );
+    }
+  }
+
   Widget _documentHeader() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(14),
@@ -1979,32 +2056,38 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
               ),
             ],
           );
-          final invoice = const Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
+          final sections = Wrap(
+            spacing: 4,
+            runSpacing: 4,
             children: [
-              Text('INVOICE NO.', style: TextStyle(fontSize: 11)),
-              SizedBox(height: 3),
-              Text(
-                'AUTO ON CONFIRM',
-                style: TextStyle(fontWeight: FontWeight.w600),
+              TextButton.icon(
+                onPressed: () => _showInvoiceSection(_detailsSectionKey),
+                icon: const Icon(Icons.receipt_long_outlined, size: 17),
+                label: const Text('Details'),
+              ),
+              TextButton.icon(
+                onPressed: () => _showInvoiceSection(_itemsSectionKey),
+                icon: const Icon(Icons.inventory_2_outlined, size: 17),
+                label: const Text('Products'),
+              ),
+              TextButton.icon(
+                onPressed: () => _showInvoiceSection(_paymentSectionKey),
+                icon: const Icon(Icons.payments_outlined, size: 17),
+                label: const Text('Payment'),
               ),
             ],
           );
-          if (constraints.maxWidth < 520 ||
+          if (constraints.maxWidth < 740 ||
               MediaQuery.textScalerOf(context).scale(1) > 1.3) {
             return Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                heading,
-                const SizedBox(height: 8),
-                Align(alignment: Alignment.centerRight, child: invoice),
-              ],
+              children: [heading, const SizedBox(height: 4), sections],
             );
           }
           return Row(
             children: [
               Expanded(child: heading),
-              invoice,
+              sections,
             ],
           );
         },
@@ -2027,7 +2110,7 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
 
           return Wrap(
             spacing: gap,
-            runSpacing: 12,
+            runSpacing: 10,
             children: [
               SizedBox(
                 width: compact ? constraints.maxWidth : fieldWidth * 2 + gap,
@@ -2056,7 +2139,7 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
                 width: fieldWidth,
                 child: OutlinedButton.icon(
                   style: OutlinedButton.styleFrom(
-                    minimumSize: const Size.fromHeight(56),
+                    minimumSize: const Size.fromHeight(44),
                     alignment: Alignment.centerLeft,
                   ),
                   onPressed: _saving ? null : _chooseSaleDate,
@@ -2064,28 +2147,61 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
                   label: Text('Invoice Date  ${_date(_saleDate)}'),
                 ),
               ),
-              if (_gstApplicable)
+              SizedBox(
+                width: fieldWidth,
+                child: _invoiceReadOnlyField(
+                  label: 'Invoice number',
+                  value: 'Auto-generated on confirmation',
+                  icon: Icons.numbers_outlined,
+                ),
+              ),
+              SizedBox(
+                width: fieldWidth,
+                child: _invoiceReadOnlyField(
+                  label: 'GST status',
+                  value: _invoiceContext == null
+                      ? 'GST setup not verified'
+                      : _gstApplicable
+                      ? 'GST registered'
+                      : 'Non-GST · No GST charged',
+                  icon: Icons.verified_outlined,
+                ),
+              ),
+              if (!_requiresDueDate)
                 SizedBox(
                   width: fieldWidth,
                   child: _invoiceReadOnlyField(
-                    label: 'GSTIN',
-                    value: customer?.taxNumber?.trim().isNotEmpty == true
-                        ? customer!.taxNumber!
-                        : 'Not registered',
-                    icon: Icons.receipt_long_outlined,
+                    label: 'Due Date',
+                    value: customer?.isWalkIn == true
+                        ? 'Not required for counter sales'
+                        : 'Required when a balance is unpaid',
+                    icon: Icons.event_outlined,
                   ),
                 ),
+              SizedBox(
+                width: fieldWidth,
+                child: _invoiceReadOnlyField(
+                  label: 'Customer GSTIN',
+                  value: customer?.taxNumber?.trim().isNotEmpty == true
+                      ? customer!.taxNumber!
+                      : 'Not provided',
+                  icon: Icons.receipt_long_outlined,
+                ),
+              ),
               if (_gstApplicable)
                 SizedBox(
                   width: compact ? constraints.maxWidth : fieldWidth,
                   child: TextFormField(
+                    key: const ValueKey('sale-place-of-supply'),
+                    enabled: !_saving,
                     initialValue: _placeOfSupplyCode,
                     keyboardType: TextInputType.number,
                     maxLength: 2,
                     decoration: const InputDecoration(
-                      labelText: 'Place of supply: GST state code',
+                      labelText: 'State code (GST)',
                       helperText:
-                          'GST invoices with services require this code. Example: 32 for Kerala.',
+                          'Place of supply for GST service items. Example: 32 for Kerala.',
+                      helperMaxLines: 3,
                     ),
                     onChanged: (v) {
                       _placeOfSupplyCode = v.trim().isEmpty ? null : v.trim();
@@ -2109,7 +2225,7 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
                   width: fieldWidth,
                   child: OutlinedButton.icon(
                     style: OutlinedButton.styleFrom(
-                      minimumSize: const Size.fromHeight(56),
+                      minimumSize: const Size.fromHeight(44),
                       alignment: Alignment.centerLeft,
                     ),
                     onPressed: _saving ? null : _chooseDueDate,
@@ -2142,12 +2258,13 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
     required IconData icon,
   }) {
     return InputDecorator(
+      key: ValueKey('sale-info-$label'),
       decoration: InputDecoration(
         labelText: label,
         prefixIcon: Icon(icon),
         border: const OutlineInputBorder(),
       ),
-      child: Text(value, maxLines: 1, overflow: TextOverflow.ellipsis),
+      child: SelectableText(value),
     );
   }
 
@@ -2166,32 +2283,40 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
       ),
       child: _lines.isEmpty
           ? const Padding(
-              padding: EdgeInsets.symmetric(vertical: 34),
+              padding: EdgeInsets.symmetric(vertical: 16),
               child: Center(
                 child: Text('Search or scan a product to start this invoice.'),
               ),
             )
           : Column(
               children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 10,
-                  ),
-                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                  child: Row(
-                    children: [
-                      _saleHeaderCell('#', 1),
-                      _saleHeaderCell('SKU', 2),
-                      _saleHeaderCell('Product', 4),
-                      _saleHeaderCell('Qty', 2),
-                      _saleHeaderCell('Rate', 2),
-                      _saleHeaderCell('Disc.', 2),
-                      _saleHeaderCell('GST', 1),
-                      _saleHeaderCell('Amount', 2),
-                      const SizedBox(width: 88),
-                    ],
-                  ),
+                LayoutBuilder(
+                  builder: (context, constraints) =>
+                      constraints.maxWidth >= 780 &&
+                          MediaQuery.textScalerOf(context).scale(1) <= 1.3
+                      ? Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 10,
+                          ),
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.surfaceContainerHighest,
+                          child: Row(
+                            children: [
+                              _saleHeaderCell('#', 1),
+                              _saleHeaderCell('SKU', 2),
+                              _saleHeaderCell('Product', 4),
+                              _saleHeaderCell('Qty', 2),
+                              _saleHeaderCell('Rate', 2),
+                              _saleHeaderCell('Disc.', 2),
+                              _saleHeaderCell('GST', 1),
+                              _saleHeaderCell('Amount', 2),
+                              const SizedBox(width: 88),
+                            ],
+                          ),
+                        )
+                      : const SizedBox.shrink(),
                 ),
                 for (var i = 0; i < _lines.length; i++)
                   _SaleLineRow(
@@ -2297,9 +2422,14 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
                       ).colorScheme.onSurfaceVariant.withValues(alpha: .06),
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: const Text(
-                      'Round-off is automatic. Freight, cutting, installation '
-                      'and other charges must be GST-classified Service products.',
+                    child: Text(
+                      _invoiceContext == null
+                          ? 'GST setup must be verified before billing. Round-off is automatic.'
+                          : _gstApplicable
+                          ? 'Round-off is automatic. Freight, cutting, installation '
+                                'and other charges use GST-classified Service products.'
+                          : 'Round-off is automatic. Add freight and other charges '
+                                'as Service products. This store does not charge GST.',
                       style: TextStyle(fontSize: 11),
                     ),
                   ),
@@ -2330,64 +2460,163 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
               );
             },
           ),
-          if (_error != null) ...[
-            const SizedBox(height: 16),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.error,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(
-                _error!,
-                style: TextStyle(color: Theme.of(context).colorScheme.onError),
-              ),
-            ),
-          ],
-          const SizedBox(height: 18),
-          Align(
-            alignment: Alignment.centerRight,
-            child: Wrap(
-              spacing: 10,
-              runSpacing: 10,
-              alignment: WrapAlignment.end,
-              children: [
-                OutlinedButton(
-                  onPressed: _saving
-                      ? null
-                      : () {
-                          if (widget.embedded) {
-                            widget.onFinished?.call(false);
-                          } else {
-                            Navigator.of(context).pop();
-                          }
-                        },
-                  child: const Text('Cancel'),
-                ),
-                OutlinedButton.icon(
-                  onPressed: _saving ? null : () => _post(printAfter: false),
-                  icon: const Icon(Icons.check_circle_outline),
-                  label: const Text('Just Confirm'),
-                ),
-                FilledButton.icon(
-                  onPressed: _saving ? null : () => _post(printAfter: true),
-                  icon: _saving
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.print_outlined),
-                  label: Text(_saving ? 'Confirming...' : 'Print & Confirm'),
-                ),
-              ],
-            ),
-          ),
         ],
       ),
     );
   }
+
+  Widget _invoiceActions() => Container(
+    width: double.infinity,
+    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+    decoration: BoxDecoration(
+      color: Theme.of(context).colorScheme.surface,
+      border: Border(
+        top: BorderSide(color: Theme.of(context).colorScheme.outline),
+      ),
+    ),
+    child: Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 1280),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final compact =
+                constraints.maxWidth < 600 ||
+                MediaQuery.textScalerOf(context).scale(1) > 1.3;
+            final summary = Text(
+              'Total ${_money(_grandTotal)} · ${_lines.length} item${_lines.length == 1 ? '' : 's'}',
+              style: const TextStyle(fontWeight: FontWeight.w700),
+            );
+            final VoidCallback? cancel = _saving
+                ? null
+                : () {
+                    if (widget.embedded) {
+                      widget.onFinished?.call(false);
+                    } else {
+                      Navigator.of(context).pop();
+                    }
+                  };
+            if (constraints.maxWidth < 400 &&
+                MediaQuery.textScalerOf(context).scale(1) > 1.3) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          'Total ${_money(_grandTotal)}',
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        tooltip: 'Cancel',
+                        onPressed: cancel,
+                        icon: const Icon(Icons.close),
+                      ),
+                    ],
+                  ),
+                  OutlinedButton(
+                    onPressed: _saving ? null : () => _post(printAfter: false),
+                    child: const Text('Just Confirm'),
+                  ),
+                  const SizedBox(height: 6),
+                  FilledButton(
+                    onPressed: _saving ? null : () => _post(printAfter: true),
+                    child: Text(_saving ? 'Confirming...' : 'Print & Confirm'),
+                  ),
+                ],
+              );
+            }
+            if (compact) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  summary,
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      IconButton(
+                        tooltip: 'Cancel',
+                        onPressed: cancel,
+                        icon: const Icon(Icons.close),
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: _saving
+                              ? null
+                              : () => _post(printAfter: false),
+                          child: const Text(
+                            'Just Confirm',
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: FilledButton(
+                          onPressed: _saving
+                              ? null
+                              : () => _post(printAfter: true),
+                          child: Text(
+                            _saving ? 'Confirming...' : 'Print & Confirm',
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              );
+            }
+            return Wrap(
+              alignment: WrapAlignment.spaceBetween,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: 12,
+              runSpacing: 6,
+              children: [
+                summary,
+                Wrap(
+                  spacing: 10,
+                  runSpacing: 10,
+                  alignment: WrapAlignment.end,
+                  children: [
+                    OutlinedButton(
+                      onPressed: cancel,
+                      child: const Text('Cancel'),
+                    ),
+                    OutlinedButton.icon(
+                      onPressed: _saving
+                          ? null
+                          : () => _post(printAfter: false),
+                      icon: const Icon(Icons.check_circle_outline),
+                      label: const Text('Just Confirm'),
+                    ),
+                    FilledButton.icon(
+                      onPressed: _saving ? null : () => _post(printAfter: true),
+                      icon: _saving
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.print_outlined),
+                      label: Text(
+                        _saving ? 'Confirming...' : 'Print & Confirm',
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            );
+          },
+        ),
+      ),
+    ),
+  );
 }
 
 class _SaleLine {
@@ -3288,93 +3517,199 @@ class _SaleLineRow extends StatelessWidget {
       ),
     );
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
-      decoration: BoxDecoration(
-        border: Border(
-          bottom: BorderSide(
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
+    final productDetails = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          line.product.productName,
+          style: const TextStyle(fontWeight: FontWeight.w700),
+        ),
+        Text('SKU ${line.product.sku}', style: const TextStyle(fontSize: 11)),
+        if (line.invoiceDescription?.trim().isNotEmpty == true)
+          Text(line.invoiceDescription!, style: const TextStyle(fontSize: 12)),
+        ...line.batches.map(
+          (batch) => Text(
+            '${batch['batch_number']} · ${batch['quality_label'] ?? ''}'
+            ' · ${batch['quantity']} ${line.product.baseUnitCode}'
+            ' @ ${batch['selling_price_base'] ?? 'standard price'}',
+            style: const TextStyle(fontSize: 11),
           ),
         ),
-      ),
-      child: Row(
-        children: [
-          cell(Text('$index'), 1),
-          cell(
-            Text(
-              line.product.sku,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-            2,
+        if ((line.product.partNumber ?? '').isNotEmpty)
+          Text(line.product.partNumber!, style: const TextStyle(fontSize: 11)),
+        if (line.cuttingCharge > 0)
+          Text(
+            'Cutting ${money(line.cuttingCharge)}',
+            style: const TextStyle(fontSize: 11),
           ),
-          cell(
-            Column(
+      ],
+    );
+    final controls = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        IconButton(
+          tooltip: 'Edit product details',
+          onPressed: onEdit,
+          icon: const Icon(Icons.edit_outlined),
+        ),
+        IconButton(
+          tooltip: 'Remove product',
+          onPressed: onDelete,
+          icon: const Icon(Icons.delete_outline),
+        ),
+      ],
+    );
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth < 780 ||
+            MediaQuery.textScalerOf(context).scale(1) > 1.3) {
+          Widget detail(String label, String value) => SizedBox(
+            width: (constraints.maxWidth - 10) / 2,
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  line.product.productName,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontWeight: FontWeight.w700),
-                ),
-                ...line.batches.map(
-                  (batch) => Text(
-                    '${batch['batch_number']} • ${batch['quality_label'] ?? ''}'
-                    ' • ${batch['quantity']} ${line.product.baseUnitCode}'
-                    ' @ ${batch['selling_price_base'] ?? 'standard price'}',
-                    style: const TextStyle(fontSize: 11),
+                  label,
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
                 ),
-                if ((line.product.partNumber ?? '').isNotEmpty)
-                  Text(
-                    line.product.partNumber!,
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                if (line.cuttingCharge > 0)
-                  Text(
-                    'Cutting ${money(line.cuttingCharge)}',
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
-                  ),
+                Text(
+                  value,
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
               ],
             ),
-            4,
-          ),
-          cell(Text('${_quantity(line.quantity)} ${line.unitCode}'), 2),
-          cell(Text(money(line.unitPrice)), 2),
-          cell(Text(money(line.discount)), 2),
-          cell(Text('${line.taxRate.toStringAsFixed(0)}%'), 1),
-          cell(
-            Text(
-              money(line.total),
-              style: const TextStyle(fontWeight: FontWeight.w600),
+          );
+          return Container(
+            padding: const EdgeInsets.symmetric(vertical: 10),
+            decoration: BoxDecoration(
+              border: Border(
+                bottom: BorderSide(
+                  color: Theme.of(context).colorScheme.outline,
+                ),
+              ),
             ),
-            2,
-          ),
-          SizedBox(
-            width: 44,
-            child: IconButton(
-              tooltip: 'Edit product details',
-              onPressed: onEdit,
-              icon: const Icon(Icons.edit_outlined),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('$index. '),
+                    Expanded(child: productDetails),
+                    controls,
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 10,
+                  runSpacing: 8,
+                  children: [
+                    detail(
+                      'Qty',
+                      '${_quantity(line.quantity)} ${line.unitCode}',
+                    ),
+                    detail('Rate', money(line.unitPrice)),
+                    detail('Discount', money(line.discount)),
+                    detail('GST', '${line.taxRate.toStringAsFixed(0)}%'),
+                    detail('Amount', money(line.total)),
+                  ],
+                ),
+              ],
+            ),
+          );
+        }
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+          decoration: BoxDecoration(
+            border: Border(
+              bottom: BorderSide(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
             ),
           ),
-          SizedBox(
-            width: 44,
-            child: IconButton(
-              tooltip: 'Remove product',
-              onPressed: onDelete,
-              icon: const Icon(Icons.delete_outline),
-            ),
+          child: Row(
+            children: [
+              cell(Text('$index'), 1),
+              cell(
+                Text(
+                  line.product.sku,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                2,
+              ),
+              cell(
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      line.product.productName,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                    ...line.batches.map(
+                      (batch) => Text(
+                        '${batch['batch_number']} • ${batch['quality_label'] ?? ''}'
+                        ' • ${batch['quantity']} ${line.product.baseUnitCode}'
+                        ' @ ${batch['selling_price_base'] ?? 'standard price'}',
+                        style: const TextStyle(fontSize: 11),
+                      ),
+                    ),
+                    if ((line.product.partNumber ?? '').isNotEmpty)
+                      Text(
+                        line.product.partNumber!,
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    if (line.cuttingCharge > 0)
+                      Text(
+                        'Cutting ${money(line.cuttingCharge)}',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                  ],
+                ),
+                4,
+              ),
+              cell(Text('${_quantity(line.quantity)} ${line.unitCode}'), 2),
+              cell(Text(money(line.unitPrice)), 2),
+              cell(Text(money(line.discount)), 2),
+              cell(Text('${line.taxRate.toStringAsFixed(0)}%'), 1),
+              cell(
+                Text(
+                  money(line.total),
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+                2,
+              ),
+              SizedBox(
+                width: 44,
+                child: IconButton(
+                  tooltip: 'Edit product details',
+                  onPressed: onEdit,
+                  icon: const Icon(Icons.edit_outlined),
+                ),
+              ),
+              SizedBox(
+                width: 44,
+                child: IconButton(
+                  tooltip: 'Remove product',
+                  onPressed: onDelete,
+                  icon: const Icon(Icons.delete_outline),
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 }
@@ -3393,7 +3728,7 @@ class _SaleCard extends StatelessWidget {
     return Container(
       width: double.infinity,
 
-      padding: const EdgeInsets.all(22),
+      padding: const EdgeInsets.all(14),
 
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surface,
@@ -3409,22 +3744,35 @@ class _SaleCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
 
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  title,
-
-                  style: const TextStyle(
-                    fontSize: 20,
-
-                    fontWeight: FontWeight.bold,
-                  ),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final heading = Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
                 ),
-              ),
-
-              ?trailing,
-            ],
+              );
+              if (constraints.maxWidth < 520 ||
+                  MediaQuery.textScalerOf(context).scale(1) > 1.3) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    heading,
+                    if (trailing != null) ...[
+                      const SizedBox(height: 6),
+                      Align(alignment: Alignment.centerLeft, child: trailing),
+                    ],
+                  ],
+                );
+              }
+              return Row(
+                children: [
+                  Expanded(child: heading),
+                  ?trailing,
+                ],
+              );
+            },
           ),
 
           const SizedBox(height: 10),
@@ -3495,18 +3843,15 @@ class _SalePaymentBadge extends StatelessWidget {
       case 'paid':
         background = Theme.of(context).colorScheme.primary;
 
-        foreground = Theme.of(context).colorScheme.primary;
-
       case 'partial':
         background = context.thqSemanticColors.warning;
 
-        foreground = context.thqSemanticColors.warning;
-
       default:
         background = Theme.of(context).colorScheme.error;
-
-        foreground = Theme.of(context).colorScheme.error;
     }
+    foreground = background.computeLuminance() > .179
+        ? Colors.black
+        : Colors.white;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),

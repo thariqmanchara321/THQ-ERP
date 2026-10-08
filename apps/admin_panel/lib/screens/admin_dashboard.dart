@@ -84,13 +84,14 @@ class _AdminDashboardState extends State<AdminDashboard> {
   Widget build(BuildContext context) {
     final auth = AdminAuthService();
     return Scaffold(
-      backgroundColor: UiDesignProfile.fallback('client').background,
+      backgroundColor: UiDesignScope.of(context, appKey: 'admin').background,
       appBar: AppBar(
         title: Text(
           'THQ Platform • v${ThqReleaseContract.appVersion} • Build ${ThqReleaseContract.buildNumber}',
           style: const TextStyle(fontWeight: FontWeight.bold),
         ),
         actions: [
+          const ThqAppearanceButton(),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Center(
@@ -314,7 +315,7 @@ class _Metric extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final p = UiDesignProfile.fallback('client');
+    final p = UiDesignScope.of(context, appKey: 'admin');
     return Container(
       width: 162,
       padding: const EdgeInsets.all(16),
@@ -370,7 +371,7 @@ class DashboardCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final p = UiDesignProfile.fallback('client');
+    final p = UiDesignScope.of(context, appKey: 'admin');
     return Material(
       color: p.surface,
       borderRadius: BorderRadius.circular(p.radius),

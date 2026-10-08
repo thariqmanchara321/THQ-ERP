@@ -10,8 +10,9 @@ class MobileAuthService {
     required String password,
   }) async {
     final activation = await DeviceInstallationService().readActivation();
-    if (activation == null)
+    if (activation == null) {
       throw const AuthException('Activate this Client Mobile system first.');
+    }
     final response = await _supabase.functions.invoke(
       'username-login',
       body: {
@@ -22,8 +23,9 @@ class MobileAuthService {
         'device_secret': activation.deviceSecret,
       },
     );
-    if (response.data is! Map)
+    if (response.data is! Map) {
       throw const AuthException('Unexpected login response.');
+    }
     final data = Map<String, dynamic>.from(response.data as Map);
     if (data['error'] != null) throw AuthException(data['error'].toString());
     final refreshToken = data['refresh_token']?.toString() ?? '';

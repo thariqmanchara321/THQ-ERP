@@ -1,19 +1,27 @@
 import 'package:flutter/material.dart';
 
 import 'thq_v7_theme.dart';
+import 'thq_appearance.dart';
+import 'thq_classic_theme.dart';
 
 class UiDesignProfile {
   final String key;
   final String name;
   final String appKey;
   final Map<String, dynamic> config;
+  final Map<String, dynamic>? classicConfig;
+  final ThqAppearance appearance;
+  final UiDesignProfile? _source;
 
   const UiDesignProfile({
     required this.key,
     required this.name,
     required this.appKey,
     required this.config,
-  });
+    this.classicConfig,
+    this.appearance = ThqAppearance.v7,
+    UiDesignProfile? source,
+  }) : _source = source;
 
   factory UiDesignProfile.fromMap(Map<String, dynamic> map, String appKey) {
     final raw = map['config'];
@@ -36,6 +44,13 @@ class UiDesignProfile {
       config: standard
           ? {...config, ...defaultConfig, ...overrides}
           : {...defaultConfig, ...config},
+      classicConfig: {
+        ...classicDefaultConfig(appKey),
+        if (!(standard || key == '${appKey}_thq_v7') ||
+            config['design_system'] != 'thq_v7')
+          ...config,
+        ...overrides,
+      },
     );
   }
 
@@ -62,6 +77,50 @@ class UiDesignProfile {
     'pos_product_style': 'solid_tiles',
     'pos_cart_width': 294,
   };
+
+  /// Pre-V7 Aurora defaults, retained independently of the V7 preset upgrade.
+  static Map<String, dynamic> classicDefaultConfig(String appKey) => {
+    'primary': '#6C5CE7',
+    'secondary': '#AFA4F5',
+    'accent': '#7C6CF2',
+    'background': '#F5F3FF',
+    'surface': '#FFFFFF',
+    'sidebar': '#FBFAFF',
+    'border': '#E9E5F6',
+    'success': '#22A06B',
+    'warning': '#E6A700',
+    'danger': '#E05252',
+    'text_primary': '#211F27',
+    'text_secondary': '#625E6A',
+    'radius': appKey == 'pos' ? 10 : 12,
+    'density': 'compact',
+    'card_style': 'soft',
+    'sidebar_style': 'floating',
+    'gradient': true,
+    'pos_layout': 'retail_grid',
+    'pos_product_style': 'soft_cards',
+    'pos_cart_width': 340,
+  };
+
+  UiDesignProfile forAppearance(ThqAppearance value) {
+    if (value == appearance) return this;
+    final source = _source ?? this;
+    if (value == source.appearance) return source;
+    return UiDesignProfile(
+      key: source.key,
+      name: 'Classic · ${source.name}',
+      appKey: source.appKey,
+      config:
+          source.classicConfig ??
+          {
+            ...classicDefaultConfig(source.appKey),
+            if (source.key != '${source.appKey}_thq_v7') ...source.config,
+          },
+      classicConfig: source.classicConfig,
+      appearance: value,
+      source: source,
+    );
+  }
 
   factory UiDesignProfile.fallback(String appKey) => UiDesignProfile(
     key: '${appKey}_thq_v7',
@@ -105,23 +164,25 @@ class UiDesignProfile {
       config['pos_product_style']?.toString() ?? 'soft_cards';
   double get posCartWidth =>
       ((config['pos_cart_width'] as num?)?.toDouble() ?? 294)
-          .clamp(294.0, 520.0)
+          .clamp(appearance == ThqAppearance.classic ? 320.0 : 294.0, 520.0)
           .toDouble();
 
-  ThemeData theme() => ThqV7Theme.build(
-    primary: primary,
-    secondary: secondary,
-    background: background,
-    surface: surface,
-    sidebar: sidebar,
-    border: border,
-    text: textPrimary,
-    muted: textSecondary,
-    error: danger,
-    success: success,
-    warning: warning,
-    radius: radius,
-  );
+  ThemeData theme() => appearance == ThqAppearance.classic
+      ? ThqClassicTheme.desktop(this)
+      : ThqV7Theme.build(
+          primary: primary,
+          secondary: secondary,
+          background: background,
+          surface: surface,
+          sidebar: sidebar,
+          border: border,
+          text: textPrimary,
+          muted: textSecondary,
+          error: danger,
+          success: success,
+          warning: warning,
+          radius: radius,
+        );
 }
 
 class UiDesignScope extends InheritedWidget {
@@ -129,16 +190,18 @@ class UiDesignScope extends InheritedWidget {
   const UiDesignScope({super.key, required this.profile, required super.child});
 
   static UiDesignProfile of(BuildContext context, {String appKey = 'client'}) {
-    return context
-            .dependOnInheritedWidgetOfExactType<UiDesignScope>()
-            ?.profile ??
+    final profile =
+        context.dependOnInheritedWidgetOfExactType<UiDesignScope>()?.profile ??
         UiDesignProfile.fallback(appKey);
+    final appearance = ThqAppearanceScope.maybeOf(context)?.value;
+    return appearance == null ? profile : profile.forAppearance(appearance);
   }
 
   @override
   bool updateShouldNotify(UiDesignScope oldWidget) =>
       oldWidget.profile.config != profile.config ||
-      oldWidget.profile.key != profile.key;
+      oldWidget.profile.key != profile.key ||
+      oldWidget.profile.appearance != profile.appearance;
 }
 
 class V43Surface extends StatelessWidget {

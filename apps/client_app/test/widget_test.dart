@@ -3,11 +3,11 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   test('THQ current release/API contract is available to Client', () {
-    expect(ThqReleaseContract.appVersion, '7.0.0');
-    expect(ThqReleaseContract.buildNumber, 14);
+    expect(ThqReleaseContract.appVersion, '7.0.1');
+    expect(ThqReleaseContract.buildNumber, 15);
     expect(
       ThqReleaseContract.releaseName,
-      'Futuristic UI & Compact Workspaces',
+      'Classic / V7 Switchable UI',
     );
     expect(ThqReleaseContract.minimumMigration, 213);
     expect(ThqReleaseContract.apiVersion, 'v1');

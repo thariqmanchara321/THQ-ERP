@@ -30,29 +30,39 @@ Future<void> main() async {
     return true;
   };
 
-  runApp(const ThqClientMobileApp());
+  final appearance = ThqAppearanceController(appKey: 'client_mobile');
+  await appearance.load();
+  runApp(ThqClientMobileApp(appearance: appearance));
 }
 
 class ThqClientMobileApp extends StatelessWidget {
-  const ThqClientMobileApp({super.key});
+  final ThqAppearanceController? appearance;
+  const ThqClientMobileApp({super.key, this.appearance});
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      title: 'THQ Client Mobile',
-      // THQ_BRANDING_START
-      builder: (context, child) => ThqMotionScope(
-        child: ThqStartupGate(
-          appName: 'THQ Client Mobile',
-          child: ThqMobileProductionFrame(
-            child: ThqNotificationHost(child: child ?? const SizedBox.shrink()),
+    return ThqAppearanceHost(
+      appKey: 'client_mobile',
+      controller: appearance,
+      builder: (context, mode) => MaterialApp(
+        debugShowCheckedModeBanner: false,
+        themeAnimationDuration: Duration.zero,
+        title: 'THQ Client Mobile',
+        // THQ_BRANDING_START
+        builder: (context, child) => ThqMotionScope(
+          child: ThqStartupGate(
+            appName: 'THQ Client Mobile',
+            child: ThqMobileProductionFrame(
+              child: ThqNotificationHost(
+                child: child ?? const SizedBox.shrink(),
+              ),
+            ),
           ),
         ),
+        // THQ_BRANDING_END
+        theme: ThqMobileTheme.client(appearance: mode),
+        home: const MobileEntryScreen(),
       ),
-      // THQ_BRANDING_END
-      theme: ThqMobileTheme.client(),
-      home: const MobileEntryScreen(),
     );
   }
 }

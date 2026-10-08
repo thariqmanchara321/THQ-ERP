@@ -27,13 +27,16 @@ Future<void> main() async {
     return true;
   };
 
-  runApp(const ThqAdminApp());
+  final appearance = ThqAppearanceController(appKey: 'admin');
+  await appearance.load();
+  runApp(ThqAdminApp(appearance: appearance));
 }
 
 class ThqAdminApp extends StatelessWidget {
+  final ThqAppearanceController? appearance;
   final bool? authenticatedOverride;
 
-  const ThqAdminApp({super.key, this.authenticatedOverride});
+  const ThqAdminApp({super.key, this.authenticatedOverride, this.appearance});
 
   @override
   Widget build(BuildContext context) {
@@ -41,21 +44,26 @@ class ThqAdminApp extends StatelessWidget {
         authenticatedOverride ??
         (Supabase.instance.client.auth.currentSession != null);
 
-    return MaterialApp(
-      title: 'THQ Admin',
-      debugShowCheckedModeBanner: false,
-      builder: (context, child) => ThqMotionScope(
-        child: ThqStartupGate(
-          appName: 'THQ Admin',
-          child: ThqNotificationHost(
-            child: NumericZeroAutoSelect(
-              child: child ?? const SizedBox.shrink(),
+    return ThqAppearanceHost(
+      appKey: 'admin',
+      controller: appearance,
+      builder: (context, mode) => MaterialApp(
+        title: 'THQ Admin',
+        debugShowCheckedModeBanner: false,
+        themeAnimationDuration: Duration.zero,
+        builder: (context, child) => ThqMotionScope(
+          child: ThqStartupGate(
+            appName: 'THQ Admin',
+            child: ThqNotificationHost(
+              child: NumericZeroAutoSelect(
+                child: child ?? const SizedBox.shrink(),
+              ),
             ),
           ),
         ),
+        theme: UiDesignProfile.fallback('admin').forAppearance(mode).theme(),
+        home: authenticated ? const AdminDashboardV600() : const LoginScreen(),
       ),
-      theme: UiDesignProfile.fallback('client').theme(),
-      home: authenticated ? const AdminDashboardV600() : const LoginScreen(),
     );
   }
 }

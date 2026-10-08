@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import '../lib/widgets/tracking_conversion_dialog.dart';
+import 'package:pos_app/widgets/tracking_conversion_dialog.dart';
 
 void main() {
   testWidgets('tracking conversion cannot confirm unresolved stock blockers', (tester) async {

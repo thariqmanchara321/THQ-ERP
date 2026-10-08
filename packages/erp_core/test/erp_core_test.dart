@@ -3,13 +3,13 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   test(
-    'THQ v7.0.0 Build 14 release contract keeps migration 213 compatibility',
+    'THQ v7.0.1 Build 15 release contract keeps migration 213 compatibility',
     () {
-      expect(ThqReleaseContract.appVersion, '7.0.0');
-      expect(ThqReleaseContract.buildNumber, 14);
+      expect(ThqReleaseContract.appVersion, '7.0.1');
+      expect(ThqReleaseContract.buildNumber, 15);
       expect(
         ThqReleaseContract.releaseName,
-        'Futuristic UI & Compact Workspaces',
+        'Classic / V7 Switchable UI',
       );
       expect(ThqReleaseContract.minimumMigration, 213);
       expect(ThqReleaseContract.apiVersion, 'v1');

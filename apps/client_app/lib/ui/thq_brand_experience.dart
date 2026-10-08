@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:thq_ui/thq_ui.dart';
 import 'package:flutter/services.dart';
 
 // THQ_BRAND_EXPERIENCE_V1: presentation only; no auth or session storage.
@@ -368,13 +369,16 @@ class ThqBrandedLoginShell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final classic = ThqAppearanceScope.modeOf(context) == ThqAppearance.classic;
+    final base = Theme.of(context);
+    final scheme = base.colorScheme;
     final dark = Theme.of(context).brightness == Brightness.dark;
-    final ink = dark ? const Color(0xFFEDF6F9) : const Color(0xFF102C38);
-    final muted = dark ? const Color(0xFF9BB2BF) : const Color(0xFF536D78);
-    final page = dark ? const Color(0xFF0D1E2E) : const Color(0xFFF8FAFB);
-    final input = dark ? const Color(0xFF112839) : Colors.white;
-    final border = dark ? const Color(0xFF284050) : const Color(0xFFDCE6EB);
-    final accent = dark ? _thqTeal : const Color(0xFF117D6C);
+    final ink = classic ? scheme.onSurface : dark ? const Color(0xFFEDF6F9) : const Color(0xFF102C38);
+    final muted = classic ? scheme.onSurfaceVariant : dark ? const Color(0xFF9BB2BF) : const Color(0xFF536D78);
+    final page = classic ? base.scaffoldBackgroundColor : dark ? const Color(0xFF0D1E2E) : const Color(0xFFF8FAFB);
+    final input = classic ? scheme.surface : dark ? const Color(0xFF112839) : Colors.white;
+    final border = classic ? scheme.outline : dark ? const Color(0xFF284050) : const Color(0xFFDCE6EB);
+    final accent = classic ? scheme.primary : dark ? _thqTeal : const Color(0xFF117D6C);
     final theme = Theme.of(context).copyWith(
       inputDecorationTheme: InputDecorationThemeData(
         filled: true,
@@ -419,7 +423,9 @@ class ThqBrandedLoginShell extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text(
+        Row(
+          children: [
+            Expanded(child: Text(
           eyebrow,
           style: TextStyle(
             color: accent,
@@ -427,6 +433,9 @@ class ThqBrandedLoginShell extends StatelessWidget {
             letterSpacing: 2,
             fontWeight: FontWeight.w600,
           ),
+        )),
+            ThqAppearanceButton(foregroundColor: accent),
+          ],
         ),
         const SizedBox(height: 12),
         Text(

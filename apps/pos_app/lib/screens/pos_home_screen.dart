@@ -720,7 +720,8 @@ class _PosHomeScreenState extends State<PosHomeScreen> {
     return FutureBuilder<UiDesignProfile>(
       future: _designFuture,
       builder: (context, snapshot) {
-        final profile = snapshot.data ?? _fallbackProfile;
+        final profile = (snapshot.data ?? _fallbackProfile)
+            .forAppearance(ThqAppearanceScope.modeOf(context));
         return UiDesignScope(
           profile: profile,
           child: Theme(
@@ -733,7 +734,9 @@ class _PosHomeScreenState extends State<PosHomeScreen> {
                         (MediaQuery.maybeDisableAnimationsOf(context) ?? false)
                         ? Duration.zero
                         : const Duration(milliseconds: 160),
-                    width: expanded ? 176 : 64,
+                    width: expanded
+                        ? (profile.appearance == ThqAppearance.classic ? 178 : 176)
+                        : 64,
                     decoration: BoxDecoration(
                       color: profile.sidebar,
                       border: Border(right: BorderSide(color: profile.border)),
@@ -792,6 +795,11 @@ class _PosHomeScreenState extends State<PosHomeScreen> {
           builder: (context, motionEnabled, _) => PopupMenuButton<String>(
             tooltip: 'Terminal actions',
             onSelected: (action) {
+              final mode = ThqAppearanceActions.fromAction(action);
+              if (mode != null) {
+                unawaited(ThqAppearanceActions.select(context, mode));
+                return;
+              }
               if (action == 'refresh') {
                 unawaited(_requestRefresh());
               } else if (action == 'motion') {
@@ -820,6 +828,7 @@ class _PosHomeScreenState extends State<PosHomeScreen> {
                   ],
                 ),
               ),
+              ...ThqAppearanceActions.menuItems(context),
               PopupMenuItem<String>(
                 value: 'motion',
                 child: Row(
@@ -1093,7 +1102,7 @@ class _PosHomeScreenState extends State<PosHomeScreen> {
               : 'v${ThqReleaseContract.appVersion.split('.').first}',
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: TextStyle(fontSize: 10, color: profile.textSecondary),
+          style: TextStyle(fontSize: 10, height: 1.2, color: profile.textSecondary),
         ),
       ),
     );

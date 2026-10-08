@@ -111,7 +111,7 @@ class WorkspaceHero extends StatelessWidget {
                 child: Text(
                   'T',
                   style: TextStyle(
-                    color: Theme.of(context).colorScheme.onSurface,
+                    color: scheme.onPrimary,
                     fontSize: 19,
                     fontWeight: FontWeight.w600,
                   ),
@@ -125,7 +125,7 @@ class WorkspaceHero extends StatelessWidget {
                     Text(
                       'THQ BUSINESS',
                       style: TextStyle(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        color: scheme.onPrimary.withValues(alpha: .8),
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
                         letterSpacing: 1.05,
@@ -137,7 +137,7 @@ class WorkspaceHero extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        color: Theme.of(context).colorScheme.onSurface,
+                        color: scheme.onPrimary,
                         fontSize: 18,
                         fontWeight: FontWeight.w600,
                         letterSpacing: -0.35,
@@ -146,6 +146,7 @@ class WorkspaceHero extends StatelessWidget {
                   ],
                 ),
               ),
+              ThqAppearanceButton(foregroundColor: scheme.onPrimary),
               _HeroIconButton(
                 tooltip: 'Search business',
                 icon: Icons.search_rounded,
@@ -172,7 +173,7 @@ class WorkspaceHero extends StatelessWidget {
             children: [
               Icon(
                 Icons.store_mall_directory_outlined,
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                color: scheme.onPrimary.withValues(alpha: .8),
                 size: 15,
               ),
               const SizedBox(width: 5),
@@ -182,7 +183,7 @@ class WorkspaceHero extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    color: scheme.onPrimary.withValues(alpha: .8),
                     fontSize: 11.5,
                     fontWeight: FontWeight.w700,
                   ),
@@ -193,7 +194,7 @@ class WorkspaceHero extends StatelessWidget {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  color: scheme.onPrimary.withValues(alpha: .8),
                   fontSize: 11,
                   fontWeight: FontWeight.w700,
                 ),
@@ -510,7 +511,7 @@ class _HeroIconButton extends StatelessWidget {
     tooltip: tooltip,
     onPressed: onPressed,
     style: IconButton.styleFrom(
-      foregroundColor: Theme.of(context).colorScheme.surface,
+      foregroundColor: Theme.of(context).colorScheme.onPrimary,
       backgroundColor: Theme.of(
         context,
       ).colorScheme.surface.withValues(alpha: 0.13),
@@ -536,7 +537,7 @@ class _HeroMetric extends StatelessWidget {
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: TextStyle(
-            color: Theme.of(context).colorScheme.onSurface,
+            color: Theme.of(context).colorScheme.onPrimary,
             fontSize: 14,
             fontWeight: FontWeight.w600,
             letterSpacing: -0.2,
@@ -546,7 +547,7 @@ class _HeroMetric extends StatelessWidget {
         Text(
           label,
           style: TextStyle(
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
+            color: Theme.of(context).colorScheme.onPrimary,
             fontSize: 11,
             fontWeight: FontWeight.w700,
           ),

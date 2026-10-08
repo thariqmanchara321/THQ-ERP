@@ -487,7 +487,9 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
     return FutureBuilder<UiDesignProfile>(
       future: _designFuture,
       builder: (context, snapshot) {
-        final profile = snapshot.data ?? _fallbackProfile;
+        final profile = (snapshot.data ?? _fallbackProfile).forAppearance(
+          ThqAppearanceScope.modeOf(context),
+        );
         return UiDesignScope(
           profile: profile,
           child: Theme(
@@ -507,7 +509,11 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
   }
 
   Widget _desktop(ClientModule selected, UiDesignProfile profile) {
-    final width = _navCollapsed ? 64.0 : 176.0;
+    final width = _navCollapsed
+        ? 64.0
+        : profile.appearance == ThqAppearance.classic
+        ? 208.0
+        : 176.0;
     final workspaceBackground = Color.alphaBlend(
       profile.primary.withValues(alpha: .035),
       profile.background,
@@ -569,16 +575,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
                     collapsed: _navCollapsed,
                     onTap: _logout,
                   ),
-                  if (!_navCollapsed)
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(12, 2, 12, 8),
-                      child: const ThqVersionClock(
-                        version: ThqReleaseContract.appVersion,
-                        buildNumber: ThqReleaseContract.buildNumber,
-                      ),
-                    )
-                  else
-                    const SizedBox(height: 6),
+                  const SizedBox(height: 4),
                 ],
               ),
             ),
@@ -592,7 +589,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
                   _SubscriptionBanner(session: _session),
                   Expanded(
                     child: Padding(
-                      padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
+                      padding: const EdgeInsets.fromLTRB(10, 8, 10, 4),
                       child: DecoratedBox(
                         decoration: BoxDecoration(
                           color: profile.surface,
@@ -639,6 +636,18 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
                       ),
                     ),
                   ),
+                  const Padding(
+                    key: ValueKey('client-workspace-status'),
+                    padding: EdgeInsets.fromLTRB(12, 1, 12, 3),
+                    child: Align(
+                      alignment: Alignment.centerRight,
+                      child: ThqVersionClock(
+                        version: ThqReleaseContract.appVersion,
+                        buildNumber: ThqReleaseContract.buildNumber,
+                        singleLine: true,
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -664,6 +673,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
                   )
                 : const Icon(Icons.refresh),
           ),
+          const ThqAppearanceButton(),
           const ThqMotionButton(),
           IconButton(
             tooltip: 'Search THQ',
@@ -1356,6 +1366,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
                     child: const Icon(Icons.refresh_rounded, size: 19),
                   ),
           ),
+          const ThqAppearanceButton(),
           const ThqMotionButton(),
           IconButton(
             tooltip: 'Search THQ',

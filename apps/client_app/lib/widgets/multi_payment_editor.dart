@@ -231,20 +231,34 @@ class _MultiPaymentEditorState extends State<MultiPaymentEditor> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            const Expanded(
-              child: Text(
-                'Payment Allocations',
-                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
-              ),
-            ),
-            TextButton.icon(
+        LayoutBuilder(
+          builder: (context, constraints) {
+            const heading = Text(
+              'Payment Allocations',
+              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+            );
+            final add = TextButton.icon(
               onPressed: widget.enabled ? _add : null,
               icon: const Icon(Icons.add),
               label: const Text('Add Method'),
-            ),
-          ],
+            );
+            if (constraints.maxWidth < 480 ||
+                MediaQuery.textScalerOf(context).scale(1) > 1.3) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  heading,
+                  Align(alignment: Alignment.centerLeft, child: add),
+                ],
+              );
+            }
+            return Row(
+              children: [
+                const Expanded(child: heading),
+                add,
+              ],
+            );
+          },
         ),
         for (var i = 0; i < _rows.length; i++) ...[
           _paymentRow(i),

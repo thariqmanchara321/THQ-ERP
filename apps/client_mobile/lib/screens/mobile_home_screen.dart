@@ -222,6 +222,7 @@ class _MobileHomeScreenState extends State<MobileHomeScreen> {
                 ],
               ),
               actions: [
+                const ThqAppearanceButton(),
                 const ThqMotionButton(),
                 if (widget.session.canViewAllLocations)
                   IconButton(

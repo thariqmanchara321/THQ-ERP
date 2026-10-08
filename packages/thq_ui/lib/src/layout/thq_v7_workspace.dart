@@ -1,4 +1,5 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 /// One process-wide preference; system accessibility always takes precedence.
@@ -99,10 +100,12 @@ class ThqVersionClock extends StatefulWidget {
     required this.version,
     required this.buildNumber,
     this.showClock = true,
+    this.singleLine = false,
   });
   final String version;
   final int buildNumber;
   final bool showClock;
+  final bool singleLine;
   @override
   State<ThqVersionClock> createState() => _ThqVersionClockState();
 }
@@ -130,7 +133,7 @@ class _ThqVersionClockState extends State<ThqVersionClock> {
     final clock =
         '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
     return Text(
-      '${widget.showClock ? '$clock  ·  ' : ''}v${widget.version}\nBuild ${widget.buildNumber}',
+      '${widget.showClock ? '$clock  ·  ' : ''}v${widget.version}${widget.singleLine ? '  ·  ' : '\n'}Build ${widget.buildNumber}',
       textAlign: TextAlign.center,
       style: Theme.of(context).textTheme.labelSmall,
     );

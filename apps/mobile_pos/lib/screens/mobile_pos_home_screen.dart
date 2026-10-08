@@ -1245,6 +1245,11 @@ class _State extends State<MobilePosHomeScreen> {
   }
 
   Future<void> menu(String value) async {
+    final appearance = ThqAppearanceActions.fromAction(value);
+    if (appearance != null) {
+      await ThqAppearanceActions.select(context, appearance);
+      return;
+    }
     if (value == 'motion') {
       ThqMotionSettings.enabled.value = !ThqMotionSettings.enabled.value;
     } else if (value == 'work_offline') {
@@ -1586,6 +1591,7 @@ class _State extends State<MobilePosHomeScreen> {
                   title: Text('Refresh catalogue'),
                 ),
               ),
+              ...ThqAppearanceActions.menuItems(context),
               PopupMenuItem(
                 value: 'motion',
                 child: ListTile(
@@ -1614,7 +1620,7 @@ class _State extends State<MobilePosHomeScreen> {
 
   Widget _sideMenu({required bool inDrawer}) {
     const side = Color(0xFF102238);
-    final muted = Theme.of(context).colorScheme.onSurfaceVariant;
+    final muted = Colors.white.withValues(alpha: .72);
     return Material(
       color: side,
       child: SafeArea(
@@ -1649,7 +1655,7 @@ class _State extends State<MobilePosHomeScreen> {
                         Text(
                           'THQ ERP',
                           style: TextStyle(
-                            color: Theme.of(context).colorScheme.onSurface,
+                            color: Colors.white,
                             fontWeight: FontWeight.w600,
                             fontSize: 17,
                           ),
@@ -1824,7 +1830,7 @@ class _State extends State<MobilePosHomeScreen> {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        color: Theme.of(context).colorScheme.onSurface,
+                        color: Colors.white,
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
                       ),
@@ -1874,16 +1880,16 @@ class _State extends State<MobilePosHomeScreen> {
                 icon,
                 size: 20,
                 color: active
-                    ? Theme.of(context).colorScheme.onSurface
-                    : Theme.of(context).colorScheme.onSurfaceVariant,
+                    ? Colors.white
+                    : Colors.white.withValues(alpha: .72),
               ),
               const SizedBox(width: 11),
               Text(
                 label,
                 style: TextStyle(
                   color: active
-                      ? Theme.of(context).colorScheme.onSurface
-                      : Theme.of(context).colorScheme.outline,
+                      ? Colors.white
+                      : Colors.white.withValues(alpha: .72),
                   fontSize: 12.5,
                   fontWeight: active ? FontWeight.w600 : FontWeight.w600,
                 ),

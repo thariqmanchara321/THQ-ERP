@@ -275,10 +275,12 @@ class _ReportsCenterV500ScreenState extends State<ReportsCenterV500Screen> {
       key: ValueKey(_definition?.key),
       initialValue: _definition?.key,
       isExpanded: true,
+      style: Theme.of(context).textTheme.bodySmall,
       decoration: const InputDecoration(
         labelText: 'Report',
         border: OutlineInputBorder(),
         isDense: true,
+        contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 9),
       ),
       items: items
           .map(
@@ -305,10 +307,12 @@ class _ReportsCenterV500ScreenState extends State<ReportsCenterV500Screen> {
         ),
         initialValue: LocationScopeService.currentForRead(widget.session) ?? '',
         isExpanded: true,
+        style: Theme.of(context).textTheme.bodySmall,
         decoration: const InputDecoration(
           labelText: 'Store',
           border: OutlineInputBorder(),
           isDense: true,
+          contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 9),
         ),
         items: [
           if (widget.session.canViewAllLocations ||
@@ -343,13 +347,19 @@ class _ReportsCenterV500ScreenState extends State<ReportsCenterV500Screen> {
     bool start, {
     VoidCallback? refresh,
   }) => OutlinedButton.icon(
+    style: OutlinedButton.styleFrom(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+      minimumSize: const Size(0, 36),
+      textStyle: Theme.of(context).textTheme.bodySmall!.copyWith(fontSize: 12),
+      visualDensity: VisualDensity.compact,
+    ),
     onPressed: _exporting
         ? null
         : () async {
             await _date(start);
             refresh?.call();
           },
-    icon: const Icon(Icons.calendar_month, size: 17),
+    icon: const Icon(Icons.calendar_month, size: 14),
     label: Text(
       '${start ? 'From' : 'To'} ${DateFormat('dd MMM yyyy').format(start ? _from : _to)}',
     ),
@@ -370,13 +380,46 @@ class _ReportsCenterV500ScreenState extends State<ReportsCenterV500Screen> {
       PopupMenuItem(value: 'print', child: Text('Print report')),
     ],
     child: const Padding(
-      padding: EdgeInsets.all(12),
+      padding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(Icons.download, size: 19),
           SizedBox(width: 6),
           Text('Export'),
+        ],
+      ),
+    ),
+  );
+
+  Future<void> _reportDetails() => showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    useSafeArea: true,
+    builder: (context) => SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            _definition?.title ?? 'Report details',
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+          const SizedBox(height: 8),
+          Text(_definition?.description ?? ''),
+          const SizedBox(height: 8),
+          Text(_definition?.dateBasis ?? ''),
+          const SizedBox(height: 8),
+          Text(
+            '${DateFormat('dd MMM yyyy').format(_from)} – ${DateFormat('dd MMM yyyy').format(_to)} • ${LocationScopeService.scopeLabel(widget.session)}',
+          ),
+          if (_report != null) _summary(_report!),
+          const SizedBox(height: 12),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
         ],
       ),
     ),
@@ -452,12 +495,13 @@ class _ReportsCenterV500ScreenState extends State<ReportsCenterV500Screen> {
   }
 
   Widget _toolbar(bool compact) => Padding(
-    padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+    key: const ValueKey('report-toolbar'),
+    padding: const EdgeInsets.fromLTRB(12, 6, 12, 4),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         SizedBox(
-          height: MediaQuery.textScalerOf(context).scale(22) + 20,
+          height: MediaQuery.textScalerOf(context).scale(14) + 18,
           child: ListView(
             scrollDirection: Axis.horizontal,
             children: [
@@ -466,9 +510,17 @@ class _ReportsCenterV500ScreenState extends State<ReportsCenterV500Screen> {
                 ..._catalog.map((r) => r.category).toSet(),
               ])
                 Padding(
-                  padding: const EdgeInsets.only(right: 8),
+                  padding: const EdgeInsets.only(right: 6),
                   child: ChoiceChip(
-                    label: Text(category),
+                    label: Text(
+                      category,
+                      style: Theme.of(
+                        context,
+                      ).textTheme.labelMedium!.copyWith(fontSize: 12),
+                    ),
+                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    visualDensity: VisualDensity.compact,
+                    labelPadding: const EdgeInsets.symmetric(horizontal: 6),
                     selected: (_category ?? 'All') == category,
                     onSelected: _exporting
                         ? null
@@ -490,7 +542,7 @@ class _ReportsCenterV500ScreenState extends State<ReportsCenterV500Screen> {
             ],
           ),
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 6),
         if (compact)
           Row(
             children: [
@@ -508,109 +560,140 @@ class _ReportsCenterV500ScreenState extends State<ReportsCenterV500Screen> {
             ],
           )
         else
-          Wrap(
-            spacing: 10,
-            runSpacing: 10,
-            crossAxisAlignment: WrapCrossAlignment.center,
+          Row(
             children: [
-              SizedBox(width: 330, child: _selector()),
-              SizedBox(width: 230, child: _scopeSelector()),
+              Expanded(flex: 5, child: _selector()),
+              const SizedBox(width: 6),
+              Expanded(flex: 3, child: _scopeSelector()),
+              const SizedBox(width: 6),
               _dateButton(true),
+              const SizedBox(width: 6),
               _dateButton(false),
-              SizedBox(
-                width: 280,
+              const SizedBox(width: 6),
+              Expanded(
+                flex: 4,
                 child: TextField(
                   controller: _query,
                   enabled: !_exporting,
                   decoration: const InputDecoration(
                     labelText: 'Search all saved fields',
-                    prefixIcon: Icon(Icons.search),
+                    prefixIcon: Icon(Icons.search, size: 17),
+                    prefixIconConstraints: BoxConstraints(minWidth: 30),
                     border: OutlineInputBorder(),
                     isDense: true,
+                    contentPadding: EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 9,
+                    ),
                   ),
+                  style: Theme.of(context).textTheme.bodySmall,
                   onChanged: _searchChanged,
                   onSubmitted: (_) => _run(),
                 ),
               ),
-              FilledButton.icon(
+              const SizedBox(width: 6),
+              FilledButton(
+                style: FilledButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  minimumSize: const Size(0, 36),
+                  visualDensity: VisualDensity.compact,
+                  textStyle: Theme.of(context).textTheme.labelLarge,
+                ),
                 onPressed: _exporting ? null : _run,
-                icon: const Icon(Icons.refresh, size: 18),
-                label: const Text('Run'),
+                child: const Text('Run'),
               ),
             ],
           ),
-        const SizedBox(height: 8),
-        Text(
-          '${_definition?.dateBasis ?? ''}\n${_definition?.description ?? ''}',
-          maxLines: compact ? 3 : 4,
-          overflow: TextOverflow.ellipsis,
-          style: Theme.of(context).textTheme.bodySmall,
-        ),
-        if (compact)
-          Text(
-            '${DateFormat('dd MMM yyyy').format(_from)} – ${DateFormat('dd MMM yyyy').format(_to)} • ${LocationScopeService.scopeLabel(widget.session)}',
-            maxLines: 2,
+        const SizedBox(height: 4),
+        Tooltip(
+          message:
+              '${_definition?.dateBasis ?? ''}\n${_definition?.description ?? ''}',
+          child: Text(
+            compact
+                ? '${DateFormat('dd MMM yyyy').format(_from)} – ${DateFormat('dd MMM yyyy').format(_to)} • ${LocationScopeService.scopeLabel(widget.session)}'
+                : _definition?.dateBasis ?? '',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: Theme.of(context).textTheme.bodySmall,
           ),
+        ),
       ],
     ),
   );
   Widget _summary(ReportDocument report) {
     if (report.summary.isEmpty) return const SizedBox.shrink();
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),
+      key: const ValueKey('report-summary'),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             report.context['summary_basis']?.toString() ?? '',
-            maxLines: 2,
+            maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: Theme.of(context).textTheme.bodySmall,
           ),
-          const SizedBox(height: 5),
-          SizedBox(
-            height: MediaQuery.textScalerOf(context).scale(60) + 28,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              itemCount: report.summary.length,
-              separatorBuilder: (_, _) => const SizedBox(width: 10),
-              itemBuilder: (context, index) {
-                final metric = report.summary[index];
-                return Container(
-                  width: 220,
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.surfaceContainer,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        metric['label']?.toString() ?? '',
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context).textTheme.labelMedium,
+          const SizedBox(height: 4),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final minimum = MediaQuery.textScalerOf(context).scale(140);
+              final count = ((constraints.maxWidth + 6) / (minimum + 6))
+                  .floor()
+                  .clamp(1, report.summary.length);
+              final width = (constraints.maxWidth - (count - 1) * 6) / count;
+              return Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: [
+                  for (final metric in report.summary)
+                    Container(
+                      width: width,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 6,
                       ),
-                      const Spacer(),
-                      Text(
-                        report.format(
-                          metric['value'],
-                          metric['type']?.toString() ?? 'text',
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 17,
-                          fontWeight: FontWeight.bold,
-                        ),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.surfaceContainer,
+                        borderRadius: BorderRadius.circular(7),
                       ),
-                    ],
-                  ),
-                );
-              },
-            ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Tooltip(
+                            message: metric['label']?.toString() ?? '',
+                            child: Text(
+                              metric['label']?.toString() ?? '',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(fontSize: 11),
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Tooltip(
+                            message: report.format(
+                              metric['value'],
+                              metric['type']?.toString() ?? 'text',
+                            ),
+                            child: Text(
+                              report.format(
+                                metric['value'],
+                                metric['type']?.toString() ?? 'text',
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                ],
+              );
+            },
           ),
         ],
       ),
@@ -629,7 +712,7 @@ class _ReportsCenterV500ScreenState extends State<ReportsCenterV500Screen> {
     child: InkWell(
       onTap: tap,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        padding: EdgeInsets.symmetric(horizontal: 7, vertical: heading ? 4 : 6),
         child: Row(
           mainAxisAlignment: numeric
               ? MainAxisAlignment.end
@@ -644,6 +727,7 @@ class _ReportsCenterV500ScreenState extends State<ReportsCenterV500Screen> {
                   maxLines: heading ? 2 : 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
+                    fontSize: 11.5,
                     fontWeight: heading ? FontWeight.w600 : FontWeight.normal,
                   ),
                 ),
@@ -655,110 +739,190 @@ class _ReportsCenterV500ScreenState extends State<ReportsCenterV500Screen> {
       ),
     ),
   );
+
+  List<double> _columnWidths(ReportDocument report, double available) {
+    final scaler = MediaQuery.textScalerOf(context);
+    final painter = TextPainter(
+      textDirection: Directionality.of(context),
+      textScaler: scaler,
+    );
+    double measure(String text, {bool heading = false}) {
+      painter.text = TextSpan(
+        text: text,
+        style: Theme.of(context).textTheme.bodyMedium!.copyWith(
+          fontSize: 11.5,
+          fontWeight: heading ? FontWeight.w600 : FontWeight.normal,
+        ),
+      );
+      painter.layout();
+      return painter.width;
+    }
+
+    final widths = <double>[];
+    for (final column in report.columns) {
+      var width = scaler.scale(switch (column.key) {
+        'sale_number' || 'purchase_number' || 'source_number' => 100.0,
+        'customer_name' || 'supplier_name' || 'party_name' => 118.0,
+        'product_name' => 140.0,
+        'location_name' => 86.0,
+        'status' || 'settlement_status' => 82.0,
+        _ => switch (column.type) {
+          'money' => 84.0,
+          'number' => 64.0,
+          'date' => 90.0,
+          'datetime' => 138.0,
+          _ => (column.width * .62).clamp(80.0, 150.0),
+        },
+      });
+      for (final word in column.label.split(RegExp(r'\s+'))) {
+        final needed = measure(word, heading: true) + 14;
+        if (needed > width) width = needed;
+      }
+      // Amounts and dates keep enough room for their complete formatted value.
+      if (column.numeric ||
+          column.type == 'date' ||
+          column.type == 'datetime') {
+        for (final row in report.rows) {
+          final needed = measure(report.cell(row, column)) + 14;
+          if (needed > width) width = needed;
+        }
+      }
+      if (_sortKey == column.key) width += 14;
+      widths.add(width.ceilToDouble());
+    }
+    painter.dispose();
+    final used = widths.fold<double>(34, (sum, width) => sum + width);
+    if (used < available && widths.isNotEmpty) {
+      final weight = report.columns.fold<double>(0, (sum, c) => sum + c.width);
+      for (var i = 0; i < widths.length; i++) {
+        widths[i] +=
+            (available - used) *
+            (weight > 0 ? report.columns[i].width / weight : 1 / widths.length);
+      }
+    }
+    return widths;
+  }
+
   Widget _table(ReportDocument report) {
     if (report.rows.isEmpty) {
       return const Center(
         child: Text('No matching records. Change dates, store or search.'),
       );
     }
-    final width = report.columns.fold<double>(62, (sum, c) => sum + c.width);
-    return Scrollbar(
-      controller: _horizontal,
-      thumbVisibility: true,
-      notificationPredicate: (n) => n.depth == 0,
-      child: SingleChildScrollView(
-        controller: _horizontal,
-        scrollDirection: Axis.horizontal,
-        child: SizedBox(
-          width: width,
-          child: Column(
-            children: [
-              Container(
-                color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                child: Row(
-                  children: [
-                    const SizedBox(
-                      width: 62,
-                      height: 48,
-                      child: Center(child: Text('#')),
-                    ),
-                    for (final column in report.columns)
-                      _cell(
-                        column.label,
-                        column.width,
-                        heading: true,
-                        numeric: column.numeric,
-                        icon: _sortKey == column.key
-                            ? (_sortDescending
-                                  ? Icons.arrow_downward
-                                  : Icons.arrow_upward)
-                            : null,
-                        tap: _exporting
-                            ? null
-                            : () {
-                                setState(() {
-                                  _sortDescending = _sortKey == column.key
-                                      ? !_sortDescending
-                                      : false;
-                                  _sortKey = column.key;
-                                });
-                                _invalidate();
-                                _run();
-                              },
-                      ),
-                  ],
-                ),
-              ),
-              Expanded(
-                child: Scrollbar(
-                  controller: _vertical,
-                  thumbVisibility: true,
-                  child: ListView.builder(
-                    controller: _vertical,
-                    itemExtent: 46,
-                    itemCount: report.rows.length,
-                    itemBuilder: (context, index) {
-                      final row = report.rows[index];
-                      return Material(
-                        color: index.isEven
-                            ? Theme.of(context).colorScheme.surface
-                            : Theme.of(context).colorScheme.surfaceContainerLow,
-                        child: InkWell(
-                          onTap: () => RecordPreview.show(
-                            context,
-                            title:
-                                '${report.definition.title} • Record ${report.offset + index + 1}',
-                            record: row,
-                            currency: widget.session.currencyCode,
-                          ),
-                          child: Row(
-                            children: [
-                              _cell('${report.offset + index + 1}', 62),
-                              for (final column in report.columns)
-                                _cell(
-                                  report.cell(row, column),
-                                  column.width,
-                                  numeric: column.numeric,
-                                ),
-                            ],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final widths = _columnWidths(report, constraints.maxWidth);
+        final width = widths.fold<double>(34, (sum, width) => sum + width);
+        final scale = MediaQuery.textScalerOf(context);
+        final headerHeight = scale.scale(11.5) * 2.6 + 10;
+        final rowHeight = scale.scale(11.5) * 1.4 + 18;
+        return Scrollbar(
+          controller: _horizontal,
+          thumbVisibility: true,
+          notificationPredicate: (n) => n.depth == 0,
+          child: SingleChildScrollView(
+            key: const ValueKey('report-horizontal-scroll'),
+            controller: _horizontal,
+            scrollDirection: Axis.horizontal,
+            child: SizedBox(
+              width: width,
+              child: Column(
+                children: [
+                  Container(
+                    height: headerHeight,
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.surfaceContainerHighest,
+                    child: Row(
+                      children: [
+                        const SizedBox(
+                          width: 34,
+                          child: Center(
+                            child: Text('#', style: TextStyle(fontSize: 11.5)),
                           ),
                         ),
-                      );
-                    },
+                        for (final (index, column) in report.columns.indexed)
+                          _cell(
+                            column.label,
+                            widths[index],
+                            heading: true,
+                            numeric: column.numeric,
+                            icon: _sortKey == column.key
+                                ? (_sortDescending
+                                      ? Icons.arrow_downward
+                                      : Icons.arrow_upward)
+                                : null,
+                            tap: _exporting
+                                ? null
+                                : () {
+                                    setState(() {
+                                      _sortDescending = _sortKey == column.key
+                                          ? !_sortDescending
+                                          : false;
+                                      _sortKey = column.key;
+                                    });
+                                    _invalidate();
+                                    _run();
+                                  },
+                          ),
+                      ],
+                    ),
                   ),
-                ),
+                  Expanded(
+                    child: Scrollbar(
+                      controller: _vertical,
+                      thumbVisibility: true,
+                      child: ListView.builder(
+                        controller: _vertical,
+                        itemExtent: rowHeight,
+                        itemCount: report.rows.length,
+                        itemBuilder: (context, index) {
+                          final row = report.rows[index];
+                          return Material(
+                            color: index.isEven
+                                ? Theme.of(context).colorScheme.surface
+                                : Theme.of(
+                                    context,
+                                  ).colorScheme.surfaceContainerLow,
+                            child: InkWell(
+                              onTap: () => RecordPreview.show(
+                                context,
+                                title:
+                                    '${report.definition.title} • Record ${report.offset + index + 1}',
+                                record: row,
+                                currency: widget.session.currencyCode,
+                              ),
+                              child: Row(
+                                children: [
+                                  _cell('${report.offset + index + 1}', 34),
+                                  for (final (columnIndex, column)
+                                      in report.columns.indexed)
+                                    _cell(
+                                      report.cell(row, column),
+                                      widths[columnIndex],
+                                      numeric: column.numeric,
+                                    ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
   Widget _pagination(ReportDocument report, bool compact) => Padding(
-    padding: const EdgeInsets.all(8),
+    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
     child: Wrap(
-      spacing: 12,
+      spacing: 8,
       crossAxisAlignment: WrapCrossAlignment.center,
       alignment: WrapAlignment.end,
       children: [
@@ -766,9 +930,16 @@ class _ReportsCenterV500ScreenState extends State<ReportsCenterV500Screen> {
           report.totalRows == 0
               ? '0 matching records'
               : '${report.offset + 1}–${report.offset + report.rows.length} of ${report.totalRows} records',
+          style: Theme.of(context).textTheme.bodySmall,
         ),
-        if (!compact) const Text('Open a row for complete saved details'),
+        if (!compact)
+          Text(
+            'Open a row for complete saved details',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
         DropdownButton<int>(
+          isDense: true,
+          style: Theme.of(context).textTheme.bodySmall,
           value: _pageSize,
           items: [50, 100, 200]
               .map(
@@ -788,6 +959,7 @@ class _ReportsCenterV500ScreenState extends State<ReportsCenterV500Screen> {
                 },
         ),
         IconButton(
+          visualDensity: VisualDensity.compact,
           tooltip: 'Previous page',
           onPressed: report.offset > 0 && !_exporting
               ? () {
@@ -800,6 +972,7 @@ class _ReportsCenterV500ScreenState extends State<ReportsCenterV500Screen> {
           icon: const Icon(Icons.chevron_left),
         ),
         IconButton(
+          visualDensity: VisualDensity.compact,
           tooltip: 'Next page',
           onPressed:
               report.offset + report.rows.length < report.totalRows &&
@@ -819,8 +992,19 @@ class _ReportsCenterV500ScreenState extends State<ReportsCenterV500Screen> {
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(
-      title: const Text('Reports Center v5'),
+      toolbarHeight: MediaQuery.textScalerOf(context).scale(16) + 28,
+      title: const Text(
+        'Reports Center v5',
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(fontSize: 16),
+      ),
       actions: [
+        IconButton(
+          tooltip: 'Report totals and basis',
+          onPressed: _definition == null ? null : _reportDetails,
+          icon: const Icon(Icons.info_outline, size: 20),
+        ),
         if (canOpenInventoryReports(widget.session))
           IconButton(
             tooltip: 'Inventory Reports',
@@ -846,14 +1030,19 @@ class _ReportsCenterV500ScreenState extends State<ReportsCenterV500Screen> {
     body: LayoutBuilder(
       builder: (context, constraints) {
         final compact =
-            constraints.maxWidth < 700 || constraints.maxHeight < 500;
+            constraints.maxWidth < 960 ||
+            constraints.maxHeight < 500 ||
+            MediaQuery.textScalerOf(context).scale(12) > 15;
         final report = _report;
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             _toolbar(compact),
             if (_loading) const LinearProgressIndicator(),
-            if (report != null && constraints.maxHeight >= 520)
+            if (report != null &&
+                constraints.maxHeight >= 520 &&
+                constraints.maxWidth >= 700 &&
+                MediaQuery.textScalerOf(context).scale(12) <= 15)
               _summary(report),
             Expanded(
               child: _error != null
