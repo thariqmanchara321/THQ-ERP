@@ -88,11 +88,27 @@ class ThqSemanticColors extends ThemeExtension<ThqSemanticColors> {
       critical: Color.lerp(critical, other.critical, t)!,
       info: Color.lerp(info, other.info, t)!,
       neutral: Color.lerp(neutral, other.neutral, t)!,
-      successContainer: Color.lerp(successContainer, other.successContainer, t)!,
-      warningContainer: Color.lerp(warningContainer, other.warningContainer, t)!,
-      criticalContainer: Color.lerp(criticalContainer, other.criticalContainer, t)!,
+      successContainer: Color.lerp(
+        successContainer,
+        other.successContainer,
+        t,
+      )!,
+      warningContainer: Color.lerp(
+        warningContainer,
+        other.warningContainer,
+        t,
+      )!,
+      criticalContainer: Color.lerp(
+        criticalContainer,
+        other.criticalContainer,
+        t,
+      )!,
       infoContainer: Color.lerp(infoContainer, other.infoContainer, t)!,
-      neutralContainer: Color.lerp(neutralContainer, other.neutralContainer, t)!,
+      neutralContainer: Color.lerp(
+        neutralContainer,
+        other.neutralContainer,
+        t,
+      )!,
     );
   }
 }

@@ -312,7 +312,7 @@ class _PurchasingV2ScreenState extends State<PurchasingV2Screen>
           children: [
             Text(
               'Purchase Details',
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800),
+              style: TextStyle(fontSize: 24, fontWeight: FontWeight.w600),
             ),
             SizedBox(height: 3),
             Text(
@@ -430,7 +430,7 @@ class _PurchasingV2ScreenState extends State<PurchasingV2Screen>
                     children: [
                       Text(
                         '${item.$2 ?? 0}',
-                        style: const TextStyle(fontWeight: FontWeight.w800),
+                        style: const TextStyle(fontWeight: FontWeight.w600),
                       ),
                       Text(
                         item.$1,
@@ -879,7 +879,7 @@ class _PurchasingV2ScreenState extends State<PurchasingV2Screen>
                     padding: EdgeInsets.fromLTRB(12, 8, 12, 4),
                     child: Text(
                       'Supplier Payments',
-                      style: TextStyle(fontWeight: FontWeight.w800),
+                      style: TextStyle(fontWeight: FontWeight.w600),
                     ),
                   ),
                   Expanded(
@@ -966,7 +966,7 @@ class _PurchasingV2ScreenState extends State<PurchasingV2Screen>
         ),
         trailing: Text(
           _money(row['unit_cost']),
-          style: const TextStyle(fontWeight: FontWeight.w800),
+          style: const TextStyle(fontWeight: FontWeight.w600),
         ),
       ),
     );
@@ -1019,7 +1019,7 @@ class _PurchasingV2ScreenState extends State<PurchasingV2Screen>
       ),
       child: Text(
         value,
-        style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w800),
+        style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600),
       ),
     );
   }
@@ -1037,7 +1037,7 @@ class _PurchasingV2ScreenState extends State<PurchasingV2Screen>
         const SizedBox(height: 4),
         Text(
           value,
-          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
         ),
       ],
     ),
@@ -1045,7 +1045,7 @@ class _PurchasingV2ScreenState extends State<PurchasingV2Screen>
 
   Future<String?> _textPrompt(String title, String label) async {
     final controller = TextEditingController();
-    final result = await showDialog<String>(
+    final result = await showThqDialog<String>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: Text(title),
@@ -1082,7 +1082,7 @@ class _PurchasingV2ScreenState extends State<PurchasingV2Screen>
     String? supplierId;
     String? variantId = _products.first.variantId;
     final lines = <Map<String, dynamic>>[];
-    final ok = await showDialog<bool>(
+    final ok = await showThqDialog<bool>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
@@ -1313,7 +1313,7 @@ class _PurchasingV2ScreenState extends State<PurchasingV2Screen>
     final notes = TextEditingController();
     DateTime? expectedDate;
     final lines = <Map<String, dynamic>>[];
-    final ok = await showDialog<bool>(
+    final ok = await showThqDialog<bool>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (_, setDialogState) => AlertDialog(
@@ -1509,7 +1509,7 @@ class _PurchasingV2ScreenState extends State<PurchasingV2Screen>
         .toList();
     if (!mounted) return;
     String? supplierId = request['preferred_supplier_id']?.toString();
-    final selected = await showDialog<String>(
+    final selected = await showThqDialog<String>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (_, setDialogState) => AlertDialog(
@@ -1597,7 +1597,7 @@ class _PurchasingV2ScreenState extends State<PurchasingV2Screen>
       damageNotes[id] = TextEditingController();
       rejectionReasons[id] = TextEditingController();
     }
-    final ok = await showDialog<bool>(
+    final ok = await showThqDialog<bool>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (dialogContext, setDialogState) => AlertDialog(
@@ -1658,7 +1658,7 @@ class _PurchasingV2ScreenState extends State<PurchasingV2Screen>
                         children: [
                           Text(
                             '${item['product_name']} • ${item['sku'] ?? ''}',
-                            style: const TextStyle(fontWeight: FontWeight.w800),
+                            style: const TextStyle(fontWeight: FontWeight.w600),
                           ),
                           Text(
                             'Remaining ${_qty(item['remaining_receive_quantity'])} • Tracking: ${mode.toUpperCase()}',
@@ -1950,7 +1950,7 @@ class _PurchasingV2ScreenState extends State<PurchasingV2Screen>
       return itemTotal + (double.tryParse(additional.text.trim()) ?? 0);
     }
 
-    final ok = await showDialog<bool>(
+    final ok = await showThqDialog<bool>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (dialogContext, setDialogState) {
@@ -2089,7 +2089,7 @@ class _PurchasingV2ScreenState extends State<PurchasingV2Screen>
                         'Grand Total ${_money(grand)}',
                         style: const TextStyle(
                           fontSize: 18,
-                          fontWeight: FontWeight.w800,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                     ),
@@ -2165,7 +2165,7 @@ class _PurchasingV2ScreenState extends State<PurchasingV2Screen>
     final openInvoices = _invoices
         .where((i) => const ['posted', 'part_paid'].contains(i['status']))
         .toList();
-    final ok = await showDialog<bool>(
+    final ok = await showThqDialog<bool>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (_, setDialogState) {
@@ -2539,7 +2539,7 @@ class _PurchasingV2ScreenState extends State<PurchasingV2Screen>
     List<_PurchaseDialogAction> actions = const [],
   }) async {
     if (!mounted) return;
-    await showDialog<void>(
+    await showThqDialog<void>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: Text(title),
@@ -2771,7 +2771,7 @@ class _PurchaseWorkflowDetail extends StatelessWidget {
           const SizedBox(height: 16),
           const Text(
             'Financial Summary',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 8),
           Wrap(
@@ -2833,7 +2833,7 @@ class _PurchaseWorkflowDetail extends StatelessWidget {
             const SizedBox(height: 4),
             Text(
               value,
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
             ),
           ],
         ),
@@ -2887,7 +2887,7 @@ class _PurchaseWorkflowDetail extends StatelessWidget {
               ? null
               : Text(
                   _money(lineTotal),
-                  style: const TextStyle(fontWeight: FontWeight.w800),
+                  style: const TextStyle(fontWeight: FontWeight.w600),
                 ),
         );
       },
@@ -2904,7 +2904,7 @@ class _PurchaseWorkflowDetail extends StatelessWidget {
         if (cycle.isNotEmpty) ...[
           const Text(
             'Purchase Cycle Progress',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 8),
           Wrap(
@@ -2940,7 +2940,7 @@ class _PurchaseWorkflowDetail extends StatelessWidget {
         if (grns.isNotEmpty) ...[
           const Text(
             'Goods Receipts',
-            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
+            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
           ),
           ...grns.map(
             (row) => ListTile(
@@ -2957,7 +2957,7 @@ class _PurchaseWorkflowDetail extends StatelessWidget {
         if (invoices.isNotEmpty) ...[
           const Text(
             'Purchase Invoices',
-            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
+            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
           ),
           ...invoices.map(
             (row) => ListTile(
@@ -2976,7 +2976,7 @@ class _PurchaseWorkflowDetail extends StatelessWidget {
         if (history.isNotEmpty) ...[
           const Text(
             'Status History',
-            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
+            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
           ),
           ...history.map(
             (row) => ListTile(

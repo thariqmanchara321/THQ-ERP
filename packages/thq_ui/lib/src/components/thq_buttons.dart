@@ -130,8 +130,8 @@ class _ThqButtonContent extends StatelessWidget {
             child: CircularProgressIndicator(strokeWidth: 2),
           )
         : icon == null
-            ? null
-            : Icon(icon, size: ThqTokens.iconSmall);
+        ? null
+        : Icon(icon, size: ThqTokens.iconSmall);
     if (leading == null) return Text(label);
     return Row(
       mainAxisSize: MainAxisSize.min,

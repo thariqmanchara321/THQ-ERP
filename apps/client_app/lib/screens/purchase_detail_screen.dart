@@ -1,3 +1,4 @@
+import '../widgets/return_tracking_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:thq_ui/thq_ui.dart';
 
@@ -139,7 +140,7 @@ class _PurchaseDetailScreenState extends State<PurchaseDetailScreen> {
   Future<void> _returnItems() async {
     final purchase = _purchase;
     if (purchase == null) return;
-    final changed = await showDialog<bool>(
+    final changed = await showThqDialog<bool>(
       context: context,
       barrierDismissible: false,
       builder: (_) =>
@@ -157,7 +158,7 @@ class _PurchaseDetailScreenState extends State<PurchaseDetailScreen> {
     final purchase = _purchase;
     if (purchase == null) return;
     final reason = TextEditingController();
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showThqDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: Text('Void ${purchase.purchaseNumber}?'),
@@ -239,7 +240,7 @@ class _PurchaseDetailScreenState extends State<PurchaseDetailScreen> {
       return;
     }
 
-    final changed = await showDialog<bool>(
+    final changed = await showThqDialog<bool>(
       context: context,
       barrierDismissible: false,
       builder: (_) =>
@@ -260,7 +261,7 @@ class _PurchaseDetailScreenState extends State<PurchaseDetailScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
 
       appBar: AppBar(
         title: const Text(
@@ -357,7 +358,7 @@ class _PurchaseDetailScreenState extends State<PurchaseDetailScreen> {
           width: 64,
           height: 64,
           decoration: BoxDecoration(
-            color: Colors.indigo.shade50,
+            color: Theme.of(context).colorScheme.primary,
             borderRadius: BorderRadius.circular(16),
           ),
           child: const Icon(Icons.shopping_cart_outlined, size: 32),
@@ -382,7 +383,9 @@ class _PurchaseDetailScreenState extends State<PurchaseDetailScreen> {
               Text(
                 'Purchase Date: '
                 '${_date(purchase.purchaseDate)}',
-                style: TextStyle(color: Colors.grey.shade600),
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
               ),
             ],
           ),
@@ -532,7 +535,9 @@ class _PurchaseDetailScreenState extends State<PurchaseDetailScreen> {
               child: Center(
                 child: Text(
                   'No payments recorded yet.',
-                  style: TextStyle(color: Colors.grey.shade600),
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
                 ),
               ),
             )
@@ -612,6 +617,18 @@ class _PurchaseReturnDialogState extends State<_PurchaseReturnDialog> {
       _error = null;
     });
     try {
+      for (final row in items) {
+        if (!mounted) return;
+        final allocation = await collectReturnTracking(
+          context,
+          tenantId: widget.session.business.id,
+          kind: 'purchase',
+          itemId: row['purchase_item_id'] as String,
+          quantity: (row['quantity'] as num).toDouble(),
+        );
+        if (!mounted || allocation == null) return;
+        row.addAll(allocation);
+      }
       final result = await _service.createReturn(
         tenantId: widget.session.business.id,
         purchaseId: widget.purchase.purchaseId,
@@ -619,7 +636,7 @@ class _PurchaseReturnDialogState extends State<_PurchaseReturnDialog> {
         reason: _reason.text,
       );
       if (!mounted) return;
-      final printReceipt = await showDialog<bool>(
+      final printReceipt = await showThqDialog<bool>(
         context: context,
         builder: (dialogContext) => AlertDialog(
           title: Text('Return ${result['return_number'] ?? ''} posted'),
@@ -717,7 +734,7 @@ class _PurchaseReturnDialogState extends State<_PurchaseReturnDialog> {
                   final item = widget.purchase.items[index];
                   return ListTile(
                     contentPadding: EdgeInsets.zero,
-                    title: Text(item.productName),
+                    title: Text(item.invoiceDescription),
                     subtitle: Text('${item.sku} • Purchased ${item.quantity}'),
                     trailing: SizedBox(
                       width: 120,
@@ -850,7 +867,7 @@ class _PurchasePaymentDialogState extends State<_PurchasePaymentDialog> {
 
   Future<void> _closeBalanceAsRoundOff() async {
     if (!_canCloseWholeBalance || _saving) return;
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showThqDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('Close small balance?'),
@@ -1012,12 +1029,14 @@ class _PurchasePaymentDialogState extends State<_PurchasePaymentDialog> {
                   width: double.infinity,
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: Colors.red.shade50,
+                    color: Theme.of(context).colorScheme.error,
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
                     _error!,
-                    style: TextStyle(color: Colors.red.shade800),
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onError,
+                    ),
                   ),
                 ),
               ],
@@ -1064,7 +1083,11 @@ class _PurchaseItemRow extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 14),
 
       decoration: BoxDecoration(
-        border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
+        border: Border(
+          bottom: BorderSide(
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+        ),
       ),
 
       child: Row(
@@ -1075,7 +1098,7 @@ class _PurchaseItemRow extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  item.productName,
+                  item.invoiceDescription,
                   style: const TextStyle(fontWeight: FontWeight.w600),
                 ),
 
@@ -1083,7 +1106,10 @@ class _PurchaseItemRow extends StatelessWidget {
                   [item.sku, item.partNumber]
                       .where((value) => value != null && value.isNotEmpty)
                       .join(' • '),
-                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
                 ),
               ],
             ),
@@ -1133,7 +1159,11 @@ class _PaymentRow extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 14),
 
       decoration: BoxDecoration(
-        border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
+        border: Border(
+          bottom: BorderSide(
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+        ),
       ),
 
       child: Row(
@@ -1142,10 +1172,13 @@ class _PaymentRow extends StatelessWidget {
             width: 42,
             height: 42,
             decoration: BoxDecoration(
-              color: Colors.green.shade50,
+              color: Theme.of(context).colorScheme.primary,
               borderRadius: BorderRadius.circular(10),
             ),
-            child: Icon(Icons.payments_outlined, color: Colors.green.shade700),
+            child: Icon(
+              Icons.payments_outlined,
+              color: Theme.of(context).colorScheme.onPrimary,
+            ),
           ),
 
           const SizedBox(width: 14),
@@ -1163,7 +1196,10 @@ class _PaymentRow extends StatelessWidget {
                   [payment.referenceNumber, payment.notes]
                       .where((value) => value != null && value.isNotEmpty)
                       .join(' • '),
-                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
                 ),
               ],
             ),
@@ -1184,7 +1220,10 @@ class _PaymentRow extends StatelessWidget {
 
               Text(
                 dateTime(payment.paidAt),
-                style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                style: TextStyle(
+                  fontSize: 11,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
               ),
             ],
           ),
@@ -1208,9 +1247,11 @@ class _Card extends StatelessWidget {
       padding: const EdgeInsets.all(22),
 
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
+        ),
       ),
 
       child: Column(
@@ -1257,7 +1298,10 @@ class _Info extends StatelessWidget {
         children: [
           Text(
             label,
-            style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+            style: TextStyle(
+              fontSize: 12,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
           ),
 
           const SizedBox(height: 5),
@@ -1324,18 +1368,18 @@ class _StatusBadge extends StatelessWidget {
 
     if (type == 'payment') {
       if (value == 'paid') {
-        background = Colors.green.shade50;
-        foreground = Colors.green.shade700;
+        background = Theme.of(context).colorScheme.primary;
+        foreground = Theme.of(context).colorScheme.primary;
       } else if (value == 'partial') {
-        background = Colors.orange.shade50;
-        foreground = Colors.orange.shade800;
+        background = context.thqSemanticColors.warning;
+        foreground = context.thqSemanticColors.warning;
       } else {
-        background = Colors.red.shade50;
-        foreground = Colors.red.shade700;
+        background = Theme.of(context).colorScheme.error;
+        foreground = Theme.of(context).colorScheme.error;
       }
     } else {
-      background = Colors.indigo.shade50;
-      foreground = Colors.indigo.shade700;
+      background = Theme.of(context).colorScheme.primary;
+      foreground = Theme.of(context).colorScheme.primary;
     }
 
     return Container(

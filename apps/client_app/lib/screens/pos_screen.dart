@@ -273,7 +273,7 @@ class _PosScreenState extends State<PosScreen> {
         .where((unit) => unit.allowSale && unit.active)
         .toList();
     if (units.length <= 1) return;
-    final selected = await showDialog<ProductUnitOption>(
+    final selected = await showThqDialog<ProductUnitOption>(
       context: context,
       builder: (dialogContext) => SimpleDialog(
         title: Text('Billing unit • ${line.product.productName}'),
@@ -360,7 +360,7 @@ class _PosScreenState extends State<PosScreen> {
       text: line.discount.toStringAsFixed(2),
     );
 
-    final double? value = await showDialog<double>(
+    final double? value = await showThqDialog<double>(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
@@ -491,6 +491,8 @@ class _PosScreenState extends State<PosScreen> {
             .map(
               (_PosLine line) => <String, dynamic>{
                 'variant_id': line.product.variantId,
+                'tracking_revision': line.product.trackingRevision,
+                'tracking_mode': line.product.trackingMode,
                 'quantity': line.quantity,
                 'unit_id': line.unit?.unitId,
                 'unit_price': line.unitPrice,
@@ -595,12 +597,12 @@ class _PosScreenState extends State<PosScreen> {
               margin: const EdgeInsets.only(bottom: 12),
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.red.shade50,
+                color: Theme.of(context).colorScheme.error,
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Text(
                 _error!,
-                style: TextStyle(color: Colors.red.shade700),
+                style: TextStyle(color: Theme.of(context).colorScheme.onError),
               ),
             ),
           Expanded(
@@ -655,9 +657,9 @@ class _PosScreenState extends State<PosScreen> {
             const SizedBox(height: 12),
             Expanded(
               child: GridView.builder(
-                gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
                   maxCrossAxisExtent: 240,
-                  mainAxisExtent: 145,
+                  mainAxisExtent: MediaQuery.textScalerOf(context).scale(145),
                   mainAxisSpacing: 10,
                   crossAxisSpacing: 10,
                 ),
@@ -674,9 +676,13 @@ class _PosScreenState extends State<PosScreen> {
                     child: Container(
                       padding: const EdgeInsets.all(14),
                       decoration: BoxDecoration(
-                        border: Border.all(color: Colors.grey.shade200),
+                        border: Border.all(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
                         borderRadius: BorderRadius.circular(14),
-                        color: outOfStock ? Colors.grey.shade100 : Colors.white,
+                        color: outOfStock
+                            ? Theme.of(context).colorScheme.onSurfaceVariant
+                            : Theme.of(context).colorScheme.surface,
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -692,7 +698,9 @@ class _PosScreenState extends State<PosScreen> {
                             product.sku,
                             style: TextStyle(
                               fontSize: 12,
-                              color: Colors.grey.shade600,
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onSurfaceVariant,
                             ),
                           ),
                           const Spacer(),
@@ -714,8 +722,10 @@ class _PosScreenState extends State<PosScreen> {
                                 style: TextStyle(
                                   fontSize: 11,
                                   color: outOfStock
-                                      ? Colors.red
-                                      : Colors.grey.shade600,
+                                      ? Theme.of(context).colorScheme.error
+                                      : Theme.of(
+                                          context,
+                                        ).colorScheme.onSurfaceVariant,
                                 ),
                               ),
                             ],
@@ -810,7 +820,9 @@ class _PosScreenState extends State<PosScreen> {
                                     '${_money(line.unitPrice)} / ${line.unitCode} • tax ${line.product.taxRate.toStringAsFixed(0)}%${line.pricingSource == null ? '' : ' • ${line.pricingSource}'}${line.discount > 0.0 ? ' • disc ${_money(line.discount)}' : ''}',
                                     style: TextStyle(
                                       fontSize: 11,
-                                      color: Colors.grey.shade600,
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.onSurfaceVariant,
                                     ),
                                   ),
                                 ],

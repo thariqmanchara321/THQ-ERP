@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../foundations/thq_tokens.dart';
 import '../foundations/thq_typography.dart';
 import 'thq_semantic_colors.dart';
+import 'thq_v7_theme.dart';
 
 abstract final class ThqTheme {
   // Aurora-compatible dark foundation used by the existing Client theme.
@@ -19,7 +20,7 @@ abstract final class ThqTheme {
   static const _lightBorder = Color(0xFFD9CEC3);
   static const _lightAccent = Color(0xFF8D6044);
 
-  static ThemeData dark() => _build(Brightness.dark);
+  static ThemeData dark() => ThqV7Theme.desktop();
 
   static ThemeData light() => _build(Brightness.light);
 

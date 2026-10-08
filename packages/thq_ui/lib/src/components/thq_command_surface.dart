@@ -29,15 +29,13 @@ class ThqResponsiveWrap extends StatelessWidget {
         final available = constraints.maxWidth.isFinite
             ? constraints.maxWidth
             : minItemWidth;
-        final possible = math.max(
-          1,
-          ((available + spacing) / (minItemWidth + spacing)).floor(),
-        ).toInt();
+        final possible = math
+            .max(1, ((available + spacing) / (minItemWidth + spacing)).floor())
+            .toInt();
         final columns = math.min(maxColumns, possible).toInt();
-        final width = math.max(
-          0.0,
-          (available - ((columns - 1) * spacing)) / columns,
-        ).toDouble();
+        final width = math
+            .max(0.0, (available - ((columns - 1) * spacing)) / columns)
+            .toDouble();
 
         return Wrap(
           spacing: spacing,

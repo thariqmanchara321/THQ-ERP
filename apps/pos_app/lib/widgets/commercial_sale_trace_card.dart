@@ -103,8 +103,8 @@ class _CommercialSaleTraceCardState extends State<CommercialSaleTraceCard> {
               label,
               style: TextStyle(
                 fontSize: 11,
-                fontWeight: strong ? FontWeight.w900 : FontWeight.w700,
-                color: Colors.grey.shade700,
+                fontWeight: strong ? FontWeight.w600 : FontWeight.w700,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
             ),
           ),
@@ -113,7 +113,7 @@ class _CommercialSaleTraceCardState extends State<CommercialSaleTraceCard> {
               value,
               style: TextStyle(
                 fontSize: 11,
-                fontWeight: strong ? FontWeight.w900 : FontWeight.w600,
+                fontWeight: strong ? FontWeight.w600 : FontWeight.w600,
               ),
             ),
           ),
@@ -141,7 +141,7 @@ class _CommercialSaleTraceCardState extends State<CommercialSaleTraceCard> {
                 children: [
                   const Text(
                     'Commercial / GST / Accounting Trace',
-                    style: TextStyle(fontWeight: FontWeight.w900),
+                    style: TextStyle(fontWeight: FontWeight.w600),
                   ),
                   const SizedBox(height: 6),
                   Text(
@@ -198,7 +198,7 @@ class _CommercialSaleTraceCardState extends State<CommercialSaleTraceCard> {
             const Expanded(
               child: Text(
                 'Commercial / GST / Accounting Trace',
-                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w900),
+                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
               ),
             ),
             IconButton(
@@ -210,7 +210,10 @@ class _CommercialSaleTraceCardState extends State<CommercialSaleTraceCard> {
         ),
         Text(
           chain,
-          style: TextStyle(fontSize: 10.5, color: Colors.grey.shade700),
+          style: TextStyle(
+            fontSize: 11,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
         ),
         const SizedBox(height: 8),
         Wrap(

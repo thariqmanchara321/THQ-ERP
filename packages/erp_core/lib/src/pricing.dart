@@ -39,6 +39,7 @@ class PriceResolution {
       priceListName?.isNotEmpty == true ? priceListName! : 'Price List',
     'unit_price' => 'Unit Price',
     'location_price' => 'Store Price',
+    'batch_price' => 'Batch / Quality Rate',
     _ => 'Retail Price',
   };
 }

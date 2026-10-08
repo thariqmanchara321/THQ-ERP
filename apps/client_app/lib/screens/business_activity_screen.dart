@@ -47,7 +47,7 @@ class _BusinessActivityScreenState extends State<BusinessActivityScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         title: const Text('Business Activity Log'),
         actions: [
@@ -138,9 +138,11 @@ class _AuditDataBox extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.grey.shade50,
+        color: Theme.of(context).colorScheme.onSurfaceVariant,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

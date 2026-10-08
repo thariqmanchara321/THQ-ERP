@@ -1,4 +1,6 @@
+import 'package:thq_ui/thq_ui.dart';
 import 'package:flutter/material.dart';
+
 import '../widgets/admin_home_button.dart';
 
 import '../models/platform_models.dart';
@@ -41,7 +43,7 @@ class _TenantSubscriptionScreenState extends State<TenantSubscriptionScreen> {
     String cycle = current.billingCycle;
     String? error;
     bool saving = false;
-    final changed = await showDialog<bool>(
+    final changed = await showThqDialog<bool>(
       context: context,
       barrierDismissible: false,
       builder: (dialogContext) => StatefulBuilder(
@@ -121,7 +123,9 @@ class _TenantSubscriptionScreenState extends State<TenantSubscriptionScreen> {
                     padding: const EdgeInsets.only(top: 12),
                     child: Text(
                       error!,
-                      style: const TextStyle(color: Colors.red),
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.error,
+                      ),
                     ),
                   ),
               ],
@@ -179,7 +183,7 @@ class _TenantSubscriptionScreenState extends State<TenantSubscriptionScreen> {
         toolbarHeight: 42,
         title: const Text(
           'Tenant Subscription',
-          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900),
+          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
         ),
         actions: const [AdminHomeButton()],
       ),
@@ -231,13 +235,13 @@ class _TenantSubscriptionScreenState extends State<TenantSubscriptionScreen> {
                               overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
                                 fontSize: 11,
-                                fontWeight: FontWeight.w900,
+                                fontWeight: FontWeight.w600,
                               ),
                             ),
                             Text(
                               'Plan assignment, status and billing cycle',
                               style: TextStyle(
-                                fontSize: 7.7,
+                                fontSize: 11,
                                 color: scheme.onSurfaceVariant,
                               ),
                             ),
@@ -308,7 +312,7 @@ class _Info extends StatelessWidget {
             width: 150,
             child: Text(
               label,
-              style: TextStyle(fontSize: 7.8, color: scheme.onSurfaceVariant),
+              style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant),
             ),
           ),
           Expanded(
@@ -316,7 +320,7 @@ class _Info extends StatelessWidget {
               value,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w800),
+              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
             ),
           ),
         ],

@@ -80,7 +80,7 @@ class _BarcodeWorkbenchScreenState extends State<BarcodeWorkbenchScreen> {
           children: [
             const Text(
               'Barcode Workbench',
-              style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900),
+              style: TextStyle(fontSize: 22, fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 3),
             Text(
@@ -142,7 +142,7 @@ class _BarcodeWorkbenchScreenState extends State<BarcodeWorkbenchScreen> {
                   children: const [
                     Text(
                       'Barcode workflow',
-                      style: TextStyle(fontWeight: FontWeight.w800),
+                      style: TextStyle(fontWeight: FontWeight.w600),
                     ),
                     SizedBox(height: 8),
                     Text(
@@ -175,7 +175,7 @@ class _BarcodeWorkbenchScreenState extends State<BarcodeWorkbenchScreen> {
                   item['product_name']?.toString() ?? '',
                   style: const TextStyle(
                     fontSize: 19,
-                    fontWeight: FontWeight.w900,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
                 const SizedBox(height: 4),
@@ -210,7 +210,7 @@ class _BarcodeWorkbenchScreenState extends State<BarcodeWorkbenchScreen> {
         ),
         Text(
           value,
-          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
         ),
       ],
     ),

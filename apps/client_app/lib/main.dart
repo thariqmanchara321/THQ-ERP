@@ -10,7 +10,6 @@ import 'config/supabase_config.dart';
 import 'config/thq_environment_frame.dart';
 import 'screens/client_entry_screen.dart';
 import 'services/app_log_service.dart';
-import 'ui/v43_theme.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -38,29 +37,41 @@ Future<void> main() async {
     return true;
   };
 
-  runApp(const ThqBusinessApp());
+  final appearance = ThqAppearanceController(appKey: 'client');
+  await appearance.load();
+  runApp(ThqBusinessApp(appearance: appearance));
 }
 
 class ThqBusinessApp extends StatelessWidget {
-  const ThqBusinessApp({super.key});
+  final ThqAppearanceController? appearance;
+  const ThqBusinessApp({super.key, this.appearance});
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: SupabaseConfig.appTitle('THQ Business'),
-      debugShowCheckedModeBanner: false,
-      // THQ_BRANDING_START
-      builder: (context, child) => ThqEnvironmentFrame(
-        child: ThqStartupGate(
-        appName: 'THQ Business',
-        child: ThqNotificationHost(
-          child: NumericZeroAutoSelect(child: child ?? const SizedBox.shrink()),
+    return ThqAppearanceHost(
+      appKey: 'client',
+      controller: appearance,
+      builder: (context, mode) => MaterialApp(
+        title: SupabaseConfig.appTitle('THQ Business'),
+        debugShowCheckedModeBanner: false,
+        themeAnimationDuration: Duration.zero,
+        // THQ_BRANDING_START
+        builder: (context, child) => ThqEnvironmentFrame(
+          child: ThqMotionScope(
+            child: ThqStartupGate(
+              appName: 'THQ Business',
+              child: ThqNotificationHost(
+                child: NumericZeroAutoSelect(
+                  child: child ?? const SizedBox.shrink(),
+                ),
+              ),
+            ),
+          ),
         ),
+        // THQ_BRANDING_END
+        theme: UiDesignProfile.fallback('client').forAppearance(mode).theme(),
+        home: const ClientEntryScreen(),
       ),
-      // THQ_BRANDING_END
-      ),
-      theme: UiDesignProfile.fallback('client').theme(),
-      home: const ClientEntryScreen(),
     );
   }
 }

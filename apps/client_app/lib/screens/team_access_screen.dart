@@ -31,7 +31,7 @@ class _TeamAccessScreenState extends State<TeamAccessScreen> {
       setState(() => _future = _service.list(widget.session.business.id));
 
   Future<void> _editor(TeamData data, [TeamUser? existing]) async {
-    final changed = await showDialog<bool>(
+    final changed = await showThqDialog<bool>(
       context: context,
       barrierDismissible: false,
       builder: (_) =>
@@ -42,7 +42,7 @@ class _TeamAccessScreenState extends State<TeamAccessScreen> {
 
   Future<void> _reset(TeamUser user) async {
     final controller = TextEditingController();
-    final result = await showDialog<String>(
+    final result = await showThqDialog<String>(
       context: context,
       builder: (_) => AlertDialog(
         title: Text('Reset @${user.username} password'),
@@ -83,7 +83,7 @@ class _TeamAccessScreenState extends State<TeamAccessScreen> {
   }
 
   Future<void> _remove(TeamUser user) async {
-    final yes = await showDialog<bool>(
+    final yes = await showThqDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
         title: const Text('Remove user?'),

@@ -1,3 +1,4 @@
+import 'package:thq_ui/thq_ui.dart';
 import 'package:flutter/material.dart';
 
 import '../models/client_session.dart';
@@ -126,9 +127,7 @@ class _AggregateOrdersScreenState extends State<AggregateOrdersScreen> {
   }
 
   Future<void> _createOrder() async {
-    final customers = _list(
-      'customers',
-    ).where((row) => row['is_walk_in'] != true).toList(growable: false);
+    final customers = _list('customers');
     final products = _list('products');
     final locations = _list('locations');
 
@@ -166,7 +165,7 @@ class _AggregateOrdersScreenState extends State<AggregateOrdersScreen> {
     ];
 
     try {
-      final created = await showDialog<bool>(
+      final created = await showThqDialog<bool>(
         context: context,
         barrierDismissible: false,
         builder: (dialogContext) => StatefulBuilder(
@@ -184,7 +183,7 @@ class _AggregateOrdersScreenState extends State<AggregateOrdersScreen> {
             }
 
             return AlertDialog(
-              title: const Text('New Customer Order'),
+              title: const Text('New Customer Order — no GST invoice'),
               content: SizedBox(
                 width: 860,
                 child: SingleChildScrollView(
@@ -281,7 +280,7 @@ class _AggregateOrdersScreenState extends State<AggregateOrdersScreen> {
                           Text(
                             'Materials',
                             style: Theme.of(context).textTheme.titleSmall
-                                ?.copyWith(fontWeight: FontWeight.w800),
+                                ?.copyWith(fontWeight: FontWeight.w600),
                           ),
                           const Spacer(),
                           TextButton.icon(
@@ -587,7 +586,7 @@ class _AggregateOrdersScreenState extends State<AggregateOrdersScreen> {
     final notes = TextEditingController();
 
     try {
-      final created = await showDialog<bool>(
+      final created = await showThqDialog<bool>(
         context: context,
         barrierDismissible: false,
         builder: (dialogContext) => StatefulBuilder(
@@ -624,7 +623,7 @@ class _AggregateOrdersScreenState extends State<AggregateOrdersScreen> {
                           'Allocated ${_qty(line['allocated_quantity'])} $unit • '
                           'Available ${_qty(maxQuantity)} $unit',
                           style: const TextStyle(
-                            fontSize: 10.5,
+                            fontSize: 11,
                             fontWeight: FontWeight.w700,
                           ),
                         ),
@@ -674,7 +673,7 @@ class _AggregateOrdersScreenState extends State<AggregateOrdersScreen> {
                                       '${calculated.toStringAsFixed(3)} CFT',
                                       style: const TextStyle(
                                         fontSize: 17,
-                                        fontWeight: FontWeight.w900,
+                                        fontWeight: FontWeight.w600,
                                       ),
                                     ),
                                   ),
@@ -872,7 +871,7 @@ class _AggregateOrdersScreenState extends State<AggregateOrdersScreen> {
                         Text(
                           'This load exceeds the remaining unallocated order quantity.',
                           style: TextStyle(
-                            fontSize: 10,
+                            fontSize: 11,
                             color: Theme.of(context).colorScheme.error,
                             fontWeight: FontWeight.w700,
                           ),
@@ -986,7 +985,7 @@ class _AggregateOrdersScreenState extends State<AggregateOrdersScreen> {
     final reason = TextEditingController();
 
     try {
-      final confirmed = await showDialog<bool>(
+      final confirmed = await showThqDialog<bool>(
         context: context,
         builder: (dialogContext) => AlertDialog(
           title: Text('Close ${order['order_number'] ?? 'order'}'),
@@ -1177,7 +1176,7 @@ class _AggregateOrdersScreenState extends State<AggregateOrdersScreen> {
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                   style: const TextStyle(
-                                    fontWeight: FontWeight.w800,
+                                    fontWeight: FontWeight.w600,
                                   ),
                                 ),
                               ),
@@ -1191,7 +1190,7 @@ class _AggregateOrdersScreenState extends State<AggregateOrdersScreen> {
                                         'partially dispatched',
                                         'in fulfillment',
                                       ),
-                                  style: const TextStyle(fontSize: 9),
+                                  style: const TextStyle(fontSize: 11),
                                 ),
                               ),
                             ],
@@ -1240,7 +1239,7 @@ class _AggregateOrdersScreenState extends State<AggregateOrdersScreen> {
                                                 '${line['product_name'] ?? ''}',
                                                 style: const TextStyle(
                                                   fontSize: 11,
-                                                  fontWeight: FontWeight.w800,
+                                                  fontWeight: FontWeight.w600,
                                                 ),
                                               ),
                                               const SizedBox(height: 2),
@@ -1251,7 +1250,7 @@ class _AggregateOrdersScreenState extends State<AggregateOrdersScreen> {
                                                 'Delivered ${_qty(line['delivered_quantity'])} • '
                                                 'Remaining ${_qty(line['remaining_to_deliver'])}',
                                                 style: TextStyle(
-                                                  fontSize: 9,
+                                                  fontSize: 11,
                                                   color:
                                                       scheme.onSurfaceVariant,
                                                 ),
@@ -1289,7 +1288,7 @@ class _AggregateOrdersScreenState extends State<AggregateOrdersScreen> {
                                     Text(
                                       'Requested: ${order['requested_date']}',
                                       style: TextStyle(
-                                        fontSize: 9,
+                                        fontSize: 11,
                                         color: scheme.onSurfaceVariant,
                                       ),
                                     ),

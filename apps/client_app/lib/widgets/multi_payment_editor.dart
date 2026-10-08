@@ -1,3 +1,4 @@
+import 'package:thq_ui/thq_ui.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -230,20 +231,34 @@ class _MultiPaymentEditorState extends State<MultiPaymentEditor> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            const Expanded(
-              child: Text(
-                'Payment Allocations',
-                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
-              ),
-            ),
-            TextButton.icon(
+        LayoutBuilder(
+          builder: (context, constraints) {
+            const heading = Text(
+              'Payment Allocations',
+              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+            );
+            final add = TextButton.icon(
               onPressed: widget.enabled ? _add : null,
               icon: const Icon(Icons.add),
               label: const Text('Add Method'),
-            ),
-          ],
+            );
+            if (constraints.maxWidth < 480 ||
+                MediaQuery.textScalerOf(context).scale(1) > 1.3) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  heading,
+                  Align(alignment: Alignment.centerLeft, child: add),
+                ],
+              );
+            }
+            return Row(
+              children: [
+                const Expanded(child: heading),
+                add,
+              ],
+            );
+          },
         ),
         for (var i = 0; i < _rows.length; i++) ...[
           _paymentRow(i),
@@ -263,14 +278,14 @@ class _MultiPaymentEditorState extends State<MultiPaymentEditor> {
                 color: _remaining > .005
                     ? (widget.customerIsWalkIn
                           ? Theme.of(context).colorScheme.error
-                          : Theme.of(context).colorScheme.tertiary)
+                          : context.thqSemanticColors.warning)
                     : null,
               ),
             ),
             if (_change > .005)
               Text(
                 'Cash change ${_change.toStringAsFixed(2)}',
-                style: const TextStyle(fontWeight: FontWeight.w800),
+                style: const TextStyle(fontWeight: FontWeight.w600),
               ),
           ],
         ),
@@ -281,7 +296,7 @@ class _MultiPaymentEditorState extends State<MultiPaymentEditor> {
                     'Walk-in sales must be fully settled.'
               : 'Cash over-tender becomes change. Electronic overpayment is rejected. '
                     'Any unpaid remainder is automatically saved to this customer\'s Accounts Receivable.',
-          style: const TextStyle(fontSize: 10.5),
+          style: const TextStyle(fontSize: 11),
         ),
       ],
     );

@@ -119,13 +119,13 @@ class _SalesScreenState extends State<SalesScreen> {
                         'Today’s Sales',
                         style: TextStyle(
                           fontSize: 14.5,
-                          fontWeight: FontWeight.w900,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                       Text(
                         'Invoices, payments and customer sales',
                         style: TextStyle(
-                          fontSize: 10.5,
+                          fontSize: 11,
                           color: scheme.onSurfaceVariant,
                         ),
                       ),
@@ -193,7 +193,7 @@ class _SalesScreenState extends State<SalesScreen> {
                           'No sales yet today.',
                           style: TextStyle(
                             fontSize: 11.5,
-                            fontWeight: FontWeight.w800,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
                         if (_canManage) ...[
@@ -288,8 +288,8 @@ class _SalesScreenState extends State<SalesScreen> {
                                     child: Text(
                                       'Invoice',
                                       style: TextStyle(
-                                        fontSize: 10.5,
-                                        fontWeight: FontWeight.w900,
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w600,
                                       ),
                                     ),
                                   ),
@@ -298,8 +298,8 @@ class _SalesScreenState extends State<SalesScreen> {
                                     child: Text(
                                       'Customer',
                                       style: TextStyle(
-                                        fontSize: 10.5,
-                                        fontWeight: FontWeight.w900,
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w600,
                                       ),
                                     ),
                                   ),
@@ -309,8 +309,8 @@ class _SalesScreenState extends State<SalesScreen> {
                                       'Total',
                                       textAlign: TextAlign.right,
                                       style: TextStyle(
-                                        fontSize: 10.5,
-                                        fontWeight: FontWeight.w900,
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w600,
                                       ),
                                     ),
                                   ),
@@ -320,8 +320,8 @@ class _SalesScreenState extends State<SalesScreen> {
                                       'Due',
                                       textAlign: TextAlign.right,
                                       style: TextStyle(
-                                        fontSize: 10.5,
-                                        fontWeight: FontWeight.w900,
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w600,
                                       ),
                                     ),
                                   ),
@@ -331,8 +331,8 @@ class _SalesScreenState extends State<SalesScreen> {
                                       'Profit',
                                       textAlign: TextAlign.right,
                                       style: TextStyle(
-                                        fontSize: 10.5,
-                                        fontWeight: FontWeight.w900,
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w600,
                                       ),
                                     ),
                                   ),
@@ -387,15 +387,15 @@ class _SalesScreenState extends State<SalesScreen> {
                                                       overflow:
                                                           TextOverflow.ellipsis,
                                                       style: const TextStyle(
-                                                        fontSize: 10.5,
+                                                        fontSize: 11,
                                                         fontWeight:
-                                                            FontWeight.w800,
+                                                            FontWeight.w600,
                                                       ),
                                                     ),
                                                     Text(
                                                       _date(sale.saleDate),
                                                       style: TextStyle(
-                                                        fontSize: 10,
+                                                        fontSize: 11,
                                                         color: scheme
                                                             .onSurfaceVariant,
                                                       ),
@@ -411,7 +411,7 @@ class _SalesScreenState extends State<SalesScreen> {
                                                   overflow:
                                                       TextOverflow.ellipsis,
                                                   style: const TextStyle(
-                                                    fontSize: 10.5,
+                                                    fontSize: 11,
                                                     fontWeight: FontWeight.w700,
                                                   ),
                                                 ),
@@ -423,8 +423,8 @@ class _SalesScreenState extends State<SalesScreen> {
                                                   textAlign: TextAlign.right,
                                                   maxLines: 1,
                                                   style: const TextStyle(
-                                                    fontSize: 10.5,
-                                                    fontWeight: FontWeight.w900,
+                                                    fontSize: 11,
+                                                    fontWeight: FontWeight.w600,
                                                   ),
                                                 ),
                                               ),
@@ -435,7 +435,7 @@ class _SalesScreenState extends State<SalesScreen> {
                                                   textAlign: TextAlign.right,
                                                   maxLines: 1,
                                                   style: const TextStyle(
-                                                    fontSize: 10.5,
+                                                    fontSize: 11,
                                                   ),
                                                 ),
                                               ),
@@ -446,7 +446,7 @@ class _SalesScreenState extends State<SalesScreen> {
                                                   textAlign: TextAlign.right,
                                                   maxLines: 1,
                                                   style: const TextStyle(
-                                                    fontSize: 10.5,
+                                                    fontSize: 11,
                                                   ),
                                                 ),
                                               ),
@@ -516,14 +516,14 @@ class _SalesScreenState extends State<SalesScreen> {
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     fontSize: 11,
-                    fontWeight: FontWeight.w900,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
                 Text(
                   label,
                   maxLines: 1,
                   style: TextStyle(
-                    fontSize: 10,
+                    fontSize: 11,
                     color: scheme.onSurfaceVariant,
                   ),
                 ),
@@ -777,7 +777,7 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
       return;
     }
 
-    final line = await showDialog<_SaleLine>(
+    final line = await showThqDialog<_SaleLine>(
       context: context,
       barrierDismissible: false,
       builder: (_) => _AddSaleItemDialog(products: available),
@@ -904,6 +904,8 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
             .map(
               (line) => {
                 'variant_id': line.product.variantId,
+                'tracking_revision': line.product.trackingRevision,
+                'tracking_mode': line.product.trackingMode,
 
                 'quantity': line.quantity,
 
@@ -965,7 +967,7 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
 
       appBar: AppBar(
         title: const Text(
@@ -1414,7 +1416,7 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
               padding: const EdgeInsets.all(12),
 
               decoration: BoxDecoration(
-                color: Colors.red.shade50,
+                color: Theme.of(context).colorScheme.error,
 
                 borderRadius: BorderRadius.circular(8),
               ),
@@ -1422,7 +1424,7 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
               child: Text(
                 _error!,
 
-                style: TextStyle(color: Colors.red.shade700),
+                style: TextStyle(color: Theme.of(context).colorScheme.onError),
               ),
             ),
           ],
@@ -1929,7 +1931,7 @@ class _AddSaleItemDialogState extends State<_AddSaleItemDialog> {
                 child: Text(
                   _error!,
 
-                  style: TextStyle(color: Colors.red.shade700),
+                  style: TextStyle(color: Theme.of(context).colorScheme.error),
                 ),
               ),
             ],
@@ -1977,7 +1979,11 @@ class _SaleLineRow extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 14),
 
       decoration: BoxDecoration(
-        border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
+        border: Border(
+          bottom: BorderSide(
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+        ),
       ),
 
       child: Row(
@@ -2000,7 +2006,10 @@ class _SaleLineRow extends StatelessWidget {
                       .where((value) => value != null && value.isNotEmpty)
                       .join(' • '),
 
-                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
                 ),
               ],
             ),
@@ -2050,11 +2059,13 @@ class _SaleCard extends StatelessWidget {
       padding: const EdgeInsets.all(22),
 
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).colorScheme.surface,
 
         borderRadius: BorderRadius.circular(18),
 
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
+        ),
       ),
 
       child: Column(
@@ -2145,19 +2156,19 @@ class _SalePaymentBadge extends StatelessWidget {
 
     switch (status) {
       case 'paid':
-        background = Colors.green.shade50;
+        background = Theme.of(context).colorScheme.primary;
 
-        foreground = Colors.green.shade700;
+        foreground = Theme.of(context).colorScheme.primary;
 
       case 'partial':
-        background = Colors.orange.shade50;
+        background = context.thqSemanticColors.warning;
 
-        foreground = Colors.orange.shade800;
+        foreground = context.thqSemanticColors.warning;
 
       default:
-        background = Colors.red.shade50;
+        background = Theme.of(context).colorScheme.error;
 
-        foreground = Colors.red.shade700;
+        foreground = Theme.of(context).colorScheme.error;
     }
 
     return Container(

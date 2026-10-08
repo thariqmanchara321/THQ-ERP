@@ -1,17 +1,80 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:uuid/uuid.dart';
+
+import 'staff_load_service.dart';
+import 'location_scope_service.dart';
 
 class AggregateYardService {
   SupabaseClient get _db => Supabase.instance.client;
 
+  Future<List<Map<String, dynamic>>> stock({
+    required String tenantId,
+    String? locationId,
+    String query = '',
+  }) async {
+    final result = await _db.rpc(
+      'aggregate_yard_stock_v628',
+      params: {
+        'p_tenant_id': tenantId,
+        'p_location_id': locationId,
+        'p_query': query.trim(),
+        'p_limit': 1000,
+      },
+    );
+    return (result as List)
+        .whereType<Map>()
+        .map((row) => Map<String, dynamic>.from(row))
+        .toList();
+  }
+
+  Future<void> saveBatchProfile({
+    required String tenantId,
+    required String batchId,
+    required String qualityLabel,
+    double? sellingPriceBase,
+  }) async {
+    await _db.rpc(
+      'aggregate_yard_batch_profile_save_v628',
+      params: {
+        'p_tenant_id': tenantId,
+        'p_batch_id': batchId,
+        'p_quality_label': qualityLabel,
+        'p_selling_price_base': sellingPriceBase,
+      },
+    );
+  }
+
+  Future<void> saveVehicleDriver({
+    required String tenantId,
+    required String vehicleId,
+    required String driverName,
+    required String driverPhone,
+  }) async {
+    await _db.rpc(
+      'aggregate_vehicle_driver_save_v628',
+      params: {
+        'p_tenant_id': tenantId,
+        'p_vehicle_id': vehicleId,
+        'p_driver_name': driverName.trim(),
+        'p_driver_phone': driverPhone.trim(),
+      },
+    );
+  }
+
   Future<Map<String, dynamic>> context({required String tenantId}) async {
     final result = await _db.rpc(
-      'aggregate_yard_context_v617',
+      'aggregate_yard_context_v629',
       params: {'p_tenant_id': tenantId},
     );
     if (result is! Map) {
       throw StateError('Unexpected Material Yard context response.');
     }
-    return Map<String, dynamic>.from(result);
+    final costs = await StaffLoadService().load(
+      tenantId: tenantId,
+      action: 'context',
+      locationId: LocationScopeService.selectedLocationId.value,
+    );
+    return {...Map<String, dynamic>.from(result), ...costs};
   }
 
   Future<Map<String, dynamic>> dashboard({
@@ -47,7 +110,7 @@ class AggregateYardService {
     int limit = 300,
   }) async {
     final result = await _db.rpc(
-      'aggregate_load_list_v619',
+      'aggregate_load_list_v629',
       params: {
         'p_tenant_id': tenantId,
         'p_location_id': locationId,
@@ -313,84 +376,76 @@ class AggregateYardService {
     bool capacityOverride = false,
     String? capacityOverrideReason,
     String? notes,
+    List<Map<String, dynamic>> costs = const [],
+    Map<String, dynamic> delivery = const {},
+    String? requestId,
   }) async {
-    final result = await _db.rpc(
-      'aggregate_load_create_v617',
-      params: {
-        'p_tenant_id': tenantId,
-        'p_direction': direction,
-        'p_location_id': locationId,
-        'p_variant_id': variantId,
-        'p_quantity': quantity,
-        'p_unit_code': unitCode,
-        'p_measurement_method': measurementMethod,
-        'p_body_length_ft': bodyLengthFt,
-        'p_body_width_ft': bodyWidthFt,
-        'p_body_height_ft': bodyHeightFt,
-        'p_gross_weight_kg': grossWeightKg,
-        'p_tare_weight_kg': tareWeightKg,
-        'p_net_weight_kg': netWeightKg,
-        'p_vehicle_id': vehicleId,
-        'p_driver_id': driverId,
-        'p_supplier_id': supplierId,
-        'p_customer_id': customerId,
-        'p_source_name': sourceName,
-        'p_destination_name': destinationName,
-        'p_source_reference': sourceReference,
-        'p_freight_mode': freightMode,
-        'p_freight_amount': freightAmount,
-        'p_capacity_override': capacityOverride,
-        'p_capacity_override_reason': capacityOverrideReason,
-        'p_notes': notes,
+    final result = await StaffLoadService().load(
+      tenantId: tenantId,
+      action: 'create',
+      locationId: locationId,
+      data: {
+        'load': {
+          'p_tenant_id': tenantId,
+          'p_direction': direction,
+          'p_location_id': locationId,
+          'p_variant_id': variantId,
+          'p_quantity': quantity,
+          'p_unit_code': unitCode,
+          'p_measurement_method': measurementMethod,
+          'p_body_length_ft': bodyLengthFt,
+          'p_body_width_ft': bodyWidthFt,
+          'p_body_height_ft': bodyHeightFt,
+          'p_gross_weight_kg': grossWeightKg,
+          'p_tare_weight_kg': tareWeightKg,
+          'p_net_weight_kg': netWeightKg,
+          'p_vehicle_id': vehicleId,
+          'p_driver_id': driverId,
+          'p_supplier_id': supplierId,
+          'p_customer_id': customerId,
+          'p_source_name': sourceName,
+          'p_destination_name': destinationName,
+          'p_source_reference': sourceReference,
+          'p_freight_mode': freightMode,
+          'p_freight_amount': freightAmount,
+          'p_capacity_override': capacityOverride,
+          'p_capacity_override_reason': capacityOverrideReason,
+          'p_notes': notes,
+        },
+        'costs': costs,
+        'delivery': delivery,
+        'request_id': requestId ?? const Uuid().v4(),
       },
     );
-    if (result is! Map) {
-      throw StateError('Unexpected create load response.');
-    }
-    return Map<String, dynamic>.from(result);
+    return result;
   }
 
   Future<Map<String, dynamic>> loadDetail({
     required String tenantId,
     required String loadId,
-  }) async {
-    final result = await _db.rpc(
-      'aggregate_load_detail_v628',
-      params: {'p_tenant_id': tenantId, 'p_load_id': loadId},
-    );
-    if (result is! Map) {
-      throw StateError('Unexpected load detail response.');
-    }
-    return Map<String, dynamic>.from(result);
-  }
+  }) => StaffLoadService().load(
+    tenantId: tenantId,
+    action: 'detail',
+    data: {'load_id': loadId},
+  );
 
   Future<Map<String, dynamic>> confirmLoad({
     required String tenantId,
     required String loadId,
-  }) async {
-    final result = await _db.rpc(
-      'aggregate_load_confirm_v628',
-      params: {'p_tenant_id': tenantId, 'p_load_id': loadId},
-    );
-    if (result is! Map) {
-      throw StateError('Unexpected load confirmation response.');
-    }
-    return Map<String, dynamic>.from(result);
-  }
+  }) => StaffLoadService().load(
+    tenantId: tenantId,
+    action: 'confirm',
+    data: {'load_id': loadId},
+  );
 
   Future<Map<String, dynamic>> deleteLoad({
     required String tenantId,
     required String loadId,
-  }) async {
-    final result = await _db.rpc(
-      'aggregate_load_delete_v628',
-      params: {'p_tenant_id': tenantId, 'p_load_id': loadId},
-    );
-    if (result is! Map) {
-      throw StateError('Unexpected load delete response.');
-    }
-    return Map<String, dynamic>.from(result);
-  }
+  }) => StaffLoadService().load(
+    tenantId: tenantId,
+    action: 'delete',
+    data: {'load_id': loadId},
+  );
 
   Future<Map<String, dynamic>> editLoad({
     required String tenantId,
@@ -419,42 +474,49 @@ class AggregateYardService {
     bool capacityOverride = false,
     String? capacityOverrideReason,
     String? notes,
+    List<Map<String, dynamic>> costs = const [],
+    Map<String, dynamic> delivery = const {},
+    String? requestId,
   }) async {
-    final result = await _db.rpc(
-      'aggregate_load_edit_v628',
-      params: {
-        'p_tenant_id': tenantId,
-        'p_load_id': loadId,
-        'p_direction': direction,
-        'p_location_id': locationId,
-        'p_variant_id': variantId,
-        'p_quantity': quantity,
-        'p_unit_code': unitCode,
-        'p_measurement_method': measurementMethod,
-        'p_body_length_ft': bodyLengthFt,
-        'p_body_width_ft': bodyWidthFt,
-        'p_body_height_ft': bodyHeightFt,
-        'p_gross_weight_kg': grossWeightKg,
-        'p_tare_weight_kg': tareWeightKg,
-        'p_net_weight_kg': netWeightKg,
-        'p_vehicle_id': vehicleId,
-        'p_driver_id': driverId,
-        'p_supplier_id': supplierId,
-        'p_customer_id': customerId,
-        'p_source_name': sourceName,
-        'p_destination_name': destinationName,
-        'p_source_reference': sourceReference,
-        'p_freight_mode': freightMode,
-        'p_freight_amount': freightAmount,
-        'p_capacity_override': capacityOverride,
-        'p_capacity_override_reason': capacityOverrideReason,
-        'p_notes': notes,
+    final result = await StaffLoadService().load(
+      tenantId: tenantId,
+      action: 'edit',
+      locationId: locationId,
+      data: {
+        'load': {
+          'p_tenant_id': tenantId,
+          'p_load_id': loadId,
+          'p_direction': direction,
+          'p_location_id': locationId,
+          'p_variant_id': variantId,
+          'p_quantity': quantity,
+          'p_unit_code': unitCode,
+          'p_measurement_method': measurementMethod,
+          'p_body_length_ft': bodyLengthFt,
+          'p_body_width_ft': bodyWidthFt,
+          'p_body_height_ft': bodyHeightFt,
+          'p_gross_weight_kg': grossWeightKg,
+          'p_tare_weight_kg': tareWeightKg,
+          'p_net_weight_kg': netWeightKg,
+          'p_vehicle_id': vehicleId,
+          'p_driver_id': driverId,
+          'p_supplier_id': supplierId,
+          'p_customer_id': customerId,
+          'p_source_name': sourceName,
+          'p_destination_name': destinationName,
+          'p_source_reference': sourceReference,
+          'p_freight_mode': freightMode,
+          'p_freight_amount': freightAmount,
+          'p_capacity_override': capacityOverride,
+          'p_capacity_override_reason': capacityOverrideReason,
+          'p_notes': notes,
+        },
+        'costs': costs,
+        'delivery': delivery,
+        'load_id': loadId,
       },
     );
-    if (result is! Map) {
-      throw StateError('Unexpected load edit response.');
-    }
-    return Map<String, dynamic>.from(result);
+    return result;
   }
 
   Future<Map<String, dynamic>> updateStatus({

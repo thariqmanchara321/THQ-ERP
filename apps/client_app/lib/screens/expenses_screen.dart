@@ -52,7 +52,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
   String _d(DateTime v) =>
       '${v.day.toString().padLeft(2, '0')}-${v.month.toString().padLeft(2, '0')}-${v.year}';
   Future<void> _newExpense() async {
-    final ok = await showDialog<bool>(
+    final ok = await showThqDialog<bool>(
       context: context,
       barrierDismissible: false,
       builder: (_) => _ExpenseDialog(session: widget.session),
@@ -81,7 +81,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
       final journals = detail['journals'] is List
           ? detail['journals'] as List
           : const [];
-      await showDialog<void>(
+      await showThqDialog<void>(
         context: context,
         builder: (context) => AlertDialog(
           title: Text('Expense Tracking • ${expense.number}'),
@@ -102,7 +102,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                 const Divider(height: 24),
                 const Text(
                   'Accounting journals',
-                  style: TextStyle(fontWeight: FontWeight.w800),
+                  style: TextStyle(fontWeight: FontWeight.w600),
                 ),
                 if (journals.isEmpty)
                   const Text('No journal evidence found.')
@@ -124,7 +124,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                 const Divider(height: 24),
                 const Text(
                   'Change history',
-                  style: TextStyle(fontWeight: FontWeight.w800),
+                  style: TextStyle(fontWeight: FontWeight.w600),
                 ),
                 if (history.isEmpty)
                   const Text('No tracked edits after the tracking upgrade.')
@@ -178,7 +178,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
   }
 
   Future<void> _editExpense(Expense expense) async {
-    final ok = await showDialog<bool>(
+    final ok = await showThqDialog<bool>(
       context: context,
       barrierDismissible: false,
       builder: (_) => _ExpenseDialog(session: widget.session, expense: expense),
@@ -221,7 +221,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                         'Expenses',
                         style: TextStyle(
                           fontSize: 17,
-                          fontWeight: FontWeight.w900,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                       Text(
@@ -448,7 +448,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontSize: 10.5,
+                    fontSize: 11,
                     color: scheme.onSurfaceVariant,
                   ),
                 ),
@@ -458,7 +458,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     fontSize: 11.5,
-                    fontWeight: FontWeight.w800,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ],
@@ -477,7 +477,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
             label,
             textAlign: align,
             maxLines: 1,
-            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800),
+            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
           ),
         );
 
@@ -525,7 +525,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
                           fontSize: 11.5,
-                          fontWeight: FontWeight.w800,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                       Text(
@@ -546,7 +546,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                   _m(expense.totalAmount),
                   style: const TextStyle(
                     fontSize: 11.5,
-                    fontWeight: FontWeight.w800,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
                 const SizedBox(width: 5),
@@ -602,13 +602,13 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         fontSize: 11.5,
-                        fontWeight: FontWeight.w800,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                     Text(
                       _d(expense.expenseDate),
                       style: TextStyle(
-                        fontSize: 10.5,
+                        fontSize: 11,
                         color: scheme.onSurfaceVariant,
                       ),
                     ),
@@ -637,7 +637,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        fontSize: 10.5,
+                        fontSize: 11,
                         color: scheme.onSurfaceVariant,
                       ),
                     ),
@@ -660,7 +660,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                   maxLines: 1,
                   style: const TextStyle(
                     fontSize: 11.5,
-                    fontWeight: FontWeight.w800,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
                 2,
@@ -682,8 +682,8 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                     child: Text(
                       expense.status.toUpperCase(),
                       style: const TextStyle(
-                        fontSize: 10.5,
-                        fontWeight: FontWeight.w800,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ),
@@ -1025,7 +1025,10 @@ class _ExpenseDialogState extends State<_ExpenseDialog> {
               ],
               if (_error != null) ...[
                 const SizedBox(height: 12),
-                Text(_error!, style: const TextStyle(color: Colors.red)),
+                Text(
+                  _error!,
+                  style: TextStyle(color: Theme.of(context).colorScheme.error),
+                ),
               ],
             ],
           ),

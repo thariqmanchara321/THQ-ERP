@@ -52,7 +52,7 @@ class _ClientBootstrapScreenState extends State<ClientBootstrapScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: FutureBuilder<List<ClientBusiness>>(
         future: _businessesFuture,
         builder: (context, snapshot) {
@@ -195,7 +195,9 @@ class _NoBusinessView extends StatelessWidget {
             Text(
               'Your account is not connected to an active THQ Business business.',
               textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.grey.shade600),
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
             ),
 
             const SizedBox(height: 24),

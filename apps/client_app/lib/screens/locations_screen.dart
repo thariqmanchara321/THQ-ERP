@@ -168,7 +168,7 @@ class _LocationsScreenState extends State<LocationsScreen> {
     final isExistingMain = existing != null && hierarchyRole == 'main_store';
     String? parentId = existing?['parent_location_id']?.toString();
 
-    await showDialog<void>(
+    await showThqDialog<void>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setLocalState) {
@@ -555,7 +555,7 @@ class _LocationsScreenState extends State<LocationsScreen> {
     final prefix = TextEditingController(text: 'POS1');
     final modules = <String>{'sales'};
 
-    await showDialog<void>(
+    await showThqDialog<void>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setLocalState) {
@@ -774,7 +774,7 @@ class _LocationsScreenState extends State<LocationsScreen> {
                       Navigator.pop(dialogContext);
                     }
                     if (!mounted) return;
-                    await showDialog<void>(
+                    await showThqDialog<void>(
                       context: this.context,
                       barrierDismissible: false,
                       builder: (context) => AlertDialog(
@@ -837,7 +837,7 @@ class _LocationsScreenState extends State<LocationsScreen> {
         )
         .toList();
 
-    await showDialog<void>(
+    await showThqDialog<void>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setLocalState) => AlertDialog(
@@ -982,7 +982,7 @@ class _LocationsScreenState extends State<LocationsScreen> {
 
   Future<void> _revoke(Map<String, dynamic> device) async {
     if (!_canManage) return;
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showThqDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Revoke system?'),
@@ -1041,7 +1041,7 @@ class _LocationsScreenState extends State<LocationsScreen> {
                       'Stores & POS Systems',
                       style: TextStyle(
                         fontSize: 24,
-                        fontWeight: FontWeight.w800,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                     const SizedBox(height: 4),
@@ -1086,7 +1086,7 @@ class _LocationsScreenState extends State<LocationsScreen> {
           const SizedBox(height: 10),
           const Text(
             'Stores',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 10),
           if (_locations.isEmpty)
@@ -1105,7 +1105,7 @@ class _LocationsScreenState extends State<LocationsScreen> {
           const SizedBox(height: 26),
           const Text(
             'Registered Systems',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 10),
           if (_devices.isEmpty)
@@ -1164,7 +1164,7 @@ class _LocationsScreenState extends State<LocationsScreen> {
                               )
                               .firstOrNull ??
                           'STORE',
-                style: const TextStyle(fontWeight: FontWeight.w800),
+                style: const TextStyle(fontWeight: FontWeight.w600),
               ),
             ],
           ),
@@ -1210,7 +1210,7 @@ class _LocationsScreenState extends State<LocationsScreen> {
                       location['name']?.toString() ?? '',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontWeight: FontWeight.w800),
+                      style: const TextStyle(fontWeight: FontWeight.w600),
                     ),
                     Text(
                       '${location['location_code'] ?? ''} • ${location['tracking_code'] ?? ''}',
@@ -1289,7 +1289,7 @@ class _LocationsScreenState extends State<LocationsScreen> {
           children: [
             CircleAvatar(
               backgroundColor: active
-                  ? Colors.green.shade50
+                  ? Theme.of(context).colorScheme.primary
                   : Theme.of(context).colorScheme.surfaceContainerHighest,
               child: Icon(
                 device['app_type'] == 'pos'
@@ -1311,7 +1311,7 @@ class _LocationsScreenState extends State<LocationsScreen> {
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
                             fontSize: 16,
-                            fontWeight: FontWeight.w800,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
                       ),

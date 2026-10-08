@@ -1,0 +1,251 @@
+{
+  "version": "Material Yard and Staff v5",
+  "project": "flexi-erp-dev",
+  "date": "2026-10-04",
+  "backend_tests": [
+    {
+      "tests": {
+        "all_posted_journals_balanced": "PASS",
+        "staff_profile_and_driver_link": "PASS",
+        "edited_rate_quote_and_invoice_match": "PASS",
+        "authenticated_and_cross_tenant_guards": "PASS",
+        "salary_allocations_do_not_double_post": "PASS",
+        "fees_grouped_without_duplicate_product": "PASS",
+        "payroll_advance_idempotence_attendance_lock": "PASS",
+        "staff_statements_load_and_financial_reports": "PASS",
+        "complete_driver_trip_and_load_event_evidence": "PASS",
+        "merged_delivery_time_odometer_and_gps_guards": "PASS",
+        "saved_invoice_description_and_driver_licence": "PASS",
+        "physical_load_quantity_guard_and_charge_units": "PASS",
+        "load_create_nonce_and_atomic_cost_confirmation": "PASS",
+        "partial_expense_payments_and_overpayment_guard": "PASS",
+        "additional_expense_nonce_and_legacy_entrypoints": "PASS",
+        "invoice_evidence_frozen_latest_delivery_preserved": "PASS"
+      }
+    }
+  ],
+  "gst_tests": [
+    {
+      "tests": {
+        "legacy_gst_default_rate_unchanged": "PASS",
+        "registered_gst_override_and_unchanged_master": "PASS",
+        "gst_rate_master_profile_review_and_inclusive_totals": "PASS",
+        "normal_registered_sale_override_invoice_and_accounts": "PASS"
+      }
+    }
+  ],
+  "privileges": [
+    {
+      "tables": [
+        {
+          "rls": true,
+          "table": "staff_members_v630",
+          "anon_select": false,
+          "authenticated_insert": false,
+          "authenticated_select": false
+        },
+        {
+          "rls": true,
+          "table": "staff_attendance_v630",
+          "anon_select": false,
+          "authenticated_insert": false,
+          "authenticated_select": false
+        },
+        {
+          "rls": true,
+          "table": "staff_earnings_v630",
+          "anon_select": false,
+          "authenticated_insert": false,
+          "authenticated_select": false
+        },
+        {
+          "rls": true,
+          "table": "staff_payments_v630",
+          "anon_select": false,
+          "authenticated_insert": false,
+          "authenticated_select": false
+        },
+        {
+          "rls": true,
+          "table": "staff_payment_allocations_v630",
+          "anon_select": false,
+          "authenticated_insert": false,
+          "authenticated_select": false
+        },
+        {
+          "rls": true,
+          "table": "material_load_costs_v630",
+          "anon_select": false,
+          "authenticated_insert": false,
+          "authenticated_select": false
+        },
+        {
+          "rls": true,
+          "table": "material_load_cost_payments_v630",
+          "anon_select": false,
+          "authenticated_insert": false,
+          "authenticated_select": false
+        },
+        {
+          "rls": true,
+          "table": "material_load_delivery_v630",
+          "anon_select": false,
+          "authenticated_insert": false,
+          "authenticated_select": false
+        },
+        {
+          "rls": true,
+          "table": "material_load_sale_snapshots_v630",
+          "anon_select": false,
+          "authenticated_insert": false,
+          "authenticated_select": false
+        },
+        {
+          "rls": true,
+          "table": "material_load_requests_v630",
+          "anon_select": false,
+          "authenticated_insert": false,
+          "authenticated_select": false
+        },
+        {
+          "rls": true,
+          "table": "workforce_audit_v630",
+          "anon_select": false,
+          "authenticated_insert": false,
+          "authenticated_select": false
+        }
+      ],
+      "exposed_private_helpers": [],
+      "public_rpcs": [
+        {
+          "function": "staff_workspace_v630",
+          "anon_execute": false,
+          "authenticated_execute": true
+        },
+        {
+          "function": "client_sale_quote_v630",
+          "anon_execute": false,
+          "authenticated_execute": true
+        },
+        {
+          "function": "aggregate_load_sale_create_v630",
+          "anon_execute": false,
+          "authenticated_execute": true
+        },
+        {
+          "function": "sales_get_detail_v630",
+          "anon_execute": false,
+          "authenticated_execute": true
+        },
+        {
+          "function": "material_load_workspace_v630",
+          "anon_execute": false,
+          "authenticated_execute": true
+        },
+        {
+          "function": "gst_client_sale_create_v630",
+          "anon_execute": false,
+          "authenticated_execute": true
+        },
+        {
+          "function": "reports_get_summary_v630",
+          "anon_execute": false,
+          "authenticated_execute": true
+        },
+        {
+          "function": "reports_export_dataset_v630",
+          "anon_execute": false,
+          "authenticated_execute": true
+        }
+      ]
+    }
+  ],
+  "historical_integrity": {
+    "counts": {
+      "sales": 58,
+      "expenses": 8,
+      "journals": 127,
+      "purchases": 12
+    },
+    "fingerprints": {
+      "sale_items": "610fa7ebc5136d9b9ccba029a9c51875",
+      "gst_snapshots": "53d239138f09aaf0c53eb43b3e82eef1",
+      "purchase_items": "5c34d2817fca26a2c3a965a057c6f5a4"
+    },
+    "algorithm": "md5(string_agg(to_jsonb(row)::text, newline order by id))",
+    "unchanged": true
+  },
+  "migrations": [
+    {
+      "version": "20261004062932",
+      "name": "staff_and_material_load_costs_v630"
+    },
+    {
+      "version": "20261004064344",
+      "name": "staff_load_costs_hardening_v630"
+    },
+    {
+      "version": "20261004065156",
+      "name": "staff_load_report_exports_v630"
+    },
+    {
+      "version": "20261004071521",
+      "name": "staff_load_final_integrity_v630"
+    },
+    {
+      "version": "20261004072845",
+      "name": "load_billing_units_and_tax_v630"
+    },
+    {
+      "version": "20261004073347",
+      "name": "invoice_saved_descriptions_v630"
+    },
+    {
+      "version": "20261004074850",
+      "name": "complete_load_trip_evidence_v630"
+    }
+  ],
+  "source_analysis": {
+    "command": "dart analyze --fatal-infos apps/client_app",
+    "result": "No issues found",
+    "dependencies": "Exact locked package sources and real Flutter framework/engine sources; Flutter initialization was not run."
+  },
+  "pending": [
+    "Flutter widget/runtime tests on Windows",
+    "Windows app build and manual workflow check"
+  ],
+  "invoice_pdf_rendering": {
+    "a4": {
+      "pages": 8,
+      "bytes": 24563,
+      "complete_expense_payment_and_long_note_evidence": true
+    },
+    "80mm": {
+      "pages": 7,
+      "bytes": 22848,
+      "complete_expense_payment_and_long_note_evidence": true
+    },
+    "58mm": {
+      "pages": 8,
+      "bytes": 23421,
+      "complete_expense_payment_and_long_note_evidence": true
+    },
+    "visual_review": "A4 and thermal pages inspected; no clipping or overlap",
+    "excluded": "Optional remote logo/QR images and platform print/share adapters"
+  },
+  "installer": {
+    "restore_refuses_later_edits": "PASS",
+    "v4_1 with spaces_apply_repeat_restore": "PASS",
+    "v4 CRLF with spaces_apply_repeat_restore": "PASS",
+    "v3 with spaces_apply_repeat_restore": "PASS",
+    "unrelated_local_edits_preserved": "PASS",
+    "conflict_preflight_changes_nothing": "PASS",
+    "package_tamper_rejected_before_writes": "PASS",
+    "mid_apply_failure_restores_every_file": "PASS",
+    "powershell_scripts_parse": "PASS"
+  },
+  "verifier_script_simulation": {
+    "verifier_script_success_branch_with_simulated_flutter": "PASS",
+    "verifier_script_failure_branch_with_simulated_flutter": "PASS"
+  }
+}

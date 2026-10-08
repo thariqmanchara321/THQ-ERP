@@ -1,3 +1,4 @@
+import 'package:thq_ui/thq_ui.dart';
 import 'package:flutter/material.dart';
 
 import '../models/client_session.dart';
@@ -76,7 +77,7 @@ class _AdditionalChargesDialogState extends State<AdditionalChargesDialog> {
     final tax = TextEditingController(text: '0');
     var kind = 'packaging';
 
-    final result = await showDialog<Map<String, dynamic>>(
+    final result = await showThqDialog<Map<String, dynamic>>(
       context: context,
       barrierDismissible: false,
       builder: (dialogContext) => StatefulBuilder(
@@ -339,12 +340,12 @@ class _AdditionalChargesDialogState extends State<AdditionalChargesDialog> {
                           'Additional Charges',
                           style: TextStyle(
                             fontSize: 15,
-                            fontWeight: FontWeight.w900,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
                         Text(
                           'One shared catalogue for Client, POS and Restaurant billing.',
-                          style: TextStyle(fontSize: 9.5),
+                          style: TextStyle(fontSize: 11),
                         ),
                       ],
                     ),
@@ -407,7 +408,7 @@ class _AdditionalChargesDialogState extends State<AdditionalChargesDialog> {
                               'without changing the saved default.',
                               style: TextStyle(
                                 color: scheme.onSurface,
-                                fontSize: 10.5,
+                                fontSize: 11,
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
@@ -460,7 +461,7 @@ class _AdditionalChargesDialogState extends State<AdditionalChargesDialog> {
                                                 'Charge',
                                             style: TextStyle(
                                               color: scheme.onSurface,
-                                              fontWeight: FontWeight.w900,
+                                              fontWeight: FontWeight.w600,
                                             ),
                                           ),
                                           Text(
@@ -469,7 +470,7 @@ class _AdditionalChargesDialogState extends State<AdditionalChargesDialog> {
                                             'GST ${_number(charge['tax_rate']).toStringAsFixed(2)}%',
                                             style: TextStyle(
                                               color: scheme.onSurfaceVariant,
-                                              fontSize: 10,
+                                              fontSize: 11,
                                             ),
                                           ),
                                         ],

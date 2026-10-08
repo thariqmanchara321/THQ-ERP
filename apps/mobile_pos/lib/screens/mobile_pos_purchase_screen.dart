@@ -1,3 +1,4 @@
+import 'package:thq_ui/thq_ui.dart';
 import 'package:flutter/material.dart';
 
 import '../models/pos_models.dart';
@@ -132,14 +133,16 @@ class _MobilePosPurchaseScreenState extends State<MobilePosPurchaseScreen> {
 
   Future<void> _addItem() async {
     if (_products.isEmpty) {
-      setState(() => _error = 'No cached products are available. Sync the POS first.');
+      setState(
+        () => _error = 'No cached products are available. Sync the POS first.',
+      );
       return;
     }
     final used = _lines.map((row) => row.product.variantId).toSet();
     final available = _products
         .where((row) => !used.contains(row.variantId))
         .toList(growable: false);
-    final line = await showDialog<_MobilePurchaseLine>(
+    final line = await showThqDialog<_MobilePurchaseLine>(
       context: context,
       barrierDismissible: false,
       builder: (_) => _MobilePurchaseItemDialog(
@@ -179,13 +182,15 @@ class _MobilePosPurchaseScreenState extends State<MobilePosPurchaseScreen> {
 
   Future<void> _post() async {
     if (widget.offlineMode) {
-      setState(() => _error =
-          'Purchase posting is online-only. Go online and Sync before confirming a purchase.');
+      setState(
+        () => _error = 'Purchase posting is online-only. Go online and Sync before confirming a purchase.',
+      );
       return;
     }
     if (_moduleBlocked) {
-      setState(() => _error =
-          'This POS terminal is not enabled for the Purchases module. Enable Purchases for this terminal in Admin.');
+      setState(
+        () => _error = 'This POS terminal is not enabled for the Purchases module. Enable Purchases for this terminal in Admin.',
+      );
       return;
     }
     if (_supplierId == null) {
@@ -193,8 +198,9 @@ class _MobilePosPurchaseScreenState extends State<MobilePosPurchaseScreen> {
       return;
     }
     if (_invoice.text.trim().isEmpty) {
-      setState(() => _error =
-          'Supplier invoice number is required for an authoritative GST purchase.');
+      setState(
+        () => _error = 'Supplier invoice number is required for an authoritative GST purchase.',
+      );
       return;
     }
     if (_lines.isEmpty) {
@@ -265,7 +271,9 @@ class _MobilePosPurchaseScreenState extends State<MobilePosPurchaseScreen> {
       if (!mounted) return;
       final number = result['purchase_number']?.toString() ?? 'Purchase';
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('$number posted with authoritative GST evidence.')),
+        SnackBar(
+          content: Text('$number posted with authoritative GST evidence.'),
+        ),
       );
       Navigator.of(context).pop(true);
     } catch (error) {
@@ -300,7 +308,10 @@ class _MobilePosPurchaseScreenState extends State<MobilePosPurchaseScreen> {
             if (blocked)
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 10,
+                ),
                 color: scheme.errorContainer,
                 child: Text(
                   widget.offlineMode
@@ -315,9 +326,15 @@ class _MobilePosPurchaseScreenState extends State<MobilePosPurchaseScreen> {
             if (_error != null)
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 9,
+                ),
                 color: scheme.errorContainer.withValues(alpha: .65),
-                child: Text(_error!, style: TextStyle(color: scheme.onErrorContainer)),
+                child: Text(
+                  _error!,
+                  style: TextStyle(color: scheme.onErrorContainer),
+                ),
               ),
             Expanded(
               child: SingleChildScrollView(
@@ -352,7 +369,8 @@ class _MobilePosPurchaseScreenState extends State<MobilePosPurchaseScreen> {
                                 .toList(),
                             onChanged: blocked || _saving
                                 ? null
-                                : (value) => setState(() => _supplierId = value),
+                                : (value) =>
+                                      setState(() => _supplierId = value),
                           ),
                           const SizedBox(height: 10),
                           TextField(
@@ -372,18 +390,26 @@ class _MobilePosPurchaseScreenState extends State<MobilePosPurchaseScreen> {
                                   onPressed: blocked || _saving
                                       ? null
                                       : _pickPurchaseDate,
-                                  icon: const Icon(Icons.calendar_month_outlined),
-                                  label: Text('Invoice ${_date(_purchaseDate)}'),
+                                  icon: const Icon(
+                                    Icons.calendar_month_outlined,
+                                  ),
+                                  label: Text(
+                                    'Invoice ${_date(_purchaseDate)}',
+                                  ),
                                 ),
                               ),
                               const SizedBox(width: 8),
                               Expanded(
                                 child: OutlinedButton.icon(
-                                  onPressed: blocked || _saving ? null : _pickDueDate,
+                                  onPressed: blocked || _saving
+                                      ? null
+                                      : _pickDueDate,
                                   icon: const Icon(Icons.event_outlined),
-                                  label: Text(_dueDate == null
-                                      ? 'Due date'
-                                      : _date(_dueDate!)),
+                                  label: Text(
+                                    _dueDate == null
+                                        ? 'Due date'
+                                        : _date(_dueDate!),
+                                  ),
                                 ),
                               ),
                             ],
@@ -424,7 +450,9 @@ class _MobilePosPurchaseScreenState extends State<MobilePosPurchaseScreen> {
                           ? const Padding(
                               padding: EdgeInsets.symmetric(vertical: 24),
                               child: Center(
-                                child: Text('Add a product to start this purchase.'),
+                                child: Text(
+                                  'Add a product to start this purchase.',
+                                ),
                               ),
                             )
                           : Column(
@@ -446,15 +474,18 @@ class _MobilePosPurchaseScreenState extends State<MobilePosPurchaseScreen> {
                                     children: [
                                       Text(
                                         _money(row.total),
-                                        style: const TextStyle(fontWeight: FontWeight.w800),
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.w600,
+                                        ),
                                       ),
                                       IconButton(
                                         tooltip: 'Remove',
                                         onPressed: _saving
                                             ? null
                                             : () => setState(
-                                                  () => _lines.removeAt(entry.key),
-                                                ),
+                                                () =>
+                                                    _lines.removeAt(entry.key),
+                                              ),
                                         icon: const Icon(Icons.delete_outline),
                                       ),
                                     ],
@@ -473,7 +504,11 @@ class _MobilePosPurchaseScreenState extends State<MobilePosPurchaseScreen> {
                           _totalRow('Discount', -_discount),
                           _totalRow('GST preview', _tax),
                           const Divider(),
-                          _totalRow('Preview total', _previewTotal, strong: true),
+                          _totalRow(
+                            'Preview total',
+                            _previewTotal,
+                            strong: true,
+                          ),
                           const SizedBox(height: 10),
                           Row(
                             children: [
@@ -485,18 +520,38 @@ class _MobilePosPurchaseScreenState extends State<MobilePosPurchaseScreen> {
                                     border: OutlineInputBorder(),
                                   ),
                                   items: const [
-                                    DropdownMenuItem(value: 'cash', child: Text('Cash')),
-                                    DropdownMenuItem(value: 'card', child: Text('Card')),
-                                    DropdownMenuItem(value: 'upi', child: Text('UPI')),
-                                    DropdownMenuItem(value: 'bank', child: Text('Bank')),
-                                    DropdownMenuItem(value: 'cheque', child: Text('Cheque')),
-                                    DropdownMenuItem(value: 'other', child: Text('Other')),
+                                    DropdownMenuItem(
+                                      value: 'cash',
+                                      child: Text('Cash'),
+                                    ),
+                                    DropdownMenuItem(
+                                      value: 'card',
+                                      child: Text('Card'),
+                                    ),
+                                    DropdownMenuItem(
+                                      value: 'upi',
+                                      child: Text('UPI'),
+                                    ),
+                                    DropdownMenuItem(
+                                      value: 'bank',
+                                      child: Text('Bank'),
+                                    ),
+                                    DropdownMenuItem(
+                                      value: 'cheque',
+                                      child: Text('Cheque'),
+                                    ),
+                                    DropdownMenuItem(
+                                      value: 'other',
+                                      child: Text('Other'),
+                                    ),
                                   ],
                                   onChanged: blocked || _saving
                                       ? null
                                       : (value) {
                                           if (value != null) {
-                                            setState(() => _paymentMethod = value);
+                                            setState(
+                                              () => _paymentMethod = value,
+                                            );
                                           }
                                         },
                                 ),
@@ -506,9 +561,10 @@ class _MobilePosPurchaseScreenState extends State<MobilePosPurchaseScreen> {
                                 child: TextField(
                                   controller: _payment,
                                   enabled: !blocked && !_saving,
-                                  keyboardType: const TextInputType.numberWithOptions(
-                                    decimal: true,
-                                  ),
+                                  keyboardType:
+                                      const TextInputType.numberWithOptions(
+                                        decimal: true,
+                                      ),
                                   decoration: const InputDecoration(
                                     labelText: 'Initial Payment',
                                     border: OutlineInputBorder(),
@@ -557,7 +613,7 @@ class _MobilePosPurchaseScreenState extends State<MobilePosPurchaseScreen> {
                     Expanded(
                       child: Text(
                         '${_lines.length} item(s) • ${_money(_previewTotal)}',
-                        style: const TextStyle(fontWeight: FontWeight.w800),
+                        style: const TextStyle(fontWeight: FontWeight.w600),
                       ),
                     ),
                     FilledButton.icon(
@@ -569,7 +625,9 @@ class _MobilePosPurchaseScreenState extends State<MobilePosPurchaseScreen> {
                               child: CircularProgressIndicator(strokeWidth: 2),
                             )
                           : const Icon(Icons.check_circle_outline),
-                      label: Text(_saving ? 'Confirming...' : 'Confirm Purchase'),
+                      label: Text(
+                        _saving ? 'Confirming...' : 'Confirm Purchase',
+                      ),
                     ),
                   ],
                 ),
@@ -606,7 +664,7 @@ class _MobilePosPurchaseScreenState extends State<MobilePosPurchaseScreen> {
                     title,
                     style: const TextStyle(
                       fontSize: 15,
-                      fontWeight: FontWeight.w900,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ),
@@ -621,7 +679,8 @@ class _MobilePosPurchaseScreenState extends State<MobilePosPurchaseScreen> {
     );
   }
 
-  Widget _totalRow(String label, double value, {bool strong = false}) => Padding(
+  Widget _totalRow(String label, double value, {bool strong = false}) =>
+      Padding(
         padding: const EdgeInsets.symmetric(vertical: 3),
         child: Row(
           children: [
@@ -629,14 +688,14 @@ class _MobilePosPurchaseScreenState extends State<MobilePosPurchaseScreen> {
               child: Text(
                 label,
                 style: TextStyle(
-                  fontWeight: strong ? FontWeight.w800 : FontWeight.w500,
+                  fontWeight: strong ? FontWeight.w600 : FontWeight.w500,
                 ),
               ),
             ),
             Text(
               _money(value),
               style: TextStyle(
-                fontWeight: strong ? FontWeight.w900 : FontWeight.w700,
+                fontWeight: strong ? FontWeight.w600 : FontWeight.w700,
               ),
             ),
           ],
@@ -705,12 +764,14 @@ class _MobilePurchaseItemDialogState extends State<_MobilePurchaseItemDialog> {
   Iterable<MobileProduct> _options(String query) {
     final q = query.trim().toLowerCase();
     if (q.isEmpty) return widget.products.take(40);
-    return widget.products.where((row) {
-      return row.name.toLowerCase().contains(q) ||
-          row.sku.toLowerCase().contains(q) ||
-          row.barcode.toLowerCase().contains(q) ||
-          row.searchCodes.toLowerCase().contains(q);
-    }).take(40);
+    return widget.products
+        .where((row) {
+          return row.name.toLowerCase().contains(q) ||
+              row.sku.toLowerCase().contains(q) ||
+              row.barcode.toLowerCase().contains(q) ||
+              row.searchCodes.toLowerCase().contains(q);
+        })
+        .take(40);
   }
 
   void _select(MobileProduct product) {
@@ -718,8 +779,9 @@ class _MobilePurchaseItemDialogState extends State<_MobilePurchaseItemDialog> {
     setState(() {
       _product = product;
       _unit = unit;
-      _cost.text = (unit.purchaseCost > 0 ? unit.purchaseCost : product.costPrice)
-          .toStringAsFixed(2);
+      _cost.text =
+          (unit.purchaseCost > 0 ? unit.purchaseCost : product.costPrice)
+              .toStringAsFixed(2);
       _tax.text = product.taxRate.toStringAsFixed(2);
       _batches.clear();
       _serials.clear();
@@ -735,7 +797,7 @@ class _MobilePurchaseItemDialogState extends State<_MobilePurchaseItemDialog> {
       .toList();
 
   Future<void> _addBatch() async {
-    final result = await showDialog<Map<String, dynamic>>(
+    final result = await showThqDialog<Map<String, dynamic>>(
       context: context,
       builder: (_) => const _MobileBatchDialog(),
     );
@@ -760,8 +822,10 @@ class _MobilePurchaseItemDialogState extends State<_MobilePurchaseItemDialog> {
     if (unit.quantityStep > 0) {
       final steps = qty / unit.quantityStep;
       if ((steps - steps.roundToDouble()).abs() > 0.000001) {
-        setState(() => _error =
-            '${unit.code} quantity must use increments of ${unit.quantityStep}.');
+        setState(
+          () => _error =
+              '${unit.code} quantity must use increments of ${unit.quantityStep}.',
+        );
         return;
       }
     }
@@ -783,8 +847,10 @@ class _MobilePurchaseItemDialogState extends State<_MobilePurchaseItemDialog> {
     if (product.trackingMode == 'serial') {
       if ((baseQty - baseQty.roundToDouble()).abs() > 0.000001 ||
           serials.length != baseQty.round()) {
-        setState(() => _error =
-            'Serial count must exactly match the whole base quantity (${baseQty.toStringAsFixed(0)}).');
+        setState(
+          () => _error =
+              'Serial count must exactly match the whole base quantity (${baseQty.toStringAsFixed(0)}).',
+        );
         return;
       }
     }
@@ -794,8 +860,10 @@ class _MobilePurchaseItemDialogState extends State<_MobilePurchaseItemDialog> {
         (sum, row) => sum + numberValue(row['quantity']),
       );
       if ((allocated - baseQty).abs() > 0.000001) {
-        setState(() => _error =
-            'Batch quantities must total the base quantity (${baseQty.toStringAsFixed(4)}).');
+        setState(
+          () => _error =
+              'Batch quantities must total the base quantity (${baseQty.toStringAsFixed(4)}).',
+        );
         return;
       }
     }
@@ -832,15 +900,15 @@ class _MobilePurchaseItemDialogState extends State<_MobilePurchaseItemDialog> {
               onSelected: _select,
               fieldViewBuilder: (context, controller, focusNode, onSubmit) =>
                   TextField(
-                controller: controller,
-                focusNode: focusNode,
-                autofocus: true,
-                decoration: const InputDecoration(
-                  labelText: 'Product / SKU / Barcode',
-                  prefixIcon: Icon(Icons.search),
-                  border: OutlineInputBorder(),
-                ),
-              ),
+                    controller: controller,
+                    focusNode: focusNode,
+                    autofocus: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Product / SKU / Barcode',
+                      prefixIcon: Icon(Icons.search),
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
             ),
             if (_product != null) ...[
               const SizedBox(height: 12),
@@ -848,7 +916,7 @@ class _MobilePurchaseItemDialogState extends State<_MobilePurchaseItemDialog> {
                 alignment: Alignment.centerLeft,
                 child: Text(
                   '${_product!.name} • ${_product!.trackingMode.toUpperCase()}',
-                  style: const TextStyle(fontWeight: FontWeight.w800),
+                  style: const TextStyle(fontWeight: FontWeight.w600),
                 ),
               ),
               if (_product!.purchaseUnits.length > 1) ...[
@@ -874,10 +942,11 @@ class _MobilePurchaseItemDialogState extends State<_MobilePurchaseItemDialog> {
                       if (row.unitId == value) {
                         setState(() {
                           _unit = row;
-                          _cost.text = (row.purchaseCost > 0
-                                  ? row.purchaseCost
-                                  : _product!.costPrice)
-                              .toStringAsFixed(2);
+                          _cost.text =
+                              (row.purchaseCost > 0
+                                      ? row.purchaseCost
+                                      : _product!.costPrice)
+                                  .toStringAsFixed(2);
                         });
                         break;
                       }
@@ -891,8 +960,9 @@ class _MobilePurchaseItemDialogState extends State<_MobilePurchaseItemDialog> {
                   Expanded(
                     child: TextField(
                       controller: _qty,
-                      keyboardType:
-                          const TextInputType.numberWithOptions(decimal: true),
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
                       decoration: const InputDecoration(
                         labelText: 'Quantity',
                         border: OutlineInputBorder(),
@@ -903,8 +973,9 @@ class _MobilePurchaseItemDialogState extends State<_MobilePurchaseItemDialog> {
                   Expanded(
                     child: TextField(
                       controller: _cost,
-                      keyboardType:
-                          const TextInputType.numberWithOptions(decimal: true),
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
                       decoration: const InputDecoration(
                         labelText: 'Unit Cost',
                         border: OutlineInputBorder(),
@@ -919,8 +990,9 @@ class _MobilePurchaseItemDialogState extends State<_MobilePurchaseItemDialog> {
                   Expanded(
                     child: TextField(
                       controller: _discount,
-                      keyboardType:
-                          const TextInputType.numberWithOptions(decimal: true),
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
                       decoration: const InputDecoration(
                         labelText: 'Discount Amount',
                         border: OutlineInputBorder(),
@@ -931,8 +1003,9 @@ class _MobilePurchaseItemDialogState extends State<_MobilePurchaseItemDialog> {
                   Expanded(
                     child: TextField(
                       controller: _tax,
-                      keyboardType:
-                          const TextInputType.numberWithOptions(decimal: true),
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
                       decoration: const InputDecoration(
                         labelText: 'Tax Rate %',
                         border: OutlineInputBorder(),
@@ -1025,7 +1098,9 @@ class _MobileBatchDialogState extends State<_MobileBatchDialog> {
   void _save() {
     final qty = double.tryParse(_quantity.text.trim());
     if (_number.text.trim().isEmpty || qty == null || qty <= 0) {
-      setState(() => _error = 'Enter a batch number and quantity greater than zero.');
+      setState(
+        () => _error = 'Enter a batch number and quantity greater than zero.',
+      );
       return;
     }
     Navigator.of(context).pop(<String, dynamic>{
@@ -1079,7 +1154,10 @@ class _MobileBatchDialogState extends State<_MobileBatchDialog> {
           ),
           if (_error != null) ...[
             const SizedBox(height: 8),
-            Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+            Text(
+              _error!,
+              style: TextStyle(color: Theme.of(context).colorScheme.error),
+            ),
           ],
         ],
       ),
@@ -1093,4 +1171,3 @@ class _MobileBatchDialogState extends State<_MobileBatchDialog> {
     );
   }
 }
-

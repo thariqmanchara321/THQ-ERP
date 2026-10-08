@@ -1,3 +1,4 @@
+import 'package:thq_ui/thq_ui.dart';
 import 'package:flutter/material.dart';
 
 import '../models/client_session.dart';
@@ -102,7 +103,7 @@ class _ProductClassificationPickerState
   Future<void> _add(String kind) async {
     final controller = TextEditingController();
 
-    final name = await showDialog<String>(
+    final name = await showThqDialog<String>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: Text(kind == 'category' ? 'Add Category' : 'Add Brand'),

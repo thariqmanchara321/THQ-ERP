@@ -1,3 +1,4 @@
+import 'package:thq_ui/thq_ui.dart';
 import 'package:flutter/material.dart';
 
 import '../models/client_session.dart';
@@ -145,7 +146,7 @@ class _AggregateFreightScreenState extends State<AggregateFreightScreen> {
     final transporters = _contextRows('transporters');
 
     try {
-      final saved = await showDialog<bool>(
+      final saved = await showThqDialog<bool>(
         context: context,
         barrierDismissible: false,
         builder: (dialogContext) => StatefulBuilder(
@@ -171,7 +172,7 @@ class _AggregateFreightScreenState extends State<AggregateFreightScreen> {
                       '${_qty(row['quantity'])} ${row['unit_code'] ?? ''}'
                       '${_id(row['vehicle_registration']) == null ? '' : ' • ${row['vehicle_registration']}'}',
                       style: const TextStyle(
-                        fontSize: 10.5,
+                        fontSize: 11,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
@@ -369,7 +370,7 @@ class _AggregateFreightScreenState extends State<AggregateFreightScreen> {
     final note = TextEditingController();
 
     try {
-      final posted = await showDialog<bool>(
+      final posted = await showThqDialog<bool>(
         context: context,
         barrierDismissible: false,
         builder: (dialogContext) => StatefulBuilder(
@@ -410,7 +411,7 @@ class _AggregateFreightScreenState extends State<AggregateFreightScreen> {
                           'Paid ${_money(row['freight_settled_base'])} • '
                           'Pending ${_money(row['freight_pending_base'])}',
                           style: const TextStyle(
-                            fontSize: 10.5,
+                            fontSize: 11,
                             fontWeight: FontWeight.w700,
                           ),
                         ),
@@ -546,7 +547,7 @@ class _AggregateFreightScreenState extends State<AggregateFreightScreen> {
                           'Posting this settlement creates a normal THQ Expense '
                           'and accounting journal. It does not create a separate '
                           'Aggregate payable.',
-                          style: TextStyle(fontSize: 9.5, height: 1.3),
+                          style: TextStyle(fontSize: 11, height: 1.3),
                         ),
                       ),
                     ],
@@ -675,7 +676,10 @@ class _AggregateFreightScreenState extends State<AggregateFreightScreen> {
               children: [
                 Text(
                   label,
-                  style: TextStyle(fontSize: 9, color: scheme.onSurfaceVariant),
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: scheme.onSurfaceVariant,
+                  ),
                 ),
                 Text(
                   value,
@@ -683,7 +687,7 @@ class _AggregateFreightScreenState extends State<AggregateFreightScreen> {
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     fontSize: 16,
-                    fontWeight: FontWeight.w900,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
                 Text(
@@ -691,7 +695,7 @@ class _AggregateFreightScreenState extends State<AggregateFreightScreen> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontSize: 8.5,
+                    fontSize: 11,
                     color: scheme.onSurfaceVariant,
                   ),
                 ),
@@ -843,7 +847,7 @@ class _AggregateFreightScreenState extends State<AggregateFreightScreen> {
                                           maxLines: 1,
                                           overflow: TextOverflow.ellipsis,
                                           style: const TextStyle(
-                                            fontWeight: FontWeight.w900,
+                                            fontWeight: FontWeight.w600,
                                           ),
                                         ),
                                       ),
@@ -851,7 +855,7 @@ class _AggregateFreightScreenState extends State<AggregateFreightScreen> {
                                         visualDensity: VisualDensity.compact,
                                         label: Text(
                                           _label(freightStatus),
-                                          style: const TextStyle(fontSize: 8.5),
+                                          style: const TextStyle(fontSize: 11),
                                         ),
                                       ),
                                     ],
@@ -863,7 +867,7 @@ class _AggregateFreightScreenState extends State<AggregateFreightScreen> {
                                     '${_id(row['vehicle_registration']) == null ? '' : ' • ${row['vehicle_registration']}'}'
                                     '${_id(row['order_number']) == null ? '' : ' • ${row['order_number']}'}',
                                     style: TextStyle(
-                                      fontSize: 9.5,
+                                      fontSize: 11,
                                       color: scheme.onSurfaceVariant,
                                     ),
                                   ),
@@ -954,7 +958,7 @@ class _AggregateFreightScreenState extends State<AggregateFreightScreen> {
                                           'of additional charges. They are shown separately '
                                           'and are not assumed to be freight revenue.',
                                           style: TextStyle(
-                                            fontSize: 8.8,
+                                            fontSize: 11,
                                             color: scheme.onSurfaceVariant,
                                           ),
                                         ),
@@ -1049,14 +1053,14 @@ class _Info extends StatelessWidget {
         children: [
           Text(
             label,
-            style: TextStyle(fontSize: 8.5, color: scheme.onSurfaceVariant),
+            style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant),
           ),
           const SizedBox(height: 1),
           Text(
             value,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800),
+            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
           ),
         ],
       ),

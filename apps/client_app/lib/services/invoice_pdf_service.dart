@@ -8,6 +8,140 @@ import '../models/client_session.dart';
 import '../models/sale_detail.dart';
 
 class InvoicePdfService {
+  List<pw.Widget> _loadEvidence(Map<String, dynamic> record, double fontSize) {
+    final output = <pw.Widget>[
+      pw.SizedBox(height: 12),
+      pw.Text(
+        'Load, driver and delivery details',
+        style: pw.TextStyle(
+          fontSize: fontSize + 1,
+          fontWeight: pw.FontWeight.bold,
+        ),
+      ),
+      pw.Text(
+        'Amounts below were recorded when this invoice was created. Customer charges are included in the invoice items and total above.',
+        style: pw.TextStyle(fontSize: fontSize - 1),
+      ),
+    ];
+    void field(String label, dynamic value) {
+      if (value == null || value.toString().isEmpty) return;
+      final text = '$label: $value';
+      for (var offset = 0; offset < text.length; offset += 450) {
+        output.add(
+          pw.Text(
+            text.substring(
+              offset,
+              offset + 450 > text.length ? text.length : offset + 450,
+            ),
+            style: pw.TextStyle(fontSize: fontSize - 1),
+          ),
+        );
+      }
+    }
+
+    for (final key in [
+      'load_number',
+      'load_date',
+      'direction',
+      'product_name',
+      'quantity',
+      'unit_code',
+      'measurement_method',
+      'body_length_ft',
+      'body_width_ft',
+      'body_height_ft',
+      'gross_weight_kg',
+      'tare_weight_kg',
+      'net_weight_kg',
+      'vehicle_registration',
+      'driver_name',
+      'driver_phone',
+      'source_name',
+      'destination_name',
+      'source_reference',
+      'freight_mode',
+      'freight_amount',
+      'location_name',
+      'notes',
+    ]) {
+      field(key.replaceAll('_', ' '), record[key]);
+    }
+    final trip = record['trip'];
+    if (trip is Map) {
+      field('Trip number', trip['trip_number']);
+      field('Trip ID', trip['id']);
+    }
+    final delivery = record['delivery'];
+    if (delivery is Map) {
+      for (final entry in delivery.entries) {
+        field(entry.key.toString().replaceAll('_', ' '), entry.value);
+      }
+    }
+    for (final cost
+        in (record['costs'] as List? ?? const []).whereType<Map>().where(
+          (c) => c['status'] != 'void',
+        )) {
+      output.add(pw.SizedBox(height: 6));
+      output.add(
+        pw.Text(
+          '${cost['description']} - ${cost['payee']}',
+          style: pw.TextStyle(
+            fontSize: fontSize,
+            fontWeight: pw.FontWeight.bold,
+          ),
+        ),
+      );
+      for (final key in [
+        'cost_kind',
+        'staff_mode',
+        'quantity',
+        'rate',
+        'amount',
+        'bill_amount',
+        'billing_service',
+        'paid_amount',
+        'outstanding',
+        'receipt_reference',
+        'payment_method',
+        'payment_reference',
+        'notes',
+      ]) {
+        field(
+          key == 'bill_amount'
+              ? 'Customer charge before tax'
+              : key.replaceAll('_', ' '),
+          cost[key],
+        );
+      }
+    }
+    for (final key in [
+      'cost_payments',
+      'staff_payments',
+      'legacy_freight_payments',
+    ]) {
+      for (final payment
+          in (record[key] as List? ?? const []).whereType<Map>()) {
+        output.add(pw.SizedBox(height: 5));
+        field(
+          'Recorded expense payment',
+          '${payment['payee'] ?? payment['cost_description'] ?? ''} ${payment['amount'] ?? payment['total_paid'] ?? ''}',
+        );
+        for (final detail in [
+          'payment_date',
+          'settled_at',
+          'payment_method',
+          'reference',
+          'reference_number',
+          'notes',
+          'note',
+        ]) {
+          field(detail.replaceAll('_', ' '), payment[detail]);
+        }
+      }
+    }
+    return output;
+  }
+
   PdfPageFormat _format(String paperType) {
     if (paperType.toLowerCase() == 'a4') return PdfPageFormat.a4;
     final width = paperType.toLowerCase() == '58mm' ? 58.0 : 80.0;
@@ -152,6 +286,8 @@ class InvoicePdfService {
       template['config'] as Map? ?? const {},
     );
     final settings = settingsOverride ?? session.settings;
+    final nonGst = sale.gst?.isNonGst == true;
+    final registered = sale.gst?.authoritative == true && !nonGst;
     final accent = _accent(config);
     final align = _alignment(config);
     final baseFont = _number(
@@ -165,15 +301,16 @@ class InvoicePdfService {
       narrow ? 4 : 12,
     ).clamp(2.0, narrow ? 10.0 : 30.0).toDouble();
 
-    final legalName =
-        settings['business.legal_name']?.toString().trim().isNotEmpty == true
+    final legalName = sale.gst?.supplierLegalName?.trim().isNotEmpty == true
+        ? sale.gst!.supplierLegalName!
+        : settings['business.legal_name']?.toString().trim().isNotEmpty == true
         ? settings['business.legal_name'].toString().trim()
         : session.business.name;
-    final gstin = _text(
-      origin,
-      'gstin',
-      settings['business.gstin']?.toString() ?? '',
-    );
+    final gstin = nonGst
+        ? ''
+        : registered
+        ? sale.gst!.supplierGstin ?? ''
+        : _text(origin, 'gstin', settings['business.gstin']?.toString() ?? '');
     final phone = _text(
       origin,
       'phone',
@@ -240,7 +377,9 @@ class InvoicePdfService {
         if (!duplicate) addressParts.add(value);
       }
     }
-    final address = addressParts.join(', ');
+    final address = sale.gst?.supplierAddress?.trim().isNotEmpty == true
+        ? sale.gst!.supplierAddress!
+        : addressParts.join(', ');
     final branchName = _text(origin, 'location_name');
     final invoiceNumber = _invoiceNumber(sale, origin);
     final footer = (config['footer']?.toString().trim().isNotEmpty == true)
@@ -285,7 +424,7 @@ class InvoicePdfService {
         );
         children.add(pw.SizedBox(height: narrow ? 2 : 5));
       }
-      if (_flag(config, 'show_header', true)) {
+      if (registered || _flag(config, 'show_header', true)) {
         if (configuredHeader.isNotEmpty) {
           children.add(
             pw.Text(
@@ -315,7 +454,9 @@ class InvoicePdfService {
           ),
         );
       }
-      if (_flag(config, 'show_gstin', true) && gstin.isNotEmpty) {
+      if (!nonGst &&
+          (registered || _flag(config, 'show_gstin', true)) &&
+          gstin.isNotEmpty) {
         children.add(
           pw.Text(
             'GSTIN: $gstin',
@@ -351,7 +492,8 @@ class InvoicePdfService {
           ),
         );
       }
-      if (_flag(config, 'show_address', true) && address.isNotEmpty) {
+      if ((registered || _flag(config, 'show_address', true)) &&
+          address.isNotEmpty) {
         children.add(
           pw.Text(
             address,
@@ -374,7 +516,7 @@ class InvoicePdfService {
         crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
           pw.Text(
-            'TAX INVOICE',
+            sale.gst?.invoiceTitle ?? 'INVOICE',
             style: pw.TextStyle(
               fontWeight: pw.FontWeight.bold,
               fontSize: baseFont + 1,
@@ -397,7 +539,7 @@ class InvoicePdfService {
             'Date: ${_dateLabel(sale.saleDate)}',
             style: pw.TextStyle(fontSize: baseFont - .5),
           ),
-          if (sale.gst?.authoritative == true) ...[
+          if (registered) ...[
             if ((sale.gst!.placeOfSupplyCode ?? '').isNotEmpty)
               pw.Text(
                 'Place of Supply: ${sale.gst!.placeOfSupplyCode}',
@@ -405,18 +547,21 @@ class InvoicePdfService {
               ),
             pw.Text(
               'Reverse Charge: '
-              '${(sale.gst!.taxMode ?? '').toLowerCase().contains('reverse') ? 'Yes' : 'No'}',
+              '${sale.gst!.hasReverseCharge ? 'Yes' : 'No'}',
               style: pw.TextStyle(fontSize: baseFont - .5),
             ),
           ],
-          if (_flag(config, 'show_customer', true)) ...[
+          if (registered || _flag(config, 'show_customer', true)) ...[
             pw.Text(
               'Customer: ${sale.customerName}',
               style: pw.TextStyle(fontSize: baseFont - .5),
             ),
-            if ((sale.customerTaxNumber ?? '').trim().isNotEmpty)
+            if (!nonGst &&
+                (sale.gst?.recipientGstin ?? sale.customerTaxNumber ?? '')
+                    .trim()
+                    .isNotEmpty)
               pw.Text(
-                'Customer GSTIN: ${sale.customerTaxNumber}',
+                'Customer GSTIN: ${sale.gst?.recipientGstin ?? sale.customerTaxNumber}',
                 style: pw.TextStyle(fontSize: baseFont - .5),
               ),
             if ((sale.customerPhone ?? '').trim().isNotEmpty)
@@ -476,17 +621,47 @@ class InvoicePdfService {
         'total',
       };
       final clean = requested.where(allowed.contains).where((column) {
-        if (!_flag(config, 'show_hsn', true) &&
+        if (!registered &&
+            !_flag(config, 'show_hsn', true) &&
             (column == 'hsn' || column == 'hsn_sac')) {
           return false;
         }
         return true;
       }).toList();
-      return clean.isEmpty
-          ? defaults.where((column) {
-              return _flag(config, 'show_hsn', true) || column != 'hsn';
-            }).toList()
-          : clean;
+      final result = clean.isEmpty ? List<String>.from(defaults) : clean;
+      if (nonGst) {
+        result.removeWhere(
+          (c) => const {'hsn', 'hsn_sac', 'tax', 'tax_amount'}.contains(c),
+        );
+      } else if (registered && !narrow) {
+        for (final column in [
+          'item',
+          'hsn',
+          'qty',
+          'unit',
+          'rate',
+          'taxable',
+          'total',
+        ]) {
+          final present =
+              result.contains(column) ||
+              switch (column) {
+                'hsn' => result.contains('hsn_sac'),
+                'qty' => result.contains('quantity'),
+                'rate' => result.contains('price'),
+                _ => false,
+              };
+          if (!present) result.add(column);
+        }
+      }
+      return result;
+    }
+
+    SaleGstLine? savedTaxLine(SaleDetailItem item) {
+      for (final line in sale.gst?.lines ?? const <SaleGstLine>[]) {
+        if (line.sourceLineId == item.itemId) return line;
+      }
+      return null;
     }
 
     String normalized(String column) => switch (column) {
@@ -506,7 +681,7 @@ class InvoicePdfService {
       'discount' => 'Discount',
       'tax' => 'Tax %',
       'tax_amount' => 'Tax Amt',
-      'taxable' => 'Taxable',
+      'taxable' => nonGst ? 'Amount' : 'Taxable',
       _ => 'Total',
     };
 
@@ -527,18 +702,28 @@ class InvoicePdfService {
     String itemValue(SaleDetailItem item, String column) => switch (normalized(
       column,
     )) {
-      'item' => item.productName,
+      'item' => item.invoiceDescription,
       'sku' => item.sku,
       'hsn' =>
-        item.hsnSac?.trim().isNotEmpty == true ? item.hsnSac!.trim() : '-',
+        savedTaxLine(item)?.hsnSac ??
+            (item.hsnSac?.trim().isNotEmpty == true
+                ? item.hsnSac!.trim()
+                : '-'),
       'qty' => item.quantity.toStringAsFixed(item.quantity % 1 == 0 ? 0 : 2),
       'unit' =>
         (item.unitCode ?? '').trim().isEmpty ? '-' : item.unitCode!.trim(),
       'rate' => _money(session, item.unitPrice),
       'discount' => _money(session, item.discountAmount),
-      'tax' => '${item.taxRate.toStringAsFixed(2)}%',
-      'tax_amount' => _money(session, item.taxAmount),
-      'taxable' => _money(session, item.taxableAmount),
+      'tax' =>
+        '${(savedTaxLine(item)?.gstRate ?? item.taxRate).toStringAsFixed(2)}%',
+      'tax_amount' => _money(
+        session,
+        savedTaxLine(item)?.taxAmount ?? item.taxAmount,
+      ),
+      'taxable' => _money(
+        session,
+        savedTaxLine(item)?.taxableValue ?? item.taxableAmount,
+      ),
       _ => _money(session, item.lineTotal),
     };
 
@@ -592,17 +777,32 @@ class InvoicePdfService {
                   bottom: pw.BorderSide(color: PdfColors.grey300, width: .4),
                 ),
               ),
-              child: pw.Row(
-                crossAxisAlignment: pw.CrossAxisAlignment.start,
-                children: columns
-                    .map(
-                      (column) => cell(
-                        itemValue(item, column),
-                        flex(column),
-                        bold: normalized(column) == 'total',
+              child: pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.stretch,
+                children: [
+                  pw.Row(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: columns
+                        .map(
+                          (column) => cell(
+                            itemValue(item, column),
+                            flex(column),
+                            bold: normalized(column) == 'total',
+                          ),
+                        )
+                        .toList(),
+                  ),
+                  if (registered && narrow)
+                    pw.Padding(
+                      padding: const pw.EdgeInsets.only(bottom: 4),
+                      child: pw.Text(
+                        'HSN/SAC: ${itemValue(item, 'hsn')}\n'
+                        '${itemValue(item, 'qty')} ${itemValue(item, 'unit')} x ${itemValue(item, 'rate')}\n'
+                        'Taxable: ${itemValue(item, 'taxable')} | GST: ${itemValue(item, 'tax')}',
+                        style: pw.TextStyle(fontSize: baseFont - .8),
                       ),
-                    )
-                    .toList(),
+                    ),
+                ],
               ),
             ),
           ),
@@ -613,7 +813,7 @@ class InvoicePdfService {
     pw.Widget taxSummary() {
       final gst = sale.gst;
       final rows = gst?.rateSummaries ?? const <SaleGstRateSummary>[];
-      if (gst?.authoritative != true || rows.isEmpty) {
+      if (gst?.authoritative != true || nonGst || rows.isEmpty) {
         return pw.SizedBox();
       }
       pw.Widget cell(String value, {bool bold = false}) => pw.Padding(
@@ -726,8 +926,9 @@ class InvoicePdfService {
           child: pw.Column(
             children: [
               if (sale.discountTotal > 0) row('Discount', sale.discountTotal),
-              row('Taxable', sale.taxableTotal),
-              if (_flag(config, 'show_tax_breakup', true)) ...[
+              row(nonGst ? 'Amount' : 'Taxable', sale.taxableTotal),
+              if (!nonGst &&
+                  (registered || _flag(config, 'show_tax_breakup', true))) ...[
                 if (sale.gst?.authoritative == true) ...[
                   if (sale.gst!.cgstTotal.abs() > 0.0001)
                     row('CGST', sale.gst!.cgstTotal),
@@ -758,6 +959,7 @@ class InvoicePdfService {
 
     doc.addPage(
       pw.MultiPage(
+        maxPages: 1000,
         pageFormat: _format(paperType),
         margin: pw.EdgeInsets.all(marginMm * PdfPageFormat.mm),
         build: (_) => [
@@ -883,6 +1085,8 @@ class InvoicePdfService {
                 ],
               ),
           ],
+          if (sale.materialLoad.isNotEmpty)
+            ..._loadEvidence(sale.materialLoad, baseFont),
           if (_flag(config, 'show_terms', true) && terms.isNotEmpty) ...[
             pw.SizedBox(height: narrow ? 4 : 8),
             pw.Text(

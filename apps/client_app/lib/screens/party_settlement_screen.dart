@@ -60,7 +60,7 @@ class _PartySettlementScreenState extends State<PartySettlementScreen> {
     if (_busy || trade <= .005) {
       return;
     }
-    final draft = await showDialog<_PaymentDraft>(
+    final draft = await showThqDialog<_PaymentDraft>(
       context: context,
       builder: (_) =>
           _PaymentDialog(title: 'Pay ${row.partyName}', maximum: trade),
@@ -101,7 +101,7 @@ class _PartySettlementScreenState extends State<PartySettlementScreen> {
     if (_busy || maximum <= .005) {
       return;
     }
-    final draft = await showDialog<_SettlementDraft>(
+    final draft = await showThqDialog<_SettlementDraft>(
       context: context,
       builder: (_) =>
           _SettlementDialog(partyName: row.partyName, maximum: maximum),
@@ -269,7 +269,7 @@ class _PartySettlementScreenState extends State<PartySettlementScreen> {
                                         Text(
                                           row.partyName,
                                           style: const TextStyle(
-                                            fontWeight: FontWeight.w900,
+                                            fontWeight: FontWeight.w600,
                                           ),
                                         ),
                                         const SizedBox(height: 3),
@@ -288,7 +288,7 @@ class _PartySettlementScreenState extends State<PartySettlementScreen> {
                                   Text(
                                     _m(row.balance),
                                     style: const TextStyle(
-                                      fontWeight: FontWeight.w900,
+                                      fontWeight: FontWeight.w600,
                                     ),
                                   ),
                                   const SizedBox(width: 12),

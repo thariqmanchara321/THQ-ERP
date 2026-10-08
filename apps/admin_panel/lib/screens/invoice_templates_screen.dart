@@ -1,3 +1,4 @@
+import 'package:thq_ui/thq_ui.dart';
 import 'package:flutter/material.dart';
 import '../widgets/admin_home_button.dart';
 
@@ -52,7 +53,7 @@ class _InvoiceTemplatesScreenState extends State<InvoiceTemplatesScreen> {
     var showAddress = config['show_address'] != false;
     var showTaxBreakup = config['show_tax_breakup'] != false;
 
-    final ok = await showDialog<bool>(
+    final ok = await showThqDialog<bool>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (dialogContext, setDialogState) => AlertDialog(

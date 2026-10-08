@@ -235,7 +235,7 @@ class _MultiPaymentEditorState extends State<MultiPaymentEditor> {
             const Expanded(
               child: Text(
                 'Payment Allocations',
-                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
+                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
               ),
             ),
             TextButton.icon(
@@ -267,7 +267,7 @@ class _MultiPaymentEditorState extends State<MultiPaymentEditor> {
             if (_change > .005)
               Text(
                 'Cash change ${_change.toStringAsFixed(2)}',
-                style: const TextStyle(fontWeight: FontWeight.w800),
+                style: const TextStyle(fontWeight: FontWeight.w600),
               ),
           ],
         ),

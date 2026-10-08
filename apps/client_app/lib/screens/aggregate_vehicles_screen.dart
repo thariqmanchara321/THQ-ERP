@@ -1,8 +1,10 @@
+import 'package:thq_ui/thq_ui.dart';
 import 'package:flutter/material.dart';
 
 import '../models/client_session.dart';
 import '../services/aggregate_yard_service.dart';
 import '../services/location_scope_service.dart';
+import 'transport_logistics_hub_screen.dart';
 
 class AggregateVehiclesScreen extends StatefulWidget {
   final ClientSession session;
@@ -21,6 +23,10 @@ class _AggregateVehiclesScreenState extends State<AggregateVehiclesScreen> {
   List<Map<String, dynamic>> _locations = const [];
   bool _loading = true;
   String? _error;
+  bool get _hasTransport =>
+      widget.session.hasModule('vehicle_logistics') ||
+      widget.session.hasModule('logistics_operations') ||
+      widget.session.hasModule('transport_service');
 
   bool get _canManageTrucks =>
       widget.session.hasRole('owner') ||
@@ -31,7 +37,16 @@ class _AggregateVehiclesScreenState extends State<AggregateVehiclesScreen> {
   @override
   void initState() {
     super.initState();
+    LocationScopeService.selectedLocationId.addListener(_locationChanged);
     _reload();
+  }
+
+  void _locationChanged() => _reload();
+
+  @override
+  void dispose() {
+    LocationScopeService.selectedLocationId.removeListener(_locationChanged);
+    super.dispose();
   }
 
   double? _double(String value) {
@@ -53,6 +68,14 @@ class _AggregateVehiclesScreenState extends State<AggregateVehiclesScreen> {
       _vehicles = (context['vehicles'] as List? ?? const [])
           .whereType<Map>()
           .map((e) => Map<String, dynamic>.from(e))
+          .where((row) {
+            final locationId = LocationScopeService.currentForRead(
+              widget.session,
+            );
+            return locationId == null ||
+                row['location_id'] == null ||
+                row['location_id'] == locationId;
+          })
           .toList();
       _locations = (context['locations'] as List? ?? const [])
           .whereType<Map>()
@@ -98,7 +121,7 @@ class _AggregateVehiclesScreenState extends State<AggregateVehiclesScreen> {
     }
 
     try {
-      final saved = await showDialog<bool>(
+      final saved = await showThqDialog<bool>(
         context: context,
         barrierDismissible: false,
         builder: (dialogContext) => StatefulBuilder(
@@ -298,6 +321,93 @@ class _AggregateVehiclesScreenState extends State<AggregateVehiclesScreen> {
     }
   }
 
+  Future<void> _editDriver(Map<String, dynamic> vehicle) async {
+    final name = TextEditingController(text: _text(vehicle['driver_name']));
+    final phone = TextEditingController(text: _text(vehicle['driver_phone']));
+    bool saving = false;
+    String? error;
+    try {
+      final saved = await showThqDialog<bool>(
+        context: context,
+        barrierDismissible: false,
+        builder: (dialogContext) => StatefulBuilder(
+          builder: (context, update) => AlertDialog(
+            title: Text('Driver — ${vehicle['registration_number']}'),
+            content: SizedBox(
+              width: 420,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: name,
+                    decoration: const InputDecoration(labelText: 'Driver name'),
+                  ),
+                  TextField(
+                    controller: phone,
+                    keyboardType: TextInputType.phone,
+                    decoration: const InputDecoration(
+                      labelText: 'Driver phone',
+                    ),
+                  ),
+                  if (error != null)
+                    Text(
+                      error!,
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.error,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: saving
+                    ? null
+                    : () => Navigator.pop(dialogContext, false),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: saving
+                    ? null
+                    : () async {
+                        update(() {
+                          saving = true;
+                          error = null;
+                        });
+                        try {
+                          await _service.saveVehicleDriver(
+                            tenantId: widget.session.business.id,
+                            vehicleId: vehicle['vehicle_id'].toString(),
+                            driverName: name.text,
+                            driverPhone: phone.text,
+                          );
+                          if (dialogContext.mounted) {
+                            Navigator.pop(dialogContext, true);
+                          }
+                        } catch (e) {
+                          if (dialogContext.mounted) {
+                            update(() {
+                              saving = false;
+                              error = e.toString();
+                            });
+                          }
+                        }
+                      },
+                child: const Text('Save'),
+              ),
+            ],
+          ),
+        ),
+      );
+      if (saved == true && mounted) {
+        await _reload();
+      }
+    } finally {
+      name.dispose();
+      phone.dispose();
+    }
+  }
+
   Future<void> _edit(Map<String, dynamic> vehicle) async {
     String ownership = _text(vehicle['ownership_type']).isEmpty
         ? 'hired'
@@ -328,7 +438,7 @@ class _AggregateVehiclesScreenState extends State<AggregateVehiclesScreen> {
     );
 
     try {
-      final saved = await showDialog<bool>(
+      final saved = await showThqDialog<bool>(
         context: context,
         barrierDismissible: false,
         builder: (dialogContext) => StatefulBuilder(
@@ -589,7 +699,7 @@ class _AggregateVehiclesScreenState extends State<AggregateVehiclesScreen> {
                   ),
                   title: Text(
                     '${row['registration_number'] ?? ''}',
-                    style: const TextStyle(fontWeight: FontWeight.w800),
+                    style: const TextStyle(fontWeight: FontWeight.w600),
                   ),
                   subtitle: Text(
                     '${row['vehicle_type'] ?? 'Truck'}'
@@ -600,11 +710,43 @@ class _AggregateVehiclesScreenState extends State<AggregateVehiclesScreen> {
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  trailing: IconButton(
-                    tooltip: 'Configure',
-                    onPressed: () => _edit(row),
-                    icon: const Icon(Icons.tune_outlined),
-                  ),
+                  trailing: _canManageTrucks || _hasTransport
+                      ? Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (_hasTransport)
+                              IconButton(
+                                tooltip: 'View vehicle trips',
+                                onPressed: () async {
+                                  await Navigator.of(context).push<void>(
+                                    MaterialPageRoute(
+                                      builder: (_) =>
+                                          TransportLogisticsHubScreen(
+                                            session: widget.session,
+                                            initialVehicleId: row['vehicle_id']
+                                                ?.toString(),
+                                          ),
+                                    ),
+                                  );
+                                  if (mounted) await _reload();
+                                },
+                                icon: const Icon(Icons.route_outlined),
+                              ),
+                            if (_canManageTrucks)
+                              IconButton(
+                                tooltip: 'Driver name / phone',
+                                onPressed: () => _editDriver(row),
+                                icon: const Icon(Icons.person_outline),
+                              ),
+                            if (_canManageTrucks)
+                              IconButton(
+                                tooltip: 'Configure',
+                                onPressed: () => _edit(row),
+                                icon: const Icon(Icons.tune_outlined),
+                              ),
+                          ],
+                        )
+                      : null,
                 ),
               );
             },

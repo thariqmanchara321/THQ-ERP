@@ -1,3 +1,4 @@
+import 'package:thq_ui/thq_ui.dart';
 import 'package:flutter/material.dart';
 
 import '../models/client_session.dart';
@@ -71,7 +72,7 @@ class _CustomFieldsScreenState extends State<CustomFieldsScreen> {
     var searchable = row?['searchable'] == true;
     var invoiceVisible = row?['invoice_visible'] == true;
     var active = row == null || row['active'] != false;
-    final saved = await showDialog<bool>(
+    final saved = await showThqDialog<bool>(
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setLocal) => AlertDialog(
@@ -259,7 +260,10 @@ class _CustomFieldsScreenState extends State<CustomFieldsScreen> {
             if (_error != null)
               Padding(
                 padding: const EdgeInsets.only(bottom: 12),
-                child: Text(_error!, style: const TextStyle(color: Colors.red)),
+                child: Text(
+                  _error!,
+                  style: TextStyle(color: Theme.of(context).colorScheme.error),
+                ),
               ),
             Expanded(
               child: _loading

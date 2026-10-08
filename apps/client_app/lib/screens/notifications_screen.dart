@@ -79,7 +79,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             : 72,
       ),
     );
-    final proceed = await showDialog<bool>(
+    final proceed = await showThqDialog<bool>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
@@ -92,7 +92,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
               children: [
                 Text(
                   row['title']?.toString() ?? '',
-                  style: const TextStyle(fontWeight: FontWeight.w800),
+                  style: const TextStyle(fontWeight: FontWeight.w600),
                 ),
                 const SizedBox(height: 4),
                 Text(row['message']?.toString() ?? ''),
@@ -206,7 +206,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
               const Expanded(
                 child: Text(
                   'Notifications',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
                 ),
               ),
               FilterChip(
@@ -264,7 +264,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                             row['title']?.toString() ?? '',
                             style: TextStyle(
                               fontWeight: unread
-                                  ? FontWeight.w900
+                                  ? FontWeight.w600
                                   : FontWeight.w600,
                             ),
                           ),

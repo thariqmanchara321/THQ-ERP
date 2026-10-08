@@ -8,6 +8,7 @@ import '../models/client_session.dart';
 import '../models/customer.dart';
 import '../models/inventory_product.dart';
 import '../models/sale.dart';
+import '../models/sale_invoice_context.dart';
 import '../services/customer_service.dart';
 import '../services/commercial_pricing_service.dart';
 import '../services/inventory_service.dart';
@@ -15,6 +16,7 @@ import '../services/location_scope_service.dart';
 import '../services/pricing_service.dart';
 import '../services/sales_service.dart';
 import '../services/tracking_service.dart';
+import '../widgets/batch_allocation_dialog.dart';
 import '../services/transaction_print_service.dart';
 import 'sale_detail_screen.dart';
 import '../widgets/searchable_select.dart';
@@ -211,7 +213,7 @@ class _SalesScreenState extends State<SalesScreen> {
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
                           fontSize: 17,
-                          fontWeight: FontWeight.w900,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                       Text(
@@ -285,7 +287,7 @@ class _SalesScreenState extends State<SalesScreen> {
                           'No sales yet',
                           style: TextStyle(
                             fontSize: 17,
-                            fontWeight: FontWeight.w800,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
                         if (_canManage && !widget.historyOnly) ...[
@@ -366,7 +368,7 @@ class _SalesScreenState extends State<SalesScreen> {
               value,
               textAlign: align,
               maxLines: 1,
-              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w900),
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
             ),
           ),
         );
@@ -384,7 +386,7 @@ class _SalesScreenState extends State<SalesScreen> {
           width: 104,
           child: Text(
             'Status',
-            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w900),
+            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
           ),
         ),
         const SizedBox(width: 28),
@@ -436,7 +438,7 @@ class _SalesScreenState extends State<SalesScreen> {
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         fontSize: 11,
-                        fontWeight: FontWeight.w800,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                     if (veryCompact)
@@ -540,6 +542,7 @@ class NewSaleScreen extends StatefulWidget {
   final double? initialQuantity;
   final String? initialUnitCode;
   final String? initialNotes;
+  final String? materialLoadId;
 
   const NewSaleScreen({
     super.key,
@@ -553,6 +556,7 @@ class NewSaleScreen extends StatefulWidget {
     this.initialQuantity,
     this.initialUnitCode,
     this.initialNotes,
+    this.materialLoadId,
   });
 
   @override
@@ -572,6 +576,13 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
   final TransactionPrintService _printService = TransactionPrintService();
 
   final TextEditingController _notesController = TextEditingController();
+  final ScrollController _invoiceScroll = ScrollController();
+  final GlobalKey _detailsSectionKey = GlobalKey(debugLabel: 'sale-details');
+  final GlobalKey _itemsSectionKey = GlobalKey(debugLabel: 'sale-items');
+  final GlobalKey _paymentSectionKey = GlobalKey(debugLabel: 'sale-payment');
+  final GlobalKey _paymentEditorKey = GlobalKey(
+    debugLabel: 'sale-payment-allocations',
+  );
   final TextEditingController _commercialChargeAmount = TextEditingController(
     text: '0.00',
   );
@@ -584,6 +595,7 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
   bool _commercialQuoteLoading = false;
   String? _commercialQuoteError;
   int _commercialQuoteToken = 0;
+  String? _placeOfSupplyCode;
 
   bool _loading = true;
   bool _saving = false;
@@ -606,6 +618,49 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
 
   final List<_SaleLine> _lines = [];
   bool _initialPrefillApplied = false;
+  SaleInvoiceContext? _invoiceContext;
+  String? _invoiceContextError;
+  bool get _gstApplicable => _invoiceContext?.gstApplicable == true;
+  bool get _customerLocked => _invoiceContext?.lockedCustomerId != null;
+
+  Future<void> _refreshInvoiceContext() async {
+    try {
+      final context = await _salesService.invoiceContext(
+        tenantId: widget.session.business.id,
+        locationId: widget.locationId,
+        saleDate: _saleDate,
+        materialLoadId: widget.materialLoadId,
+      );
+      if (!mounted) return;
+      final locked = context.lockedCustomerId;
+      if (locked != null && !_customerById.containsKey(locked)) {
+        throw StateError(
+          'The confirmed Load Ticket customer is inactive or unavailable. Update the Load Ticket customer before billing.',
+        );
+      }
+      setState(() {
+        if (_error == _invoiceContextError) {
+          _error = null;
+        }
+        _invoiceContext = context;
+        _invoiceContextError = null;
+        if (locked != null) _customerId = locked;
+        if (!context.gstApplicable) _placeOfSupplyCode = null;
+        for (var i = 0; i < _lines.length; i++) {
+          _lines[i] = _lines[i].copyWith(
+            taxRate: context.gstApplicable ? _lines[i].taxRate : 0,
+            resetTax: true,
+            clearTaxOverride: !context.gstApplicable,
+          );
+        }
+      });
+    } catch (error) {
+      if (mounted) {
+        setState(() => _invoiceContextError = error.toString());
+      }
+      rethrow;
+    }
+  }
 
   Customer? get _selectedCustomer {
     final id = _customerId;
@@ -736,7 +791,9 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
         _loading = false;
       });
 
+      await _refreshInvoiceContext();
       await _applyInitialSalePrefill(activeProducts);
+      await _refreshCommercialQuote();
     } catch (error) {
       if (!mounted) {
         return;
@@ -806,15 +863,47 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
       }
 
       if (unit == null) {
+        final productName = product.productName;
         if (mounted) {
           setState(
             () => _error =
-                'Load Ticket uses , but  '
+                'Load Ticket uses $requestedUnit, but $productName '
                 'is not configured to sell in that unit.',
           );
         }
         return;
       }
+    }
+
+    if (product.trackingMode != 'none') {
+      if (!mounted) return;
+      final material = product;
+      final selected = await showThqDialog<_SaleLine>(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => _AddSaleItemDialog(
+          gstApplicable: _gstApplicable,
+          canEditTax:
+              widget.session.hasRole('owner') ||
+              widget.session.hasPermission('sales.tax_override'),
+          products: [material],
+          tenantId: widget.session.business.id,
+          locationId: widget.locationId,
+          saleDate: _saleDate,
+          initialVariantId: material.variantId,
+          initialQuantity: quantity,
+          initialUnitCode: requestedUnit,
+        ),
+      );
+      if (selected != null && mounted) {
+        final priced = await _resolvedLine(selected);
+        if (!mounted) return;
+        setState(() {
+          _lines.add(priced);
+          _notesController.text = widget.initialNotes ?? '';
+        });
+      }
+      return;
     }
 
     var line = _SaleLine(
@@ -824,7 +913,7 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
       unitPrice:
           unit?.salePriceFor(product.sellingPrice) ?? product.sellingPrice,
       discount: 0,
-      taxRate: product.taxRate,
+      taxRate: _gstApplicable ? product.taxRate : 0,
       cuttingChargeApplied: false,
       pricingSource: 'Material Yard load',
     );
@@ -834,7 +923,7 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
         tenantId: widget.session.business.id,
         variantId: product.variantId,
         customerId: _customerId,
-        unitId: unit?.unitId,
+        unitId: line.unitId,
         quantity: quantity,
         locationId: widget.locationId,
       );
@@ -863,13 +952,20 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
       .map(
         (line) => <String, dynamic>{
           'variant_id': line.product.variantId,
+          'tracking_revision': line.product.trackingRevision,
+          'tracking_mode': line.product.trackingMode,
           'quantity': line.quantity,
-          'unit_id': line.unit?.unitId,
+          'unit_id': line.unitId,
           'unit_price': line.unitPrice,
           'discount_amount': line.discount,
-          'tax_rate': line.taxRate,
+          'tax_rate': _gstApplicable ? line.taxRate : 0,
+          if (_gstApplicable && line.taxOverride != null)
+            'thq_tax_override_v630': line.taxOverride,
+          'thq_manual_price_v630': line.manualPrice,
+          'invoice_description': ?line.invoiceDescription,
           if (line.serialNumbers.isNotEmpty)
             'serial_numbers': line.serialNumbers,
+          if (line.batches.isNotEmpty) 'batches': line.batches,
         },
       )
       .toList(growable: false);
@@ -953,16 +1049,18 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
   Future<Map<String, dynamic>?> _refreshCommercialQuote({
     bool throwOnError = false,
   }) async {
-    if (!_additionalChargesEnabled ||
-        _commercialChargeSelections.isEmpty ||
-        _lines.isEmpty) {
-      if (mounted && _commercialQuote != null) {
-        setState(() => _commercialQuote = null);
+    final token = ++_commercialQuoteToken;
+    if (_lines.isEmpty || _customerId == null) {
+      if (mounted) {
+        setState(() {
+          _commercialQuote = null;
+          _commercialQuoteLoading = false;
+          _commercialQuoteError = null;
+        });
       }
       return null;
     }
 
-    final token = ++_commercialQuoteToken;
     if (mounted) {
       setState(() {
         _commercialQuoteLoading = true;
@@ -972,9 +1070,13 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
 
     try {
       final previousTotal = _grandTotal;
-      final quote = await _commercialPricing.quote(
+      final quote = await _salesService.quote(
         tenantId: widget.session.business.id,
         locationId: widget.locationId,
+        customerId: _customerId!,
+        saleDate: _saleDate,
+        materialLoadId: widget.materialLoadId,
+        placeOfSupplyCode: _placeOfSupplyCode,
         items: _commercialBaseItems(),
         chargeSelections: _commercialChargeSelections,
       );
@@ -983,6 +1085,30 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
 
       setState(() {
         _commercialQuote = quote;
+        final gst = quote['gst'];
+        if (gst is Map) {
+          _invoiceContext = SaleInvoiceContext.fromMap({
+            'tax_mode': gst['tax_mode'],
+            'locked_customer_id': _invoiceContext?.lockedCustomerId,
+          });
+        }
+        final actualLines = gst is Map ? gst['lines'] : null;
+        if (actualLines is List) {
+          for (var i = 0; i < _lines.length; i++) {
+            for (final actual in actualLines.whereType<Map>()) {
+              if (actual['variant_id'] == _lines[i].product.variantId) {
+                _lines[i] = _lines[i].copyWith(
+                  taxRate: _commercialNumber(actual['applied_gst_rate']),
+                  clearTaxOverride: !_gstApplicable,
+                  quotedTax: _commercialNumber(actual['tax_amount']),
+                  quotedTaxable: _commercialNumber(actual['taxable_value']),
+                  quotedTotal: _commercialNumber(actual['line_total']),
+                );
+                break;
+              }
+            }
+          }
+        }
         _commercialQuoteLoading = false;
         final nextTotal = _grandTotal;
         if ((nextTotal - previousTotal).abs() > .005) {
@@ -1051,7 +1177,7 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
       _paymentAllocations = const [];
     });
 
-    if (_commercialChargeSelections.isNotEmpty) {
+    if (_lines.isNotEmpty) {
       unawaited(_refreshCommercialQuote());
     }
   }
@@ -1064,7 +1190,7 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
       _paymentAllocations = const [];
     });
 
-    if (_commercialChargeSelections.isNotEmpty && _lines.isNotEmpty) {
+    if (_lines.isNotEmpty) {
       unawaited(_refreshCommercialQuote());
     }
   }
@@ -1087,7 +1213,7 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
         child: Text(
           'No Additional Charges are configured. Open Settings → '
           'Additional Charges to add Packaging, Delivery or custom charges.',
-          style: TextStyle(fontSize: 10, color: scheme.onSurfaceVariant),
+          style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant),
         ),
       );
     }
@@ -1119,7 +1245,7 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
               const Expanded(
                 child: Text(
                   'Additional Charges',
-                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w900),
+                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
                 ),
               ),
               if (_commercialQuoteLoading)
@@ -1132,8 +1258,8 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
                 Text(
                   'GST CLASSIFIED',
                   style: TextStyle(
-                    fontSize: 8,
-                    fontWeight: FontWeight.w900,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
                     color: scheme.primary,
                   ),
                 ),
@@ -1178,8 +1304,10 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
                   keyboardType: const TextInputType.numberWithOptions(
                     decimal: true,
                   ),
-                  decoration: const InputDecoration(
-                    labelText: 'Charge amount before GST',
+                  decoration: InputDecoration(
+                    labelText: _gstApplicable
+                        ? 'Charge amount before GST'
+                        : 'Charge amount',
                     prefixIcon: Icon(Icons.currency_rupee, size: 16),
                     isDense: true,
                   ),
@@ -1195,7 +1323,7 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
               ),
             ],
           ),
-          if (_commercialChargeSelections.isNotEmpty) ...[
+          if (_lines.isNotEmpty) ...[
             const SizedBox(height: 7),
             Wrap(
               spacing: 5,
@@ -1231,7 +1359,7 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
                 color: scheme.error,
-                fontSize: 9.5,
+                fontSize: 11,
                 fontWeight: FontWeight.w700,
               ),
             ),
@@ -1322,6 +1450,10 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
   }
 
   bool? get _interstatePreview {
+    final gst = _commercialQuote?['gst'];
+    if (gst is Map && gst['interstate'] is bool) {
+      return gst['interstate'] as bool;
+    }
     final origin =
         widget.session.settings['business.state']
             ?.toString()
@@ -1333,9 +1465,16 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
     return origin != destination;
   }
 
-  double get _cgstPreview => _interstatePreview == false ? _tax / 2 : 0;
-  double get _sgstPreview => _interstatePreview == false ? _tax / 2 : 0;
-  double get _igstPreview => _interstatePreview == true ? _tax : 0;
+  double get _cgstPreview => _commercialQuote == null
+      ? (_interstatePreview == false ? _tax / 2 : 0)
+      : _commercialNumber(_commercialQuoteTotals['cgst']);
+  double get _sgstPreview => _commercialQuote == null
+      ? (_interstatePreview == false ? _tax / 2 : 0)
+      : _commercialNumber(_commercialQuoteTotals['sgst']) +
+            _commercialNumber(_commercialQuoteTotals['utgst']);
+  double get _igstPreview => _commercialQuote == null
+      ? (_interstatePreview == true ? _tax : 0)
+      : _commercialNumber(_commercialQuoteTotals['igst']);
 
   String _money(double value) {
     if (widget.session.currencyCode == 'INR') {
@@ -1363,11 +1502,25 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
     if (date != null && mounted) {
       setState(() {
         _saleDate = date;
+        _commercialQuote = null;
+        _paymentAllocations = const [];
 
         if (_dueDate != null && _dueDate!.isBefore(date)) {
           _dueDate = null;
         }
       });
+      setState(() {
+        _saving = true;
+        _invoiceContext = null;
+      });
+      try {
+        await _refreshInvoiceContext();
+        await _refreshCommercialQuote();
+      } catch (error) {
+        if (mounted) setState(() => _error = error.toString());
+      } finally {
+        if (mounted) setState(() => _saving = false);
+      }
     }
   }
 
@@ -1387,13 +1540,15 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
   }
 
   Future<_SaleLine> _resolvedLine(_SaleLine line) async {
+    if (line.manualPrice) return line;
     final price = await _pricingService.resolve(
       tenantId: widget.session.business.id,
       variantId: line.product.variantId,
       customerId: _customerId,
-      unitId: line.unit?.unitId,
+      unitId: line.unitId,
       quantity: line.quantity,
       locationId: widget.locationId,
+      batches: line.batches,
     );
     return line.copyWith(
       unitPrice: price.unitPrice,
@@ -1414,7 +1569,7 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
         _commercialQuoteError = null;
         _paymentAllocations = const [];
       });
-      if (_commercialChargeSelections.isNotEmpty) {
+      if (_lines.isNotEmpty) {
         await _refreshCommercialQuote();
       }
     } catch (error) {
@@ -1427,6 +1582,27 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
   }
 
   Future<void> _addLine({String? initialVariantId}) async {
+    try {
+      await _refreshInvoiceContext();
+      final products = await _inventoryService.getProducts(
+        tenantId: widget.session.business.id,
+        locationId: widget.locationId,
+      );
+      if (!mounted) return;
+      _products = products
+          .where(
+            (p) => p.productStatus == 'active' && p.variantStatus == 'active',
+          )
+          .toList();
+    } catch (error) {
+      if (mounted) {
+        ThqNotify.showSnackBar(
+          context,
+          SnackBar(content: Text('Could not refresh product prices: $error')),
+        );
+      }
+      return;
+    }
     final usedVariants = _lines.map((line) => line.product.variantId).toSet();
     final available = _products
         .where((product) => !usedVariants.contains(product.variantId))
@@ -1444,14 +1620,19 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
         initialVariantId != null &&
         available.any((product) => product.variantId == initialVariantId);
 
-    final line = await showDialog<_SaleLine>(
+    final line = await showThqDialog<_SaleLine>(
       context: context,
       barrierDismissible: false,
       builder: (_) => _AddSaleItemDialog(
+        gstApplicable: _gstApplicable,
         products: available,
         tenantId: widget.session.business.id,
         locationId: widget.locationId,
         initialVariantId: initialAvailable ? initialVariantId : null,
+        saleDate: _saleDate,
+        canEditTax:
+            widget.session.hasRole('owner') ||
+            widget.session.hasPermission('sales.tax_override'),
       ),
     );
 
@@ -1468,7 +1649,7 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
         _commercialQuoteError = null;
         _paymentAllocations = const [];
       });
-      if (_commercialChargeSelections.isNotEmpty) {
+      if (_lines.isNotEmpty) {
         await _refreshCommercialQuote();
       }
     } catch (error) {
@@ -1477,6 +1658,48 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
         context,
         SnackBar(content: Text('Could not resolve selling price: $error')),
       );
+    }
+  }
+
+  Future<void> _editLine(int index) async {
+    final current = _lines[index];
+    final edited = await showThqDialog<_SaleLine>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => _AddSaleItemDialog(
+        gstApplicable: _gstApplicable,
+        products: _products
+            .where(
+              (p) =>
+                  p.variantId == current.product.variantId ||
+                  !_lines.any((l) => l.product.variantId == p.variantId),
+            )
+            .toList(),
+        tenantId: widget.session.business.id,
+        locationId: widget.locationId,
+        saleDate: _saleDate,
+        initialVariantId: current.product.variantId,
+        initialLine: current,
+        canEditTax:
+            widget.session.hasRole('owner') ||
+            widget.session.hasPermission('sales.tax_override'),
+      ),
+    );
+    if (edited == null || !mounted) return;
+    try {
+      final resolved = await _resolvedLine(edited);
+      if (!mounted) return;
+      setState(() {
+        _lines[index] = resolved;
+        _commercialQuote = null;
+        _commercialQuoteError = null;
+        _paymentAllocations = const [];
+      });
+      await _refreshCommercialQuote();
+    } catch (error) {
+      if (mounted) {
+        ThqNotify.showSnackBar(context, SnackBar(content: Text('$error')));
+      }
     }
   }
 
@@ -1499,6 +1722,7 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
   }
 
   Future<void> _post({bool printAfter = false}) async {
+    if (_saving) return;
     final customer = _selectedCustomer;
 
     if (customer == null) {
@@ -1517,7 +1741,8 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
       return;
     }
 
-    if (_additionalChargesEnabled && _commercialChargeSelections.isNotEmpty) {
+    if (_lines.isNotEmpty) {
+      setState(() => _saving = true);
       try {
         await _refreshCommercialQuote(throwOnError: true);
       } catch (error) {
@@ -1525,6 +1750,8 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
           setState(() => _error = error.toString());
         }
         return;
+      } finally {
+        if (mounted) setState(() => _saving = false);
       }
     }
 
@@ -1578,30 +1805,14 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
 
         dueDate: _dueDate,
 
-        items: _lines
-            .map(
-              (line) => {
-                'variant_id': line.product.variantId,
-
-                'quantity': line.quantity,
-
-                'unit_id': line.unit?.unitId,
-
-                'unit_price': line.unitPrice,
-
-                'discount_amount': line.discount,
-
-                'tax_rate': line.taxRate,
-                if (line.serialNumbers.isNotEmpty)
-                  'serial_numbers': line.serialNumbers,
-              },
-            )
-            .toList(),
+        items: _commercialBaseItems(),
 
         paymentAllocations: paymentAllocations,
 
         notes: _notesController.text,
         locationId: widget.locationId,
+        materialLoadId: widget.materialLoadId,
+        placeOfSupplyCode: _placeOfSupplyCode,
         chargeSelections: _additionalChargesEnabled
             ? _commercialChargeSelections
             : const <Map<String, dynamic>>[],
@@ -1679,6 +1890,7 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
 
   @override
   void dispose() {
+    _invoiceScroll.dispose();
     _notesController.dispose();
     _commercialChargeAmount.dispose();
 
@@ -1687,45 +1899,95 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final invoiceError =
+        _invoiceContextError ?? _error ?? _commercialQuoteError;
     final content = _loading
         ? const Center(child: CircularProgressIndicator())
         : _customers.isEmpty
         ? const Center(child: Text('No active customers available.'))
         : LayoutBuilder(
-            builder: (context, constraints) {
-              return SingleChildScrollView(
-                padding: EdgeInsets.fromLTRB(
-                  constraints.maxWidth < 720 ? 10 : 18,
-                  12,
-                  constraints.maxWidth < 720 ? 10 : 18,
-                  24,
-                ),
-                child: Center(
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 1280),
-                    child: Column(
-                      children: [
-                        _documentHeader(),
-                        const SizedBox(height: 12),
-                        _customerCard(),
-                        const SizedBox(height: 12),
-                        _itemsCard(),
-                        const SizedBox(height: 12),
-                        _paymentCard(),
-                      ],
+            builder: (context, constraints) => Column(
+              children: [
+                if (invoiceError != null)
+                  ConstrainedBox(
+                    key: const ValueKey('sale-error-banner'),
+                    constraints: BoxConstraints(
+                      maxHeight: constraints.maxHeight * .22,
+                    ),
+                    child: SingleChildScrollView(
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 8,
+                        ),
+                        color: Theme.of(context).colorScheme.errorContainer,
+                        child: SelectableText(
+                          invoiceError,
+                          style: TextStyle(
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onErrorContainer,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                Expanded(
+                  child: Scrollbar(
+                    controller: _invoiceScroll,
+                    thumbVisibility: true,
+                    child: SingleChildScrollView(
+                      key: const ValueKey('sale-invoice-scroll'),
+                      controller: _invoiceScroll,
+                      padding: EdgeInsets.fromLTRB(
+                        constraints.maxWidth < 720 ? 10 : 14,
+                        10,
+                        constraints.maxWidth < 720 ? 10 : 14,
+                        14,
+                      ),
+                      child: Center(
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 1280),
+                          child: Column(
+                            children: [
+                              _documentHeader(),
+                              const SizedBox(height: 10),
+                              KeyedSubtree(
+                                key: _detailsSectionKey,
+                                child: _customerCard(),
+                              ),
+                              const SizedBox(height: 10),
+                              KeyedSubtree(
+                                key: _itemsSectionKey,
+                                child: _itemsCard(),
+                              ),
+                              const SizedBox(height: 10),
+                              KeyedSubtree(
+                                key: _paymentSectionKey,
+                                child: _paymentCard(),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
                     ),
                   ),
                 ),
-              );
-            },
+                SafeArea(top: false, child: _invoiceActions()),
+              ],
+            ),
           );
 
     if (widget.embedded) {
-      return ColoredBox(color: const Color(0xFFF5F7FA), child: content);
+      return ColoredBox(
+        color: Theme.of(context).scaffoldBackgroundColor,
+        child: content,
+      );
     }
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         title: const Text(
           'New Sale',
@@ -1736,49 +1998,99 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
     );
   }
 
+  void _showInvoiceSection(GlobalKey key) {
+    final target = key.currentContext;
+    if (target != null) {
+      unawaited(
+        Scrollable.ensureVisible(
+          target,
+          duration: const Duration(milliseconds: 220),
+          curve: Curves.easeOut,
+        ),
+      );
+    }
+  }
+
   Widget _documentHeader() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFE3E7EE)),
+        border: Border.all(color: Theme.of(context).colorScheme.outline),
       ),
-      child: Row(
-        children: [
-          if (widget.embedded) ...[
-            IconButton.filledTonal(
-              tooltip: 'Back',
-              onPressed: _saving ? null : () => widget.onFinished?.call(false),
-              icon: const Icon(Icons.arrow_back),
-            ),
-            const SizedBox(width: 12),
-          ],
-          const Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'NEW SALE',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
-                ),
-                SizedBox(height: 2),
-                Text('Sales Entry', style: TextStyle(color: Colors.black54)),
-              ],
-            ),
-          ),
-          const Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final heading = Row(
             children: [
-              Text('INVOICE NO.', style: TextStyle(fontSize: 11)),
-              SizedBox(height: 3),
-              Text(
-                'AUTO ON CONFIRM',
-                style: TextStyle(fontWeight: FontWeight.w800),
+              if (widget.embedded) ...[
+                IconButton.filledTonal(
+                  tooltip: 'Back',
+                  onPressed: _saving
+                      ? null
+                      : () => widget.onFinished?.call(false),
+                  icon: const Icon(Icons.arrow_back),
+                ),
+                const SizedBox(width: 12),
+              ],
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'NEW SALE',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    SizedBox(height: 2),
+                    Text(
+                      'Sales Entry',
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ],
-          ),
-        ],
+          );
+          final sections = Wrap(
+            spacing: 4,
+            runSpacing: 4,
+            children: [
+              TextButton.icon(
+                onPressed: () => _showInvoiceSection(_detailsSectionKey),
+                icon: const Icon(Icons.receipt_long_outlined, size: 17),
+                label: const Text('Details'),
+              ),
+              TextButton.icon(
+                onPressed: () => _showInvoiceSection(_itemsSectionKey),
+                icon: const Icon(Icons.inventory_2_outlined, size: 17),
+                label: const Text('Products'),
+              ),
+              TextButton.icon(
+                onPressed: () => _showInvoiceSection(_paymentSectionKey),
+                icon: const Icon(Icons.payments_outlined, size: 17),
+                label: const Text('Payment'),
+              ),
+            ],
+          );
+          if (constraints.maxWidth < 740 ||
+              MediaQuery.textScalerOf(context).scale(1) > 1.3) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [heading, const SizedBox(height: 4), sections],
+            );
+          }
+          return Row(
+            children: [
+              Expanded(child: heading),
+              sections,
+            ],
+          );
+        },
       ),
     );
   }
@@ -1798,7 +2110,7 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
 
           return Wrap(
             spacing: gap,
-            runSpacing: 12,
+            runSpacing: 10,
             children: [
               SizedBox(
                 width: compact ? constraints.maxWidth : fieldWidth * 2 + gap,
@@ -1806,11 +2118,13 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
                   value: _customerId,
                   labelText: 'Customer',
                   isRequired: true,
-                  enabled: !_saving,
-                  hintText: 'Search customer name, ID, phone or GSTIN',
+                  enabled: !_saving && !_customerLocked,
+                  hintText: _customerLocked
+                      ? 'Customer from confirmed Load Ticket'
+                      : 'Search customer name, ID or phone',
                   prefixIcon: Icons.person_search_outlined,
                   options: _customerOptions,
-                  onChanged: _saving
+                  onChanged: _saving || _customerLocked
                       ? null
                       : (value) {
                           setState(() {
@@ -1825,7 +2139,7 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
                 width: fieldWidth,
                 child: OutlinedButton.icon(
                   style: OutlinedButton.styleFrom(
-                    minimumSize: const Size.fromHeight(56),
+                    minimumSize: const Size.fromHeight(44),
                     alignment: Alignment.centerLeft,
                   ),
                   onPressed: _saving ? null : _chooseSaleDate,
@@ -1836,27 +2150,82 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
               SizedBox(
                 width: fieldWidth,
                 child: _invoiceReadOnlyField(
-                  label: 'GSTIN',
-                  value: customer?.taxNumber?.trim().isNotEmpty == true
-                      ? customer!.taxNumber!
-                      : 'Not registered',
-                  icon: Icons.receipt_long_outlined,
+                  label: 'Invoice number',
+                  value: 'Auto-generated on confirmation',
+                  icon: Icons.numbers_outlined,
                 ),
               ),
               SizedBox(
                 width: fieldWidth,
                 child: _invoiceReadOnlyField(
-                  label: 'Place of Supply',
-                  value: _placeOfSupply,
-                  icon: Icons.place_outlined,
+                  label: 'GST status',
+                  value: _invoiceContext == null
+                      ? 'GST setup not verified'
+                      : _gstApplicable
+                      ? 'GST registered'
+                      : 'Non-GST · No GST charged',
+                  icon: Icons.verified_outlined,
                 ),
               ),
+              if (!_requiresDueDate)
+                SizedBox(
+                  width: fieldWidth,
+                  child: _invoiceReadOnlyField(
+                    label: 'Due Date',
+                    value: customer?.isWalkIn == true
+                        ? 'Not required for counter sales'
+                        : 'Required when a balance is unpaid',
+                    icon: Icons.event_outlined,
+                  ),
+                ),
+              SizedBox(
+                width: fieldWidth,
+                child: _invoiceReadOnlyField(
+                  label: 'Customer GSTIN',
+                  value: customer?.taxNumber?.trim().isNotEmpty == true
+                      ? customer!.taxNumber!
+                      : 'Not provided',
+                  icon: Icons.receipt_long_outlined,
+                ),
+              ),
+              if (_gstApplicable)
+                SizedBox(
+                  width: compact ? constraints.maxWidth : fieldWidth,
+                  child: TextFormField(
+                    key: const ValueKey('sale-place-of-supply'),
+                    enabled: !_saving,
+                    initialValue: _placeOfSupplyCode,
+                    keyboardType: TextInputType.number,
+                    maxLength: 2,
+                    decoration: const InputDecoration(
+                      labelText: 'State code (GST)',
+                      helperText:
+                          'Place of supply for GST service items. Example: 32 for Kerala.',
+                      helperMaxLines: 3,
+                    ),
+                    onChanged: (v) {
+                      _placeOfSupplyCode = v.trim().isEmpty ? null : v.trim();
+                      _commercialQuote = null;
+                      _paymentAllocations = const [];
+                      _refreshCommercialQuote();
+                    },
+                  ),
+                ),
+              if (_gstApplicable)
+                SizedBox(
+                  width: fieldWidth,
+                  child: _invoiceReadOnlyField(
+                    label: 'Place of Supply',
+                    value: _placeOfSupply,
+                    icon: Icons.place_outlined,
+                  ),
+                ),
               if (_requiresDueDate)
                 SizedBox(
                   width: fieldWidth,
                   child: OutlinedButton.icon(
                     style: OutlinedButton.styleFrom(
-                      minimumSize: const Size.fromHeight(56),
+                      minimumSize: const Size.fromHeight(44),
                       alignment: Alignment.centerLeft,
                     ),
                     onPressed: _saving ? null : _chooseDueDate,
@@ -1871,9 +2240,9 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
               if (customer?.isWalkIn == true)
                 SizedBox(
                   width: compact ? constraints.maxWidth : fieldWidth * 2 + gap,
-                  child: const Text(
+                  child: Text(
                     'Walk-in sales must be fully paid before confirmation.',
-                    style: TextStyle(color: Colors.deepOrange),
+                    style: TextStyle(color: context.thqSemanticColors.warning),
                   ),
                 ),
             ],
@@ -1889,12 +2258,13 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
     required IconData icon,
   }) {
     return InputDecorator(
+      key: ValueKey('sale-info-$label'),
       decoration: InputDecoration(
         labelText: label,
         prefixIcon: Icon(icon),
         border: const OutlineInputBorder(),
       ),
-      child: Text(value, maxLines: 1, overflow: TextOverflow.ellipsis),
+      child: SelectableText(value),
     );
   }
 
@@ -1913,32 +2283,40 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
       ),
       child: _lines.isEmpty
           ? const Padding(
-              padding: EdgeInsets.symmetric(vertical: 34),
+              padding: EdgeInsets.symmetric(vertical: 16),
               child: Center(
                 child: Text('Search or scan a product to start this invoice.'),
               ),
             )
           : Column(
               children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 10,
-                  ),
-                  color: const Color(0xFFF1F4F8),
-                  child: Row(
-                    children: [
-                      _saleHeaderCell('#', 1),
-                      _saleHeaderCell('SKU', 2),
-                      _saleHeaderCell('Product', 4),
-                      _saleHeaderCell('Qty', 2),
-                      _saleHeaderCell('Rate', 2),
-                      _saleHeaderCell('Disc.', 2),
-                      _saleHeaderCell('GST', 1),
-                      _saleHeaderCell('Amount', 2),
-                      const SizedBox(width: 42),
-                    ],
-                  ),
+                LayoutBuilder(
+                  builder: (context, constraints) =>
+                      constraints.maxWidth >= 780 &&
+                          MediaQuery.textScalerOf(context).scale(1) <= 1.3
+                      ? Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 10,
+                          ),
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.surfaceContainerHighest,
+                          child: Row(
+                            children: [
+                              _saleHeaderCell('#', 1),
+                              _saleHeaderCell('SKU', 2),
+                              _saleHeaderCell('Product', 4),
+                              _saleHeaderCell('Qty', 2),
+                              _saleHeaderCell('Rate', 2),
+                              _saleHeaderCell('Disc.', 2),
+                              _saleHeaderCell('GST', 1),
+                              _saleHeaderCell('Amount', 2),
+                              const SizedBox(width: 88),
+                            ],
+                          ),
+                        )
+                      : const SizedBox.shrink(),
                 ),
                 for (var i = 0; i < _lines.length; i++)
                   _SaleLineRow(
@@ -1946,6 +2324,7 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
                     line: _lines[i],
                     money: _money,
                     onDelete: _saving ? null : () => _removeSaleLineAt(i),
+                    onEdit: _saving ? null : () => _editLine(i),
                   ),
               ],
             ),
@@ -1957,7 +2336,7 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
       flex: flex,
       child: Text(
         label,
-        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
+        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
       ),
     );
   }
@@ -1967,18 +2346,28 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
       children: [
         _SaleTotalRow(label: 'Subtotal', value: _money(_subtotal)),
         _SaleTotalRow(label: 'Discount', value: '- ${_money(_discount)}'),
+        if (_commercialQuote != null)
+          _SaleTotalRow(
+            label: 'Taxable value (all items)',
+            value: _money(
+              _commercialNumber(_commercialQuoteTotals['taxable_value']),
+            ),
+          ),
         if (_classifiedChargeTotal > .005)
           _SaleTotalRow(
             label: 'Additional Charges',
             value: _money(_classifiedChargeTotal),
           ),
-        _SaleTotalRow(label: 'Taxable Amount', value: _money(_taxableAmount)),
-        if (_interstatePreview == false) ...[
+        _SaleTotalRow(
+          label: _gstApplicable ? 'Taxable Amount' : 'Amount',
+          value: _money(_taxableAmount),
+        ),
+        if (_gstApplicable && _interstatePreview == false) ...[
           _SaleTotalRow(label: 'CGST', value: _money(_cgstPreview)),
           _SaleTotalRow(label: 'SGST', value: _money(_sgstPreview)),
-        ] else if (_interstatePreview == true)
+        ] else if (_gstApplicable && _interstatePreview == true)
           _SaleTotalRow(label: 'IGST', value: _money(_igstPreview))
-        else
+        else if (_gstApplicable)
           _SaleTotalRow(label: 'GST / Tax', value: _money(_tax)),
         _SaleTotalRow(label: 'Round Off', value: _money(_roundOff)),
         const Divider(height: 24),
@@ -2010,6 +2399,7 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
                     const SizedBox(height: 12),
                   ],
                   MultiPaymentEditor(
+                    key: _paymentEditorKey,
                     tenantId: widget.session.business.id,
                     total: _grandTotal,
                     customerIsWalkIn: _selectedCustomer?.isWalkIn ?? true,
@@ -2027,12 +2417,19 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
                     width: double.infinity,
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: Colors.blueGrey.withValues(alpha: .06),
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.onSurfaceVariant.withValues(alpha: .06),
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: const Text(
-                      'Round-off is automatic. Freight, cutting, installation '
-                      'and other charges must be GST-classified Service products.',
+                    child: Text(
+                      _invoiceContext == null
+                          ? 'GST setup must be verified before billing. Round-off is automatic.'
+                          : _gstApplicable
+                          ? 'Round-off is automatic. Freight, cutting, installation '
+                                'and other charges use GST-classified Service products.'
+                          : 'Round-off is automatic. Add freight and other charges '
+                                'as Service products. This store does not charge GST.',
                       style: TextStyle(fontSize: 11),
                     ),
                   ),
@@ -2063,67 +2460,172 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
               );
             },
           ),
-          if (_error != null) ...[
-            const SizedBox(height: 16),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.red.shade50,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(
-                _error!,
-                style: TextStyle(color: Colors.red.shade700),
-              ),
-            ),
-          ],
-          const SizedBox(height: 18),
-          Align(
-            alignment: Alignment.centerRight,
-            child: Wrap(
-              spacing: 10,
-              runSpacing: 10,
-              alignment: WrapAlignment.end,
-              children: [
-                OutlinedButton(
-                  onPressed: _saving
-                      ? null
-                      : () {
-                          if (widget.embedded) {
-                            widget.onFinished?.call(false);
-                          } else {
-                            Navigator.of(context).pop();
-                          }
-                        },
-                  child: const Text('Cancel'),
-                ),
-                OutlinedButton.icon(
-                  onPressed: _saving ? null : () => _post(printAfter: false),
-                  icon: const Icon(Icons.check_circle_outline),
-                  label: const Text('Just Confirm'),
-                ),
-                FilledButton.icon(
-                  onPressed: _saving ? null : () => _post(printAfter: true),
-                  icon: _saving
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.print_outlined),
-                  label: Text(_saving ? 'Confirming...' : 'Print & Confirm'),
-                ),
-              ],
-            ),
-          ),
         ],
       ),
     );
   }
+
+  Widget _invoiceActions() => Container(
+    width: double.infinity,
+    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+    decoration: BoxDecoration(
+      color: Theme.of(context).colorScheme.surface,
+      border: Border(
+        top: BorderSide(color: Theme.of(context).colorScheme.outline),
+      ),
+    ),
+    child: Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 1280),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final compact =
+                constraints.maxWidth < 600 ||
+                MediaQuery.textScalerOf(context).scale(1) > 1.3;
+            final summary = Text(
+              'Total ${_money(_grandTotal)} · ${_lines.length} item${_lines.length == 1 ? '' : 's'}',
+              style: const TextStyle(fontWeight: FontWeight.w700),
+            );
+            final VoidCallback? cancel = _saving
+                ? null
+                : () {
+                    if (widget.embedded) {
+                      widget.onFinished?.call(false);
+                    } else {
+                      Navigator.of(context).pop();
+                    }
+                  };
+            if (constraints.maxWidth < 400 &&
+                MediaQuery.textScalerOf(context).scale(1) > 1.3) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          'Total ${_money(_grandTotal)}',
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        tooltip: 'Cancel',
+                        onPressed: cancel,
+                        icon: const Icon(Icons.close),
+                      ),
+                    ],
+                  ),
+                  OutlinedButton(
+                    onPressed: _saving ? null : () => _post(printAfter: false),
+                    child: const Text('Just Confirm'),
+                  ),
+                  const SizedBox(height: 6),
+                  FilledButton(
+                    onPressed: _saving ? null : () => _post(printAfter: true),
+                    child: Text(_saving ? 'Confirming...' : 'Print & Confirm'),
+                  ),
+                ],
+              );
+            }
+            if (compact) {
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  summary,
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      IconButton(
+                        tooltip: 'Cancel',
+                        onPressed: cancel,
+                        icon: const Icon(Icons.close),
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: _saving
+                              ? null
+                              : () => _post(printAfter: false),
+                          child: const Text(
+                            'Just Confirm',
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: FilledButton(
+                          onPressed: _saving
+                              ? null
+                              : () => _post(printAfter: true),
+                          child: Text(
+                            _saving ? 'Confirming...' : 'Print & Confirm',
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              );
+            }
+            return Wrap(
+              alignment: WrapAlignment.spaceBetween,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: 12,
+              runSpacing: 6,
+              children: [
+                summary,
+                Wrap(
+                  spacing: 10,
+                  runSpacing: 10,
+                  alignment: WrapAlignment.end,
+                  children: [
+                    OutlinedButton(
+                      onPressed: cancel,
+                      child: const Text('Cancel'),
+                    ),
+                    OutlinedButton.icon(
+                      onPressed: _saving
+                          ? null
+                          : () => _post(printAfter: false),
+                      icon: const Icon(Icons.check_circle_outline),
+                      label: const Text('Just Confirm'),
+                    ),
+                    FilledButton.icon(
+                      onPressed: _saving ? null : () => _post(printAfter: true),
+                      icon: _saving
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.print_outlined),
+                      label: Text(
+                        _saving ? 'Confirming...' : 'Print & Confirm',
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            );
+          },
+        ),
+      ),
+    ),
+  );
 }
 
 class _SaleLine {
+  final bool manualPrice;
+  final double? quotedTax;
+  final double? quotedTaxable;
+  final double? quotedTotal;
+  final String? invoiceDescription;
+  final Map<String, dynamic>? taxOverride;
   final InventoryProduct product;
 
   final ProductUnitOption? unit;
@@ -2140,8 +2642,15 @@ class _SaleLine {
 
   final String? pricingSource;
   final List<String> serialNumbers;
+  final List<Map<String, dynamic>> batches;
 
   const _SaleLine({
+    this.manualPrice = false,
+    this.quotedTax,
+    this.quotedTaxable,
+    this.quotedTotal,
+    this.invoiceDescription,
+    this.taxOverride,
     required this.product,
     required this.unit,
     required this.quantity,
@@ -2151,44 +2660,91 @@ class _SaleLine {
     required this.cuttingChargeApplied,
     this.pricingSource,
     this.serialNumbers = const [],
+    this.batches = const [],
   });
+
+  String? get unitId {
+    if (unit != null) {
+      return unit!.unitId;
+    }
+    for (final option in product.saleUnits) {
+      if (option.isBase) {
+        return option.unitId;
+      }
+    }
+    return null;
+  }
 
   String get unitCode => unit?.code ?? product.baseUnitCode;
   double get baseQuantity => quantity * (unit?.conversionToBase ?? 1);
   double get subtotal => quantity * unitPrice;
 
-  double get taxable => subtotal - discount;
+  double get taxable => quotedTaxable ?? subtotal - discount;
 
-  double get tax => taxable * taxRate / 100;
+  double get tax => quotedTax ?? taxable * taxRate / 100;
 
   double get cuttingCharge => 0;
 
-  double get total => taxable + tax;
+  double get total => quotedTotal ?? taxable + tax;
 
-  _SaleLine copyWith({double? unitPrice, String? pricingSource}) => _SaleLine(
+  _SaleLine copyWith({
+    double? unitPrice,
+    String? pricingSource,
+    double? taxRate,
+    double? quotedTax,
+    double? quotedTaxable,
+    double? quotedTotal,
+    bool clearTaxOverride = false,
+    bool resetTax = false,
+  }) => _SaleLine(
+    manualPrice: manualPrice,
+    quotedTax: !resetTax && unitPrice == null
+        ? quotedTax ?? this.quotedTax
+        : null,
+    quotedTaxable: !resetTax && unitPrice == null
+        ? quotedTaxable ?? this.quotedTaxable
+        : null,
+    quotedTotal: !resetTax && unitPrice == null
+        ? quotedTotal ?? this.quotedTotal
+        : null,
+    invoiceDescription: invoiceDescription,
+    taxOverride: clearTaxOverride ? null : taxOverride,
     product: product,
     unit: unit,
     quantity: quantity,
     unitPrice: unitPrice ?? this.unitPrice,
     discount: discount,
-    taxRate: taxRate,
+    taxRate: taxRate ?? this.taxRate,
     cuttingChargeApplied: cuttingChargeApplied,
     pricingSource: pricingSource ?? this.pricingSource,
     serialNumbers: serialNumbers,
+    batches: batches,
   );
 }
 
 class _AddSaleItemDialog extends StatefulWidget {
+  final _SaleLine? initialLine;
+  final bool canEditTax;
+  final bool gstApplicable;
   final List<InventoryProduct> products;
   final String tenantId;
   final String locationId;
+  final DateTime saleDate;
   final String? initialVariantId;
+  final String? initialUnitCode;
+  final double? initialQuantity;
 
   const _AddSaleItemDialog({
+    this.initialLine,
+    this.canEditTax = false,
+    required this.gstApplicable,
     required this.products,
     required this.tenantId,
     required this.locationId,
+    required this.saleDate,
     this.initialVariantId,
+    this.initialUnitCode,
+    this.initialQuantity,
   });
 
   @override
@@ -2196,6 +2752,8 @@ class _AddSaleItemDialog extends StatefulWidget {
 }
 
 class _AddSaleItemDialogState extends State<_AddSaleItemDialog> {
+  bool _priceEdited = false;
+  bool _taxEdited = false;
   String? _variantId;
 
   String? _unitId;
@@ -2212,11 +2770,13 @@ class _AddSaleItemDialogState extends State<_AddSaleItemDialog> {
   );
 
   final TextEditingController _taxController = TextEditingController();
+  final TextEditingController _descriptionController = TextEditingController();
   final TextEditingController _serialsController = TextEditingController();
   final TrackingService _trackingService = TrackingService();
   List<Map<String, dynamic>> _serialOptions = const [];
   final Set<String> _selectedSerials = <String>{};
   bool _loadingSerials = false;
+  List<Map<String, dynamic>> _batches = [];
 
   String? _error;
   late final Map<String, InventoryProduct> _productByVariantId;
@@ -2258,13 +2818,52 @@ class _AddSaleItemDialogState extends State<_AddSaleItemDialog> {
     _productSearchText = Map<String, String>.unmodifiable(searchText);
     _productPrefixTokens = Map<String, List<String>>.unmodifiable(prefixTokens);
 
+    _descriptionController.text = widget.initialLine?.invoiceDescription ?? "";
     final initialVariantId = widget.initialVariantId;
     if (initialVariantId != null &&
         _productByVariantId.containsKey(initialVariantId)) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
-          unawaited(_selectProduct(initialVariantId));
-        }
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        if (!mounted) return;
+        await _selectProduct(initialVariantId);
+        if (!mounted) return;
+        setState(() {
+          if (widget.initialQuantity != null) {
+            _quantityController.text = widget.initialQuantity.toString();
+          }
+          final requestedUnit = widget.initialUnitCode?.trim().toUpperCase();
+          if (requestedUnit == _product?.baseUnitCode.toUpperCase()) {
+            _unitId = null;
+          }
+          for (final unit in _product?.saleUnits ?? <ProductUnitOption>[]) {
+            if (unit.code.toUpperCase() == requestedUnit) {
+              _unitId = unit.unitId;
+            }
+          }
+          final product = _product;
+          if (product != null) {
+            _priceController.text =
+                (_selectedUnit?.salePriceFor(product.sellingPrice) ??
+                        product.sellingPrice)
+                    .toStringAsFixed(2);
+          }
+          final initial = widget.initialLine;
+          if (initial != null) {
+            _unitId = initial.unit?.unitId;
+            _quantityController.text = '${initial.quantity}';
+            _priceController.text = '${initial.unitPrice}';
+            _discountController.text = '${initial.discount}';
+            _taxController.text = widget.gstApplicable
+                ? '${initial.taxOverride?['gst_rate'] ?? initial.taxRate}'
+                : '0';
+            _priceEdited = initial.manualPrice;
+            _taxEdited = widget.gstApplicable && initial.taxOverride != null;
+            _batches = initial.batches
+                .map((row) => Map<String, dynamic>.from(row))
+                .toList();
+            _selectedSerials.addAll(initial.serialNumbers);
+            _serialsController.text = initial.serialNumbers.join('\n');
+          }
+        });
       });
     }
   }
@@ -2301,7 +2900,7 @@ class _AddSaleItemDialogState extends State<_AddSaleItemDialog> {
 
   ProductUnitOption? get _selectedUnit {
     final product = _product;
-    if (product == null) return null;
+    if (product == null || _unitId == null) return null;
     for (final unit in product.saleUnits) {
       if (unit.unitId == _unitId) return unit;
     }
@@ -2311,6 +2910,7 @@ class _AddSaleItemDialogState extends State<_AddSaleItemDialog> {
   Future<void> _selectProduct(String? value) async {
     setState(() {
       _variantId = value;
+      _batches = [];
       _serialsController.clear();
       _serialOptions = const [];
       _selectedSerials.clear();
@@ -2324,7 +2924,9 @@ class _AddSaleItemDialogState extends State<_AddSaleItemDialog> {
         _priceController.text =
             (unit?.salePriceFor(product.sellingPrice) ?? product.sellingPrice)
                 .toStringAsFixed(2);
-        _taxController.text = product.taxRate.toStringAsFixed(2);
+        _taxController.text = widget.gstApplicable
+            ? product.taxRate.toStringAsFixed(2)
+            : '0';
         _error = null;
         _loadingSerials = product.trackingMode == 'serial';
       }
@@ -2360,6 +2962,33 @@ class _AddSaleItemDialogState extends State<_AddSaleItemDialog> {
     }
   }
 
+  Future<void> _chooseBatches() async {
+    final product = _product;
+    final qty = double.tryParse(_quantityController.text.trim());
+    if (product == null || qty == null || !qty.isFinite || qty <= 0) {
+      setState(() => _error = 'Enter the sale quantity first.');
+      return;
+    }
+    final selected = await showThqDialog<List<Map<String, dynamic>>>(
+      context: context,
+      builder: (_) => BatchAllocationDialog(
+        tenantId: widget.tenantId,
+        variantId: product.variantId,
+        locationId: widget.locationId,
+        baseUnit: product.baseUnitCode,
+        saleDate: widget.saleDate,
+        requiredQuantity: qty * (_selectedUnit?.conversionToBase ?? 1),
+        initial: _batches,
+      ),
+    );
+    if (selected != null && mounted) {
+      setState(() {
+        _batches = selected;
+        _error = null;
+      });
+    }
+  }
+
   String _stockText(InventoryProduct product) {
     if (product.itemType != 'stock') {
       return product.itemType == 'service' ? 'Service' : 'Non-stock';
@@ -2390,7 +3019,9 @@ class _AddSaleItemDialogState extends State<_AddSaleItemDialog> {
 
     final discount = double.tryParse(_discountController.text.trim()) ?? 0;
 
-    final tax = double.tryParse(_taxController.text.trim()) ?? 0;
+    final tax = widget.gstApplicable
+        ? double.tryParse(_taxController.text.trim()) ?? 0
+        : 0.0;
 
     if (product == null) {
       setState(() {
@@ -2400,7 +3031,7 @@ class _AddSaleItemDialogState extends State<_AddSaleItemDialog> {
       return;
     }
 
-    if (quantity == null || quantity <= 0) {
+    if (quantity == null || !quantity.isFinite || quantity <= 0) {
       setState(() {
         _error = 'Quantity must be greater than zero.';
       });
@@ -2432,6 +3063,19 @@ class _AddSaleItemDialogState extends State<_AddSaleItemDialog> {
 
     final baseQuantity = quantity * (selectedUnit?.conversionToBase ?? 1);
     final serialNumbers = _serialValues();
+    if (product.trackingMode == 'batch') {
+      final allocated = _batches.fold<double>(
+        0,
+        (total, batch) => total + (batch['quantity'] as num).toDouble(),
+      );
+      if (_batches.isEmpty || (allocated - baseQuantity).abs() > 0.000001) {
+        setState(
+          () => _error =
+              'Choose batches totalling $baseQuantity ${product.baseUnitCode}.',
+        );
+        return;
+      }
+    }
     if (product.trackingMode == 'serial') {
       if (baseQuantity != baseQuantity.truncateToDouble()) {
         setState(
@@ -2449,7 +3093,7 @@ class _AddSaleItemDialogState extends State<_AddSaleItemDialog> {
       }
     }
 
-    if (price == null || price < 0) {
+    if (price == null || !price.isFinite || price < 0) {
       setState(() {
         _error = 'Enter a valid selling price.';
       });
@@ -2476,6 +3120,13 @@ class _AddSaleItemDialogState extends State<_AddSaleItemDialog> {
     Navigator.of(context).pop(
       _SaleLine(
         product: product,
+        invoiceDescription: _descriptionController.text.trim().isEmpty
+            ? null
+            : _descriptionController.text.trim(),
+        manualPrice: _priceEdited,
+        taxOverride: widget.gstApplicable && widget.canEditTax && _taxEdited
+            ? {'gst_rate': tax}
+            : null,
 
         unit: selectedUnit,
 
@@ -2487,6 +3138,7 @@ class _AddSaleItemDialogState extends State<_AddSaleItemDialog> {
 
         taxRate: tax,
         cuttingChargeApplied: _cuttingChargeApplied,
+        batches: List<Map<String, dynamic>>.unmodifiable(_batches),
         serialNumbers: product.trackingMode == 'serial'
             ? serialNumbers
             : const [],
@@ -2504,6 +3156,7 @@ class _AddSaleItemDialogState extends State<_AddSaleItemDialog> {
 
     _taxController.dispose();
     _serialsController.dispose();
+    _descriptionController.dispose();
 
     super.dispose();
   }
@@ -2638,25 +3291,34 @@ class _AddSaleItemDialogState extends State<_AddSaleItemDialog> {
                 Expanded(
                   child: TextField(
                     controller: _priceController,
+                    onChanged: (_) => _priceEdited = true,
 
                     keyboardType: const TextInputType.numberWithOptions(
                       decimal: true,
                     ),
 
                     decoration: const InputDecoration(
-                      labelText: 'Base / Preview Price',
+                      labelText: 'Selling Rate',
 
                       prefixText: '₹ ',
 
                       border: OutlineInputBorder(),
-                      helperText:
-                          'THQ pricing is resolved again for the selected customer and quantity.',
+                      helperText: 'Your edited rate is kept for this invoice.',
                     ),
                   ),
                 ),
               ],
             ),
 
+            const SizedBox(height: 16),
+            TextField(
+              controller: _descriptionController,
+              decoration: const InputDecoration(
+                labelText: 'Invoice description (optional)',
+                helperText:
+                    'Saved on this invoice. Product master details stay available in Inventory.',
+              ),
+            ),
             const SizedBox(height: 16),
 
             Row(
@@ -2681,23 +3343,26 @@ class _AddSaleItemDialogState extends State<_AddSaleItemDialog> {
 
                 const SizedBox(width: 12),
 
-                Expanded(
-                  child: TextField(
-                    controller: _taxController,
+                if (widget.gstApplicable)
+                  Expanded(
+                    child: TextField(
+                      controller: _taxController,
+                      readOnly: !widget.canEditTax,
+                      onChanged: (_) => _taxEdited = true,
 
-                    keyboardType: const TextInputType.numberWithOptions(
-                      decimal: true,
-                    ),
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
 
-                    decoration: const InputDecoration(
-                      labelText: 'Tax Rate',
+                      decoration: const InputDecoration(
+                        labelText: 'Tax Rate',
 
-                      suffixText: '%',
+                        suffixText: '%',
 
-                      border: OutlineInputBorder(),
+                        border: OutlineInputBorder(),
+                      ),
                     ),
                   ),
-                ),
               ],
             ),
 
@@ -2774,11 +3439,20 @@ class _AddSaleItemDialogState extends State<_AddSaleItemDialog> {
             ],
             if (_product?.trackingMode == 'batch') ...[
               const SizedBox(height: 12),
-              const Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  'Batch stock will be allocated automatically using FEFO (earliest expiry first).',
+              OutlinedButton.icon(
+                onPressed: _chooseBatches,
+                icon: const Icon(Icons.layers_outlined),
+                label: const Text('Choose batch / quality'),
+              ),
+              ..._batches.map(
+                (batch) => Text(
+                  '${batch['batch_number']} • ${batch['quality_label'] ?? ''}'
+                  ' • ${batch['quantity']} ${_product?.baseUnitCode}'
+                  ' • Rate ${batch['selling_price_base'] ?? 'standard price'}',
                 ),
+              ),
+              const Text(
+                'Selected quality rates are applied when the item is added.',
               ),
             ],
 
@@ -2791,7 +3465,7 @@ class _AddSaleItemDialogState extends State<_AddSaleItemDialog> {
                 child: Text(
                   _error!,
 
-                  style: TextStyle(color: Colors.red.shade700),
+                  style: TextStyle(color: Theme.of(context).colorScheme.error),
                 ),
               ),
             ],
@@ -2806,7 +3480,10 @@ class _AddSaleItemDialogState extends State<_AddSaleItemDialog> {
           child: const Text('Cancel'),
         ),
 
-        FilledButton(onPressed: _add, child: const Text('Add Item')),
+        FilledButton(
+          onPressed: _add,
+          child: Text(widget.initialLine == null ? 'Add Item' : 'Save Item'),
+        ),
       ],
     );
   }
@@ -2817,12 +3494,14 @@ class _SaleLineRow extends StatelessWidget {
   final _SaleLine line;
   final String Function(double) money;
   final VoidCallback? onDelete;
+  final VoidCallback? onEdit;
 
   const _SaleLineRow({
     required this.index,
     required this.line,
     required this.money,
     required this.onDelete,
+    this.onEdit,
   });
 
   String _quantity(double value) =>
@@ -2838,67 +3517,199 @@ class _SaleLineRow extends StatelessWidget {
       ),
     );
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
-      decoration: BoxDecoration(
-        border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
-      ),
-      child: Row(
-        children: [
-          cell(Text('$index'), 1),
-          cell(
-            Text(
-              line.product.sku,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-            2,
+    final productDetails = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          line.product.productName,
+          style: const TextStyle(fontWeight: FontWeight.w700),
+        ),
+        Text('SKU ${line.product.sku}', style: const TextStyle(fontSize: 11)),
+        if (line.invoiceDescription?.trim().isNotEmpty == true)
+          Text(line.invoiceDescription!, style: const TextStyle(fontSize: 12)),
+        ...line.batches.map(
+          (batch) => Text(
+            '${batch['batch_number']} · ${batch['quality_label'] ?? ''}'
+            ' · ${batch['quantity']} ${line.product.baseUnitCode}'
+            ' @ ${batch['selling_price_base'] ?? 'standard price'}',
+            style: const TextStyle(fontSize: 11),
           ),
-          cell(
-            Column(
+        ),
+        if ((line.product.partNumber ?? '').isNotEmpty)
+          Text(line.product.partNumber!, style: const TextStyle(fontSize: 11)),
+        if (line.cuttingCharge > 0)
+          Text(
+            'Cutting ${money(line.cuttingCharge)}',
+            style: const TextStyle(fontSize: 11),
+          ),
+      ],
+    );
+    final controls = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        IconButton(
+          tooltip: 'Edit product details',
+          onPressed: onEdit,
+          icon: const Icon(Icons.edit_outlined),
+        ),
+        IconButton(
+          tooltip: 'Remove product',
+          onPressed: onDelete,
+          icon: const Icon(Icons.delete_outline),
+        ),
+      ],
+    );
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth < 780 ||
+            MediaQuery.textScalerOf(context).scale(1) > 1.3) {
+          Widget detail(String label, String value) => SizedBox(
+            width: (constraints.maxWidth - 10) / 2,
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  line.product.productName,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontWeight: FontWeight.w700),
+                  label,
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
                 ),
-                if ((line.product.partNumber ?? '').isNotEmpty)
-                  Text(
-                    line.product.partNumber!,
-                    style: const TextStyle(fontSize: 11, color: Colors.black54),
-                  ),
-                if (line.cuttingCharge > 0)
-                  Text(
-                    'Cutting ${money(line.cuttingCharge)}',
-                    style: const TextStyle(fontSize: 10, color: Colors.black54),
-                  ),
+                Text(
+                  value,
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
               ],
             ),
-            4,
-          ),
-          cell(Text('${_quantity(line.quantity)} ${line.unitCode}'), 2),
-          cell(Text(money(line.unitPrice)), 2),
-          cell(Text(money(line.discount)), 2),
-          cell(Text('${line.taxRate.toStringAsFixed(0)}%'), 1),
-          cell(
-            Text(
-              money(line.total),
-              style: const TextStyle(fontWeight: FontWeight.w800),
+          );
+          return Container(
+            padding: const EdgeInsets.symmetric(vertical: 10),
+            decoration: BoxDecoration(
+              border: Border(
+                bottom: BorderSide(
+                  color: Theme.of(context).colorScheme.outline,
+                ),
+              ),
             ),
-            2,
-          ),
-          SizedBox(
-            width: 44,
-            child: IconButton(
-              tooltip: 'Remove product',
-              onPressed: onDelete,
-              icon: const Icon(Icons.delete_outline),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('$index. '),
+                    Expanded(child: productDetails),
+                    controls,
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 10,
+                  runSpacing: 8,
+                  children: [
+                    detail(
+                      'Qty',
+                      '${_quantity(line.quantity)} ${line.unitCode}',
+                    ),
+                    detail('Rate', money(line.unitPrice)),
+                    detail('Discount', money(line.discount)),
+                    detail('GST', '${line.taxRate.toStringAsFixed(0)}%'),
+                    detail('Amount', money(line.total)),
+                  ],
+                ),
+              ],
+            ),
+          );
+        }
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+          decoration: BoxDecoration(
+            border: Border(
+              bottom: BorderSide(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
             ),
           ),
-        ],
-      ),
+          child: Row(
+            children: [
+              cell(Text('$index'), 1),
+              cell(
+                Text(
+                  line.product.sku,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                2,
+              ),
+              cell(
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      line.product.productName,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                    ...line.batches.map(
+                      (batch) => Text(
+                        '${batch['batch_number']} • ${batch['quality_label'] ?? ''}'
+                        ' • ${batch['quantity']} ${line.product.baseUnitCode}'
+                        ' @ ${batch['selling_price_base'] ?? 'standard price'}',
+                        style: const TextStyle(fontSize: 11),
+                      ),
+                    ),
+                    if ((line.product.partNumber ?? '').isNotEmpty)
+                      Text(
+                        line.product.partNumber!,
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    if (line.cuttingCharge > 0)
+                      Text(
+                        'Cutting ${money(line.cuttingCharge)}',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                  ],
+                ),
+                4,
+              ),
+              cell(Text('${_quantity(line.quantity)} ${line.unitCode}'), 2),
+              cell(Text(money(line.unitPrice)), 2),
+              cell(Text(money(line.discount)), 2),
+              cell(Text('${line.taxRate.toStringAsFixed(0)}%'), 1),
+              cell(
+                Text(
+                  money(line.total),
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+                2,
+              ),
+              SizedBox(
+                width: 44,
+                child: IconButton(
+                  tooltip: 'Edit product details',
+                  onPressed: onEdit,
+                  icon: const Icon(Icons.edit_outlined),
+                ),
+              ),
+              SizedBox(
+                width: 44,
+                child: IconButton(
+                  tooltip: 'Remove product',
+                  onPressed: onDelete,
+                  icon: const Icon(Icons.delete_outline),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }
@@ -2917,36 +3728,51 @@ class _SaleCard extends StatelessWidget {
     return Container(
       width: double.infinity,
 
-      padding: const EdgeInsets.all(22),
+      padding: const EdgeInsets.all(14),
 
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).colorScheme.surface,
 
         borderRadius: BorderRadius.circular(18),
 
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
+        ),
       ),
 
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
 
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  title,
-
-                  style: const TextStyle(
-                    fontSize: 20,
-
-                    fontWeight: FontWeight.bold,
-                  ),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final heading = Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
                 ),
-              ),
-
-              ?trailing,
-            ],
+              );
+              if (constraints.maxWidth < 520 ||
+                  MediaQuery.textScalerOf(context).scale(1) > 1.3) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    heading,
+                    if (trailing != null) ...[
+                      const SizedBox(height: 6),
+                      Align(alignment: Alignment.centerLeft, child: trailing),
+                    ],
+                  ],
+                );
+              }
+              return Row(
+                children: [
+                  Expanded(child: heading),
+                  ?trailing,
+                ],
+              );
+            },
           ),
 
           const SizedBox(height: 10),
@@ -3015,20 +3841,17 @@ class _SalePaymentBadge extends StatelessWidget {
 
     switch (status) {
       case 'paid':
-        background = Colors.green.shade50;
-
-        foreground = Colors.green.shade700;
+        background = Theme.of(context).colorScheme.primary;
 
       case 'partial':
-        background = Colors.orange.shade50;
-
-        foreground = Colors.orange.shade800;
+        background = context.thqSemanticColors.warning;
 
       default:
-        background = Colors.red.shade50;
-
-        foreground = Colors.red.shade700;
+        background = Theme.of(context).colorScheme.error;
     }
+    foreground = background.computeLuminance() > .179
+        ? Colors.black
+        : Colors.white;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),

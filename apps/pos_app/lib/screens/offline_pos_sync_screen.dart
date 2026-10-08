@@ -1,3 +1,4 @@
+import 'package:thq_ui/thq_ui.dart';
 import 'package:flutter/material.dart';
 
 import '../models/client_session.dart';
@@ -63,10 +64,7 @@ class _OfflinePosSyncScreenState extends State<OfflinePosSyncScreen> {
         return _rows.where((row) => row.status == 'synced').toList();
       case _QueueView.notSynced:
         return _rows
-            .where(
-              (row) =>
-                  row.status != 'synced' && row.status != 'cancelled',
-            )
+            .where((row) => row.status != 'synced' && row.status != 'cancelled')
             .toList();
       case _QueueView.all:
         return _rows;
@@ -139,13 +137,13 @@ class _OfflinePosSyncScreenState extends State<OfflinePosSyncScreen> {
   Color _statusColor(BuildContext context, String status) {
     switch (status) {
       case 'synced':
-        return Colors.green;
+        return Theme.of(context).colorScheme.primary;
       case 'conflict':
-        return Colors.orange;
+        return context.thqSemanticColors.warning;
       case 'error':
         return Theme.of(context).colorScheme.error;
       case 'cancelled':
-        return Colors.grey;
+        return Theme.of(context).colorScheme.onSurfaceVariant;
       default:
         return Theme.of(context).colorScheme.primary;
     }
@@ -188,12 +186,12 @@ class _OfflinePosSyncScreenState extends State<OfflinePosSyncScreen> {
                         'Offline & Sync',
                         style: TextStyle(
                           fontSize: 14.5,
-                          fontWeight: FontWeight.w900,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                       Text(
                         'Synced and non-synced transactions are separated below',
-                        style: TextStyle(fontSize: 9.5),
+                        style: TextStyle(fontSize: 11),
                       ),
                     ],
                   ),
@@ -241,11 +239,7 @@ class _OfflinePosSyncScreenState extends State<OfflinePosSyncScreen> {
                 ),
                 const SizedBox(width: 5),
                 Expanded(
-                  child: _Stat(
-                    'Error',
-                    _summary.error,
-                    Icons.error_outline,
-                  ),
+                  child: _Stat('Error', _summary.error, Icons.error_outline),
                 ),
                 const SizedBox(width: 5),
                 Expanded(
@@ -301,7 +295,10 @@ class _OfflinePosSyncScreenState extends State<OfflinePosSyncScreen> {
                 _message!,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700),
+                style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ),
           ],
@@ -319,7 +316,9 @@ class _OfflinePosSyncScreenState extends State<OfflinePosSyncScreen> {
                   Container(
                     height: 34,
                     padding: const EdgeInsets.symmetric(horizontal: 9),
-                    color: scheme.surfaceContainerHighest.withValues(alpha: .45),
+                    color: scheme.surfaceContainerHighest.withValues(
+                      alpha: .45,
+                    ),
                     child: const Row(
                       children: [
                         Expanded(
@@ -327,8 +326,8 @@ class _OfflinePosSyncScreenState extends State<OfflinePosSyncScreen> {
                           child: Text(
                             'Invoice',
                             style: TextStyle(
-                              fontSize: 10.5,
-                              fontWeight: FontWeight.w900,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
                         ),
@@ -337,8 +336,8 @@ class _OfflinePosSyncScreenState extends State<OfflinePosSyncScreen> {
                           child: Text(
                             'Created / Attempts',
                             style: TextStyle(
-                              fontSize: 10.5,
-                              fontWeight: FontWeight.w900,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
                         ),
@@ -347,8 +346,8 @@ class _OfflinePosSyncScreenState extends State<OfflinePosSyncScreen> {
                           child: Text(
                             'Server / Conflict',
                             style: TextStyle(
-                              fontSize: 10.5,
-                              fontWeight: FontWeight.w900,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
                         ),
@@ -358,8 +357,8 @@ class _OfflinePosSyncScreenState extends State<OfflinePosSyncScreen> {
                             'Status',
                             textAlign: TextAlign.center,
                             style: TextStyle(
-                              fontSize: 10.5,
-                              fontWeight: FontWeight.w900,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
                         ),
@@ -374,8 +373,8 @@ class _OfflinePosSyncScreenState extends State<OfflinePosSyncScreen> {
                               _view == _QueueView.synced
                                   ? 'No synced transactions yet.'
                                   : _view == _QueueView.notSynced
-                                      ? 'Nothing is waiting to sync.'
-                                      : 'No local transactions yet.',
+                                  ? 'Nothing is waiting to sync.'
+                                  : 'No local transactions yet.',
                               style: const TextStyle(fontSize: 11),
                             ),
                           )
@@ -397,10 +396,7 @@ class _OfflinePosSyncScreenState extends State<OfflinePosSyncScreen> {
               'Local database: ${_local.databasePath ?? 'Initializing...'}',
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 9,
-                color: scheme.onSurfaceVariant,
-              ),
+              style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant),
             ),
           ),
         ],
@@ -461,14 +457,14 @@ class _OfflinePosSyncScreenState extends State<OfflinePosSyncScreen> {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
-                          fontSize: 10.5,
-                          fontWeight: FontWeight.w800,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                       Text(
                         '${widget.session.currencyCode} ${total.toStringAsFixed(2)}',
                         style: TextStyle(
-                          fontSize: 9,
+                          fontSize: 11,
                           color: scheme.onSurfaceVariant,
                         ),
                       ),
@@ -485,7 +481,7 @@ class _OfflinePosSyncScreenState extends State<OfflinePosSyncScreen> {
               '${row.attempts} attempt(s)',
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 10),
+              style: const TextStyle(fontSize: 11),
             ),
           ),
           Expanded(
@@ -494,14 +490,11 @@ class _OfflinePosSyncScreenState extends State<OfflinePosSyncScreen> {
               serverNo != null && serverNo.isNotEmpty
                   ? 'Server $serverNo'
                   : row.conflictCode != null
-                      ? '${row.conflictCode}: ${row.conflictMessage ?? ''}'
-                      : '-',
+                  ? '${row.conflictCode}: ${row.conflictMessage ?? ''}'
+                  : '-',
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 10,
-                color: scheme.onSurfaceVariant,
-              ),
+              style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant),
             ),
           ),
           SizedBox(
@@ -522,8 +515,8 @@ class _OfflinePosSyncScreenState extends State<OfflinePosSyncScreen> {
                   row.status.toUpperCase(),
                   maxLines: 1,
                   style: TextStyle(
-                    fontSize: 9,
-                    fontWeight: FontWeight.w900,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
                     color: _statusColor(context, row.status),
                   ),
                 ),
@@ -590,13 +583,13 @@ class _Stat extends StatelessWidget {
                   '$value',
                   style: const TextStyle(
                     fontSize: 11,
-                    fontWeight: FontWeight.w900,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
                 Text(
                   label,
                   style: TextStyle(
-                    fontSize: 10,
+                    fontSize: 11,
                     color: scheme.onSurfaceVariant,
                   ),
                 ),

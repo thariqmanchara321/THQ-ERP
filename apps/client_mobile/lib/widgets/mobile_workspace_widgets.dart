@@ -98,18 +98,22 @@ class WorkspaceHero extends StatelessWidget {
                 height: 42,
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.15),
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.surface.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(14),
                   border: Border.all(
-                    color: Colors.white.withValues(alpha: 0.16),
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.surface.withValues(alpha: 0.16),
                   ),
                 ),
-                child: const Text(
+                child: Text(
                   'T',
                   style: TextStyle(
-                    color: Colors.white,
+                    color: scheme.onPrimary,
                     fontSize: 19,
-                    fontWeight: FontWeight.w900,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ),
@@ -118,12 +122,12 @@ class WorkspaceHero extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                    Text(
                       'THQ BUSINESS',
                       style: TextStyle(
-                        color: Colors.white70,
-                        fontSize: 10,
-                        fontWeight: FontWeight.w900,
+                        color: scheme.onPrimary.withValues(alpha: .8),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
                         letterSpacing: 1.05,
                       ),
                     ),
@@ -132,16 +136,17 @@ class WorkspaceHero extends StatelessWidget {
                       session.businessName,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Colors.white,
+                      style: TextStyle(
+                        color: scheme.onPrimary,
                         fontSize: 18,
-                        fontWeight: FontWeight.w900,
+                        fontWeight: FontWeight.w600,
                         letterSpacing: -0.35,
                       ),
                     ),
                   ],
                 ),
               ),
+              ThqAppearanceButton(foregroundColor: scheme.onPrimary),
               _HeroIconButton(
                 tooltip: 'Search business',
                 icon: Icons.search_rounded,
@@ -166,9 +171,9 @@ class WorkspaceHero extends StatelessWidget {
           const SizedBox(height: 14),
           Row(
             children: [
-              const Icon(
+              Icon(
                 Icons.store_mall_directory_outlined,
-                color: Colors.white70,
+                color: scheme.onPrimary.withValues(alpha: .8),
                 size: 15,
               ),
               const SizedBox(width: 5),
@@ -177,8 +182,8 @@ class WorkspaceHero extends StatelessWidget {
                   locationLabel,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Colors.white70,
+                  style: TextStyle(
+                    color: scheme.onPrimary.withValues(alpha: .8),
                     fontSize: 11.5,
                     fontWeight: FontWeight.w700,
                   ),
@@ -188,9 +193,9 @@ class WorkspaceHero extends StatelessWidget {
                 session.username,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: Colors.white70,
-                  fontSize: 10.5,
+                style: TextStyle(
+                  color: scheme.onPrimary.withValues(alpha: .8),
+                  fontSize: 11,
                   fontWeight: FontWeight.w700,
                 ),
               ),
@@ -200,9 +205,15 @@ class WorkspaceHero extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 13),
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.13),
+              color: Theme.of(
+                context,
+              ).colorScheme.surface.withValues(alpha: 0.13),
               borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.14)),
+              border: Border.all(
+                color: Theme.of(
+                  context,
+                ).colorScheme.surface.withValues(alpha: 0.14),
+              ),
             ),
             child: Column(
               children: [
@@ -376,7 +387,7 @@ class WorkspaceRecordCard extends StatelessWidget {
               trailing!,
               style: Theme.of(
                 context,
-              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w900),
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
             ),
           ],
           if (fields.isNotEmpty) ...[
@@ -500,8 +511,10 @@ class _HeroIconButton extends StatelessWidget {
     tooltip: tooltip,
     onPressed: onPressed,
     style: IconButton.styleFrom(
-      foregroundColor: Colors.white,
-      backgroundColor: Colors.white.withValues(alpha: 0.13),
+      foregroundColor: Theme.of(context).colorScheme.onPrimary,
+      backgroundColor: Theme.of(
+        context,
+      ).colorScheme.surface.withValues(alpha: 0.13),
     ),
     icon: Icon(icon, size: 20),
   );
@@ -523,19 +536,19 @@ class _HeroMetric extends StatelessWidget {
           value,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: const TextStyle(
-            color: Colors.white,
+          style: TextStyle(
+            color: Theme.of(context).colorScheme.onPrimary,
             fontSize: 14,
-            fontWeight: FontWeight.w900,
+            fontWeight: FontWeight.w600,
             letterSpacing: -0.2,
           ),
         ),
         const SizedBox(height: 2),
         Text(
           label,
-          style: const TextStyle(
-            color: Colors.white70,
-            fontSize: 9.5,
+          style: TextStyle(
+            color: Theme.of(context).colorScheme.onPrimary,
+            fontSize: 11,
             fontWeight: FontWeight.w700,
           ),
         ),
@@ -549,7 +562,7 @@ class _HeroDivider extends StatelessWidget {
   Widget build(BuildContext context) => Container(
     width: 1,
     height: 32,
-    color: Colors.white.withValues(alpha: 0.18),
+    color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.18),
   );
 }
 
@@ -572,14 +585,14 @@ class _RecordFieldView extends StatelessWidget {
           '${field.label}: ',
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
             color: scheme.onSurfaceVariant,
-            fontSize: 10.5,
+            fontSize: 11,
           ),
         ),
         Text(
           field.value,
           style: Theme.of(context).textTheme.bodySmall?.copyWith(
-            fontWeight: FontWeight.w800,
-            fontSize: 10.5,
+            fontWeight: FontWeight.w600,
+            fontSize: 11,
           ),
         ),
       ],

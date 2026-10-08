@@ -67,9 +67,8 @@ class _MobileCashierShiftScreenState extends State<MobileCashierShiftScreen> {
       if (!mounted) return;
       _note.clear();
       _reload();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Cashier shift opened.')),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Cashier shift opened.')));
     } catch (error) {
       if (mounted) setState(() => _error = error.toString());
     } finally {
@@ -85,7 +84,9 @@ class _MobileCashierShiftScreenState extends State<MobileCashierShiftScreen> {
     }
     final id = shift['id']?.toString() ?? shift['shift_id']?.toString() ?? '';
     if (id.isEmpty) {
-      setState(() => _error = 'Open shift identity is missing. Refresh and retry.');
+      setState(
+        () => _error = 'Open shift identity is missing. Refresh and retry.',
+      );
       return;
     }
     setState(() {
@@ -159,60 +160,64 @@ class _MobileCashierShiftScreenState extends State<MobileCashierShiftScreen> {
   }
 
   Widget _terminalCard() => Card(
-        child: Padding(
-          padding: const EdgeInsets.all(14),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(widget.session.locationName,
-                  style: Theme.of(context).textTheme.titleMedium),
-              const SizedBox(height: 3),
-              Text(
-                '${widget.session.deviceName} • ${widget.session.deviceCode}\n${widget.session.username}',
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-            ],
+    child: Padding(
+      padding: const EdgeInsets.all(14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            widget.session.locationName,
+            style: Theme.of(context).textTheme.titleMedium,
           ),
-        ),
-      );
+          const SizedBox(height: 3),
+          Text(
+            '${widget.session.deviceName} • ${widget.session.deviceCode}\n${widget.session.username}',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+        ],
+      ),
+    ),
+  );
 
   Widget _startShiftCard() => Card(
-        child: Padding(
-          padding: const EdgeInsets.all(14),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text('Start shift', style: Theme.of(context).textTheme.titleLarge),
-              const SizedBox(height: 4),
-              Text(
-                'Opening a shift uses the existing terminal/location permission checks.',
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-              const SizedBox(height: 14),
-              TextField(
-                controller: _openingCash,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                decoration: const InputDecoration(
-                  labelText: 'Opening cash',
-                  prefixIcon: Icon(Icons.payments_outlined),
-                ),
-              ),
-              const SizedBox(height: 10),
-              TextField(
-                controller: _note,
-                maxLines: 2,
-                decoration: const InputDecoration(labelText: 'Opening note (optional)'),
-              ),
-              const SizedBox(height: 12),
-              FilledButton.icon(
-                onPressed: _busy ? null : _openShift,
-                icon: const Icon(Icons.play_circle_outline_rounded),
-                label: Text(_busy ? 'Opening…' : 'Open shift'),
-              ),
-            ],
+    child: Padding(
+      padding: const EdgeInsets.all(14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text('Start shift', style: Theme.of(context).textTheme.titleLarge),
+          const SizedBox(height: 4),
+          Text(
+            'Opening a shift uses the existing terminal/location permission checks.',
+            style: Theme.of(context).textTheme.bodySmall,
           ),
-        ),
-      );
+          const SizedBox(height: 14),
+          TextField(
+            controller: _openingCash,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: const InputDecoration(
+              labelText: 'Opening cash',
+              prefixIcon: Icon(Icons.payments_outlined),
+            ),
+          ),
+          const SizedBox(height: 10),
+          TextField(
+            controller: _note,
+            maxLines: 2,
+            decoration: const InputDecoration(
+              labelText: 'Opening note (optional)',
+            ),
+          ),
+          const SizedBox(height: 12),
+          FilledButton.icon(
+            onPressed: _busy ? null : _openShift,
+            icon: const Icon(Icons.play_circle_outline_rounded),
+            label: Text(_busy ? 'Opening…' : 'Open shift'),
+          ),
+        ],
+      ),
+    ),
+  );
 
   Widget _openShiftCard(Map<String, dynamic> shift) {
     final expected = numberValue(shift['expected_cash_now']);
@@ -254,11 +259,17 @@ class _MobileCashierShiftScreenState extends State<MobileCashierShiftScreen> {
             _metric('Cash expenses', shift['cash_expenses']),
             _metric('Refunds', shift['refunds']),
             const Divider(height: 24),
-            _metric('Expected cash now', shift['expected_cash_now'], strong: true),
+            _metric(
+              'Expected cash now',
+              shift['expected_cash_now'],
+              strong: true,
+            ),
             const SizedBox(height: 12),
             TextField(
               controller: _declaredCash,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
               decoration: const InputDecoration(
                 labelText: 'Declared cash at close',
                 prefixIcon: Icon(Icons.account_balance_wallet_outlined),
@@ -268,7 +279,9 @@ class _MobileCashierShiftScreenState extends State<MobileCashierShiftScreen> {
             TextField(
               controller: _note,
               maxLines: 2,
-              decoration: const InputDecoration(labelText: 'Closing note (optional)'),
+              decoration: const InputDecoration(
+                labelText: 'Closing note (optional)',
+              ),
             ),
             const SizedBox(height: 12),
             FilledButton.icon(
@@ -283,17 +296,19 @@ class _MobileCashierShiftScreenState extends State<MobileCashierShiftScreen> {
   }
 
   Widget _metric(String label, dynamic value, {bool strong = false}) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 4),
-        child: Row(
-          children: [
-            Expanded(child: Text(label)),
-            Text(
-              _money(value),
-              style: TextStyle(fontWeight: strong ? FontWeight.w900 : FontWeight.w700),
-            ),
-          ],
+    padding: const EdgeInsets.symmetric(vertical: 4),
+    child: Row(
+      children: [
+        Expanded(child: Text(label)),
+        Text(
+          _money(value),
+          style: TextStyle(
+            fontWeight: strong ? FontWeight.w600 : FontWeight.w700,
+          ),
         ),
-      );
+      ],
+    ),
+  );
 
   Widget _message(String text, {bool error = false}) {
     final scheme = Theme.of(context).colorScheme;
@@ -314,20 +329,20 @@ class _MobileCashierShiftScreenState extends State<MobileCashierShiftScreen> {
   }
 
   Widget _bodyError(String message) => Center(
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(message, textAlign: TextAlign.center),
-              const SizedBox(height: 12),
-              FilledButton.icon(
-                onPressed: _reload,
-                icon: const Icon(Icons.refresh_rounded),
-                label: const Text('Retry'),
-              ),
-            ],
+    child: Padding(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(message, textAlign: TextAlign.center),
+          const SizedBox(height: 12),
+          FilledButton.icon(
+            onPressed: _reload,
+            icon: const Icon(Icons.refresh_rounded),
+            label: const Text('Retry'),
           ),
-        ),
-      );
+        ],
+      ),
+    ),
+  );
 }

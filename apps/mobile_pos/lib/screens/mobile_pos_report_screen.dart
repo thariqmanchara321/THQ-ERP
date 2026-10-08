@@ -41,7 +41,9 @@ class _MobilePosReportScreenState extends State<MobilePosReportScreen> {
       widget.session.deviceId,
       limit: 1000,
     );
-    final localForDay = localRows.where((row) => _sameDay(row.createdAt.toLocal(), _day)).toList();
+    final localForDay = localRows
+        .where((row) => _sameDay(row.createdAt.toLocal(), _day))
+        .toList();
 
     Map<String, dynamic> summary = const {};
     Map<String, dynamic> detail = const {};
@@ -121,14 +123,14 @@ class _MobilePosReportScreenState extends State<MobilePosReportScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF2F6FA),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: Colors.white,
-        surfaceTintColor: Colors.white,
+        backgroundColor: Theme.of(context).colorScheme.surface,
+        surfaceTintColor: Theme.of(context).colorScheme.surface,
         elevation: 0,
         title: const Text(
           'Reports',
-          style: TextStyle(fontWeight: FontWeight.w900),
+          style: TextStyle(fontWeight: FontWeight.w600),
         ),
         actions: [
           IconButton(
@@ -167,12 +169,12 @@ class _MobilePosReportScreenState extends State<MobilePosReportScreen> {
               .toList();
           final localNotSynced = data.localRows
               .where(
-                (row) =>
-                    row.status != 'synced' && row.status != 'cancelled',
+                (row) => row.status != 'synced' && row.status != 'cancelled',
               )
               .length;
-          final localSynced =
-              data.localRows.where((row) => row.status == 'synced').length;
+          final localSynced = data.localRows
+              .where((row) => row.status == 'synced')
+              .length;
 
           final serverAvailable = summary.isNotEmpty;
           final localTotal = data.localRows.fold<double>(
@@ -194,10 +196,10 @@ class _MobilePosReportScreenState extends State<MobilePosReportScreen> {
           final collected = summary.containsKey('total_collected')
               ? numberValue(summary['total_collected'])
               : numberValue(summary['cash']) +
-                  numberValue(summary['upi']) +
-                  numberValue(summary['card']) +
-                  numberValue(summary['bank']) +
-                  numberValue(summary['other_payments']);
+                    numberValue(summary['upi']) +
+                    numberValue(summary['card']) +
+                    numberValue(summary['bank']) +
+                    numberValue(summary['other_payments']);
 
           return RefreshIndicator(
             onRefresh: () async {
@@ -215,8 +217,8 @@ class _MobilePosReportScreenState extends State<MobilePosReportScreen> {
                     final columns = constraints.maxWidth >= 900
                         ? 4
                         : constraints.maxWidth >= 600
-                            ? 3
-                            : 2;
+                        ? 3
+                        : 2;
                     final cards = <Widget>[
                       _metric(
                         'Gross sales',
@@ -328,18 +330,18 @@ class _MobilePosReportScreenState extends State<MobilePosReportScreen> {
                           ],
                         )
                       : data.localRows.isNotEmpty
-                          ? Column(
-                              children: [
-                                for (final invoice in data.localRows.take(100))
-                                  _localInvoiceRow(invoice),
-                              ],
-                            )
-                          : const Padding(
-                              padding: EdgeInsets.symmetric(vertical: 24),
-                              child: Center(
-                                child: Text('No transactions for this date.'),
-                              ),
-                            ),
+                      ? Column(
+                          children: [
+                            for (final invoice in data.localRows.take(100))
+                              _localInvoiceRow(invoice),
+                          ],
+                        )
+                      : const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 24),
+                          child: Center(
+                            child: Text('No transactions for this date.'),
+                          ),
+                        ),
                 ),
               ],
             ),
@@ -353,9 +355,9 @@ class _MobilePosReportScreenState extends State<MobilePosReportScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFDDE5EE)),
+        border: Border.all(color: Theme.of(context).colorScheme.outline),
       ),
       child: Row(
         children: [
@@ -368,7 +370,7 @@ class _MobilePosReportScreenState extends State<MobilePosReportScreen> {
                 Text(
                   _dayText,
                   style: const TextStyle(
-                    fontWeight: FontWeight.w900,
+                    fontWeight: FontWeight.w600,
                     fontSize: 15,
                   ),
                 ),
@@ -376,9 +378,9 @@ class _MobilePosReportScreenState extends State<MobilePosReportScreen> {
                   serverAvailable
                       ? 'Server report + local sync status'
                       : 'Offline/local report${error == null ? '' : ' • server unavailable'}',
-                  style: const TextStyle(
-                    color: Color(0xFF758296),
-                    fontSize: 10.5,
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    fontSize: 11,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -399,7 +401,7 @@ class _MobilePosReportScreenState extends State<MobilePosReportScreen> {
     return Container(
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(13),
         border: Border.all(color: const Color(0xFFE4EAF1)),
       ),
@@ -409,10 +411,14 @@ class _MobilePosReportScreenState extends State<MobilePosReportScreen> {
             width: 36,
             height: 36,
             decoration: BoxDecoration(
-              color: const Color(0xFFEAF3FF),
+              color: Theme.of(context).colorScheme.primaryContainer,
               borderRadius: BorderRadius.circular(10),
             ),
-            child: Icon(icon, color: const Color(0xFF147AF3), size: 19),
+            child: Icon(
+              icon,
+              color: Theme.of(context).colorScheme.primary,
+              size: 19,
+            ),
           ),
           const SizedBox(width: 9),
           Expanded(
@@ -424,9 +430,9 @@ class _MobilePosReportScreenState extends State<MobilePosReportScreen> {
                   label,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Color(0xFF7A8798),
-                    fontSize: 9.5,
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    fontSize: 11,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -434,10 +440,10 @@ class _MobilePosReportScreenState extends State<MobilePosReportScreen> {
                   value,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Color(0xFF14233B),
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurface,
                     fontSize: 13,
-                    fontWeight: FontWeight.w900,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ],
@@ -452,19 +458,19 @@ class _MobilePosReportScreenState extends State<MobilePosReportScreen> {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFDDE5EE)),
+        border: Border.all(color: Theme.of(context).colorScheme.outline),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             title,
-            style: const TextStyle(
-              color: Color(0xFF14233B),
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.onSurface,
               fontSize: 14,
-              fontWeight: FontWeight.w900,
+              fontWeight: FontWeight.w600,
             ),
           ),
           const SizedBox(height: 10),
@@ -487,17 +493,17 @@ class _MobilePosReportScreenState extends State<MobilePosReportScreen> {
         children: [
           Text(
             label,
-            style: const TextStyle(
-              color: Color(0xFF7A8798),
-              fontSize: 9.5,
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+              fontSize: 11,
               fontWeight: FontWeight.w700,
             ),
           ),
           Text(
             _money(raw),
-            style: const TextStyle(
-              color: Color(0xFF14233B),
-              fontWeight: FontWeight.w900,
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.onSurface,
+              fontWeight: FontWeight.w600,
             ),
           ),
         ],
@@ -514,16 +520,13 @@ class _MobilePosReportScreenState extends State<MobilePosReportScreen> {
       ),
       child: Row(
         children: [
-          Icon(icon, size: 17, color: const Color(0xFF147AF3)),
+          Icon(icon, size: 17, color: Theme.of(context).colorScheme.primary),
           const SizedBox(width: 7),
           Expanded(
             child: Text(
               '$label\n$value',
               maxLines: 2,
-              style: const TextStyle(
-                fontSize: 10.5,
-                fontWeight: FontWeight.w800,
-              ),
+              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
             ),
           ),
         ],
@@ -532,7 +535,8 @@ class _MobilePosReportScreenState extends State<MobilePosReportScreen> {
   }
 
   Widget _serverInvoiceRow(Map<String, dynamic> row) {
-    final number = row['invoice_number']?.toString() ??
+    final number =
+        row['invoice_number']?.toString() ??
         row['sale_number']?.toString() ??
         'Invoice';
     final customer = row['customer_name']?.toString() ?? 'Walk-in Customer';
@@ -567,8 +571,10 @@ class _MobilePosReportScreenState extends State<MobilePosReportScreen> {
   }) {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 8),
-      decoration: const BoxDecoration(
-        border: Border(bottom: BorderSide(color: Color(0xFFEDF1F5))),
+      decoration: BoxDecoration(
+        border: Border(
+          bottom: BorderSide(color: Theme.of(context).colorScheme.outline),
+        ),
       ),
       child: Row(
         children: [
@@ -582,38 +588,32 @@ class _MobilePosReportScreenState extends State<MobilePosReportScreen> {
                   title,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontWeight: FontWeight.w800),
+                  style: const TextStyle(fontWeight: FontWeight.w600),
                 ),
                 Text(
                   subtitle,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Color(0xFF7A8798),
-                    fontSize: 10,
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    fontSize: 11,
                   ),
                 ),
               ],
             ),
           ),
           const SizedBox(width: 8),
-          Text(
-            amount,
-            style: const TextStyle(fontWeight: FontWeight.w900),
-          ),
+          Text(amount, style: const TextStyle(fontWeight: FontWeight.w600)),
           const SizedBox(width: 8),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
             decoration: BoxDecoration(
-              color: const Color(0xFFF0F5FA),
+              color: Theme.of(context).colorScheme.surface,
               borderRadius: BorderRadius.circular(999),
             ),
             child: Text(
               status.toUpperCase(),
-              style: const TextStyle(
-                fontSize: 8.5,
-                fontWeight: FontWeight.w900,
-              ),
+              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
             ),
           ),
         ],

@@ -28,6 +28,7 @@ class InventoryProduct {
   final double reorderLevel;
   final double stockQuantity;
   final String trackingMode;
+  final int trackingRevision;
   final double? trackedStockQuantity;
   final String productStatus;
   final String variantStatus;
@@ -61,6 +62,7 @@ class InventoryProduct {
     required this.reorderLevel,
     required this.stockQuantity,
     required this.trackingMode,
+    this.trackingRevision = 0,
     required this.trackedStockQuantity,
     required this.productStatus,
     required this.variantStatus,
@@ -154,6 +156,7 @@ class InventoryProduct {
       reorderLevel: number(map['reorder_level']),
       stockQuantity: number(map['stock_quantity']),
       trackingMode: map['tracking_mode']?.toString() ?? 'none',
+      trackingRevision: number(map['tracking_revision']).toInt(),
       trackedStockQuantity: map['tracked_stock_quantity'] == null
           ? null
           : number(map['tracked_stock_quantity']),

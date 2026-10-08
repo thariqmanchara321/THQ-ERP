@@ -106,7 +106,7 @@ class _SupportScreenState extends State<SupportScreen> {
                         'Support Centre',
                         style: TextStyle(
                           fontSize: 14.5,
-                          fontWeight: FontWeight.w900,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                       Text(
@@ -114,7 +114,7 @@ class _SupportScreenState extends State<SupportScreen> {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                          fontSize: 8.3,
+                          fontSize: 11,
                           color: scheme.onSurfaceVariant,
                         ),
                       ),

@@ -73,7 +73,7 @@ class _BankReconciliationV500ScreenState
     final description = TextEditingController();
     var date = DateTime.now();
     var direction = 'credit';
-    final ok = await showDialog<bool>(
+    final ok = await showThqDialog<bool>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setDialog) => AlertDialog(
@@ -179,7 +179,7 @@ class _BankReconciliationV500ScreenState
 
   Future<void> _match(Map<String, dynamic> line) async {
     String? selected;
-    final ok = await showDialog<bool>(
+    final ok = await showThqDialog<bool>(
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setDialog) => AlertDialog(

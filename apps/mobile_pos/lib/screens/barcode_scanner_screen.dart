@@ -14,11 +14,11 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: Theme.of(context).colorScheme.onSurface,
       appBar: AppBar(
         toolbarHeight: 56,
-        foregroundColor: Colors.white,
-        backgroundColor: Colors.black,
+        foregroundColor: Theme.of(context).colorScheme.surface,
+        backgroundColor: Theme.of(context).colorScheme.onSurface,
         title: const Text('Scan barcode / serial'),
       ),
       body: Stack(
@@ -44,12 +44,15 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
                 height: 170,
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(18),
-                  border: Border.all(color: Colors.white, width: 2),
+                  border: Border.all(
+                    color: Theme.of(context).colorScheme.surface,
+                    width: 2,
+                  ),
                 ),
               ),
             ),
           ),
-          const SafeArea(
+          SafeArea(
             child: Align(
               alignment: Alignment.bottomCenter,
               child: Padding(
@@ -64,7 +67,7 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
                     child: Text(
                       'Align barcode, QR or serial inside the frame',
                       style: TextStyle(
-                        color: Colors.white,
+                        color: Theme.of(context).colorScheme.onSurface,
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
                       ),

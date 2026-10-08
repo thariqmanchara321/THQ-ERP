@@ -101,7 +101,7 @@ class _ProductUnitsScreenState extends State<ProductUnitsScreen> {
   }
 
   Future<void> _createCustomUnit() async {
-    final draft = await showDialog<_NewUnitDraft>(
+    final draft = await showThqDialog<_NewUnitDraft>(
       context: context,
       builder: (_) => const _CreateUnitDialog(),
     );

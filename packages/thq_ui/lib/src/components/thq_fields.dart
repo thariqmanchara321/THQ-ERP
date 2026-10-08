@@ -82,7 +82,10 @@ class ThqNumberField extends StatelessWidget {
     final sign = allowNegative ? r'-?' : '';
     final body = allowDecimal ? r'\d*(?:\.\d*)?' : r'\d*';
     final expression = RegExp('^$sign$body\$');
-    final numberFormatter = TextInputFormatter.withFunction((oldValue, newValue) {
+    final numberFormatter = TextInputFormatter.withFunction((
+      oldValue,
+      newValue,
+    ) {
       return expression.hasMatch(newValue.text) ? newValue : oldValue;
     });
     return ThqTextField(

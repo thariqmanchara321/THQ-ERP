@@ -1,6 +1,8 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+
+import 'staff_screen.dart';
 import 'package:thq_ui/thq_ui.dart';
 import 'package:erp_core/erp_core.dart';
 
@@ -15,7 +17,6 @@ import '../services/location_scope_service.dart';
 import '../services/navigation_service.dart';
 import '../services/thq_api_service.dart';
 import '../services/ui_design_service.dart';
-import '../ui/v43_theme.dart';
 import '../ui/v600_client_theme.dart';
 import 'accounting_screen.dart';
 import 'aggregate_yard_screen.dart';
@@ -32,6 +33,8 @@ import 'global_search_screen.dart';
 import 'workshop_screen.dart';
 import 'industry_workspace_screen.dart';
 import 'inventory_products_screen.dart';
+import '../models/inventory_report.dart';
+import 'inventory_reports_screen.dart';
 import 'loan_screen.dart';
 import 'tracking_workspace_screen.dart';
 import 'invoice_designer_screen.dart';
@@ -42,7 +45,7 @@ import 'payment_center_screen.dart';
 import 'production_screen.dart';
 import 'purchases_screen.dart';
 import 'pricing_screen.dart';
-import 'reports_screen.dart';
+import 'reports_center_v500_screen.dart';
 import 'returns_register_screen.dart';
 import 'stock_transfers_screen.dart';
 import 'tasks_screen.dart';
@@ -147,6 +150,20 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
               'and customer transport billing',
           category: 'Operations',
           sortOrder: sortOrder,
+        ),
+      );
+    }
+
+    if (canOpenInventoryReports(_session) &&
+        !modules.any((module) => module.key == 'inventory_reports')) {
+      modules.add(
+        const ClientModule(
+          key: 'inventory_reports',
+          name: 'Inventory Reports',
+          description:
+              'Stock, valuation, movement, tracking and reconciliation',
+          category: 'Reports',
+          sortOrder: 91,
         ),
       );
     }
@@ -389,10 +406,12 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
   }
 
   IconData _moduleIcon(String key) => switch (key) {
+    'staff' => Icons.badge_outlined,
     'dashboard' => Icons.space_dashboard_outlined,
     'aggregate_yard' => Icons.landscape_outlined,
     'operations_intelligence' => Icons.monitor_heart_outlined,
     'inventory' => Icons.inventory_2_outlined,
+    'inventory_reports' => Icons.analytics_outlined,
     'sales' => Icons.receipt_long_outlined,
     'sales_details' => Icons.history_outlined,
     'purchases' => Icons.shopping_cart_outlined,
@@ -468,7 +487,9 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
     return FutureBuilder<UiDesignProfile>(
       future: _designFuture,
       builder: (context, snapshot) {
-        final profile = snapshot.data ?? _fallbackProfile;
+        final profile = (snapshot.data ?? _fallbackProfile).forAppearance(
+          ThqAppearanceScope.modeOf(context),
+        );
         return UiDesignScope(
           profile: profile,
           child: Theme(
@@ -488,15 +509,16 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
   }
 
   Widget _desktop(ClientModule selected, UiDesignProfile profile) {
-    final width = _navCollapsed ? 56.0 : 208.0;
+    final width = _navCollapsed
+        ? 64.0
+        : profile.appearance == ThqAppearance.classic
+        ? 208.0
+        : 176.0;
     final workspaceBackground = Color.alphaBlend(
       profile.primary.withValues(alpha: .035),
       profile.background,
     );
-    final sidebarBackground = Color.alphaBlend(
-      profile.primary.withValues(alpha: .055),
-      profile.surface,
-    );
+    final sidebarBackground = profile.sidebar;
 
     return Scaffold(
       backgroundColor: workspaceBackground,
@@ -504,7 +526,9 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
         children: [
           AnimatedContainer(
             width: width,
-            duration: const Duration(milliseconds: 180),
+            duration: (MediaQuery.maybeDisableAnimationsOf(context) ?? false)
+                ? Duration.zero
+                : const Duration(milliseconds: 180),
             curve: Curves.easeOut,
             decoration: BoxDecoration(
               color: sidebarBackground,
@@ -551,21 +575,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
                     collapsed: _navCollapsed,
                     onTap: _logout,
                   ),
-                  if (!_navCollapsed)
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(12, 2, 12, 8),
-                      child: Text(
-                        'v${ThqReleaseContract.appVersion}  |  Build ${ThqReleaseContract.buildNumber}',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 9.5,
-                          fontWeight: FontWeight.w600,
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
-                      ),
-                    )
-                  else
-                    const SizedBox(height: 6),
+                  const SizedBox(height: 4),
                 ],
               ),
             ),
@@ -579,7 +589,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
                   _SubscriptionBanner(session: _session),
                   Expanded(
                     child: Padding(
-                      padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
+                      padding: const EdgeInsets.fromLTRB(10, 8, 10, 4),
                       child: DecoratedBox(
                         decoration: BoxDecoration(
                           color: profile.surface,
@@ -606,15 +616,35 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
                                   key: ValueKey(
                                     '${selected.key}:${locationId ?? 'all'}:$_contentGeneration',
                                   ),
-                                  child: _ModulePage(
-                                    module: selected,
-                                    session: _session,
+                                  child: ThqPageEntrance(
+                                    child: _ModulePage(
+                                      module: selected,
+                                      session: _session,
+                                      onBack: () => setState(
+                                        () => _selectedModuleKey =
+                                            _preferredLandingModuleKey(
+                                              _modules,
+                                            ),
+                                      ),
+                                    ),
                                   ),
                                 ),
                               ),
                             ),
                           ),
                         ),
+                      ),
+                    ),
+                  ),
+                  const Padding(
+                    key: ValueKey('client-workspace-status'),
+                    padding: EdgeInsets.fromLTRB(12, 1, 12, 3),
+                    child: Align(
+                      alignment: Alignment.centerRight,
+                      child: ThqVersionClock(
+                        version: ThqReleaseContract.appVersion,
+                        buildNumber: ThqReleaseContract.buildNumber,
+                        singleLine: true,
                       ),
                     ),
                   ),
@@ -643,6 +673,8 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
                   )
                 : const Icon(Icons.refresh),
           ),
+          const ThqAppearanceButton(),
+          const ThqMotionButton(),
           IconButton(
             tooltip: 'Search THQ',
             onPressed: () => _openSearch(),
@@ -706,7 +738,15 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
                 key: ValueKey(
                   '${selected.key}:${locationId ?? 'all'}:$_contentGeneration',
                 ),
-                child: _ModulePage(module: selected, session: _session),
+                child: _ModulePage(
+                  module: selected,
+                  session: _session,
+                  onBack: () => setState(
+                    () => _selectedModuleKey = _preferredLandingModuleKey(
+                      _modules,
+                    ),
+                  ),
+                ),
               ),
             ),
           ),
@@ -736,12 +776,15 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
               gradient: LinearGradient(
                 colors: [
                   profile?.primary ?? Theme.of(context).colorScheme.primary,
-                  profile?.accent ?? Theme.of(context).colorScheme.tertiary,
+                  profile?.accent ?? context.thqSemanticColors.warning,
                 ],
               ),
               borderRadius: BorderRadius.circular(14),
             ),
-            child: const Icon(Icons.grid_view_rounded, color: Colors.white),
+            child: Icon(
+              Icons.grid_view_rounded,
+              color: Theme.of(context).colorScheme.onSurface,
+            ),
           ),
           if (!collapsed) ...[
             const SizedBox(width: 12),
@@ -755,7 +798,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                       fontSize: 16,
-                      fontWeight: FontWeight.w800,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                   const SizedBox(height: 2),
@@ -935,8 +978,8 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
-                              fontSize: 9,
-                              fontWeight: FontWeight.w800,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
                               letterSpacing: .35,
                               color: Theme.of(
                                 context,
@@ -967,9 +1010,11 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
 
   bool _isRoutableClientModule(String key) => switch (key) {
     'dashboard' ||
+    'staff' ||
     'aggregate_yard' ||
     'operations_intelligence' ||
     'inventory' ||
+    'inventory_reports' ||
     'warranty' ||
     'suppliers' ||
     'purchases' ||
@@ -1108,8 +1153,8 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
           child: Text(
             'OTHER ENABLED MODULES',
             style: TextStyle(
-              fontSize: 8.5,
-              fontWeight: FontWeight.w800,
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
               letterSpacing: .45,
               color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
@@ -1281,7 +1326,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     fontSize: 14,
-                    fontWeight: FontWeight.w800,
+                    fontWeight: FontWeight.w600,
                     letterSpacing: -.15,
                   ),
                 ),
@@ -1296,7 +1341,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontSize: 9.5,
+                    fontSize: 11,
                     color: scheme.onSurfaceVariant,
                   ),
                 ),
@@ -1321,6 +1366,8 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
                     child: const Icon(Icons.refresh_rounded, size: 19),
                   ),
           ),
+          const ThqAppearanceButton(),
+          const ThqMotionButton(),
           IconButton(
             tooltip: 'Search THQ',
             visualDensity: VisualDensity.compact,
@@ -1347,8 +1394,8 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
                           ? '?'
                           : _session.username.substring(0, 1).toUpperCase(),
                       style: const TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w800,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ),
@@ -1359,7 +1406,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
-                        fontSize: 10.5,
+                        fontSize: 11,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
@@ -1451,7 +1498,10 @@ class _SubscriptionBanner extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
       color: blocked
           ? Theme.of(context).colorScheme.errorContainer
-          : Theme.of(context).colorScheme.tertiaryContainer,
+          : Color.alphaBlend(
+              context.thqSemanticColors.warning.withValues(alpha: .12),
+              Theme.of(context).colorScheme.surface,
+            ),
       child: Row(
         children: [
           Icon(
@@ -1474,7 +1524,8 @@ class _ModulePage extends StatelessWidget {
   final ClientModule module;
   final ClientSession session;
 
-  const _ModulePage({required this.module, required this.session});
+  final VoidCallback? onBack;
+  const _ModulePage({required this.module, required this.session, this.onBack});
 
   @override
   Widget build(BuildContext context) {
@@ -1486,6 +1537,7 @@ class _ModulePage extends StatelessWidget {
         session: session,
       ),
       'inventory' => InventoryProductsScreen(session: session),
+      'inventory_reports' => InventoryReportsScreen(session: session),
       'warranty' => TrackingWorkspaceScreen(session: session),
       'suppliers' => SuppliersScreen(session: session),
       'purchases' => PurchasesScreen(session: session, startInCreate: true),
@@ -1497,6 +1549,7 @@ class _ModulePage extends StatelessWidget {
       'pricing' => PricingScreen(session: session),
       'customers' => CustomersScreen(session: session),
       'sales' => SalesScreen(session: session, startInCreate: true),
+      'staff' => StaffScreen(session: session),
       'sales_details' => SalesScreen(
         session: session,
         historyOnly: true,
@@ -1506,7 +1559,7 @@ class _ModulePage extends StatelessWidget {
       'accounting' => AccountingScreen(session: session),
       'gst_compliance' => GstV520EntryScreen(session: session),
       'audit_center' => AuditIntelligenceScreen(session: session),
-      'reports' => ReportsScreen(session: session),
+      'reports' => ReportsCenterV500Screen(session: session),
       'returns' => ReturnsRegisterScreen(session: session),
       'invoice_templates' => InvoiceDesignerScreen(session: session),
       'division_overview' => DivisionOverviewScreen(session: session),
@@ -1524,9 +1577,8 @@ class _ModulePage extends StatelessWidget {
       'locations' => LocationsScreen(session: session),
       'users' => TeamAccessScreen(session: session),
       'production' => ProductionScreen(session: session),
-      'transport_service' ||
-      'logistics_operations' ||
-      'vehicle_logistics' => TransportLogisticsHubScreen(session: session),
+      'transport_service' || 'logistics_operations' || 'vehicle_logistics' =>
+        TransportLogisticsHubScreen(session: session, onBack: onBack),
       'restaurant' || 'restaurant_orders' => RestaurantScreen(session: session),
       'workshop' => WorkshopScreen(session: session),
       'healthcare' ||
@@ -1565,7 +1617,7 @@ class _ComingSoon extends StatelessWidget {
                     module.name,
                     style: const TextStyle(
                       fontSize: 26,
-                      fontWeight: FontWeight.w800,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                   const SizedBox(height: 8),

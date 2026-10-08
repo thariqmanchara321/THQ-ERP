@@ -170,7 +170,7 @@ class _ReturnCenterScreenState extends State<ReturnCenterScreen>
                         'Returns',
                         style: TextStyle(
                           fontSize: 14.5,
-                          fontWeight: FontWeight.w900,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                       Text(
@@ -227,7 +227,7 @@ class _ReturnCenterScreenState extends State<ReturnCenterScreen>
                   controller: _tabs,
                   labelStyle: const TextStyle(
                     fontSize: 11.5,
-                    fontWeight: FontWeight.w800,
+                    fontWeight: FontWeight.w600,
                   ),
                   tabs: const [
                     Tab(text: 'Sales Return'),
@@ -318,7 +318,7 @@ class _ReturnCenterScreenState extends State<ReturnCenterScreen>
                     'Document',
                     style: TextStyle(
                       fontSize: 11.5,
-                      fontWeight: FontWeight.w900,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ),
@@ -328,7 +328,7 @@ class _ReturnCenterScreenState extends State<ReturnCenterScreen>
                     'Party / Product',
                     style: TextStyle(
                       fontSize: 11.5,
-                      fontWeight: FontWeight.w900,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ),
@@ -338,7 +338,7 @@ class _ReturnCenterScreenState extends State<ReturnCenterScreen>
                     'Status',
                     style: TextStyle(
                       fontSize: 11.5,
-                      fontWeight: FontWeight.w900,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ),
@@ -349,7 +349,7 @@ class _ReturnCenterScreenState extends State<ReturnCenterScreen>
                     textAlign: TextAlign.right,
                     style: TextStyle(
                       fontSize: 11.5,
-                      fontWeight: FontWeight.w900,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ),
@@ -399,7 +399,7 @@ class _ReturnCenterScreenState extends State<ReturnCenterScreen>
                                     overflow: TextOverflow.ellipsis,
                                     style: const TextStyle(
                                       fontSize: 11.5,
-                                      fontWeight: FontWeight.w800,
+                                      fontWeight: FontWeight.w600,
                                     ),
                                   ),
                                 ),
@@ -416,7 +416,7 @@ class _ReturnCenterScreenState extends State<ReturnCenterScreen>
                                   '${row['party'] ?? ''}',
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(fontSize: 10.5),
+                                  style: const TextStyle(fontSize: 11),
                                 ),
                                 if (product.isNotEmpty)
                                   Text(
@@ -424,7 +424,7 @@ class _ReturnCenterScreenState extends State<ReturnCenterScreen>
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                     style: TextStyle(
-                                      fontSize: 10.5,
+                                      fontSize: 11,
                                       color: scheme.onSurfaceVariant,
                                     ),
                                   ),
@@ -445,7 +445,7 @@ class _ReturnCenterScreenState extends State<ReturnCenterScreen>
                                   maxLines: 1,
                                   style: const TextStyle(
                                     fontSize: 11,
-                                    fontWeight: FontWeight.w800,
+                                    fontWeight: FontWeight.w600,
                                   ),
                                 ),
                               ),
@@ -459,7 +459,7 @@ class _ReturnCenterScreenState extends State<ReturnCenterScreen>
                               textAlign: TextAlign.right,
                               style: const TextStyle(
                                 fontSize: 11.5,
-                                fontWeight: FontWeight.w900,
+                                fontWeight: FontWeight.w600,
                               ),
                             ),
                           ),

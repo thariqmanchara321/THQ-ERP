@@ -284,7 +284,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         children: [
           const Text(
             'Business Intelligence v5',
-            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
+            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 4),
           Text(
@@ -404,12 +404,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(label, style: const TextStyle(fontSize: 10.5)),
+              Text(label, style: const TextStyle(fontSize: 11)),
               Text(
                 value,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontWeight: FontWeight.w800),
+                style: const TextStyle(fontWeight: FontWeight.w600),
               ),
             ],
           ),
@@ -478,7 +478,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 'Dashboard',
                 style: TextStyle(
                   fontSize: 20,
-                  fontWeight: FontWeight.w900,
+                  fontWeight: FontWeight.w600,
                   letterSpacing: -0.6,
                 ),
               ),
@@ -623,7 +623,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             Text(
                               item.$1,
                               style: TextStyle(
-                                fontSize: 10.5,
+                                fontSize: 11,
                                 color: Theme.of(
                                   context,
                                 ).colorScheme.onSurfaceVariant,
@@ -636,7 +636,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
                                 fontSize: 14,
-                                fontWeight: FontWeight.w800,
+                                fontWeight: FontWeight.w600,
                               ),
                             ),
                           ],
@@ -729,7 +729,7 @@ class _MetricCard extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     fontSize: 19,
-                    fontWeight: FontWeight.w900,
+                    fontWeight: FontWeight.w600,
                     letterSpacing: -.3,
                   ),
                 ),
@@ -737,7 +737,7 @@ class _MetricCard extends StatelessWidget {
                 Text(
                   data.caption,
                   style: TextStyle(
-                    fontSize: 10,
+                    fontSize: 11,
                     color: data.positive
                         ? p.success
                         : Theme.of(context).colorScheme.onSurfaceVariant,
@@ -779,7 +779,7 @@ class _TrendCard extends StatelessWidget {
                         'Sales trend',
                         style: TextStyle(
                           fontSize: 17,
-                          fontWeight: FontWeight.w900,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                       const SizedBox(height: 3),
@@ -819,7 +819,7 @@ class _TrendCard extends StatelessWidget {
                           (e) => Text(
                             '${e.date.day}/${e.date.month}',
                             style: TextStyle(
-                              fontSize: 10,
+                              fontSize: 11,
                               color: Theme.of(
                                 context,
                               ).colorScheme.onSurfaceVariant,
@@ -996,7 +996,7 @@ class _RankedCard extends StatelessWidget {
                       title,
                       style: const TextStyle(
                         fontSize: 16,
-                        fontWeight: FontWeight.w900,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                     Text(
@@ -1004,7 +1004,7 @@ class _RankedCard extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        fontSize: 10,
+                        fontSize: 11,
                         color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                     ),
@@ -1048,8 +1048,8 @@ class _RankedCard extends StatelessWidget {
             child: Text(
               '${index + 1}',
               style: TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.w900,
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
                 color: p.primary,
               ),
             ),
@@ -1073,7 +1073,7 @@ class _RankedCard extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontSize: 9.5,
+                    fontSize: 11,
                     color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
                 ),
@@ -1083,7 +1083,7 @@ class _RankedCard extends StatelessWidget {
           const SizedBox(width: 8),
           Text(
             row.value,
-            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w800),
+            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
           ),
         ],
       ),
@@ -1106,7 +1106,7 @@ class _LegendDot extends StatelessWidget {
       const SizedBox(width: 6),
       Text(
         label,
-        style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600),
+        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
       ),
     ],
   );

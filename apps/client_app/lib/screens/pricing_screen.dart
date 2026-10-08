@@ -162,7 +162,7 @@ class _PricingScreenState extends State<PricingScreen>
     );
     var isDefault = current?['is_default'] == true;
     var active = current?['active'] != false;
-    final saved = await showDialog<bool>(
+    final saved = await showThqDialog<bool>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
@@ -278,7 +278,7 @@ class _PricingScreenState extends State<PricingScreen>
     );
     var active = current?['active'] != false;
 
-    final saved = await showDialog<bool>(
+    final saved = await showThqDialog<bool>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setDialogState) {
@@ -549,7 +549,7 @@ class _PricingScreenState extends State<PricingScreen>
                   ListTile(
                     title: const Text(
                       'Price Lists',
-                      style: TextStyle(fontWeight: FontWeight.w800),
+                      style: TextStyle(fontWeight: FontWeight.w600),
                     ),
                     trailing: _canManage
                         ? IconButton(
@@ -597,7 +597,7 @@ class _PricingScreenState extends State<PricingScreen>
                   ListTile(
                     title: Text(
                       selected?['name']?.toString() ?? 'Select a price list',
-                      style: const TextStyle(fontWeight: FontWeight.w800),
+                      style: const TextStyle(fontWeight: FontWeight.w600),
                     ),
                     subtitle: const Text(
                       'Quantity breaks use the greatest minimum quantity that matches the sale.',
@@ -642,7 +642,7 @@ class _PricingScreenState extends State<PricingScreen>
                   const ListTile(
                     title: Text(
                       'Customers',
-                      style: TextStyle(fontWeight: FontWeight.w800),
+                      style: TextStyle(fontWeight: FontWeight.w600),
                     ),
                     subtitle: Text(
                       'Assign a price list or create exact customer prices.',
@@ -758,7 +758,7 @@ class _PricingScreenState extends State<PricingScreen>
               Text(
                 _money(rule['unit_price']),
                 style: const TextStyle(
-                  fontWeight: FontWeight.w900,
+                  fontWeight: FontWeight.w600,
                   fontSize: 16,
                 ),
               ),

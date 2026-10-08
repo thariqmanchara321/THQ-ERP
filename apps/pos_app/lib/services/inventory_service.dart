@@ -285,7 +285,7 @@ class InventoryService {
     required double reorderLevel,
   }) async {
     await _supabase.rpc(
-      'inventory_update_product',
+      'inventory_update_product_v628',
       params: {
         'p_tenant_id': tenantId,
         'p_variant_id': variantId,

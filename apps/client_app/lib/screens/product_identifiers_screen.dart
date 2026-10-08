@@ -150,7 +150,7 @@ class _ProductIdentifiersScreenState extends State<ProductIdentifiersScreen> {
     final code = TextEditingController(text: current?.code ?? '');
     final label = TextEditingController(text: current?.label ?? '');
 
-    final saved = await showDialog<bool>(
+    final saved = await showThqDialog<bool>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
@@ -295,7 +295,7 @@ class _ProductIdentifiersScreenState extends State<ProductIdentifiersScreen> {
 
   Future<void> _archive(ProductIdentifier identifier) async {
     if (!_canManage) return;
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showThqDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('Archive identifier?'),
@@ -391,7 +391,7 @@ class _ProductIdentifiersScreenState extends State<ProductIdentifiersScreen> {
                         children: [
                           Text(
                             'SKU ${widget.sku}',
-                            style: const TextStyle(fontWeight: FontWeight.w800),
+                            style: const TextStyle(fontWeight: FontWeight.w600),
                           ),
                           if (_canManage)
                             FilledButton.icon(
@@ -487,7 +487,7 @@ class _ProductIdentifiersScreenState extends State<ProductIdentifiersScreen> {
                                   title: SelectableText(
                                     id.code,
                                     style: const TextStyle(
-                                      fontWeight: FontWeight.w800,
+                                      fontWeight: FontWeight.w600,
                                     ),
                                   ),
                                   subtitle: Text(

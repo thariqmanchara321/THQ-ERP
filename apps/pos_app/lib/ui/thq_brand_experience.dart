@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:thq_ui/thq_ui.dart';
 import 'package:flutter/services.dart';
 
 // THQ_BRAND_EXPERIENCE_V1: presentation only; no auth or session storage.
@@ -98,10 +99,7 @@ class _ThqStartupGateState extends State<ThqStartupGate>
             excluding: _showIntro,
             child: ExcludeSemantics(
               excluding: _showIntro,
-              child: IgnorePointer(
-                ignoring: _showIntro,
-                child: widget.child,
-              ),
+              child: IgnorePointer(ignoring: _showIntro, child: widget.child),
             ),
           ),
         ),
@@ -113,8 +111,12 @@ class _ThqStartupGateState extends State<ThqStartupGate>
                 final progress = _reducedMotion ? 1.0 : _controller.value;
                 final opacity = _reducedMotion
                     ? 1.0
-                    : 1.0 - const Interval(.88, 1, curve: Curves.easeOut)
-                        .transform(progress);
+                    : 1.0 -
+                          const Interval(
+                            .88,
+                            1,
+                            curve: Curves.easeOut,
+                          ).transform(progress);
                 return Opacity(
                   opacity: opacity,
                   child: Semantics(
@@ -154,12 +156,14 @@ class ThqStartupScene extends StatelessWidget {
   Widget build(BuildContext context) {
     final arrival = reducedMotion
         ? 1.0
-        : const Interval(.02, .24, curve: Curves.easeOutCubic)
-            .transform(progress);
+        : const Interval(
+            .02,
+            .24,
+            curve: Curves.easeOutCubic,
+          ).transform(progress);
     final words = reducedMotion
         ? 1.0
-        : const Interval(.12, .32, curve: Curves.easeOut)
-            .transform(progress);
+        : const Interval(.12, .32, curve: Curves.easeOut).transform(progress);
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: const SystemUiOverlayStyle(
         statusBarColor: _thqNavy,
@@ -169,136 +173,144 @@ class ThqStartupScene extends StatelessWidget {
         systemNavigationBarIconBrightness: Brightness.light,
       ),
       child: Material(
-      color: _thqNavy,
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final contentWidth = math.max(
-            1.0,
-            math.min(440.0, constraints.maxWidth - 32),
-          );
-          final compact = constraints.maxWidth < 600;
-          return Stack(
-            fit: StackFit.expand,
-            children: [
-              const RepaintBoundary(
-                child: CustomPaint(painter: _ThqGridPainter()),
-              ),
-              SafeArea(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 20, 16, 20),
-                  child: Column(
-                    children: [
-                      Expanded(
-                        child: Center(
-                          child: FittedBox(
-                            fit: BoxFit.scaleDown,
-                            child: SizedBox(
-                              width: contentWidth,
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  SizedBox.square(
-                                    dimension: compact ? 260 : 284,
-                                    child: Stack(
-                                      alignment: Alignment.center,
-                                      children: [
-                                        RepaintBoundary(
-                                          child: CustomPaint(
-                                            size: Size.square(compact ? 260 : 284),
-                                            painter: _ThqOrbitPainter(
-                                              progress: progress,
-                                              animate: !reducedMotion,
-                                            ),
-                                          ),
-                                        ),
-                                        Opacity(
-                                          opacity: arrival,
-                                          child: Transform.scale(
-                                            scale: .62 + .38 * arrival,
-                                            child: logo ?? const ThqBrandMark(size: 128),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  const SizedBox(height: 18),
-                                  Opacity(
-                                    opacity: words,
-                                    child: Transform.translate(
-                                      offset: Offset(0, 12.0 * (1.0 - words)),
-                                      child: Column(
-                                        mainAxisSize: MainAxisSize.min,
+        color: _thqNavy,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final contentWidth = math.max(
+              1.0,
+              math.min(440.0, constraints.maxWidth - 32),
+            );
+            final compact = constraints.maxWidth < 600;
+            return Stack(
+              fit: StackFit.expand,
+              children: [
+                const RepaintBoundary(
+                  child: CustomPaint(painter: _ThqGridPainter()),
+                ),
+                SafeArea(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 20, 16, 20),
+                    child: Column(
+                      children: [
+                        Expanded(
+                          child: Center(
+                            child: FittedBox(
+                              fit: BoxFit.scaleDown,
+                              child: SizedBox(
+                                width: contentWidth,
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    SizedBox.square(
+                                      dimension: compact ? 260 : 284,
+                                      child: Stack(
+                                        alignment: Alignment.center,
                                         children: [
-                                          Text(
-                                            appName,
-                                            textAlign: TextAlign.center,
-                                            style: TextStyle(
-                                              color: const Color(0xFFE5FCF7),
-                                              fontSize: compact ? 27 : 34,
-                                              fontWeight: FontWeight.w600,
-                                              letterSpacing: -.8,
+                                          RepaintBoundary(
+                                            child: CustomPaint(
+                                              size: Size.square(
+                                                compact ? 260 : 284,
+                                              ),
+                                              painter: _ThqOrbitPainter(
+                                                progress: progress,
+                                                animate: !reducedMotion,
+                                              ),
                                             ),
                                           ),
-                                          const SizedBox(height: 9),
-                                          const Text(
-                                            'YOUR BUSINESS. IN FOCUS.',
-                                            textAlign: TextAlign.center,
-                                            style: TextStyle(
-                                              color: Color(0xFF9DBAC3),
-                                              fontSize: 11,
-                                              letterSpacing: 2.5,
+                                          Opacity(
+                                            opacity: arrival,
+                                            child: Transform.scale(
+                                              scale: .62 + .38 * arrival,
+                                              child:
+                                                  logo ??
+                                                  const ThqBrandMark(size: 128),
                                             ),
                                           ),
                                         ],
                                       ),
                                     ),
-                                  ),
-                                  const SizedBox(height: 28),
-                                  ExcludeSemantics(
-                                    child: SizedBox(
-                                      width: 184,
-                                      height: 2,
-                                      child: LinearProgressIndicator(
-                                        value: reducedMotion
-                                            ? 1
-                                            : const Interval(.08, .83)
-                                                .transform(progress),
-                                        color: _thqTeal,
-                                        backgroundColor: _thqTeal.withValues(alpha: .12),
+                                    const SizedBox(height: 18),
+                                    Opacity(
+                                      opacity: words,
+                                      child: Transform.translate(
+                                        offset: Offset(0, 12.0 * (1.0 - words)),
+                                        child: Column(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Text(
+                                              appName,
+                                              textAlign: TextAlign.center,
+                                              style: TextStyle(
+                                                color: const Color(0xFFE5FCF7),
+                                                fontSize: compact ? 27 : 34,
+                                                fontWeight: FontWeight.w600,
+                                                letterSpacing: -.8,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 9),
+                                            const Text(
+                                              'YOUR BUSINESS. IN FOCUS.',
+                                              textAlign: TextAlign.center,
+                                              style: TextStyle(
+                                                color: Color(0xFF9DBAC3),
+                                                fontSize: 11,
+                                                letterSpacing: 2.5,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
                                       ),
                                     ),
-                                  ),
-                                  const SizedBox(height: 14),
-                                  const Text(
-                                    'Starting your workspace...',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: Color(0xFF9DBAC3),
+                                    const SizedBox(height: 28),
+                                    ExcludeSemantics(
+                                      child: SizedBox(
+                                        width: 184,
+                                        height: 2,
+                                        child: LinearProgressIndicator(
+                                          value: reducedMotion
+                                              ? 1
+                                              : const Interval(
+                                                  .08,
+                                                  .83,
+                                                ).transform(progress),
+                                          color: _thqTeal,
+                                          backgroundColor: _thqTeal.withValues(
+                                            alpha: .12,
+                                          ),
+                                        ),
+                                      ),
                                     ),
-                                  ),
-                                ],
+                                    const SizedBox(height: 14),
+                                    const Text(
+                                      'Starting your workspace...',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: Color(0xFF9DBAC3),
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
                           ),
                         ),
-                      ),
-                      if (constraints.maxHeight > 420)
-                        const Text(
-                          'THQ BUSINESS',
-                          style: TextStyle(
-                            color: Color(0xFF9DBAC3),
-                            fontSize: 11,
-                            letterSpacing: 2.5,
+                        if (constraints.maxHeight > 420)
+                          const Text(
+                            'THQ BUSINESS',
+                            style: TextStyle(
+                              color: Color(0xFF9DBAC3),
+                              fontSize: 11,
+                              letterSpacing: 2.5,
+                            ),
                           ),
-                        ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
-              ),
-            ],
-          );
-        },
-      ),
+              ],
+            );
+          },
+        ),
       ),
     );
   }
@@ -357,18 +369,24 @@ class ThqBrandedLoginShell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final classic = ThqAppearanceScope.modeOf(context) == ThqAppearance.classic;
+    final base = Theme.of(context);
+    final scheme = base.colorScheme;
     final dark = Theme.of(context).brightness == Brightness.dark;
-    final ink = dark ? const Color(0xFFEDF6F9) : const Color(0xFF102C38);
-    final muted = dark ? const Color(0xFF9BB2BF) : const Color(0xFF536D78);
-    final page = dark ? const Color(0xFF0D1E2E) : const Color(0xFFF8FAFB);
-    final input = dark ? const Color(0xFF112839) : Colors.white;
-    final border = dark ? const Color(0xFF284050) : const Color(0xFFDCE6EB);
-    final accent = dark ? _thqTeal : const Color(0xFF117D6C);
+    final ink = classic ? scheme.onSurface : dark ? const Color(0xFFEDF6F9) : const Color(0xFF102C38);
+    final muted = classic ? scheme.onSurfaceVariant : dark ? const Color(0xFF9BB2BF) : const Color(0xFF536D78);
+    final page = classic ? base.scaffoldBackgroundColor : dark ? const Color(0xFF0D1E2E) : const Color(0xFFF8FAFB);
+    final input = classic ? scheme.surface : dark ? const Color(0xFF112839) : Colors.white;
+    final border = classic ? scheme.outline : dark ? const Color(0xFF284050) : const Color(0xFFDCE6EB);
+    final accent = classic ? scheme.primary : dark ? _thqTeal : const Color(0xFF117D6C);
     final theme = Theme.of(context).copyWith(
       inputDecorationTheme: InputDecorationThemeData(
         filled: true,
         fillColor: input,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 15, vertical: 17),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 15,
+          vertical: 17,
+        ),
         labelStyle: TextStyle(color: muted),
         hintStyle: TextStyle(color: muted),
         prefixIconColor: muted,
@@ -392,7 +410,9 @@ class ThqBrandedLoginShell extends StatelessWidget {
           foregroundColor: dark ? const Color(0xFF062D29) : Colors.white,
           minimumSize: const Size(0, 50),
           textStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
         ),
       ),
       textButtonTheme: TextButtonThemeData(
@@ -403,11 +423,35 @@ class ThqBrandedLoginShell extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text(eyebrow, style: TextStyle(color: accent, fontSize: 11, letterSpacing: 2, fontWeight: FontWeight.w600)),
+        Row(
+          children: [
+            Expanded(child: Text(
+          eyebrow,
+          style: TextStyle(
+            color: accent,
+            fontSize: 11,
+            letterSpacing: 2,
+            fontWeight: FontWeight.w600,
+          ),
+        )),
+            ThqAppearanceButton(foregroundColor: accent),
+          ],
+        ),
         const SizedBox(height: 12),
-        Text(title, style: TextStyle(color: ink, fontSize: 32, fontWeight: FontWeight.w600, letterSpacing: -.8)),
+        Text(
+          title,
+          style: TextStyle(
+            color: ink,
+            fontSize: 32,
+            fontWeight: FontWeight.w600,
+            letterSpacing: -.8,
+          ),
+        ),
         const SizedBox(height: 9),
-        Text(subtitle, style: TextStyle(color: muted, fontSize: 14, height: 1.6)),
+        Text(
+          subtitle,
+          style: TextStyle(color: muted, fontSize: 14, height: 1.6),
+        ),
         const SizedBox(height: 26),
         child,
         if (footer != null) ...[
@@ -420,7 +464,11 @@ class ThqBrandedLoginShell extends StatelessWidget {
         ],
         if (versionLabel != null) ...[
           const SizedBox(height: 20),
-          Text(versionLabel!, textAlign: TextAlign.center, style: TextStyle(color: muted, fontSize: 11)),
+          Text(
+            versionLabel!,
+            textAlign: TextAlign.center,
+            style: TextStyle(color: muted, fontSize: 11),
+          ),
         ],
       ],
     );
@@ -435,13 +483,21 @@ class ThqBrandedLoginShell extends StatelessWidget {
                 return Row(
                   children: [
                     Expanded(
-                      child: _hero(compact: false, minHeight: constraints.maxHeight),
+                      child: _hero(
+                        compact: false,
+                        minHeight: constraints.maxHeight,
+                      ),
                     ),
                     Expanded(
                       child: SingleChildScrollView(
                         padding: const EdgeInsets.all(44),
                         child: ConstrainedBox(
-                          constraints: BoxConstraints(minHeight: math.max(0.0, constraints.maxHeight - 88)),
+                          constraints: BoxConstraints(
+                            minHeight: math.max(
+                              0.0,
+                              constraints.maxHeight - 88,
+                            ),
+                          ),
                           child: Center(
                             child: ConstrainedBox(
                               constraints: const BoxConstraints(maxWidth: 350),
@@ -517,23 +573,45 @@ class ThqBrandedLoginShell extends StatelessWidget {
                 : const EdgeInsets.fromLTRB(42, 30, 42, 32),
             child: Column(
               mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: compact ? CrossAxisAlignment.center : CrossAxisAlignment.start,
+              crossAxisAlignment: compact
+                  ? CrossAxisAlignment.center
+                  : CrossAxisAlignment.start,
               children: [
                 if (!compact)
-                  Text(appName.toUpperCase(), style: const TextStyle(color: Color(0xFFE5FCF7), fontSize: 12, fontWeight: FontWeight.w600, letterSpacing: 2)),
+                  Text(
+                    appName.toUpperCase(),
+                    style: const TextStyle(
+                      color: Color(0xFFE5FCF7),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 2,
+                    ),
+                  ),
                 if (!compact) const SizedBox(height: 20),
                 Center(child: art),
                 SizedBox(height: compact ? 4 : 18),
                 Text(
                   compact ? appName : 'Your business.\nIn focus.',
                   textAlign: compact ? TextAlign.center : TextAlign.start,
-                  style: TextStyle(color: const Color(0xFFE5FCF7), fontSize: compact ? 23 : 40, fontWeight: FontWeight.w600, letterSpacing: -.9, height: 1.13),
+                  style: TextStyle(
+                    color: const Color(0xFFE5FCF7),
+                    fontSize: compact ? 23 : 40,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: -.9,
+                    height: 1.13,
+                  ),
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  compact ? 'Your business. In focus.' : 'One workspace. A clearer view.',
+                  compact
+                      ? 'Your business. In focus.'
+                      : 'One workspace. A clearer view.',
                   textAlign: compact ? TextAlign.center : TextAlign.start,
-                  style: const TextStyle(color: Color(0xFF9DBAC3), fontSize: 12, height: 1.6),
+                  style: const TextStyle(
+                    color: Color(0xFF9DBAC3),
+                    fontSize: 12,
+                    height: 1.6,
+                  ),
                 ),
               ],
             ),
@@ -587,9 +665,13 @@ class _ThqOrbitPainter extends CustomPainter {
     canvas.drawCircle(
       center,
       radius,
-      Paint()..shader = RadialGradient(
-        colors: [_thqTeal.withValues(alpha: .18), _thqTeal.withValues(alpha: 0)],
-      ).createShader(glowRect),
+      Paint()
+        ..shader = RadialGradient(
+          colors: [
+            _thqTeal.withValues(alpha: .18),
+            _thqTeal.withValues(alpha: 0),
+          ],
+        ).createShader(glowRect),
     );
     final ring = Paint()
       ..style = PaintingStyle.stroke
@@ -600,7 +682,13 @@ class _ThqOrbitPainter extends CustomPainter {
       canvas.drawCircle(center, r, ring);
       final angle = (i.isEven ? rotation : -rotation) + i * 1.8;
       ring.color = _thqTeal.withValues(alpha: i == 1 ? .75 : .36);
-      canvas.drawArc(Rect.fromCircle(center: center, radius: r), angle, .68, false, ring);
+      canvas.drawArc(
+        Rect.fromCircle(center: center, radius: r),
+        angle,
+        .68,
+        false,
+        ring,
+      );
       final point = center + Offset(math.cos(angle), math.sin(angle)) * r;
       canvas.drawCircle(point, i == 1 ? 2.5 : 1.7, Paint()..color = _thqTeal);
     }

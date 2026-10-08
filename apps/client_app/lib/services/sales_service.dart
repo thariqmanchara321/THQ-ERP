@@ -4,6 +4,7 @@ import 'package:uuid/uuid.dart';
 import '../features/gst/gst_v520_gateway.dart';
 import '../models/sale.dart';
 import '../models/sale_detail.dart';
+import '../models/sale_invoice_context.dart';
 import 'device_installation_service.dart';
 import 'gst_v520_request_id_store.dart';
 import 'location_scope_service.dart';
@@ -11,6 +12,35 @@ import 'location_scope_service.dart';
 class SalesService {
   SupabaseClient get _supabase => Supabase.instance.client;
   final GstV520RequestIdStore _requestIds = GstV520RequestIdStore();
+
+  Future<SaleInvoiceContext> invoiceContext({
+    required String tenantId,
+    required String locationId,
+    required DateTime saleDate,
+    String? materialLoadId,
+  }) async {
+    final origin = await _originParams(tenantId, locationId: locationId);
+    return _invoiceContext(tenantId, saleDate, origin, materialLoadId);
+  }
+
+  Future<SaleInvoiceContext> _invoiceContext(
+    String tenantId,
+    DateTime saleDate,
+    Map<String, dynamic> origin,
+    String? materialLoadId,
+  ) async {
+    final result = await _supabase.rpc(
+      'sales_invoice_context_v632',
+      params: {
+        'p_tenant_id': tenantId,
+        ...origin,
+        'p_sale_date': _dateOnly(saleDate),
+        'p_load_id': materialLoadId,
+      },
+    );
+    if (result is! Map) throw StateError('Could not load invoice settings.');
+    return SaleInvoiceContext.fromMap(Map<String, dynamic>.from(result));
+  }
 
   Future<List<Sale>> getSales({required String tenantId}) async {
     final result = await _supabase.rpc(
@@ -37,11 +67,24 @@ class SalesService {
     required String notes,
     String? locationId,
     String? requestId,
+    String? materialLoadId,
     String? supplyType,
     String? placeOfSupplyCode,
     List<Map<String, dynamic>> chargeSelections = const [],
   }) async {
     final origin = await _originParams(tenantId, locationId: locationId);
+    final context = await _invoiceContext(
+      tenantId,
+      saleDate,
+      origin,
+      materialLoadId,
+    );
+    context.checkCustomer(customerId);
+    items = context.saleItems(items);
+    if (!context.gstApplicable) {
+      supplyType = null;
+      placeOfSupplyCode = null;
+    }
     final payload = <String, dynamic>{
       'customer_id': customerId,
       'sale_date': _dateOnly(saleDate),
@@ -54,6 +97,7 @@ class SalesService {
       'supply_type': supplyType,
       'place_of_supply_code': placeOfSupplyCode,
       'charge_selections': chargeSelections,
+      'material_load_id': ?materialLoadId,
     };
 
     final lease = await _requestIds.acquire(
@@ -78,9 +122,13 @@ class SalesService {
     }
 
     try {
+      final writer = materialLoadId == null
+          ? 'gst_client_sale_create_v630'
+          : 'aggregate_load_sale_create_v630';
       final result = await _supabase.rpc(
-        'gst_client_sale_create_v611',
+        writer,
         params: {
+          'p_load_id': ?materialLoadId,
           'p_tenant_id': tenantId,
           'p_customer_id': customerId,
           'p_sale_date': _dateOnly(saleDate),
@@ -97,18 +145,55 @@ class SalesService {
         },
       );
       if (result is! Map) {
-        throw StateError(
-          'Unexpected response from gst_client_sale_create_v611.',
-        );
+        throw StateError('Unexpected response from $writer.');
       }
       await _requestIds.complete(lease);
       return Map<String, dynamic>.from(result);
+    } on PostgrestException catch (error) {
+      throw StateError(error.message);
     } catch (error) {
       throw StateError(
-        'Authoritative GST v5.2.2 sale failed. Legacy sale fallback is disabled. '
-        'Retry the unchanged invoice to reuse the same request ID. $error',
+        'Invoice could not be saved. Retry the unchanged invoice to reuse '
+        'the same request ID. $error',
       );
     }
+  }
+
+  Future<Map<String, dynamic>> quote({
+    required String tenantId,
+    required String customerId,
+    required DateTime saleDate,
+    required List<Map<String, dynamic>> items,
+    required String locationId,
+    String? materialLoadId,
+    String? placeOfSupplyCode,
+    List<Map<String, dynamic>> chargeSelections = const [],
+  }) async {
+    final origin = await _originParams(tenantId, locationId: locationId);
+    final context = await _invoiceContext(
+      tenantId,
+      saleDate,
+      origin,
+      materialLoadId,
+    );
+    context.checkCustomer(customerId);
+    items = context.saleItems(items);
+    if (!context.gstApplicable) placeOfSupplyCode = null;
+    final result = await _supabase.rpc(
+      'client_sale_quote_v630',
+      params: {
+        'p_tenant_id': tenantId,
+        'p_customer_id': customerId,
+        'p_sale_date': _dateOnly(saleDate),
+        'p_items': items,
+        ...origin,
+        'p_load_id': materialLoadId,
+        'p_place_of_supply_code': placeOfSupplyCode,
+        'p_charge_selections': chargeSelections,
+      },
+    );
+    if (result is! Map) throw StateError('Unexpected invoice quote response.');
+    return Map<String, dynamic>.from(result);
   }
 
   Future<SaleDetail> getSaleDetail({
@@ -116,7 +201,7 @@ class SalesService {
     required String saleId,
   }) async {
     final result = await _supabase.rpc(
-      'sales_get_detail_v520',
+      'sales_get_detail_v630',
       params: {'p_tenant_id': tenantId, 'p_sale_id': saleId},
     );
     if (result is Map) {

@@ -67,7 +67,7 @@ class _TrackingWorkspaceScreenState extends State<TrackingWorkspaceScreen> {
         serialId: row['serial_id'].toString(),
       );
       if (!mounted) return;
-      await showDialog<void>(
+      await showThqDialog<void>(
         context: context,
         builder: (_) => _HistoryDialog(
           title: 'Serial ${row['serial_number']}',
@@ -88,7 +88,7 @@ class _TrackingWorkspaceScreenState extends State<TrackingWorkspaceScreen> {
         batchId: row['batch_id'].toString(),
       );
       if (!mounted) return;
-      await showDialog<void>(
+      await showThqDialog<void>(
         context: context,
         builder: (_) => _HistoryDialog(
           title: 'Batch ${row['batch_number']}',
@@ -113,7 +113,7 @@ class _TrackingWorkspaceScreenState extends State<TrackingWorkspaceScreen> {
     return DefaultTabController(
       length: 3,
       child: Scaffold(
-        backgroundColor: const Color(0xFFF5F7FA),
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         appBar: AppBar(
           title: const Text('Serial / Batch / Warranty'),
           bottom: const TabBar(

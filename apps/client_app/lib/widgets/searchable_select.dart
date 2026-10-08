@@ -1,3 +1,4 @@
+import 'package:thq_ui/thq_ui.dart';
 import 'package:flutter/material.dart';
 
 class SearchableSelectOption<T> {
@@ -49,7 +50,7 @@ class SearchableSelect<T> extends StatelessWidget {
 
   Future<void> _pick(BuildContext context) async {
     if (!enabled || onChanged == null) return;
-    final result = await showDialog<_SearchResult<T>>(
+    final result = await showThqDialog<_SearchResult<T>>(
       context: context,
       builder: (_) => _SearchableSelectDialog<T>(
         title: labelText.replaceAll(' *', ''),

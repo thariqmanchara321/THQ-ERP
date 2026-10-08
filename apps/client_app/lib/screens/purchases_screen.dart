@@ -211,7 +211,7 @@ class _PurchasesScreenState extends State<PurchasesScreen> {
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
                           fontSize: 17,
-                          fontWeight: FontWeight.w900,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                       Text(
@@ -285,7 +285,7 @@ class _PurchasesScreenState extends State<PurchasesScreen> {
                           'No purchases yet',
                           style: TextStyle(
                             fontSize: 17,
-                            fontWeight: FontWeight.w800,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
                         if (_canManage && !widget.historyOnly) ...[
@@ -366,7 +366,7 @@ class _PurchasesScreenState extends State<PurchasesScreen> {
               value,
               textAlign: align,
               maxLines: 1,
-              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w900),
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
             ),
           ),
         );
@@ -384,7 +384,7 @@ class _PurchasesScreenState extends State<PurchasesScreen> {
           width: 104,
           child: Text(
             'Status',
-            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w900),
+            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
           ),
         ),
         const SizedBox(width: 28),
@@ -436,7 +436,7 @@ class _PurchasesScreenState extends State<PurchasesScreen> {
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         fontSize: 11,
-                        fontWeight: FontWeight.w800,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                     if (veryCompact)
@@ -541,6 +541,7 @@ class NewPurchaseScreen extends StatefulWidget {
   final String? initialUnitCode;
   final String? initialSupplierInvoiceNumber;
   final String? initialNotes;
+  final String? materialLoadId;
 
   const NewPurchaseScreen({
     super.key,
@@ -555,6 +556,7 @@ class NewPurchaseScreen extends StatefulWidget {
     this.initialUnitCode,
     this.initialSupplierInvoiceNumber,
     this.initialNotes,
+    this.materialLoadId,
   });
 
   @override
@@ -750,6 +752,26 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
       }
     }
 
+    if (product.trackingMode != 'none') {
+      final material = product;
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        if (!mounted) return;
+        final line = await showThqDialog<_PurchaseLine>(
+          context: context,
+          barrierDismissible: false,
+          builder: (_) => _AddPurchaseItemDialog(
+            products: [material],
+            initialVariantId: material.variantId,
+            initialUnitCode: requestedUnit,
+            initialQuantity: quantity,
+          ),
+        );
+        if (line != null && mounted) {
+          setState(() => _lines.add(line));
+        }
+      });
+      return;
+    }
     if (!_lines.any((entry) => entry.product.variantId == product!.variantId)) {
       _lines.add(
         _PurchaseLine(
@@ -846,6 +868,26 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
   }
 
   Future<void> _addLine() async {
+    try {
+      final products = await _inventoryService.getProducts(
+        tenantId: widget.session.business.id,
+        locationId: widget.locationId,
+      );
+      if (!mounted) return;
+      _products = products
+          .where(
+            (p) => p.productStatus == 'active' && p.variantStatus == 'active',
+          )
+          .toList();
+    } catch (error) {
+      if (mounted) {
+        ThqNotify.showSnackBar(
+          context,
+          SnackBar(content: Text('Could not refresh product costs: $error')),
+        );
+      }
+      return;
+    }
     final usedVariants = _lines.map((line) => line.product.variantId).toSet();
     final available = _products
         .where(
@@ -864,7 +906,7 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
       return;
     }
 
-    final line = await showDialog<_PurchaseLine>(
+    final line = await showThqDialog<_PurchaseLine>(
       context: context,
       barrierDismissible: false,
       builder: (_) => _AddPurchaseItemDialog(products: available),
@@ -901,7 +943,7 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
       return;
     }
 
-    final line = await showDialog<_PurchaseLine>(
+    final line = await showThqDialog<_PurchaseLine>(
       context: context,
       barrierDismissible: false,
       builder: (_) => _AddPurchaseItemDialog(products: available),
@@ -1018,6 +1060,8 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
           .map(
             (line) => <String, dynamic>{
               'variant_id': line.product.variantId,
+              'tracking_revision': line.product.trackingRevision,
+              'tracking_mode': line.product.trackingMode,
               'quantity': line.quantity,
               'unit_id': line.unit?.unitId,
               'unit_cost': line.unitCost,
@@ -1089,6 +1133,7 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
         paymentMethod: _paymentMethod,
         notes: _notesController.text,
         locationId: widget.locationId,
+        materialLoadId: widget.materialLoadId,
       );
 
       final createdPurchaseIdRawId =
@@ -1183,7 +1228,9 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
         : LayoutBuilder(
             builder: (context, constraints) {
               final desktopWorkspace =
-                  constraints.maxWidth >= 1080 && constraints.maxHeight >= 650;
+                  constraints.maxWidth >= 1080 &&
+                  constraints.maxHeight >= 600 &&
+                  MediaQuery.textScalerOf(context).scale(1) <= 1.3;
 
               if (desktopWorkspace) {
                 return _desktopPurchaseWorkspace(constraints);
@@ -1217,11 +1264,14 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
           );
 
     if (widget.embedded) {
-      return ColoredBox(color: const Color(0xFFF5F7FA), child: content);
+      return ColoredBox(
+        color: Theme.of(context).scaffoldBackgroundColor,
+        child: content,
+      );
     }
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         title: const Text(
           'New Purchase',
@@ -1233,7 +1283,7 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
   }
 
   Widget _desktopPurchaseWorkspace(BoxConstraints constraints) {
-    final summaryWidth = constraints.maxWidth >= 1320 ? 378.0 : 350.0;
+    final summaryWidth = constraints.maxWidth >= 1320 ? 330.0 : 310.0;
 
     return Padding(
       padding: const EdgeInsets.all(10),
@@ -1314,13 +1364,13 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
                   'New Purchase',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                 ),
                 Text(
                   'Fast entry | GST-aware | stock linked',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(fontSize: 10.5),
+                  style: TextStyle(fontSize: 11),
                 ),
               ],
             ),
@@ -1337,11 +1387,11 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
               children: [
                 Text(
                   'PURCHASE NO.',
-                  style: TextStyle(fontSize: 8.5, fontWeight: FontWeight.w700),
+                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
                 ),
                 Text(
                   'AUTO ON CONFIRM',
-                  style: TextStyle(fontSize: 10, fontWeight: FontWeight.w800),
+                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
                 ),
               ],
             ),
@@ -1491,13 +1541,13 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(label, style: const TextStyle(fontSize: 9)),
+                Text(label, style: const TextStyle(fontSize: 11)),
                 Text(
                   value,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    fontSize: 10.5,
+                    fontSize: 11,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -1530,7 +1580,7 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
           Text(
             '$label: ',
             style: TextStyle(
-              fontSize: 9.5,
+              fontSize: 11,
               fontWeight: FontWeight.w600,
               color: scheme.onSurfaceVariant,
             ),
@@ -1540,10 +1590,7 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
               value,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                fontSize: 10.5,
-                fontWeight: FontWeight.w700,
-              ),
+              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
             ),
           ),
         ],
@@ -1575,7 +1622,7 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
                     'Items (${_lines.length})',
                     style: const TextStyle(
                       fontSize: 12,
-                      fontWeight: FontWeight.w800,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                   const Spacer(),
@@ -1615,7 +1662,7 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
                         Text(
                           'Rows scroll vertically. Remove stays visible at the right.',
                           style: TextStyle(
-                            fontSize: 10.5,
+                            fontSize: 11,
                             color: scheme.onSurfaceVariant,
                           ),
                         ),
@@ -1689,7 +1736,7 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
                 SizedBox(width: 7),
                 Text(
                   'Totals & Payment',
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
                 ),
               ],
             ),
@@ -1733,10 +1780,7 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
                 children: [
                   const Text(
                     'Payment Method',
-                    style: TextStyle(
-                      fontSize: 10.5,
-                      fontWeight: FontWeight.w800,
-                    ),
+                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
                   ),
                   const SizedBox(height: 6),
                   _desktopPurchasePaymentMethods(),
@@ -1793,7 +1837,7 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
                   Text(
                     'GST figures shown here are a preview. Confirm uses the authoritative GST v5.2 quote and snapshot.',
                     style: TextStyle(
-                      fontSize: 9.5,
+                      fontSize: 11,
                       color: scheme.onSurfaceVariant,
                     ),
                   ),
@@ -1809,7 +1853,7 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
                       child: Text(
                         _error!,
                         style: TextStyle(
-                          fontSize: 10.5,
+                          fontSize: 11,
                           color: scheme.onErrorContainer,
                           fontWeight: FontWeight.w600,
                         ),
@@ -1870,9 +1914,9 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
                       methods[index].$2,
                       maxLines: 1,
                       style: TextStyle(
-                        fontSize: 9.5,
+                        fontSize: 11,
                         fontWeight: _paymentMethod == methods[index].$1
-                            ? FontWeight.w800
+                            ? FontWeight.w600
                             : FontWeight.w600,
                         color: _paymentMethod == methods[index].$1
                             ? scheme.onPrimaryContainer
@@ -1902,16 +1946,16 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
             child: Text(
               label,
               style: TextStyle(
-                fontSize: strong ? 11 : 10,
-                fontWeight: strong ? FontWeight.w800 : FontWeight.w500,
+                fontSize: strong ? 11 : 11,
+                fontWeight: strong ? FontWeight.w600 : FontWeight.w500,
               ),
             ),
           ),
           Text(
             value,
             style: TextStyle(
-              fontSize: strong ? 12 : 10.5,
-              fontWeight: strong ? FontWeight.w900 : FontWeight.w700,
+              fontSize: strong ? 12 : 11,
+              fontWeight: strong ? FontWeight.w600 : FontWeight.w700,
             ),
           ),
         ],
@@ -1949,7 +1993,7 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
-                fontSize: 10.5,
+                fontSize: 11,
                 fontWeight: FontWeight.w600,
                 color: _error == null ? scheme.onSurfaceVariant : scheme.error,
               ),
@@ -1995,9 +2039,9 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFE3E7EE)),
+        border: Border.all(color: Theme.of(context).colorScheme.outline),
       ),
       child: Row(
         children: [
@@ -2009,16 +2053,21 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
             ),
             const SizedBox(width: 12),
           ],
-          const Expanded(
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   'NEW PURCHASE',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
                 ),
                 SizedBox(height: 2),
-                Text('Purchase Entry', style: TextStyle(color: Colors.black54)),
+                Text(
+                  'Purchase Entry',
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
               ],
             ),
           ),
@@ -2029,7 +2078,7 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
               SizedBox(height: 3),
               Text(
                 'AUTO ON CONFIRM',
-                style: TextStyle(fontWeight: FontWeight.w800),
+                style: TextStyle(fontWeight: FontWeight.w600),
               ),
             ],
           ),
@@ -2208,7 +2257,7 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
                     horizontal: 8,
                     vertical: 10,
                   ),
-                  color: const Color(0xFFF1F4F8),
+                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
                   child: Row(
                     children: [
                       _purchaseHeaderCell('#', 1),
@@ -2243,7 +2292,7 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
       flex: flex,
       child: Text(
         label,
-        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
+        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
       ),
     );
   }
@@ -2254,7 +2303,7 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
       children: [
         const Text(
           'Payment & Charges',
-          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
+          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
         ),
         const SizedBox(height: 10),
         LayoutBuilder(
@@ -2375,9 +2424,12 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
           ),
         ),
         const SizedBox(height: 6),
-        const Text(
+        Text(
           'For a credit purchase, leave Initial Payment at ₹0.00.',
-          style: TextStyle(fontSize: 11, color: Colors.black54),
+          style: TextStyle(
+            fontSize: 11,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
         ),
       ],
     );
@@ -2404,10 +2456,13 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
           bold: true,
         ),
         const SizedBox(height: 8),
-        const Text(
+        Text(
           'GST split shown here is an estimate. The confirmed purchase uses the '
           'authoritative GST v5.2 snapshot.',
-          style: TextStyle(fontSize: 10, color: Colors.black54),
+          style: TextStyle(
+            fontSize: 11,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
         ),
       ],
     );
@@ -2443,12 +2498,12 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
               width: double.infinity,
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.red.shade50,
+                color: Theme.of(context).colorScheme.error,
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(
                 _error!,
-                style: TextStyle(color: Colors.red.shade700),
+                style: TextStyle(color: Theme.of(context).colorScheme.onError),
               ),
             ),
           ],
@@ -2532,7 +2587,15 @@ class _PurchaseLine {
 class _AddPurchaseItemDialog extends StatefulWidget {
   final List<InventoryProduct> products;
 
-  const _AddPurchaseItemDialog({required this.products});
+  final String? initialVariantId;
+  final String? initialUnitCode;
+  final double? initialQuantity;
+  const _AddPurchaseItemDialog({
+    required this.products,
+    this.initialVariantId,
+    this.initialUnitCode,
+    this.initialQuantity,
+  });
 
   @override
   State<_AddPurchaseItemDialog> createState() => _AddPurchaseItemDialogState();
@@ -2599,6 +2662,28 @@ class _AddPurchaseItemDialogState extends State<_AddPurchaseItemDialog> {
     _exactProductIndex = Map<String, InventoryProduct>.unmodifiable(exact);
     _productSearchText = Map<String, String>.unmodifiable(searchText);
     _productPrefixTokens = Map<String, List<String>>.unmodifiable(prefixTokens);
+    if (widget.initialVariantId != null) {
+      _selectProduct(widget.initialVariantId);
+      if (widget.initialQuantity != null) {
+        _quantityController.text = widget.initialQuantity.toString();
+      }
+      final requestedUnit = widget.initialUnitCode?.trim().toUpperCase();
+      if (requestedUnit == _product?.baseUnitCode.toUpperCase()) {
+        _unitId = null;
+      }
+      for (final unit in _product?.purchaseUnits ?? <ProductUnitOption>[]) {
+        if (unit.code.toUpperCase() == requestedUnit) {
+          _unitId = unit.unitId;
+        }
+      }
+      _costController.text =
+          (_selectedUnit?.purchaseCostFor(_product!.costPrice) ??
+                  _product!.costPrice)
+              .toStringAsFixed(4);
+      if (_product?.trackingMode == 'serial') {
+        _generateSerials();
+      }
+    }
   }
 
   Iterable<InventoryProduct> _searchProducts(String query, int limit) {
@@ -2631,7 +2716,7 @@ class _AddPurchaseItemDialogState extends State<_AddPurchaseItemDialog> {
 
   ProductUnitOption? get _selectedUnit {
     final product = _product;
-    if (product == null) return null;
+    if (product == null || _unitId == null) return null;
     for (final unit in product.purchaseUnits) {
       if (unit.unitId == _unitId) return unit;
     }
@@ -2712,6 +2797,26 @@ class _AddPurchaseItemDialogState extends State<_AddPurchaseItemDialog> {
     return 'LOT-${sku.isEmpty ? 'ITEM' : sku}-$date-${_batches.length + 1}';
   }
 
+  void _refreshBatchCost() {
+    if (_batches.isEmpty) return;
+    final total = _batches.fold<double>(
+      0,
+      (s, b) => s + (b['quantity'] as num).toDouble(),
+    );
+    final value = _batches.fold<double>(
+      0,
+      (s, b) =>
+          s +
+          (b['quantity'] as num).toDouble() *
+              (b['purchase_cost_base'] as num).toDouble(),
+    );
+    if (total > 0) {
+      _costController.text =
+          (value / total * (_selectedUnit?.conversionToBase ?? 1))
+              .toStringAsFixed(4);
+    }
+  }
+
   Future<void> _addAutoBatch() async {
     final product = _product;
     final quantity = double.tryParse(_quantityController.text.trim()) ?? 0;
@@ -2728,16 +2833,21 @@ class _AddPurchaseItemDialogState extends State<_AddPurchaseItemDialog> {
       return;
     }
 
-    final batch = await showDialog<Map<String, dynamic>>(
+    final batch = await showThqDialog<Map<String, dynamic>>(
       context: context,
       builder: (_) => _PurchaseBatchDialog(
         initialBatchNumber: _autoBatchNumber(product),
         initialQuantity: remaining,
+        initialCostBase:
+            (double.tryParse(_costController.text) ?? 0) /
+            (_selectedUnit?.conversionToBase ?? 1),
+        baseUnit: product.baseUnitCode,
       ),
     );
     if (batch != null && mounted) {
       setState(() {
         _batches.add(batch);
+        _refreshBatchCost();
         _error = null;
       });
     }
@@ -2751,14 +2861,25 @@ class _AddPurchaseItemDialogState extends State<_AddPurchaseItemDialog> {
       .toList();
 
   Future<void> _addBatch() async {
-    final batch = await showDialog<Map<String, dynamic>>(
+    final batch = await showThqDialog<Map<String, dynamic>>(
       context: context,
-      builder: (_) => const _PurchaseBatchDialog(),
+      builder: (_) => _PurchaseBatchDialog(
+        initialCostBase:
+            (double.tryParse(_costController.text) ?? 0) /
+            (_selectedUnit?.conversionToBase ?? 1),
+        baseUnit: _product?.baseUnitCode ?? 'base unit',
+      ),
     );
-    if (batch != null && mounted) setState(() => _batches.add(batch));
+    if (batch != null && mounted) {
+      setState(() {
+        _batches.add(batch);
+        _refreshBatchCost();
+      });
+    }
   }
 
   void _add() {
+    _refreshBatchCost();
     final product = _product;
 
     final quantity = double.tryParse(_quantityController.text.trim());
@@ -2776,7 +2897,7 @@ class _AddPurchaseItemDialogState extends State<_AddPurchaseItemDialog> {
       return;
     }
 
-    if (quantity == null || quantity <= 0) {
+    if (quantity == null || !quantity.isFinite || quantity <= 0) {
       setState(() {
         _error = 'Quantity must be greater than zero.';
       });
@@ -2825,7 +2946,7 @@ class _AddPurchaseItemDialogState extends State<_AddPurchaseItemDialog> {
       }
     }
 
-    if (cost == null || cost < 0) {
+    if (cost == null || !cost.isFinite || cost < 0) {
       setState(() {
         _error = 'Enter a valid purchase cost.';
       });
@@ -3026,10 +3147,14 @@ class _AddPurchaseItemDialogState extends State<_AddPurchaseItemDialog> {
                 Expanded(
                   child: TextField(
                     controller: _costController,
+                    readOnly: _batches.isNotEmpty,
                     keyboardType: const TextInputType.numberWithOptions(
                       decimal: true,
                     ),
-                    decoration: const InputDecoration(
+                    decoration: InputDecoration(
+                      helperText: _batches.isEmpty
+                          ? null
+                          : 'Calculated from the selected batch costs.',
                       labelText: 'Unit Cost',
                       prefixText: '₹ ',
                       border: OutlineInputBorder(),
@@ -3125,15 +3250,17 @@ class _AddPurchaseItemDialogState extends State<_AddPurchaseItemDialog> {
                   dense: true,
                   contentPadding: EdgeInsets.zero,
                   title: Text(
-                    '${entry.value['batch_number']} • ${entry.value['quantity']} ${_product?.baseUnitCode ?? ''}',
+                    '${entry.value['batch_number']} • ${entry.value['quality_label'] ?? ''} • ${entry.value['quantity']} ${_product?.baseUnitCode ?? ''} • Cost ${entry.value['purchase_cost_base']} • Sell ${entry.value['selling_price_base'] ?? 'standard'}',
                   ),
                   subtitle: Text(
                     'MFG ${entry.value['manufactured_on'] ?? '-'} • EXP ${entry.value['expiry_on'] ?? '-'}',
                   ),
                   trailing: IconButton(
                     icon: const Icon(Icons.delete_outline),
-                    onPressed: () =>
-                        setState(() => _batches.removeAt(entry.key)),
+                    onPressed: () => setState(() {
+                      _batches.removeAt(entry.key);
+                      _refreshBatchCost();
+                    }),
                   ),
                 ),
               ),
@@ -3160,7 +3287,10 @@ class _AddPurchaseItemDialogState extends State<_AddPurchaseItemDialog> {
 
             if (_error != null) ...[
               const SizedBox(height: 14),
-              Text(_error!, style: TextStyle(color: Colors.red.shade700)),
+              Text(
+                _error!,
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
             ],
           ],
         ),
@@ -3179,10 +3309,14 @@ class _AddPurchaseItemDialogState extends State<_AddPurchaseItemDialog> {
 class _PurchaseBatchDialog extends StatefulWidget {
   final String initialBatchNumber;
   final double? initialQuantity;
+  final double? initialCostBase;
+  final String baseUnit;
 
   const _PurchaseBatchDialog({
     this.initialBatchNumber = '',
     this.initialQuantity,
+    this.initialCostBase,
+    this.baseUnit = 'base unit',
   });
   @override
   State<_PurchaseBatchDialog> createState() => _PurchaseBatchDialogState();
@@ -3191,6 +3325,9 @@ class _PurchaseBatchDialog extends StatefulWidget {
 class _PurchaseBatchDialogState extends State<_PurchaseBatchDialog> {
   late final TextEditingController _number;
   late final TextEditingController _quantity;
+  final _quality = TextEditingController();
+  final _selling = TextEditingController();
+  late final TextEditingController _cost;
   final _manufactured = TextEditingController();
   final _expiry = TextEditingController();
   String? _error;
@@ -3198,6 +3335,9 @@ class _PurchaseBatchDialogState extends State<_PurchaseBatchDialog> {
   @override
   void initState() {
     super.initState();
+    _cost = TextEditingController(
+      text: widget.initialCostBase?.toString() ?? '',
+    );
     _number = TextEditingController(text: widget.initialBatchNumber);
     _quantity = TextEditingController(
       text: widget.initialQuantity == null
@@ -3210,6 +3350,9 @@ class _PurchaseBatchDialogState extends State<_PurchaseBatchDialog> {
 
   @override
   void dispose() {
+    _quality.dispose();
+    _selling.dispose();
+    _cost.dispose();
     _number.dispose();
     _quantity.dispose();
     _manufactured.dispose();
@@ -3219,13 +3362,33 @@ class _PurchaseBatchDialogState extends State<_PurchaseBatchDialog> {
 
   void _save() {
     final qty = double.tryParse(_quantity.text.trim());
-    if (_number.text.trim().isEmpty || qty == null || qty <= 0) {
+    if (_number.text.trim().isEmpty ||
+        qty == null ||
+        !qty.isFinite ||
+        qty <= 0) {
       setState(
         () => _error = 'Enter a batch number and positive base quantity.',
       );
       return;
     }
+    final cost = double.tryParse(_cost.text.trim());
+    final rate = _selling.text.trim().isEmpty
+        ? null
+        : double.tryParse(_selling.text.trim());
+    if (cost == null ||
+        !cost.isFinite ||
+        cost < 0 ||
+        (_selling.text.trim().isNotEmpty &&
+            (rate == null || !rate.isFinite || rate < 0))) {
+      setState(
+        () => _error = 'Enter a valid purchase cost and optional selling rate.',
+      );
+      return;
+    }
     Navigator.of(context).pop(<String, dynamic>{
+      'quality_label': _quality.text.trim(),
+      'purchase_cost_base': cost,
+      'selling_price_base': rate,
       'batch_number': _number.text.trim(),
       'quantity': qty,
       'manufactured_on': _manufactured.text.trim().isEmpty
@@ -3237,7 +3400,8 @@ class _PurchaseBatchDialogState extends State<_PurchaseBatchDialog> {
 
   @override
   Widget build(BuildContext context) => AlertDialog(
-    title: const Text('Add Batch'),
+    scrollable: true,
+    title: const Text('Add Batch / Quality'),
     content: SizedBox(
       width: 460,
       child: Column(
@@ -3254,9 +3418,35 @@ class _PurchaseBatchDialogState extends State<_PurchaseBatchDialog> {
           TextField(
             controller: _quantity,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: InputDecoration(
+              labelText: 'Quantity in ${widget.baseUnit}',
+              border: const OutlineInputBorder(),
+            ),
+          ),
+          const SizedBox(height: 10),
+          TextField(
+            controller: _quality,
             decoration: const InputDecoration(
-              labelText: 'Quantity in base unit',
+              labelText: 'Quality / grade',
               border: OutlineInputBorder(),
+            ),
+          ),
+          const SizedBox(height: 10),
+          TextField(
+            controller: _cost,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: InputDecoration(
+              labelText: 'Purchase cost per ${widget.baseUnit}',
+              border: const OutlineInputBorder(),
+            ),
+          ),
+          const SizedBox(height: 10),
+          TextField(
+            controller: _selling,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            decoration: InputDecoration(
+              labelText: 'Selling rate per ${widget.baseUnit} (optional)',
+              border: const OutlineInputBorder(),
             ),
           ),
           const SizedBox(height: 10),
@@ -3327,7 +3517,11 @@ class _PurchaseLineRow extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
       decoration: BoxDecoration(
-        border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
+        border: Border(
+          bottom: BorderSide(
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+        ),
       ),
       child: Row(
         children: [
@@ -3344,7 +3538,10 @@ class _PurchaseLineRow extends StatelessWidget {
                 ),
                 Text(
                   line.product.sku,
-                  style: const TextStyle(fontSize: 11, color: Colors.black54),
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
                 ),
               ],
             ),
@@ -3358,7 +3555,7 @@ class _PurchaseLineRow extends StatelessWidget {
           cell(
             Text(
               money(line.total),
-              style: const TextStyle(fontWeight: FontWeight.w800),
+              style: const TextStyle(fontWeight: FontWeight.w600),
             ),
             2,
           ),
@@ -3393,9 +3590,11 @@ class _PurchaseCard extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -3473,10 +3672,10 @@ class _PaymentBadge extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
         color: status == 'paid'
-            ? Colors.green.shade50
+            ? Theme.of(context).colorScheme.primary
             : status == 'partial'
-            ? Colors.orange.shade50
-            : Colors.red.shade50,
+            ? context.thqSemanticColors.warning
+            : Theme.of(context).colorScheme.error,
         borderRadius: BorderRadius.circular(20),
       ),
       child: Text(

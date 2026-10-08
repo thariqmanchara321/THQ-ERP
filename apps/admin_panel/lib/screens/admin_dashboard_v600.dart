@@ -183,6 +183,7 @@ class _AdminDashboardV600State extends State<AdminDashboardV600> {
       destinations: _destinations,
       selectedKey: 'overview',
       onDestinationSelected: _openDestination,
+      sidebarWidth: ThqAppearanceScope.modeOf(context) == ThqAppearance.classic ? 224 : 176,
       collapsed: _navCollapsed,
       onCollapsedChanged: (value) => setState(() => _navCollapsed = value),
       brand: const _AdminBrand(),
@@ -216,6 +217,8 @@ class _AdminDashboardV600State extends State<AdminDashboardV600> {
           },
         ),
         actions: [
+          const ThqAppearanceButton(),
+          const ThqMotionButton(),
           IconButton(
             tooltip: 'Refresh Platform',
             onPressed: _refreshing ? null : _refresh,
@@ -455,7 +458,7 @@ class _AdminBrand extends StatelessWidget {
         'T',
         style: Theme.of(
           context,
-        ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w900),
+        ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
       ),
     );
     return LayoutBuilder(

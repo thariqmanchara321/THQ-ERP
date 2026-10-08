@@ -55,7 +55,7 @@ class _BusinessSelectorScreenState extends State<BusinessSelectorScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(title: const Text('Choose Business')),
       body: Center(
         child: Container(
@@ -73,13 +73,18 @@ class _BusinessSelectorScreenState extends State<BusinessSelectorScreen> {
 
               Text(
                 'Your account has access to multiple businesses.',
-                style: TextStyle(color: Colors.grey.shade600),
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
               ),
 
               if (_error != null) ...[
                 const SizedBox(height: 18),
 
-                Text(_error!, style: const TextStyle(color: Colors.red)),
+                Text(
+                  _error!,
+                  style: TextStyle(color: Theme.of(context).colorScheme.error),
+                ),
               ],
 
               const SizedBox(height: 24),
@@ -94,7 +99,7 @@ class _BusinessSelectorScreenState extends State<BusinessSelectorScreen> {
                     final loading = _loadingBusinessId == business.id;
 
                     return Material(
-                      color: Colors.white,
+                      color: Theme.of(context).colorScheme.surface,
                       borderRadius: BorderRadius.circular(16),
                       child: InkWell(
                         onTap: loading ? null : () => _openBusiness(business),
@@ -124,7 +129,9 @@ class _BusinessSelectorScreenState extends State<BusinessSelectorScreen> {
                                     Text(
                                       business.businessType ?? 'Business',
                                       style: TextStyle(
-                                        color: Colors.grey.shade600,
+                                        color: Theme.of(
+                                          context,
+                                        ).colorScheme.onSurfaceVariant,
                                       ),
                                     ),
                                   ],

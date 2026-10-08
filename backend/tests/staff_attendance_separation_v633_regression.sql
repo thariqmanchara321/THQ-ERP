@@ -1,0 +1,68 @@
+-- Rollback-only fixtures: no operational test records are retained.
+do $test$
+declare
+ t uuid:=gen_random_uuid(); usr uuid:=gen_random_uuid(); membership uuid:=gen_random_uuid();
+ loc uuid:=gen_random_uuid(); role_id uuid; s uuid; r jsonb; again jsonb; q jsonb;
+ payload jsonb; checks jsonb:='{}'; blocked boolean; attendance_before text;
+begin
+ begin
+  insert into public.tenants(id,name,slug,business_type) values(t,'Staff separation rollback','staff-separation-rollback-'||t,'material_yard');
+  insert into auth.users(id,aud,role,email) values(usr,'authenticated','authenticated','staff-separation-rollback-'||usr||'@example.invalid');
+  insert into public.tenant_memberships(id,tenant_id,user_id) values(membership,t,usr);
+  select id into role_id from public.roles where tenant_id=t and key='owner' limit 1;
+  if role_id is null then insert into public.roles(tenant_id,key,name) values(t,'owner','Owner') returning id into role_id;end if;
+  insert into public.role_permissions(role_id,permission_key) select role_id,key from public.permissions on conflict do nothing;
+  insert into public.user_roles(tenant_id,membership_id,role_id) values(t,membership,role_id);
+  perform set_config('request.jwt.claim.sub',usr::text,true);
+  perform private.v47_ensure_accounting_for_tenant(t);
+  insert into public.business_locations(id,tenant_id,location_code,name) values(loc,t,'ROLLBACK-'||loc,'Staff rollback location');
+  insert into public.tenant_modules(tenant_id,module_key,enabled) values(t,'staff',true) on conflict(tenant_id,module_key) do update set enabled=true;
+  r:=public.staff_workspace_v630(t,'save',jsonb_build_object('name','Rollback staff','wage_basis','daily','base_rate',100,'joined_on',current_date-10),loc);
+  s:=(r->>'staff_id')::uuid;
+  if not exists(select 1 from public.staff_members_v630 where id=s and base_rate=100) then raise exception 'Staff profile save failed';end if;
+  checks:=checks||jsonb_build_object('staff_profile_save','PASS');
+  insert into public.staff_attendance_v630(tenant_id,staff_id,location_id,work_date,status,hours,overtime_hours,notes) values(t,s,loc,current_date,'present',8,2,'Historical fixture');
+  insert into public.workforce_audit_v630(tenant_id,staff_id,action,after_data) values(t,s,'attendance.save','{"retained":true}');
+  select md5(to_jsonb(a)::text) into attendance_before from public.staff_attendance_v630 a where tenant_id=t;
+  blocked:=false;begin perform public.staff_workspace_v630(t,'attendance',jsonb_build_object('staff_id',s,'date',current_date,'status','absent'),loc);exception when feature_not_supported then blocked:=true;end;
+  if not blocked then raise exception 'Attendance can still be recorded through Staff';end if;
+  if attendance_before<>(select md5(to_jsonb(a)::text) from public.staff_attendance_v630 a where tenant_id=t) then raise exception 'Historical attendance changed';end if;
+  checks:=checks||jsonb_build_object('attendance_recording_disabled','PASS','historical_attendance_preserved','PASS');
+  payload:=jsonb_build_object('staff_id',s,'date',current_date,'kind','payroll','period_from',current_date,'period_to',current_date,'units',2,'rate',100,'allowances',50,'deductions',10,'request_id',gen_random_uuid()::text);
+  r:=public.staff_workspace_v630(t,'payroll',payload,loc);
+  again:=public.staff_workspace_v630(t,'payroll',payload,loc);
+  if r->>'id'<>again->>'id' or not exists(select 1 from public.staff_earnings_v630 where id=(r->>'id')::uuid and amount=240 and units=2 and allowances=50) then raise exception 'Manual payroll or retry failed';end if;
+  checks:=checks||jsonb_build_object('manual_payroll_and_idempotency','PASS');
+  payload:=jsonb_build_object('staff_id',s,'date',current_date,'amount',100,'payment_method','cash','request_id',gen_random_uuid()::text);
+  r:=public.staff_workspace_v630(t,'payment',payload,loc);
+  again:=public.staff_workspace_v630(t,'payment',payload,loc);
+  if r->>'id'<>again->>'id' then raise exception 'Payment retry created another record';end if;
+  q:=public.staff_workspace_v630(t,'detail',jsonb_build_object('staff_id',s),loc);
+  if q?'attendance' or exists(select 1 from jsonb_array_elements(q->'history') h where h->>'action' like 'attendance.%') then raise exception 'Staff statement still contains attendance';end if;
+  if (q->'staff'->0->>'outstanding')::numeric<>140 or jsonb_array_length(q->'earnings')<>1 or jsonb_array_length(q->'payments')<>1 then raise exception 'Staff statement lost financial balances';end if;
+  checks:=checks||jsonb_build_object('statement_financials_and_no_attendance','PASS','partial_payment_and_idempotency','PASS');
+  payload:=jsonb_build_object('staff_id',s,'date',current_date,'amount',200,'payment_method','cash','request_id',gen_random_uuid()::text);
+  perform public.staff_workspace_v630(t,'payment',payload,loc);
+  payload:=jsonb_build_object('staff_id',s,'date',current_date,'kind','bonus','units',1,'rate',50,'request_id',gen_random_uuid()::text);
+  perform public.staff_workspace_v630(t,'payroll',payload,loc);
+  q:=public.staff_workspace_v630(t,'report','{}',loc);
+  if q?'attendance' or (q->'staff'->0->>'outstanding')::numeric<>0 or (q->'staff'->0->>'advance_balance')::numeric<>10 then raise exception 'Staff advance application failed';end if;
+  checks:=checks||jsonb_build_object('advance_and_bonus_accounting','PASS');
+  if exists(select 1 from public.journal_entries j join public.journal_lines l on l.journal_entry_id=j.id where j.tenant_id=t group by j.id having abs(sum(l.debit-l.credit))>.005) then raise exception 'Staff journal imbalance';end if;
+  q:=public.reports_export_dataset_v630(t,current_date,current_date,loc);
+  if q?'staff_attendance' or jsonb_array_length(q->'staff_earnings')<>2 or jsonb_array_length(q->'staff_payments')<>2 then raise exception 'Financial export attendance separation failed';end if;
+  checks:=checks||jsonb_build_object('balanced_journals','PASS','financial_export_no_attendance','PASS');
+  blocked:=false;begin perform public.staff_workspace_v630(gen_random_uuid(),'report','{}',loc);exception when insufficient_privilege then blocked:=true;end;
+  if not blocked then raise exception 'Cross-tenant Staff access accepted';end if;
+  perform set_config('request.jwt.claim.sub','',true);
+  blocked:=false;begin perform public.staff_workspace_v630(t,'report','{}',loc);exception when insufficient_privilege then blocked:=true;end;
+  if not blocked then raise exception 'Unauthenticated Staff access accepted';end if;
+  if has_function_privilege('anon','public.staff_workspace_v630(uuid,text,jsonb,uuid)','execute') or has_table_privilege('authenticated','public.staff_attendance_v630','select') or has_table_privilege('authenticated','public.staff_attendance_v630','insert') then raise exception 'Attendance archive or Staff RPC exposed';end if;
+  checks:=checks||jsonb_build_object('tenant_auth_and_archive_access_guards','PASS');
+  if not exists(select 1 from public.modules where key='attendance' and not is_active and not is_core) or exists(select 1 from public.tenant_modules where tenant_id=t and module_key='attendance' and enabled) then raise exception 'Attendance was enabled prematurely';end if;
+  checks:=checks||jsonb_build_object('independent_attendance_reserved_inactive','PASS');
+  raise exception using errcode='ZT001',message='Rollback all Staff separation fixtures';
+ exception when sqlstate 'ZT001' then null;end;
+ perform set_config('thq_v633_staff_test.result',checks::text,false);
+end $test$;
+select current_setting('thq_v633_staff_test.result')::jsonb as tests;

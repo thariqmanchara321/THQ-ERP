@@ -1,3 +1,4 @@
+import 'package:thq_ui/thq_ui.dart';
 import 'package:flutter/material.dart';
 
 import '../models/client_session.dart';
@@ -243,7 +244,7 @@ class _AggregateDirectSupplyScreenState
     final notes = TextEditingController();
 
     try {
-      final created = await showDialog<bool>(
+      final created = await showThqDialog<bool>(
         context: context,
         barrierDismissible: false,
         builder: (dialogContext) => StatefulBuilder(
@@ -267,15 +268,19 @@ class _AggregateDirectSupplyScreenState
                         width: double.infinity,
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
-                          color: Theme.of(context).colorScheme.tertiaryContainer
-                              .withValues(alpha: .55),
+                          color: Color.alphaBlend(
+                            context.thqSemanticColors.warning.withValues(
+                              alpha: .12,
+                            ),
+                            Theme.of(context).colorScheme.surface,
+                          ).withValues(alpha: .55),
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: const Text(
                           'Quarry → Customer uses a hidden controlled transit '
                           'location. Post and link the Purchase first; the Sale '
                           'is enabled only after that Purchase is linked.',
-                          style: TextStyle(fontSize: 10.5, height: 1.35),
+                          style: TextStyle(fontSize: 11, height: 1.35),
                         ),
                       ),
                       const SizedBox(height: 10),
@@ -447,7 +452,7 @@ class _AggregateDirectSupplyScreenState
                           alignment: Alignment.centerLeft,
                           child: Text(
                             'Calculated: ${calculated.toStringAsFixed(3)} CFT',
-                            style: const TextStyle(fontWeight: FontWeight.w800),
+                            style: const TextStyle(fontWeight: FontWeight.w600),
                           ),
                         ),
                       ] else
@@ -959,7 +964,7 @@ class _AggregateDirectSupplyScreenState
         return;
       }
 
-      final selectedId = await showDialog<String>(
+      final selectedId = await showThqDialog<String>(
         context: context,
         builder: (dialogContext) => AlertDialog(
           title: Text('Recover ${_label(documentType)} Link'),
@@ -1132,7 +1137,7 @@ class _AggregateDirectSupplyScreenState
                     'Controlled flow: create load → Purchase into hidden transit '
                     '→ link Purchase → Sale from transit → link Sale → Complete. '
                     'Never repost a document after a link interruption; use Recover Link.',
-                    style: TextStyle(fontSize: 10.5, height: 1.35),
+                    style: TextStyle(fontSize: 11, height: 1.35),
                   ),
                 ),
               ],
@@ -1283,7 +1288,7 @@ class _AggregateDirectSupplyScreenState
                                             maxLines: 1,
                                             overflow: TextOverflow.ellipsis,
                                             style: const TextStyle(
-                                              fontWeight: FontWeight.w900,
+                                              fontWeight: FontWeight.w600,
                                             ),
                                           ),
                                         ),
@@ -1296,7 +1301,9 @@ class _AggregateDirectSupplyScreenState
                                                       ?.toString() ??
                                                   'awaiting_purchase',
                                             ),
-                                            style: const TextStyle(fontSize: 8),
+                                            style: const TextStyle(
+                                              fontSize: 11,
+                                            ),
                                           ),
                                         ),
                                       ],
@@ -1307,7 +1314,7 @@ class _AggregateDirectSupplyScreenState
                                       ' • ${row['vehicle_registration'] ?? 'No truck'}'
                                       ' • ${row['operating_location_name'] ?? ''}',
                                       style: TextStyle(
-                                        fontSize: 9.5,
+                                        fontSize: 11,
                                         color: scheme.onSurfaceVariant,
                                       ),
                                     ),
@@ -1319,7 +1326,7 @@ class _AggregateDirectSupplyScreenState
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
                                       style: const TextStyle(
-                                        fontSize: 10.5,
+                                        fontSize: 11,
                                         fontWeight: FontWeight.w700,
                                       ),
                                     ),
@@ -1464,7 +1471,7 @@ class _MiniTag extends StatelessWidget {
       ),
       child: Text(
         text,
-        style: const TextStyle(fontSize: 8.5, fontWeight: FontWeight.w700),
+        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
       ),
     );
   }

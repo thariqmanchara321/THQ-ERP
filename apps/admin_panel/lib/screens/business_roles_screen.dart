@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:thq_ui/thq_ui.dart';
+
 import '../widgets/admin_home_button.dart';
 
 import '../models/business_role.dart';
@@ -236,7 +237,7 @@ class _BusinessRolesScreenState extends State<BusinessRolesScreen> {
         toolbarHeight: 42,
         title: const Text(
           'Roles & Permissions',
-          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900),
+          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
         ),
         actions: const [AdminHomeButton()],
       ),
@@ -290,14 +291,14 @@ class _BusinessRolesScreenState extends State<BusinessRolesScreen> {
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
                           fontSize: 11,
-                          fontWeight: FontWeight.w900,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                       Text(
                         '${_roles.length} role(s) | '
                         '${_permissions.length} permission(s)',
                         style: TextStyle(
-                          fontSize: 7.8,
+                          fontSize: 11,
                           color: scheme.onSurfaceVariant,
                         ),
                       ),
@@ -403,11 +404,11 @@ class _RolesPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: Colors.white,
+      color: Theme.of(context).colorScheme.surface,
       clipBehavior: Clip.antiAlias,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(9),
-        side: BorderSide(color: Colors.grey.shade200),
+        side: BorderSide(color: Theme.of(context).colorScheme.onSurfaceVariant),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -416,7 +417,7 @@ class _RolesPanel extends StatelessWidget {
             padding: EdgeInsets.all(9),
             child: Text(
               'Roles',
-              style: TextStyle(fontSize: 10, fontWeight: FontWeight.w900),
+              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
             ),
           ),
 
@@ -497,11 +498,11 @@ class _PermissionEditor extends StatelessWidget {
     final owner = role.key == 'owner';
 
     return Material(
-      color: Colors.white,
+      color: Theme.of(context).colorScheme.surface,
       clipBehavior: Clip.antiAlias,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(9),
-        side: BorderSide(color: Colors.grey.shade200),
+        side: BorderSide(color: Theme.of(context).colorScheme.onSurfaceVariant),
       ),
       child: Column(
         children: [
@@ -527,7 +528,9 @@ class _PermissionEditor extends StatelessWidget {
                         owner
                             ? 'Owner always has full access to enabled business modules.'
                             : '${selectedPermissions.length} permissions selected',
-                        style: TextStyle(color: Colors.grey.shade600),
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
                       ),
                     ],
                   ),
@@ -563,10 +566,13 @@ class _PermissionEditor extends StatelessWidget {
               margin: const EdgeInsets.all(18),
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.red.shade50,
+                color: Theme.of(context).colorScheme.error,
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: Text(error!, style: TextStyle(color: Colors.red.shade700)),
+              child: Text(
+                error!,
+                style: TextStyle(color: Theme.of(context).colorScheme.onError),
+              ),
             ),
 
           Expanded(
@@ -637,9 +643,11 @@ class _PermissionGroup extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.only(bottom: 18),
       decoration: BoxDecoration(
-        color: Colors.grey.shade50,
+        color: Theme.of(context).colorScheme.onSurfaceVariant,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
+        ),
       ),
 
       child: Column(

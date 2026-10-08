@@ -10,7 +10,7 @@ import 'config/thq_environment_frame.dart';
 import 'screens/admin_dashboard_v600.dart';
 import 'screens/login_screen.dart';
 import 'services/app_log_service.dart';
-import 'ui/v43_theme.dart';
+import 'ui/thq_brand_experience.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -29,13 +29,16 @@ Future<void> main() async {
     return true;
   };
 
-  runApp(const ThqAdminApp());
+  final appearance = ThqAppearanceController(appKey: 'admin');
+  await appearance.load();
+  runApp(ThqAdminApp(appearance: appearance));
 }
 
 class ThqAdminApp extends StatelessWidget {
+  final ThqAppearanceController? appearance;
   final bool? authenticatedOverride;
 
-  const ThqAdminApp({super.key, this.authenticatedOverride});
+  const ThqAdminApp({super.key, this.authenticatedOverride, this.appearance});
 
   @override
   Widget build(BuildContext context) {
@@ -43,16 +46,28 @@ class ThqAdminApp extends StatelessWidget {
         authenticatedOverride ??
         (Supabase.instance.client.auth.currentSession != null);
 
-    return MaterialApp(
-      title: SupabaseConfig.appTitle('THQ Admin'),
-      debugShowCheckedModeBanner: false,
-      builder: (context, child) => ThqEnvironmentFrame(
-        child: ThqNotificationHost(
-        child: NumericZeroAutoSelect(child: child ?? const SizedBox.shrink()),
+    return ThqAppearanceHost(
+      appKey: 'admin',
+      controller: appearance,
+      builder: (context, mode) => MaterialApp(
+        title: SupabaseConfig.appTitle('THQ Admin'),
+        debugShowCheckedModeBanner: false,
+        themeAnimationDuration: Duration.zero,
+        builder: (context, child) => ThqEnvironmentFrame(
+          child: ThqMotionScope(
+            child: ThqStartupGate(
+              appName: 'THQ Admin',
+              child: ThqNotificationHost(
+                child: NumericZeroAutoSelect(
+                  child: child ?? const SizedBox.shrink(),
+                ),
+              ),
+            ),
+          ),
+        ),
+        theme: UiDesignProfile.fallback('admin').forAppearance(mode).theme(),
+        home: authenticated ? const AdminDashboardV600() : const LoginScreen(),
       ),
-      ),
-      theme: UiDesignProfile.fallback('client').theme(),
-      home: authenticated ? const AdminDashboardV600() : const LoginScreen(),
     );
   }
 }

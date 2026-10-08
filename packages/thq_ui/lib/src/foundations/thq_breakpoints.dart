@@ -14,7 +14,8 @@ abstract final class ThqBreakpoints {
     return ThqLayoutClass.wide;
   }
 
-  static bool isMobile(double width) => classify(width) == ThqLayoutClass.mobile;
+  static bool isMobile(double width) =>
+      classify(width) == ThqLayoutClass.mobile;
 
   static bool isDesktop(double width) {
     final layout = classify(width);

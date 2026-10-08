@@ -103,14 +103,14 @@ class _TrackingLookupScreenState extends State<TrackingLookupScreen> {
                         'Tracking ID Lookup',
                         style: TextStyle(
                           fontSize: 14.5,
-                          fontWeight: FontWeight.w900,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                       Text(
                         'Find any tracked ERP record by human-readable code',
                         maxLines: 1,
                         style: TextStyle(
-                          fontSize: 8.3,
+                          fontSize: 11,
                           color: scheme.onSurfaceVariant,
                         ),
                       ),
@@ -173,7 +173,7 @@ class _TrackingLookupScreenState extends State<TrackingLookupScreen> {
                         child: Text(
                           _error!,
                           style: TextStyle(
-                            fontSize: 8.5,
+                            fontSize: 11,
                             color: scheme.onErrorContainer,
                           ),
                         ),
@@ -198,20 +198,20 @@ class _TrackingLookupScreenState extends State<TrackingLookupScreen> {
                                   .replaceAll('_', ' ')
                                   .toUpperCase(),
                               style: const TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.w900,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
                               ),
                             ),
                             const SizedBox(height: 6),
                             SelectableText(
                               'Tracking: '
                               '${_result!['tracking_code'] ?? '-'}',
-                              style: const TextStyle(fontSize: 8.5),
+                              style: const TextStyle(fontSize: 11),
                             ),
                             const SizedBox(height: 3),
                             SelectableText(
                               'UUID: ${_result!['id'] ?? '-'}',
-                              style: const TextStyle(fontSize: 8),
+                              style: const TextStyle(fontSize: 11),
                             ),
                           ],
                         ),

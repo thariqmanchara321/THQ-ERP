@@ -40,6 +40,7 @@ class PurchaseService {
     required String notes,
     String? locationId,
     String? requestId,
+    String? materialLoadId,
   }) async {
     final origin = await _originParams(tenantId, locationId: locationId);
     final payload = <String, dynamic>{
@@ -55,6 +56,7 @@ class PurchaseService {
       'notes': notes.trim(),
       'location_id': origin['p_location_id'],
       'device_id': origin['p_device_id'],
+      'material_load_id': ?materialLoadId,
     };
 
     final lease = await _requestIds.acquire(
@@ -71,12 +73,22 @@ class PurchaseService {
       deviceId: origin['p_device_id']?.toString(),
     );
     await gateway.initialize();
-    final rpc = gateway.routeFor('purchase');
+    final authoritativeRpc = gateway.routeFor('purchase');
+    if (materialLoadId != null &&
+        authoritativeRpc != 'gst_purchase_create_v520') {
+      throw StateError(
+        'Material Yard requires the authoritative GST Purchase route.',
+      );
+    }
+    final rpc = materialLoadId == null
+        ? authoritativeRpc
+        : 'aggregate_load_purchase_create_v629';
 
     try {
       final result = await _supabase.rpc(
         rpc,
         params: {
+          'p_load_id': ?materialLoadId,
           'p_tenant_id': tenantId,
           'p_supplier_id': supplierId,
           'p_supplier_invoice_number': supplierInvoiceNumber.trim(),
@@ -136,7 +148,7 @@ class PurchaseService {
     required String purchaseId,
   }) async {
     final result = await _supabase.rpc(
-      'purchases_get_detail_v520',
+      'purchases_get_detail_v628',
       params: {'p_tenant_id': tenantId, 'p_purchase_id': purchaseId},
     );
     if (result is Map) {

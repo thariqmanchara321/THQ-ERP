@@ -71,7 +71,7 @@ class _CustomersScreenState extends State<CustomersScreen> {
   }
 
   Future<void> _addCustomer() async {
-    final changed = await showDialog<bool>(
+    final changed = await showThqDialog<bool>(
       context: context,
       barrierDismissible: false,
       builder: (_) => _CustomerFormDialog(session: widget.session),
@@ -94,7 +94,7 @@ class _CustomersScreenState extends State<CustomersScreen> {
       return;
     }
 
-    final changed = await showDialog<bool>(
+    final changed = await showThqDialog<bool>(
       context: context,
       barrierDismissible: false,
       builder: (_) =>
@@ -178,7 +178,7 @@ class _CustomersScreenState extends State<CustomersScreen> {
                         'Customers',
                         style: TextStyle(
                           fontSize: 14.5,
-                          fontWeight: FontWeight.w900,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                       Text(
@@ -296,7 +296,7 @@ class _CustomersScreenState extends State<CustomersScreen> {
                                 'Customer',
                                 style: TextStyle(
                                   fontSize: 11.5,
-                                  fontWeight: FontWeight.w900,
+                                  fontWeight: FontWeight.w600,
                                 ),
                               ),
                             ),
@@ -306,7 +306,7 @@ class _CustomersScreenState extends State<CustomersScreen> {
                                 'Contact',
                                 style: TextStyle(
                                   fontSize: 11.5,
-                                  fontWeight: FontWeight.w900,
+                                  fontWeight: FontWeight.w600,
                                 ),
                               ),
                             ),
@@ -317,7 +317,7 @@ class _CustomersScreenState extends State<CustomersScreen> {
                                 textAlign: TextAlign.right,
                                 style: TextStyle(
                                   fontSize: 11.5,
-                                  fontWeight: FontWeight.w900,
+                                  fontWeight: FontWeight.w600,
                                 ),
                               ),
                             ),
@@ -328,7 +328,7 @@ class _CustomersScreenState extends State<CustomersScreen> {
                                 textAlign: TextAlign.center,
                                 style: TextStyle(
                                   fontSize: 11.5,
-                                  fontWeight: FontWeight.w900,
+                                  fontWeight: FontWeight.w600,
                                 ),
                               ),
                             ),
@@ -435,8 +435,8 @@ class _CustomerCard extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
-                          fontSize: 10.8,
-                          fontWeight: FontWeight.w800,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                       Text(
@@ -448,7 +448,7 @@ class _CustomerCard extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                          fontSize: 10.5,
+                          fontSize: 11,
                           color: scheme.onSurfaceVariant,
                         ),
                       ),
@@ -468,14 +468,14 @@ class _CustomerCard extends StatelessWidget {
                   customer.phone ?? 'No phone',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 10.5),
+                  style: const TextStyle(fontSize: 11),
                 ),
                 Text(
                   customer.email ?? customer.taxNumber ?? '',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontSize: 10.5,
+                    fontSize: 11,
                     color: scheme.onSurfaceVariant,
                   ),
                 ),
@@ -490,7 +490,7 @@ class _CustomerCard extends StatelessWidget {
               maxLines: 1,
               style: const TextStyle(
                 fontSize: 11.5,
-                fontWeight: FontWeight.w900,
+                fontWeight: FontWeight.w600,
               ),
             ),
           ),
@@ -502,7 +502,7 @@ class _CustomerCard extends StatelessWidget {
               maxLines: 1,
               style: TextStyle(
                 fontSize: 11,
-                fontWeight: FontWeight.w900,
+                fontWeight: FontWeight.w600,
                 color: customer.isActive
                     ? scheme.primary
                     : scheme.onSurfaceVariant,
@@ -1037,7 +1037,7 @@ class _CustomerFormDialogState extends State<_CustomerFormDialog> {
                     padding: const EdgeInsets.all(12),
 
                     decoration: BoxDecoration(
-                      color: Colors.red.shade50,
+                      color: Theme.of(context).colorScheme.error,
 
                       borderRadius: BorderRadius.circular(8),
                     ),
@@ -1045,7 +1045,9 @@ class _CustomerFormDialogState extends State<_CustomerFormDialog> {
                     child: Text(
                       _error!,
 
-                      style: TextStyle(color: Colors.red.shade700),
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onError,
+                      ),
                     ),
                   ),
                 ],

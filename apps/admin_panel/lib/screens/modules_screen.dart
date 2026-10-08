@@ -1,4 +1,6 @@
+import 'package:thq_ui/thq_ui.dart';
 import 'package:flutter/material.dart';
+
 import '../widgets/admin_home_button.dart';
 import 'menu_builder_screen.dart';
 
@@ -32,7 +34,7 @@ class _ModulesScreenState extends State<ModulesScreen> {
   }
 
   Future<void> _edit([PlatformModuleInfo? module]) async {
-    final changed = await showDialog<bool>(
+    final changed = await showThqDialog<bool>(
       context: context,
       barrierDismissible: false,
       builder: (_) => _ModuleDialog(module: module, service: _service),
@@ -91,7 +93,9 @@ class _ModulesScreenState extends State<ModulesScreen> {
                 const SizedBox(height: 6),
                 Text(
                   'Control core, POS and industry modules, dependencies and availability.',
-                  style: TextStyle(color: Colors.grey.shade600),
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
                 ),
                 const SizedBox(height: 6),
                 ...groups.entries.map(
@@ -343,7 +347,9 @@ class _ModuleDialogState extends State<_ModuleDialog> {
                   padding: const EdgeInsets.only(top: 12),
                   child: Text(
                     _error!,
-                    style: const TextStyle(color: Colors.red),
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.error,
+                    ),
                   ),
                 ),
             ],

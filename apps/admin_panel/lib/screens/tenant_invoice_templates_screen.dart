@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:thq_ui/thq_ui.dart';
+
 import '../services/platform_config_service.dart';
 
 class TenantInvoiceTemplatesScreen extends StatefulWidget {
@@ -68,7 +69,7 @@ class _TenantInvoiceTemplatesScreenState
           '${widget.businessName} | Invoice Designs',
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w900),
+          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
         ),
       ),
       body: FutureBuilder<List<Map<String, dynamic>>>(
@@ -121,12 +122,12 @@ class _TenantInvoiceTemplatesScreenState
                               'Invoice Template Assignment',
                               style: TextStyle(
                                 fontSize: 11,
-                                fontWeight: FontWeight.w900,
+                                fontWeight: FontWeight.w600,
                               ),
                             ),
                             Text(
                               'Default A4 invoice and 80mm receipt',
-                              style: TextStyle(fontSize: 7.7),
+                              style: TextStyle(fontSize: 11),
                             ),
                           ],
                         ),
@@ -180,8 +181,8 @@ class _TenantInvoiceTemplatesScreenState
                                     child: Text(
                                       title,
                                       style: const TextStyle(
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.w900,
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w600,
                                       ),
                                     ),
                                   ),
@@ -191,7 +192,7 @@ class _TenantInvoiceTemplatesScreenState
                               Text(
                                 subtitle,
                                 style: TextStyle(
-                                  fontSize: 7.5,
+                                  fontSize: 11,
                                   color: scheme.onSurfaceVariant,
                                 ),
                               ),

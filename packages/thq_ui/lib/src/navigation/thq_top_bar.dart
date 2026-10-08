@@ -38,7 +38,9 @@ class ThqTopBar extends StatelessWidget implements PreferredSizeWidget {
           child: SizedBox(
             height: height,
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: ThqTokens.space12),
+              padding: const EdgeInsets.symmetric(
+                horizontal: ThqTokens.space12,
+              ),
               child: Row(
                 children: [
                   if (leading != null) ...[

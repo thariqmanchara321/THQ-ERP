@@ -87,7 +87,7 @@ class _ClientLoginScreenState extends State<ClientLoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
 
       body: Center(
         child: SingleChildScrollView(
@@ -98,7 +98,7 @@ class _ClientLoginScreenState extends State<ClientLoginScreen> {
             padding: const EdgeInsets.all(36),
 
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: Theme.of(context).colorScheme.surface,
               borderRadius: BorderRadius.circular(22),
               boxShadow: const [
                 BoxShadow(
@@ -127,7 +127,10 @@ class _ClientLoginScreenState extends State<ClientLoginScreen> {
                 Text(
                   'Business Login',
                   textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 16, color: Colors.grey.shade600),
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
                 ),
 
                 const SizedBox(height: 36),
@@ -182,7 +185,7 @@ class _ClientLoginScreenState extends State<ClientLoginScreen> {
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: Colors.red.shade50,
+                      color: Theme.of(context).colorScheme.error,
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Row(
@@ -191,7 +194,7 @@ class _ClientLoginScreenState extends State<ClientLoginScreen> {
                         Icon(
                           Icons.error_outline,
                           size: 20,
-                          color: Colors.red.shade700,
+                          color: Theme.of(context).colorScheme.onError,
                         ),
 
                         const SizedBox(width: 8),
@@ -199,7 +202,9 @@ class _ClientLoginScreenState extends State<ClientLoginScreen> {
                         Expanded(
                           child: Text(
                             _error!,
-                            style: TextStyle(color: Colors.red.shade700),
+                            style: TextStyle(
+                              color: Theme.of(context).colorScheme.onError,
+                            ),
                           ),
                         ),
                       ],
@@ -228,7 +233,10 @@ class _ClientLoginScreenState extends State<ClientLoginScreen> {
                 Text(
                   'Accounting • Inventory • Business Management',
                   textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
                 ),
               ],
             ),

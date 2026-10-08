@@ -463,7 +463,7 @@ class _BulkImportScreenState extends State<BulkImportScreen> {
                       'Bulk Import',
                       style: TextStyle(
                         fontSize: 19,
-                        fontWeight: FontWeight.w800,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                     Text(
@@ -621,7 +621,7 @@ class _BulkImportScreenState extends State<BulkImportScreen> {
                                         ? Icons.check_circle_outline
                                         : Icons.error_outline,
                                     color: r.errors.isEmpty
-                                        ? Colors.green
+                                        ? Theme.of(context).colorScheme.primary
                                         : Theme.of(context).colorScheme.error,
                                   ),
                                   title: Text(

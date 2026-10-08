@@ -6,12 +6,14 @@ class LogisticsOperationsWorkspace extends StatefulWidget {
   final String tenantId;
   final String? locationId;
   final bool startInCreate;
+  final String? initialOperationId;
 
   const LogisticsOperationsWorkspace({
     super.key,
     required this.tenantId,
     this.locationId,
     this.startInCreate = false,
+    this.initialOperationId,
   });
 
   @override
@@ -37,9 +39,14 @@ class _LogisticsOperationsWorkspaceState
 
   Future<void> bootstrap() async {
     await load();
-    if (!mounted || !widget.startInCreate || error != null) return;
+    if (!mounted || error != null) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) newOperation();
+      if (!mounted) return;
+      if (widget.initialOperationId != null) {
+        openOperation(widget.initialOperationId!);
+      } else if (widget.startInCreate) {
+        newOperation();
+      }
     });
   }
 
@@ -295,9 +302,8 @@ class _LogisticsOperationsWorkspaceState
             const SizedBox(height: 7),
             Text(
               '${value ?? 0}',
-              style: Theme.of(
-                context,
-              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
+              style: Theme.of(context).textTheme.titleLarge
+                  ?.copyWith(fontWeight: FontWeight.w800),
             ),
             Text(label),
           ],

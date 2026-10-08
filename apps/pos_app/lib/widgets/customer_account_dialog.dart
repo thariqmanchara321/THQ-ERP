@@ -86,7 +86,7 @@ class _CustomerAccountDialogState extends State<CustomerAccountDialog> {
     String? formError;
     double selectedOutstanding = outstanding;
 
-    final form = await showDialog<Map<String, dynamic>>(
+    final form = await showThqDialog<Map<String, dynamic>>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setLocalState) => AlertDialog(
@@ -102,7 +102,7 @@ class _CustomerAccountDialogState extends State<CustomerAccountDialog> {
                     widget.customerName,
                     style: const TextStyle(
                       fontSize: 17,
-                      fontWeight: FontWeight.w800,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                   const SizedBox(height: 4),
@@ -203,7 +203,9 @@ class _CustomerAccountDialogState extends State<CustomerAccountDialog> {
                     const SizedBox(height: 10),
                     Text(
                       formError!,
-                      style: TextStyle(color: Theme.of(context).colorScheme.error),
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.error,
+                      ),
                     ),
                   ],
                 ],
@@ -219,7 +221,9 @@ class _CustomerAccountDialogState extends State<CustomerAccountDialog> {
               onPressed: () async {
                 final value = double.tryParse(amount.text.trim()) ?? 0;
                 if (value <= 0) {
-                  setLocalState(() => formError = 'Enter the amount actually received.');
+                  setLocalState(
+                    () => formError = 'Enter the amount actually received.',
+                  );
                   return;
                 }
                 if (value > selectedOutstanding + 0.005) {
@@ -229,9 +233,11 @@ class _CustomerAccountDialogState extends State<CustomerAccountDialog> {
                   );
                   return;
                 }
-                final remaining =
-                    (selectedOutstanding - value).clamp(0.0, selectedOutstanding);
-                final confirmed = await showDialog<bool>(
+                final remaining = (selectedOutstanding - value).clamp(
+                  0.0,
+                  selectedOutstanding,
+                );
+                final confirmed = await showThqDialog<bool>(
                   context: dialogContext,
                   builder: (confirmContext) => AlertDialog(
                     title: const Text('Confirm receipt amount'),
@@ -312,7 +318,7 @@ class _CustomerAccountDialogState extends State<CustomerAccountDialog> {
     if (receiptId == null || receiptId.isEmpty) return;
 
     final reason = TextEditingController();
-    final value = await showDialog<String>(
+    final value = await showThqDialog<String>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: Text('Void ${receipt['receipt_number'] ?? 'receipt'}'),
@@ -408,13 +414,15 @@ class _CustomerAccountDialogState extends State<CustomerAccountDialog> {
                       padding: const EdgeInsets.only(bottom: 10),
                       child: Text(
                         _error!,
-                        style: const TextStyle(color: Colors.red),
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.error,
+                        ),
                       ),
                     ),
                   Card(
                     color: outstanding > 0.005
-                        ? Colors.orange.shade50
-                        : Colors.green.shade50,
+                        ? context.thqSemanticColors.warning
+                        : Theme.of(context).colorScheme.primary,
                     child: ListTile(
                       leading: Icon(
                         outstanding > 0.005
@@ -426,7 +434,7 @@ class _CustomerAccountDialogState extends State<CustomerAccountDialog> {
                         _money(outstanding),
                         style: const TextStyle(
                           fontSize: 22,
-                          fontWeight: FontWeight.w900,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                     ),
@@ -437,7 +445,7 @@ class _CustomerAccountDialogState extends State<CustomerAccountDialog> {
                       const Expanded(
                         child: Text(
                           'Open invoices',
-                          style: TextStyle(fontWeight: FontWeight.w800),
+                          style: TextStyle(fontWeight: FontWeight.w600),
                         ),
                       ),
                       if (widget.canReceive && outstanding > 0.005)
@@ -470,7 +478,7 @@ class _CustomerAccountDialogState extends State<CustomerAccountDialog> {
                                 trailing: Text(
                                   _money(row['balance']),
                                   style: const TextStyle(
-                                    fontWeight: FontWeight.w800,
+                                    fontWeight: FontWeight.w600,
                                   ),
                                 ),
                               );
@@ -480,7 +488,7 @@ class _CustomerAccountDialogState extends State<CustomerAccountDialog> {
                   const Divider(height: 20),
                   const Text(
                     'Payment history',
-                    style: TextStyle(fontWeight: FontWeight.w800),
+                    style: TextStyle(fontWeight: FontWeight.w600),
                   ),
                   const SizedBox(height: 6),
                   Expanded(
@@ -494,7 +502,8 @@ class _CustomerAccountDialogState extends State<CustomerAccountDialog> {
                                 const Divider(height: 1),
                             itemBuilder: (context, index) {
                               final row = receipts[index];
-                              final status = row['status']?.toString() ?? 'posted';
+                              final status =
+                                  row['status']?.toString() ?? 'posted';
                               return ListTile(
                                 dense: true,
                                 trailing: widget.canReceive && status != 'void'
@@ -506,8 +515,8 @@ class _CustomerAccountDialogState extends State<CustomerAccountDialog> {
                                         icon: const Icon(Icons.undo_rounded),
                                       )
                                     : status == 'void'
-                                        ? const Chip(label: Text('VOID'))
-                                        : null,
+                                    ? const Chip(label: Text('VOID'))
+                                    : null,
                                 leading: const Icon(
                                   Icons.receipt_long_outlined,
                                 ),

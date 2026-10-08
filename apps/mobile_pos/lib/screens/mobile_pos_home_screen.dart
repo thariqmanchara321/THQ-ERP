@@ -1,5 +1,6 @@
 // ignore_for_file: curly_braces_in_flow_control_structures
 import 'dart:async';
+
 import 'package:erp_core/erp_core.dart';
 import 'package:flutter/material.dart';
 import 'package:thq_ui/thq_ui.dart';
@@ -7,6 +8,7 @@ import 'package:thq_logistics/thq_logistics.dart';
 import 'package:intl/intl.dart';
 
 import 'package:uuid/uuid.dart';
+
 import '../models/pos_models.dart';
 import '../models/pos_session.dart';
 import '../services/device_installation_service.dart';
@@ -104,9 +106,10 @@ class _State extends State<MobilePosHomeScreen> {
       widget.session.tenantId,
       widget.session.deviceId,
     );
-    _heldCount = (
-      await local.heldCarts(widget.session.tenantId, widget.session.deviceId)
-    ).length;
+    _heldCount = (await local.heldCarts(
+      widget.session.tenantId,
+      widget.session.deviceId,
+    )).length;
     customer = customer ?? _walkIn(customers);
     if (mounted) setState(() {});
   }
@@ -131,7 +134,8 @@ class _State extends State<MobilePosHomeScreen> {
         widget.session.deviceId,
       );
       final conflicts = summary['conflict'] ?? 0;
-      final waiting = (summary['pending'] ?? 0) +
+      final waiting =
+          (summary['pending'] ?? 0) +
           (summary['error'] ?? 0) +
           (summary['syncing'] ?? 0);
       if (mounted) {
@@ -139,8 +143,8 @@ class _State extends State<MobilePosHomeScreen> {
           () => syncText = conflicts > 0
               ? '$conflicts conflict(s) need attention'
               : waiting > 0
-                  ? 'Online | $waiting invoice(s) waiting to sync'
-                  : 'Synced',
+              ? 'Online | $waiting invoice(s) waiting to sync'
+              : 'Synced',
         );
       }
     } catch (_) {
@@ -151,12 +155,13 @@ class _State extends State<MobilePosHomeScreen> {
   }
 
   List<String> get _categoryOptions {
-    final values = products
-        .map((product) => product.categoryName.trim())
-        .where((value) => value.isNotEmpty)
-        .toSet()
-        .toList()
-      ..sort();
+    final values =
+        products
+            .map((product) => product.categoryName.trim())
+            .where((value) => value.isNotEmpty)
+            .toSet()
+            .toList()
+          ..sort();
     return <String>['All', ...values];
   }
 
@@ -178,6 +183,7 @@ class _State extends State<MobilePosHomeScreen> {
         return true;
     }
   }
+
   List<MobileProduct> get filtered {
     final q = search.text.trim().toLowerCase();
     final rows = products.where((product) {
@@ -325,7 +331,7 @@ class _State extends State<MobilePosHomeScreen> {
   Future<void> _addProduct(MobileProduct p) async {
     if (p.trackingMode == 'serial') {
       final ctrl = TextEditingController();
-      final serial = await showDialog<String>(
+      final serial = await showThqDialog<String>(
         context: context,
         builder: (c) => AlertDialog(
           title: Text('${p.name} serial'),
@@ -444,7 +450,8 @@ class _State extends State<MobilePosHomeScreen> {
       if (enabled) {
         _favoriteVariantIds = {..._favoriteVariantIds, product.variantId};
       } else {
-        _favoriteVariantIds = {..._favoriteVariantIds}..remove(product.variantId);
+        _favoriteVariantIds = {..._favoriteVariantIds}
+          ..remove(product.variantId);
       }
     });
   }
@@ -460,7 +467,7 @@ class _State extends State<MobilePosHomeScreen> {
 
     final quantity = cart.fold<double>(0, (sum, line) => sum + line.quantity);
     final quantityText = quantity.toStringAsFixed(quantity % 1 == 0 ? 0 : 2);
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showThqDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('Clear current order?'),
@@ -496,9 +503,10 @@ class _State extends State<MobilePosHomeScreen> {
   Future<void> _holdCurrentCart() async {
     if (cart.isEmpty) return;
     final controller = TextEditingController(
-      text: '${customer?.name ?? 'Walk-in'} â€¢ ${DateFormat('HH:mm').format(DateTime.now())}',
+      text:
+          '${customer?.name ?? 'Walk-in'} â€¢ ${DateFormat('HH:mm').format(DateTime.now())}',
     );
-    final label = await showDialog<String>(
+    final label = await showThqDialog<String>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('Hold current order'),
@@ -515,7 +523,9 @@ class _State extends State<MobilePosHomeScreen> {
           FilledButton(
             onPressed: () => Navigator.pop(
               dialogContext,
-              controller.text.trim().isEmpty ? 'Held order' : controller.text.trim(),
+              controller.text.trim().isEmpty
+                  ? 'Held order'
+                  : controller.text.trim(),
             ),
             child: const Text('Hold'),
           ),
@@ -559,7 +569,9 @@ class _State extends State<MobilePosHomeScreen> {
     ThqNotify.showSnackBar(
       context,
       const SnackBar(
-        content: Text('Order held on this device. Stock is validated again when resumed.'),
+        content: Text(
+          'Order held on this device. Stock is validated again when resumed.',
+        ),
       ),
     );
   }
@@ -578,7 +590,7 @@ class _State extends State<MobilePosHomeScreen> {
       return;
     }
     if (cart.isNotEmpty) {
-      final replace = await showDialog<bool>(
+      final replace = await showThqDialog<bool>(
         context: context,
         builder: (dialogContext) => AlertDialog(
           title: const Text('Replace current order?'),
@@ -617,7 +629,9 @@ class _State extends State<MobilePosHomeScreen> {
             return ListTile(
               leading: const Icon(Icons.pause_circle_outline_rounded),
               title: Text(hold['label']?.toString() ?? 'Held order'),
-              subtitle: Text('$itemCount line(s) â€¢ ${hold['updated_at'] ?? ''}'),
+              subtitle: Text(
+                '$itemCount line(s) â€¢ ${hold['updated_at'] ?? ''}',
+              ),
               trailing: const Icon(Icons.chevron_right_rounded),
               onTap: () => Navigator.pop(sheetContext, hold),
             );
@@ -632,7 +646,8 @@ class _State extends State<MobilePosHomeScreen> {
           ? Map<String, dynamic>.from(chosen['payload'] as Map)
           : <String, dynamic>{};
       final rebuilt = <CartLine>[];
-      for (final raw in (payload['items'] as List? ?? const []).whereType<Map>()) {
+      for (final raw
+          in (payload['items'] as List? ?? const []).whereType<Map>()) {
         final item = Map<String, dynamic>.from(raw);
         final variantId = item['variant_id']?.toString() ?? '';
         MobileProduct? product;
@@ -643,7 +658,9 @@ class _State extends State<MobilePosHomeScreen> {
           }
         }
         if (product == null) {
-          throw StateError('A held product is no longer available in the local catalogue. Sync and retry.');
+          throw StateError(
+            'A held product is no longer available in the local catalogue. Sync and retry.',
+          );
         }
         var unit = product.defaultUnit;
         for (final candidate in product.saleUnits) {
@@ -657,8 +674,11 @@ class _State extends State<MobilePosHomeScreen> {
         final quantity = numberValue(item['quantity'], unit.quantityStep);
         if (quantity <= 0) throw StateError('Held quantity is invalid.');
         if (product.itemType == 'stock' &&
-            quantity * unit.conversionToBase > product.stockQuantity + 0.000001) {
-          throw StateError('Not enough current stock to resume ${product.name}.');
+            quantity * unit.conversionToBase >
+                product.stockQuantity + 0.000001) {
+          throw StateError(
+            'Not enough current stock to resume ${product.name}.',
+          );
         }
         final serials = (item['serial_numbers'] as List? ?? const [])
             .map((value) => value.toString())
@@ -670,7 +690,8 @@ class _State extends State<MobilePosHomeScreen> {
             widget.session.locationId,
             serial,
           );
-          if (found == null || found['variant_id']?.toString() != product.variantId) {
+          if (found == null ||
+              found['variant_id']?.toString() != product.variantId) {
             throw StateError('Serial $serial is no longer available.');
           }
         }
@@ -681,8 +702,9 @@ class _State extends State<MobilePosHomeScreen> {
             unit: unit,
             quantity: quantity,
             serialNumbers: serials,
-            resolvedUnitPrice:
-                resolvedRaw == null ? null : numberValue(resolvedRaw),
+            resolvedUnitPrice: resolvedRaw == null
+                ? null
+                : numberValue(resolvedRaw),
             pricingSource: item['pricing_source']?.toString() ?? 'cached',
           ),
         );
@@ -722,6 +744,7 @@ class _State extends State<MobilePosHomeScreen> {
       }
     }
   }
+
   void _qty(CartLine line, double delta) {
     if (line.product.trackingMode == 'serial') return;
     final step = line.unit.quantityStep > 0 ? line.unit.quantityStep : 1.0;
@@ -745,7 +768,7 @@ class _State extends State<MobilePosHomeScreen> {
     if (line.product.trackingMode == 'serial' ||
         line.product.saleUnits.length < 2)
       return;
-    final chosen = await showDialog<MobileSaleUnit>(
+    final chosen = await showThqDialog<MobileSaleUnit>(
       context: context,
       builder: (c) => SimpleDialog(
         title: Text('Billing unit | ${line.product.name}'),
@@ -799,7 +822,7 @@ class _State extends State<MobilePosHomeScreen> {
   Future<void> chooseCustomer() async {
     final q = TextEditingController();
     var visible = customers;
-    final selected = await showDialog<MobileCustomer>(
+    final selected = await showThqDialog<MobileCustomer>(
       context: context,
       builder: (c) => StatefulBuilder(
         builder: (c, setLocal) => AlertDialog(
@@ -896,17 +919,19 @@ class _State extends State<MobilePosHomeScreen> {
       (sum, line) => sum + (line.quantity * line.unitPrice),
     );
 
-    final items = cart.map((line) {
-      final payload = line.toPayload();
-      final gross = line.quantity * line.unitPrice;
-      final allocatedDiscount = subtotal <= 0
-          ? 0.0
-          : payment.discountAmount * (gross / subtotal);
-      payload['discount_amount'] = allocatedDiscount
-          .clamp(0, gross)
-          .toDouble();
-      return payload;
-    }).toList(growable: false);
+    final items = cart
+        .map((line) {
+          final payload = line.toPayload();
+          final gross = line.quantity * line.unitPrice;
+          final allocatedDiscount = subtotal <= 0
+              ? 0.0
+              : payment.discountAmount * (gross / subtotal);
+          payload['discount_amount'] = allocatedDiscount
+              .clamp(0, gross)
+              .toDouble();
+          return payload;
+        })
+        .toList(growable: false);
 
     final paymentAllocations = payment.allocations
         .map((allocation) => allocation.toMap())
@@ -923,9 +948,7 @@ class _State extends State<MobilePosHomeScreen> {
       'sale_date': DateFormat('yyyy-MM-dd').format(now),
       'sale_time': now.toIso8601String(),
       'due_date': creditAmount > 0.005
-          ? DateFormat('yyyy-MM-dd').format(
-              now.add(const Duration(days: 30)),
-            )
+          ? DateFormat('yyyy-MM-dd').format(now.add(const Duration(days: 30)))
           : null,
       'items': items,
       'additional_charges': 0,
@@ -988,7 +1011,7 @@ class _State extends State<MobilePosHomeScreen> {
     await _reload();
     if (!mounted) return;
 
-    final action = await showDialog<String>(
+    final action = await showThqDialog<String>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: Text(synced ? 'Sale synchronized' : 'Offline invoice saved'),
@@ -1038,7 +1061,7 @@ class _State extends State<MobilePosHomeScreen> {
     if (!widget.session.restaurantEnabled || cart.isEmpty) return;
     final note = TextEditingController();
     String orderType = 'takeaway';
-    final go = await showDialog<bool>(
+    final go = await showThqDialog<bool>(
       context: context,
       builder: (c) => StatefulBuilder(
         builder: (c, setLocal) => AlertDialog(
@@ -1125,10 +1148,7 @@ class _State extends State<MobilePosHomeScreen> {
     if (syncing) return;
     setState(() => syncing = true);
     try {
-      final result = await sync.sync(
-        widget.session,
-        includeConflicts: true,
-      );
+      final result = await sync.sync(widget.session, includeConflicts: true);
       var catalogueRefreshed = false;
       try {
         await sync.refreshCatalogue(widget.session);
@@ -1140,7 +1160,8 @@ class _State extends State<MobilePosHomeScreen> {
         widget.session.deviceId,
       );
       final conflicts = summary['conflict'] ?? 0;
-      final waiting = (summary['pending'] ?? 0) +
+      final waiting =
+          (summary['pending'] ?? 0) +
           (summary['error'] ?? 0) +
           (summary['syncing'] ?? 0);
       if (!mounted) return;
@@ -1224,7 +1245,14 @@ class _State extends State<MobilePosHomeScreen> {
   }
 
   Future<void> menu(String value) async {
-    if (value == 'work_offline') {
+    final appearance = ThqAppearanceActions.fromAction(value);
+    if (appearance != null) {
+      await ThqAppearanceActions.select(context, appearance);
+      return;
+    }
+    if (value == 'motion') {
+      ThqMotionSettings.enabled.value = !ThqMotionSettings.enabled.value;
+    } else if (value == 'work_offline') {
       await _setManualOffline(true);
     } else if (value == 'go_online') {
       await _setManualOffline(false);
@@ -1284,7 +1312,7 @@ class _State extends State<MobilePosHomeScreen> {
     final filteredRows = filtered;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF2F6FA),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       drawer: showSidebar ? null : Drawer(child: _sideMenu(inDrawer: true)),
       body: SafeArea(
         child: loading
@@ -1292,11 +1320,14 @@ class _State extends State<MobilePosHomeScreen> {
             : Row(
                 children: [
                   if (showSidebar)
-                    SizedBox(width: 205, child: _sideMenu(inDrawer: false)),
+                    SizedBox(width: 176, child: _sideMenu(inDrawer: false)),
                   Expanded(
                     child: Column(
                       children: [
-                        _topBar(compact: compact, hasPermanentSidebar: showSidebar),
+                        _topBar(
+                          compact: compact,
+                          hasPermanentSidebar: showSidebar,
+                        ),
                         Expanded(
                           child: Padding(
                             padding: EdgeInsets.fromLTRB(
@@ -1307,14 +1338,16 @@ class _State extends State<MobilePosHomeScreen> {
                             ),
                             child: Container(
                               decoration: BoxDecoration(
-                                color: Colors.white,
+                                color: Theme.of(context).colorScheme.surface,
                                 borderRadius: BorderRadius.circular(18),
                                 border: Border.all(
-                                  color: const Color(0xFFDDE5EE),
+                                  color: Theme.of(context).colorScheme.outline,
                                 ),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: Colors.black.withValues(alpha: 0.035),
+                                    color: Colors.black.withValues(
+                                      alpha: 0.035,
+                                    ),
                                     blurRadius: 18,
                                     offset: const Offset(0, 5),
                                   ),
@@ -1334,9 +1367,9 @@ class _State extends State<MobilePosHomeScreen> {
                                           child: filteredRows.isEmpty
                                               ? const ThqEmptyState(
                                                   title: 'No products found',
-                                                  message:
-                                                      'Try another search/filter or refresh the offline catalogue.',
-                                                  icon: Icons.inventory_2_outlined,
+                                                  message: 'Try another search/filter or refresh the offline catalogue.',
+                                                  icon: Icons
+                                                      .inventory_2_outlined,
                                                 )
                                               : _productGrid(
                                                   filteredRows,
@@ -1346,7 +1379,9 @@ class _State extends State<MobilePosHomeScreen> {
                                         if (showCartPanel) ...[
                                           const VerticalDivider(width: 1),
                                           SizedBox(
-                                            width: size.width >= 1280 ? 365 : 345,
+                                            width: size.width >= 1280
+                                                ? 320
+                                                : 310,
                                             child: _cartPanel(compact: false),
                                           ),
                                         ],
@@ -1371,32 +1406,29 @@ class _State extends State<MobilePosHomeScreen> {
     );
   }
 
-  Widget _topBar({
-    required bool compact,
-    required bool hasPermanentSidebar,
-  }) {
+  Widget _topBar({required bool compact, required bool hasPermanentSidebar}) {
     final normalizedSync = syncText.toLowerCase();
     final offline = _manualOffline || normalizedSync.startsWith('offline');
     final conflict = normalizedSync.contains('conflict');
     final statusColor = conflict
-        ? const Color(0xFFD78B00)
+        ? context.thqSemanticColors.warning
         : offline
-            ? const Color(0xFFD06458)
-            : const Color(0xFF159A5C);
+        ? Theme.of(context).colorScheme.error
+        : Theme.of(context).colorScheme.primary;
     final statusIcon = conflict
         ? Icons.warning_amber_rounded
         : offline
-            ? Icons.cloud_off_rounded
-            : Icons.cloud_done_rounded;
+        ? Icons.cloud_off_rounded
+        : Icons.cloud_done_rounded;
     final statusLabel = _manualOffline ? 'Offline | manual' : syncText;
 
     return Container(
       height: compact ? 64 : 72,
       padding: EdgeInsets.symmetric(horizontal: compact ? 8 : 14),
-      decoration: const BoxDecoration(
-        color: Colors.white,
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
         border: Border(
-          bottom: BorderSide(color: Color(0xFFE6EBF2)),
+          bottom: BorderSide(color: Theme.of(context).colorScheme.outline),
         ),
       ),
       child: Row(
@@ -1415,21 +1447,21 @@ class _State extends State<MobilePosHomeScreen> {
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   'Sales',
                   style: TextStyle(
-                    color: Color(0xFF14233B),
+                    color: Theme.of(context).colorScheme.onSurface,
                     fontSize: 19,
-                    fontWeight: FontWeight.w900,
+                    fontWeight: FontWeight.w600,
                     letterSpacing: -0.35,
                   ),
                 ),
                 if (!compact)
-                  const Text(
+                  Text(
                     'Scan products, build the order and complete the sale',
                     style: TextStyle(
-                      color: Color(0xFF768398),
-                      fontSize: 10.5,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      fontSize: 11,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -1446,11 +1478,16 @@ class _State extends State<MobilePosHomeScreen> {
                 onTap: () => _setManualOffline(!_manualOffline),
                 child: Container(
                   constraints: const BoxConstraints(maxWidth: 220),
-                  padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 9,
+                    vertical: 6,
+                  ),
                   decoration: BoxDecoration(
                     color: statusColor.withValues(alpha: 0.08),
                     borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: statusColor.withValues(alpha: 0.16)),
+                    border: Border.all(
+                      color: statusColor.withValues(alpha: 0.16),
+                    ),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -1464,8 +1501,8 @@ class _State extends State<MobilePosHomeScreen> {
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                             color: statusColor,
-                            fontSize: 10.5,
-                            fontWeight: FontWeight.w800,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
                       ),
@@ -1475,12 +1512,13 @@ class _State extends State<MobilePosHomeScreen> {
               ),
             ),
           if (!compact) const SizedBox(width: 6),
+          if (!compact) const ThqMotionButton(),
           IconButton(
             tooltip: 'Sync now',
             onPressed: syncing ? null : _syncNow,
             style: IconButton.styleFrom(
-              backgroundColor: const Color(0xFFEAF8F0),
-              foregroundColor: const Color(0xFF159A5C),
+              backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+              foregroundColor: Theme.of(context).colorScheme.primary,
             ),
             icon: syncing
                 ? const SizedBox(
@@ -1495,8 +1533,8 @@ class _State extends State<MobilePosHomeScreen> {
             tooltip: 'Scan barcode / serial',
             onPressed: scan,
             style: IconButton.styleFrom(
-              backgroundColor: const Color(0xFFEAF3FF),
-              foregroundColor: const Color(0xFF147AF3),
+              backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+              foregroundColor: Theme.of(context).colorScheme.primary,
             ),
             icon: const Icon(Icons.qr_code_scanner_rounded),
           ),
@@ -1523,9 +1561,7 @@ class _State extends State<MobilePosHomeScreen> {
                         ? Icons.cloud_done_outlined
                         : Icons.cloud_off_outlined,
                   ),
-                  title: Text(
-                    _manualOffline ? 'Go online' : 'Work offline',
-                  ),
+                  title: Text(_manualOffline ? 'Go online' : 'Work offline'),
                 ),
               ),
               const PopupMenuItem(
@@ -1555,6 +1591,20 @@ class _State extends State<MobilePosHomeScreen> {
                   title: Text('Refresh catalogue'),
                 ),
               ),
+              ...ThqAppearanceActions.menuItems(context),
+              PopupMenuItem(
+                value: 'motion',
+                child: ListTile(
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.animation_outlined),
+                  title: Text(
+                    ThqMotionSettings.enabled.value
+                        ? 'Reduce motion'
+                        : 'Enable motion',
+                  ),
+                ),
+              ),
               const PopupMenuDivider(),
               const PopupMenuItem(value: 'signout', child: Text('Sign out')),
               const PopupMenuItem(
@@ -1570,7 +1620,7 @@ class _State extends State<MobilePosHomeScreen> {
 
   Widget _sideMenu({required bool inDrawer}) {
     const side = Color(0xFF102238);
-    const muted = Color(0xFFB8C6D8);
+    final muted = Colors.white.withValues(alpha: .72);
     return Material(
       color: side,
       child: SafeArea(
@@ -1585,20 +1635,20 @@ class _State extends State<MobilePosHomeScreen> {
                     height: 40,
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
-                      color: const Color(0xFF147AF3),
+                      color: Theme.of(context).colorScheme.primary,
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: const Text(
+                    child: Text(
                       'T',
                       style: TextStyle(
-                        color: Colors.white,
+                        color: Theme.of(context).colorScheme.onPrimary,
                         fontSize: 19,
-                        fontWeight: FontWeight.w900,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ),
                   const SizedBox(width: 10),
-                  const Expanded(
+                  Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -1606,7 +1656,7 @@ class _State extends State<MobilePosHomeScreen> {
                           'THQ ERP',
                           style: TextStyle(
                             color: Colors.white,
-                            fontWeight: FontWeight.w900,
+                            fontWeight: FontWeight.w600,
                             fontSize: 17,
                           ),
                         ),
@@ -1614,7 +1664,7 @@ class _State extends State<MobilePosHomeScreen> {
                           'Mobile POS',
                           style: TextStyle(
                             color: muted,
-                            fontSize: 10.5,
+                            fontSize: 11,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -1670,9 +1720,12 @@ class _State extends State<MobilePosHomeScreen> {
                           );
                         },
                       ),
-                      const Padding(
+                      Padding(
                         padding: EdgeInsets.symmetric(vertical: 7),
-                        child: Divider(color: Color(0xFF27405A), height: 1),
+                        child: Divider(
+                          color: Theme.of(context).colorScheme.outline,
+                          height: 1,
+                        ),
                       ),
                       _navItem(
                         icon: Icons.inventory_2_outlined,
@@ -1739,8 +1792,9 @@ class _State extends State<MobilePosHomeScreen> {
                           Navigator.of(context)
                               .push(
                                 MaterialPageRoute(
-                                  builder: (_) =>
-                                      OfflineQueueScreen(session: widget.session),
+                                  builder: (_) => OfflineQueueScreen(
+                                    session: widget.session,
+                                  ),
                                 ),
                               )
                               .then((_) => _heartbeat());
@@ -1760,10 +1814,12 @@ class _State extends State<MobilePosHomeScreen> {
                 width: double.infinity,
                 padding: const EdgeInsets.all(9),
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.06),
+                  color: Theme.of(context).colorScheme.surface
+                      .withValues(alpha: 0.06),
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
-                    color: Colors.white.withValues(alpha: 0.08),
+                    color: Theme.of(context).colorScheme.surface
+                        .withValues(alpha: 0.08),
                   ),
                 ),
                 child: Column(
@@ -1773,10 +1829,10 @@ class _State extends State<MobilePosHomeScreen> {
                       widget.session.locationCode,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: Colors.white,
                         fontSize: 11,
-                        fontWeight: FontWeight.w800,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                     const SizedBox(height: 2),
@@ -1784,9 +1840,9 @@ class _State extends State<MobilePosHomeScreen> {
                       '${widget.session.deviceCode}  •  v${ThqPosMobileReleaseContract.appVersion} B${ThqPosMobileReleaseContract.buildNumber}',
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: muted,
-                        fontSize: 9.5,
+                        fontSize: 11,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -1805,44 +1861,45 @@ class _State extends State<MobilePosHomeScreen> {
     required String label,
     required VoidCallback onTap,
     bool active = false,
-  }) =>
-      Padding(
-        padding: const EdgeInsets.only(bottom: 5),
-        child: Material(
-          color: active ? const Color(0xFF147AF3) : Colors.transparent,
-          borderRadius: BorderRadius.circular(11),
-          child: InkWell(
-            onTap: onTap,
-            borderRadius: BorderRadius.circular(11),
-            child: SizedBox(
-              height: 46,
-              child: Row(
-                children: [
-                  const SizedBox(width: 12),
-                  Icon(
-                    icon,
-                    size: 20,
-                    color: active
-                        ? Colors.white
-                        : const Color(0xFFB8C6D8),
-                  ),
-                  const SizedBox(width: 11),
-                  Text(
-                    label,
-                    style: TextStyle(
-                      color: active
-                          ? Colors.white
-                          : const Color(0xFFD5DFEA),
-                      fontSize: 12.5,
-                      fontWeight: active ? FontWeight.w800 : FontWeight.w600,
-                    ),
-                  ),
-                ],
+  }) => Padding(
+    padding: const EdgeInsets.only(bottom: 5),
+    child: Material(
+      color: active
+          ? Theme.of(context).colorScheme.primary
+          : Colors.transparent,
+      borderRadius: BorderRadius.circular(11),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(11),
+        child: SizedBox(
+          height: 46,
+          child: Row(
+            children: [
+              const SizedBox(width: 12),
+              Icon(
+                icon,
+                size: 20,
+                color: active
+                    ? Colors.white
+                    : Colors.white.withValues(alpha: .72),
               ),
-            ),
+              const SizedBox(width: 11),
+              Text(
+                label,
+                style: TextStyle(
+                  color: active
+                      ? Colors.white
+                      : Colors.white.withValues(alpha: .72),
+                  fontSize: 12.5,
+                  fontWeight: active ? FontWeight.w600 : FontWeight.w600,
+                ),
+              ),
+            ],
           ),
         ),
-      );
+      ),
+    ),
+  );
 
   void _moduleQueued(String name, bool inDrawer) {
     if (inDrawer) Navigator.of(context).pop();
@@ -1851,7 +1908,9 @@ class _State extends State<MobilePosHomeScreen> {
       ThqNotify.showSnackBar(
         context,
         SnackBar(
-          content: Text('$name workspace is included in the next Mobile POS build step.'),
+          content: Text(
+            '$name workspace is included in the next Mobile POS build step.',
+          ),
         ),
       );
     });
@@ -1864,33 +1923,33 @@ class _State extends State<MobilePosHomeScreen> {
         icon: Icons.inventory_2_outlined,
         label: 'Products',
         value: '${products.length}',
-        accent: const Color(0xFF147AF3),
+        accent: Theme.of(context).colorScheme.primary,
       ),
       _metricCard(
         icon: Icons.shopping_cart_outlined,
         label: 'Cart items',
         value: quantity.toStringAsFixed(quantity % 1 == 0 ? 0 : 2),
-        accent: const Color(0xFF14A765),
+        accent: Theme.of(context).colorScheme.primary,
       ),
       _metricCard(
         icon: Icons.pause_circle_outline_rounded,
         label: 'Held orders',
         value: '$_heldCount',
-        accent: const Color(0xFFCC7A00),
+        accent: context.thqSemanticColors.warning,
         onTap: _resumeHeldCart,
       ),
       _metricCard(
         icon: Icons.person_outline_rounded,
         label: 'Customer',
         value: customer?.name ?? 'Select',
-        accent: const Color(0xFF7C56D9),
+        accent: Theme.of(context).colorScheme.secondary,
         onTap: chooseCustomer,
       ),
       _metricCard(
         icon: Icons.cloud_done_outlined,
         label: 'Status',
         value: syncText,
-        accent: const Color(0xFFD18A00),
+        accent: context.thqSemanticColors.warning,
         onTap: _syncNow,
       ),
     ];
@@ -1927,84 +1986,85 @@ class _State extends State<MobilePosHomeScreen> {
     required String value,
     required Color accent,
     VoidCallback? onTap,
-  }) =>
-      Material(
-        color: const Color(0xFFFAFCFE),
-        borderRadius: BorderRadius.circular(12),
-        child: InkWell(
-          onTap: onTap,
+  }) => Material(
+    color: Theme.of(context).colorScheme.surface,
+    borderRadius: BorderRadius.circular(12),
+    child: InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+        decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(12),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFFE7EDF4)),
-            ),
-            child: Row(
-              children: [
-                Container(
-                  width: 30,
-                  height: 30,
-                  decoration: BoxDecoration(
-                    color: accent.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Icon(icon, color: accent, size: 16),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        label,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: Color(0xFF7A8798),
-                          fontSize: 9.5,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      Text(
-                        value,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: Color(0xFF14233B),
-                          fontSize: 12.5,
-                          fontWeight: FontWeight.w900,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
+          border: Border.all(color: Theme.of(context).colorScheme.outline),
         ),
-      );
+        child: Row(
+          children: [
+            Container(
+              width: 30,
+              height: 30,
+              decoration: BoxDecoration(
+                color: accent.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(icon, color: accent, size: 16),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  Text(
+                    value,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onSurface,
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
 
   Widget _catalogueToolbar({required bool compact}) {
-    InputDecoration dropdownDecoration(String label, IconData icon) =>
-        InputDecoration(
-          isDense: true,
-          labelText: label,
-          prefixIcon: Icon(icon, size: 16),
-          prefixIconConstraints: const BoxConstraints(minWidth: 34),
-          contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 9),
-          filled: true,
-          fillColor: const Color(0xFFF8FAFC),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(10),
-            borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(10),
-            borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-          ),
-        );
+    InputDecoration dropdownDecoration(
+      String label,
+      IconData icon,
+    ) => InputDecoration(
+      isDense: true,
+      labelText: label,
+      prefixIcon: Icon(icon, size: 16),
+      prefixIconConstraints: const BoxConstraints(minWidth: 34),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 9),
+      filled: true,
+      fillColor: Theme.of(context).colorScheme.surface,
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: BorderSide(color: Theme.of(context).colorScheme.outline),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(10),
+        borderSide: BorderSide(color: Theme.of(context).colorScheme.outline),
+      ),
+    );
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(9, 7, 9, 7),
@@ -2026,14 +2086,18 @@ class _State extends State<MobilePosHomeScreen> {
                       icon: const Icon(Icons.qr_code_scanner_rounded),
                     ),
                     filled: true,
-                    fillColor: const Color(0xFFF6F8FB),
+                    fillColor: Theme.of(context).scaffoldBackgroundColor,
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                      borderSide: BorderSide(
+                        color: Theme.of(context).colorScheme.outline,
+                      ),
                     ),
                     enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                      borderSide: BorderSide(
+                        color: Theme.of(context).colorScheme.outline,
+                      ),
                     ),
                   ),
                 ),
@@ -2096,7 +2160,10 @@ class _State extends State<MobilePosHomeScreen> {
                   ),
                   items: const [
                     DropdownMenuItem(value: 'All', child: Text('All products')),
-                    DropdownMenuItem(value: 'Favorites', child: Text('Favorites')),
+                    DropdownMenuItem(
+                      value: 'Favorites',
+                      child: Text('Favorites'),
+                    ),
                     DropdownMenuItem(value: 'Recent', child: Text('Recent')),
                     DropdownMenuItem(value: 'Stock', child: Text('Stock')),
                     DropdownMenuItem(value: 'Serial', child: Text('Serial')),
@@ -2160,7 +2227,8 @@ class _State extends State<MobilePosHomeScreen> {
         padding: const EdgeInsets.all(10),
         gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
           maxCrossAxisExtent: compact ? 205 : 195,
-          mainAxisExtent: compact ? 136 : 144,
+          mainAxisExtent: MediaQuery.textScalerOf(context)
+              .scale(compact ? 166 : 172),
           crossAxisSpacing: 8,
           mainAxisSpacing: 8,
         ),
@@ -2185,7 +2253,9 @@ class _State extends State<MobilePosHomeScreen> {
     );
 
     return Material(
-      color: selected ? const Color(0xFFEAF3FF) : Colors.white,
+      color: selected
+          ? Theme.of(context).colorScheme.primaryContainer
+          : Theme.of(context).colorScheme.surface,
       borderRadius: BorderRadius.circular(14),
       child: InkWell(
         onTap: () => _addProduct(product),
@@ -2196,106 +2266,42 @@ class _State extends State<MobilePosHomeScreen> {
             borderRadius: BorderRadius.circular(14),
             border: Border.all(
               color: selected
-                  ? const Color(0xFF147AF3)
-                  : const Color(0xFFEDF1F5),
+                  ? Theme.of(context).colorScheme.primary
+                  : Theme.of(context).colorScheme.outline,
               width: selected ? 2 : 1,
             ),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                children: [
-                  Container(
-                    width: 32,
-                    height: 32,
-                    decoration: BoxDecoration(
-                      color: selected
-                          ? const Color(0xFF147AF3)
-                          : const Color(0xFFEAF3FF),
-                      borderRadius: BorderRadius.circular(9),
-                    ),
-                    child: Icon(
-                      product.trackingMode == 'serial'
-                          ? Icons.qr_code_2_rounded
-                          : product.itemType == 'stock'
-                              ? Icons.inventory_2_outlined
-                              : Icons.miscellaneous_services_outlined,
-                      color: selected ? Colors.white : const Color(0xFF147AF3),
-                      size: 17,
-                    ),
-                  ),
-                  const Spacer(),
-                  if (selected) ...[
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 6,
-                        vertical: 3,
-                      ),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF147AF3),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        '$selectedText selected',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 8,
-                          fontWeight: FontWeight.w900,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 2),
-                  ],
-                  IconButton(
-                    tooltip: _favoriteVariantIds.contains(product.variantId)
-                        ? 'Remove favorite'
-                        : 'Add favorite',
-                    onPressed: () => _toggleFavorite(product),
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints.tightFor(width: 30, height: 30),
-                    iconSize: 18,
-                    icon: Icon(
-                      _favoriteVariantIds.contains(product.variantId)
-                          ? Icons.star_rounded
-                          : Icons.star_border_rounded,
-                      color: _favoriteVariantIds.contains(product.variantId)
-                          ? const Color(0xFFD28A00)
-                          : const Color(0xFF8C98A8),
-                    ),
-                  ),
-                  if (product.trackingMode == 'serial' ||
-                      product.trackingMode == 'batch')
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 6,
-                        vertical: 3,
-                      ),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF1ECFF),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Text(
-                        product.trackingMode.toUpperCase(),
-                        style: const TextStyle(
-                          color: Color(0xFF7148CB),
-                          fontSize: 8,
-                          fontWeight: FontWeight.w900,
-                        ),
-                      ),
-                    ),
-                ],
+              ThqProductSelectionHeader(
+                icon: product.trackingMode == 'serial'
+                    ? Icons.qr_code_2_rounded
+                    : product.itemType == 'stock'
+                    ? Icons.inventory_2_outlined
+                    : Icons.miscellaneous_services_outlined,
+                quantity: selected ? selectedText : null,
+                quantityDescription: selected
+                    ? 'In cart: $selectedText ${product.baseUnitCode}'
+                    : null,
+                tracking:
+                    product.trackingMode == 'serial' ||
+                        product.trackingMode == 'batch'
+                    ? product.trackingMode.toUpperCase()
+                    : null,
+                favorite: _favoriteVariantIds.contains(product.variantId),
+                onFavorite: () => _toggleFavorite(product),
               ),
               const SizedBox(height: 6),
               Text(
                 product.name,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: Color(0xFF14233B),
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onSurface,
                   fontSize: 12,
                   height: 1.10,
-                  fontWeight: FontWeight.w800,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
               const Spacer(),
@@ -2303,10 +2309,10 @@ class _State extends State<MobilePosHomeScreen> {
                 money(unitPrice),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: Color(0xFF14233B),
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onSurface,
                   fontSize: 13,
-                  fontWeight: FontWeight.w900,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
               const SizedBox(height: 4),
@@ -2314,8 +2320,8 @@ class _State extends State<MobilePosHomeScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                 decoration: BoxDecoration(
                   color: lowStock
-                      ? const Color(0xFFFFF3E5)
-                      : const Color(0xFFEAF8F0),
+                      ? context.thqSemanticColors.warningContainer
+                      : Theme.of(context).colorScheme.primaryContainer,
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
@@ -2324,10 +2330,10 @@ class _State extends State<MobilePosHomeScreen> {
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: lowStock
-                        ? const Color(0xFFB06B00)
-                        : const Color(0xFF148553),
-                    fontSize: 8.8,
-                    fontWeight: FontWeight.w800,
+                        ? context.thqSemanticColors.warning
+                        : Theme.of(context).colorScheme.primary,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ),
@@ -2338,263 +2344,267 @@ class _State extends State<MobilePosHomeScreen> {
     );
   }
 
-  Widget _cartPanel({required bool compact, VoidCallback? refreshOverlay}) => Container(
-        color: Colors.white,
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(12, 12, 8, 10),
-              child: Row(
-                children: [
-                  Container(
-                    width: 36,
-                    height: 36,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFEAF3FF),
-                      borderRadius: BorderRadius.circular(10),
+  Widget _cartPanel({
+    required bool compact,
+    VoidCallback? refreshOverlay,
+  }) => Container(
+    color: Theme.of(context).colorScheme.surface,
+    child: Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(12, 12, 8, 10),
+          child: Row(
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.primaryContainer,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(
+                  Icons.shopping_cart_outlined,
+                  color: Theme.of(context).colorScheme.primary,
+                  size: 19,
+                ),
+              ),
+              const SizedBox(width: 9),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Current Order • ${cart.length}',
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onSurface,
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
-                    child: const Icon(
-                      Icons.shopping_cart_outlined,
-                      color: Color(0xFF147AF3),
-                      size: 19,
+                    Text(
+                      customer?.name ?? 'Select customer',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
+                  ],
+                ),
+              ),
+              IconButton(
+                tooltip: 'Customer',
+                onPressed: () async {
+                  await chooseCustomer();
+                  refreshOverlay?.call();
+                },
+                icon: const Icon(Icons.person_outline_rounded, size: 19),
+              ),
+              if (cart.isNotEmpty)
+                IconButton(
+                  tooltip: 'Hold order',
+                  onPressed: () async {
+                    await _holdCurrentCart();
+                    refreshOverlay?.call();
+                  },
+                  icon: const Icon(
+                    Icons.pause_circle_outline_rounded,
+                    size: 19,
                   ),
-                  const SizedBox(width: 9),
-                  Expanded(
+                ),
+              if (cart.isNotEmpty)
+                IconButton(
+                  tooltip: 'Clear / reset order',
+                  onPressed: () =>
+                      _clearCurrentCart(refreshOverlay: refreshOverlay),
+                  icon: const Icon(Icons.delete_outline_rounded, size: 19),
+                ),
+            ],
+          ),
+        ),
+        const Divider(height: 1),
+        Expanded(
+          child: cart.isEmpty
+              ? Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(18),
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        Text(
-                          'Current Order • ${cart.length}',
-                          style: const TextStyle(
-                            color: Color(0xFF14233B),
-                            fontSize: 13.5,
-                            fontWeight: FontWeight.w900,
-                          ),
+                        Icon(
+                          Icons.shopping_cart_outlined,
+                          size: 34,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
+                        SizedBox(height: 8),
                         Text(
-                          customer?.name ?? 'Select customer',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: Color(0xFF758296),
-                            fontSize: 10,
+                          'Your order is empty',
+                          style: TextStyle(
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onSurfaceVariant,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
+                        SizedBox(height: 3),
+                        Text(
+                          'Scan or tap a product to start billing.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onSurfaceVariant,
+                            fontSize: 11,
+                          ),
+                        ),
                       ],
                     ),
                   ),
-                  IconButton(
-                    tooltip: 'Customer',
-                    onPressed: () async {
-                      await chooseCustomer();
-                      refreshOverlay?.call();
-                    },
-                    icon: const Icon(Icons.person_outline_rounded, size: 19),
+                )
+              : ListView.separated(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  itemCount: cart.length,
+                  separatorBuilder: (_, _) =>
+                      const Divider(height: 1, indent: 12, endIndent: 12),
+                  itemBuilder: (_, index) =>
+                      _cartLine(cart[index], refreshOverlay: refreshOverlay),
+                ),
+        ),
+        if (widget.session.restaurantEnabled)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(10, 4, 10, 0),
+            child: SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: cart.isEmpty ? null : sendKot,
+                icon: const Icon(Icons.soup_kitchen_outlined),
+                label: const Text('Send KOT'),
+              ),
+            ),
+          ),
+        Container(
+          padding: const EdgeInsets.all(11),
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.surface,
+            border: Border(
+              top: BorderSide(color: Theme.of(context).colorScheme.outline),
+            ),
+          ),
+          child: Column(
+            children: [
+              Row(
+                children: [
+                  Text(
+                    'Subtotal + tax',
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
-                  if (cart.isNotEmpty)
-                    IconButton(
-                      tooltip: 'Hold order',
-                      onPressed: () async {
-                        await _holdCurrentCart();
-                        refreshOverlay?.call();
-                      },
-                      icon: const Icon(Icons.pause_circle_outline_rounded, size: 19),
+                  const Spacer(),
+                  Text(
+                    money(beforeRoundOff),
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onSurface,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
                     ),
-                  if (cart.isNotEmpty)
-                    IconButton(
-                      tooltip: 'Clear / reset order',
-                      onPressed: () => _clearCurrentCart(
-                        refreshOverlay: refreshOverlay,
-                      ),
-                      icon: const Icon(Icons.delete_outline_rounded, size: 19),
-                    ),
+                  ),
                 ],
               ),
-            ),
-            const Divider(height: 1),
-            Expanded(
-              child: cart.isEmpty
-                  ? const Center(
-                      child: Padding(
-                        padding: EdgeInsets.all(18),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.shopping_cart_outlined,
-                              size: 34,
-                              color: Color(0xFFB3BECC),
-                            ),
-                            SizedBox(height: 8),
-                            Text(
-                              'Your order is empty',
-                              style: TextStyle(
-                                color: Color(0xFF526174),
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                            SizedBox(height: 3),
-                            Text(
-                              'Scan or tap a product to start billing.',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                color: Color(0xFF8793A3),
-                                fontSize: 10.5,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    )
-                  : ListView.separated(
-                      padding: const EdgeInsets.symmetric(vertical: 4),
-                      itemCount: cart.length,
-                      separatorBuilder: (_, _) => const Divider(
-                        height: 1,
-                        indent: 12,
-                        endIndent: 12,
-                      ),
-                      itemBuilder: (_, index) => _cartLine(
-                        cart[index],
-                        refreshOverlay: refreshOverlay,
+              if (roundOff.abs() > 0.000001) ...[
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    Text(
+                      'Round off',
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        fontSize: 11,
                       ),
                     ),
-            ),
-            if (widget.session.restaurantEnabled)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(10, 4, 10, 0),
-                child: SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    onPressed: cart.isEmpty ? null : sendKot,
-                    icon: const Icon(Icons.soup_kitchen_outlined),
-                    label: const Text('Send KOT'),
-                  ),
-                ),
-              ),
-            Container(
-              padding: const EdgeInsets.all(11),
-              decoration: const BoxDecoration(
-                color: Color(0xFFFAFCFE),
-                border: Border(top: BorderSide(color: Color(0xFFE7EDF4))),
-              ),
-              child: Column(
-                children: [
-                  Row(
-                    children: [
-                      const Text(
-                        'Subtotal + tax',
-                        style: TextStyle(
-                          color: Color(0xFF768398),
-                          fontSize: 10.5,
-                          fontWeight: FontWeight.w700,
-                        ),
+                    const Spacer(),
+                    Text(
+                      money(roundOff),
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        fontSize: 11,
                       ),
-                      const Spacer(),
-                      Text(
-                        money(beforeRoundOff),
-                        style: const TextStyle(
-                          color: Color(0xFF14233B),
-                          fontSize: 12,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                    ],
-                  ),
-                  if (roundOff.abs() > 0.000001) ...[
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        const Text(
-                          'Round off',
-                          style: TextStyle(
-                            color: Color(0xFF768398),
-                            fontSize: 10.5,
-                          ),
-                        ),
-                        const Spacer(),
-                        Text(
-                          money(roundOff),
-                          style: const TextStyle(
-                            color: Color(0xFF768398),
-                            fontSize: 10.5,
-                          ),
-                        ),
-                      ],
                     ),
                   ],
-                  const SizedBox(height: 7),
-                  Row(
-                    children: [
-                      const Expanded(
-                        child: Text(
-                          'Total',
-                          style: TextStyle(
-                            color: Color(0xFF14233B),
-                            fontSize: 16,
-                            fontWeight: FontWeight.w900,
-                          ),
-                        ),
+                ),
+              ],
+              const SizedBox(height: 7),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Total',
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onSurface,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
                       ),
-                      Text(
-                        money(total),
-                        style: const TextStyle(
-                          color: Color(0xFF147AF3),
-                          fontSize: 19,
-                          fontWeight: FontWeight.w900,
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
-                  const SizedBox(height: 9),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: cart.isEmpty
-                              ? null
-                              : () {
-                                  applyRoundOff();
-                                  refreshOverlay?.call();
-                                },
-                          icon: const Icon(Icons.exposure_zero_rounded),
-                          label: const Text('Round'),
-                          style: OutlinedButton.styleFrom(
-                            minimumSize: const Size.fromHeight(44),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        flex: 2,
-                        child: FilledButton.icon(
-                          onPressed: cart.isEmpty
-                              ? null
-                              : compact
-                                  ? _payFromCartPage
-                                  : checkout,
-                          icon: const Icon(Icons.payments_outlined, size: 18),
-                          label: const Text('Pay now'),
-                          style: FilledButton.styleFrom(
-                            minimumSize: const Size.fromHeight(44),
-                            backgroundColor: const Color(0xFF14A765),
-                            foregroundColor: Colors.white,
-                            textStyle: const TextStyle(
-                              fontWeight: FontWeight.w900,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
+                  Text(
+                    money(total),
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.primary,
+                      fontSize: 19,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ],
               ),
-            ),
-          ],
+              const SizedBox(height: 9),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: cart.isEmpty
+                          ? null
+                          : () {
+                              applyRoundOff();
+                              refreshOverlay?.call();
+                            },
+                      icon: const Icon(Icons.exposure_zero_rounded),
+                      label: const Text('Round'),
+                      style: OutlinedButton.styleFrom(
+                        minimumSize: const Size.fromHeight(44),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    flex: 2,
+                    child: FilledButton.icon(
+                      onPressed: cart.isEmpty
+                          ? null
+                          : compact
+                          ? _payFromCartPage
+                          : checkout,
+                      icon: const Icon(Icons.payments_outlined, size: 18),
+                      label: const Text('Pay now'),
+                      style: FilledButton.styleFrom(
+                        minimumSize: const Size.fromHeight(44),
+                        backgroundColor: Theme.of(context).colorScheme.primary,
+                        foregroundColor: Theme.of(context).colorScheme.surface,
+                        textStyle: const TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
-      );
+      ],
+    ),
+  );
 
   Widget _cartLine(CartLine line, {VoidCallback? refreshOverlay}) {
     final quantityText = line.quantity.toStringAsFixed(
@@ -2611,13 +2621,13 @@ class _State extends State<MobilePosHomeScreen> {
                 width: 38,
                 height: 38,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF0F5FA),
+                  color: Theme.of(context).colorScheme.surface,
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.inventory_2_outlined,
                   size: 18,
-                  color: Color(0xFF53677D),
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
               ),
               const SizedBox(width: 9),
@@ -2629,10 +2639,10 @@ class _State extends State<MobilePosHomeScreen> {
                       line.product.name,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Color(0xFF14233B),
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onSurface,
                         fontSize: 11.5,
-                        fontWeight: FontWeight.w800,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                     const SizedBox(height: 2),
@@ -2642,9 +2652,9 @@ class _State extends State<MobilePosHomeScreen> {
                           : '$quantityText ${line.unit.code} × ${money(line.unitPrice)}',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Color(0xFF7A8798),
-                        fontSize: 9.5,
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        fontSize: 11,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -2654,10 +2664,10 @@ class _State extends State<MobilePosHomeScreen> {
               const SizedBox(width: 7),
               Text(
                 money(line.total),
-                style: const TextStyle(
-                  color: Color(0xFF14233B),
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onSurface,
                   fontSize: 11,
-                  fontWeight: FontWeight.w900,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
             ],
@@ -2692,10 +2702,10 @@ class _State extends State<MobilePosHomeScreen> {
                   padding: const EdgeInsets.symmetric(horizontal: 5),
                   child: Text(
                     quantityText,
-                    style: const TextStyle(
-                      color: Color(0xFF14233B),
-                      fontWeight: FontWeight.w800,
-                      fontSize: 10.5,
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onSurface,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 11,
                     ),
                   ),
                 ),
@@ -2728,20 +2738,18 @@ class _State extends State<MobilePosHomeScreen> {
     required IconData icon,
     required String tooltip,
     required VoidCallback onPressed,
-  }) =>
-      IconButton(
-        tooltip: tooltip,
-        onPressed: onPressed,
-        style: IconButton.styleFrom(
-          minimumSize: const Size.square(29),
-          maximumSize: const Size.square(29),
-          padding: EdgeInsets.zero,
-          backgroundColor: const Color(0xFFF3F6FA),
-          foregroundColor: const Color(0xFF506176),
-        ),
-        icon: Icon(icon, size: 16),
-      );
-
+  }) => IconButton(
+    tooltip: tooltip,
+    onPressed: onPressed,
+    style: IconButton.styleFrom(
+      minimumSize: const Size.square(29),
+      maximumSize: const Size.square(29),
+      padding: EdgeInsets.zero,
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      foregroundColor: Theme.of(context).colorScheme.onSurfaceVariant,
+    ),
+    icon: Icon(icon, size: 16),
+  );
 
   Future<void> _payFromCartPage() async {
     Navigator.of(context).maybePop();
@@ -2755,7 +2763,7 @@ class _State extends State<MobilePosHomeScreen> {
     final quantityText = quantity.toStringAsFixed(quantity % 1 == 0 ? 0 : 2);
     return Container(
       padding: const EdgeInsets.fromLTRB(9, 8, 9, 9),
-      color: const Color(0xFFFAFCFE),
+      color: Theme.of(context).colorScheme.surface,
       child: Row(
         children: [
           Expanded(
@@ -2772,7 +2780,7 @@ class _State extends State<MobilePosHomeScreen> {
               style: OutlinedButton.styleFrom(
                 minimumSize: const Size.fromHeight(50),
                 alignment: Alignment.centerLeft,
-                textStyle: const TextStyle(fontWeight: FontWeight.w800),
+                textStyle: const TextStyle(fontWeight: FontWeight.w600),
               ),
             ),
           ),
@@ -2782,8 +2790,8 @@ class _State extends State<MobilePosHomeScreen> {
             onPressed: cart.isEmpty ? null : () => _clearCurrentCart(),
             style: IconButton.styleFrom(
               minimumSize: const Size.square(44),
-              backgroundColor: const Color(0xFFFFECEC),
-              foregroundColor: const Color(0xFFC43B3B),
+              backgroundColor: Theme.of(context).colorScheme.errorContainer,
+              foregroundColor: Theme.of(context).colorScheme.error,
             ),
             icon: const Icon(Icons.delete_sweep_outlined),
           ),
@@ -2793,8 +2801,8 @@ class _State extends State<MobilePosHomeScreen> {
             onPressed: cart.isEmpty ? null : _holdCurrentCart,
             style: IconButton.styleFrom(
               minimumSize: const Size.square(50),
-              backgroundColor: const Color(0xFFFFF4E5),
-              foregroundColor: const Color(0xFFB56B00),
+              backgroundColor: context.thqSemanticColors.warningContainer,
+              foregroundColor: context.thqSemanticColors.warning,
             ),
             icon: const Icon(Icons.pause_circle_outline_rounded),
           ),
@@ -2805,9 +2813,9 @@ class _State extends State<MobilePosHomeScreen> {
             label: const Text('PAY'),
             style: FilledButton.styleFrom(
               minimumSize: const Size(120, 50),
-              backgroundColor: const Color(0xFF14A765),
-              foregroundColor: Colors.white,
-              textStyle: const TextStyle(fontWeight: FontWeight.w900),
+              backgroundColor: Theme.of(context).colorScheme.primary,
+              foregroundColor: Theme.of(context).colorScheme.surface,
+              textStyle: const TextStyle(fontWeight: FontWeight.w600),
             ),
           ),
         ],
@@ -2821,28 +2829,28 @@ class _State extends State<MobilePosHomeScreen> {
       MaterialPageRoute(
         builder: (routeContext) => StatefulBuilder(
           builder: (routeContext, setPageState) => Scaffold(
-            backgroundColor: const Color(0xFFF2F6FA),
+            backgroundColor: Theme.of(context).scaffoldBackgroundColor,
             appBar: AppBar(
-              backgroundColor: Colors.white,
-              surfaceTintColor: Colors.white,
+              backgroundColor: Theme.of(context).colorScheme.surface,
+              surfaceTintColor: Theme.of(context).colorScheme.surface,
               elevation: 0,
               titleSpacing: 0,
               title: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
+                  Text(
                     'Current Order',
                     style: TextStyle(
-                      color: Color(0xFF14233B),
+                      color: Theme.of(context).colorScheme.onSurface,
                       fontSize: 17,
-                      fontWeight: FontWeight.w900,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                   Text(
                     customer?.name ?? 'Select customer',
-                    style: const TextStyle(
-                      color: Color(0xFF768398),
-                      fontSize: 10,
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      fontSize: 11,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -2855,9 +2863,11 @@ class _State extends State<MobilePosHomeScreen> {
                 padding: const EdgeInsets.fromLTRB(8, 8, 8, 10),
                 child: Container(
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: Theme.of(context).colorScheme.surface,
                     borderRadius: BorderRadius.circular(18),
-                    border: Border.all(color: const Color(0xFFDDE5EE)),
+                    border: Border.all(
+                      color: Theme.of(context).colorScheme.outline,
+                    ),
                   ),
                   clipBehavior: Clip.antiAlias,
                   child: _cartPanel(

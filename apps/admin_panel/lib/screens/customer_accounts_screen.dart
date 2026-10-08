@@ -1,3 +1,4 @@
+import 'package:thq_ui/thq_ui.dart';
 import 'package:flutter/material.dart';
 
 import '../services/customer_account_service.dart';
@@ -69,7 +70,7 @@ class _CustomerAccountsScreenState extends State<CustomerAccountsScreen> {
   }
 
   Future<void> _open(Map<String, dynamic> row) async {
-    await showDialog<void>(
+    await showThqDialog<void>(
       context: context,
       barrierDismissible: false,
       builder: (_) => CustomerAccountDialog(
@@ -101,7 +102,7 @@ class _CustomerAccountsScreenState extends State<CustomerAccountsScreen> {
           '${widget.businessName} | Customer Accounts',
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w900),
+          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
         ),
         actions: const [AdminHomeButton()],
       ),
@@ -186,7 +187,10 @@ class _CustomerAccountsScreenState extends State<CustomerAccountsScreen> {
                 child: Text(
                   _error!,
                   maxLines: 2,
-                  style: TextStyle(fontSize: 8, color: scheme.onErrorContainer),
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: scheme.onErrorContainer,
+                  ),
                 ),
               ),
             ],
@@ -218,8 +222,8 @@ class _CustomerAccountsScreenState extends State<CustomerAccountsScreen> {
                                   child: Text(
                                     'Customer',
                                     style: TextStyle(
-                                      fontSize: 8.8,
-                                      fontWeight: FontWeight.w900,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
                                     ),
                                   ),
                                 ),
@@ -229,8 +233,8 @@ class _CustomerAccountsScreenState extends State<CustomerAccountsScreen> {
                                     'Open Invoices',
                                     textAlign: TextAlign.right,
                                     style: TextStyle(
-                                      fontSize: 8.8,
-                                      fontWeight: FontWeight.w900,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
                                     ),
                                   ),
                                 ),
@@ -240,8 +244,8 @@ class _CustomerAccountsScreenState extends State<CustomerAccountsScreen> {
                                     'Last Sale',
                                     textAlign: TextAlign.right,
                                     style: TextStyle(
-                                      fontSize: 8.8,
-                                      fontWeight: FontWeight.w900,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
                                     ),
                                   ),
                                 ),
@@ -251,8 +255,8 @@ class _CustomerAccountsScreenState extends State<CustomerAccountsScreen> {
                                     'Outstanding',
                                     textAlign: TextAlign.right,
                                     style: TextStyle(
-                                      fontSize: 8.8,
-                                      fontWeight: FontWeight.w900,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
                                     ),
                                   ),
                                 ),
@@ -304,8 +308,8 @@ class _CustomerAccountsScreenState extends State<CustomerAccountsScreen> {
                                                 maxLines: 1,
                                                 overflow: TextOverflow.ellipsis,
                                                 style: const TextStyle(
-                                                  fontSize: 8.8,
-                                                  fontWeight: FontWeight.w800,
+                                                  fontSize: 11,
+                                                  fontWeight: FontWeight.w600,
                                                 ),
                                               ),
                                               Text(
@@ -314,7 +318,7 @@ class _CustomerAccountsScreenState extends State<CustomerAccountsScreen> {
                                                 maxLines: 1,
                                                 overflow: TextOverflow.ellipsis,
                                                 style: TextStyle(
-                                                  fontSize: 7.2,
+                                                  fontSize: 11,
                                                   color:
                                                       scheme.onSurfaceVariant,
                                                 ),
@@ -328,7 +332,7 @@ class _CustomerAccountsScreenState extends State<CustomerAccountsScreen> {
                                             '${row['open_invoice_count'] ?? 0}',
                                             textAlign: TextAlign.right,
                                             style: const TextStyle(
-                                              fontSize: 8.2,
+                                              fontSize: 11,
                                             ),
                                           ),
                                         ),
@@ -340,7 +344,7 @@ class _CustomerAccountsScreenState extends State<CustomerAccountsScreen> {
                                             overflow: TextOverflow.ellipsis,
                                             textAlign: TextAlign.right,
                                             style: const TextStyle(
-                                              fontSize: 7.8,
+                                              fontSize: 11,
                                             ),
                                           ),
                                         ),
@@ -351,8 +355,8 @@ class _CustomerAccountsScreenState extends State<CustomerAccountsScreen> {
                                             maxLines: 1,
                                             textAlign: TextAlign.right,
                                             style: TextStyle(
-                                              fontSize: 8.7,
-                                              fontWeight: FontWeight.w900,
+                                              fontSize: 11,
+                                              fontWeight: FontWeight.w600,
                                               color: outstanding > 0.005
                                                   ? scheme.tertiary
                                                   : scheme.primary,
@@ -412,15 +416,15 @@ class _CustomerAccountsScreenState extends State<CustomerAccountsScreen> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    fontSize: 9.5,
-                    fontWeight: FontWeight.w900,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
                 Text(
                   label,
                   maxLines: 1,
                   style: TextStyle(
-                    fontSize: 7.2,
+                    fontSize: 11,
                     color: scheme.onSurfaceVariant,
                   ),
                 ),

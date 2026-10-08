@@ -193,7 +193,9 @@ class LocationDeviceService {
         'p_reason': reason.trim().isEmpty ? null : reason.trim(),
       },
     );
-    return result is Map ? Map<String, dynamic>.from(result) : <String, dynamic>{};
+    return result is Map
+        ? Map<String, dynamic>.from(result)
+        : <String, dynamic>{};
   }
 
   Future<Map<String, dynamic>> deleteLocation({
@@ -209,7 +211,9 @@ class LocationDeviceService {
         'p_reason': reason.trim().isEmpty ? null : reason.trim(),
       },
     );
-    return result is Map ? Map<String, dynamic>.from(result) : <String, dynamic>{};
+    return result is Map
+        ? Map<String, dynamic>.from(result)
+        : <String, dynamic>{};
   }
 
   Future<Map<String, dynamic>> activateSystem({

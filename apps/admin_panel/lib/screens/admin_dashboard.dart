@@ -19,7 +19,6 @@ import 'platform_error_logs_screen.dart';
 import 'ui_design_studio_screen.dart';
 import 'transaction_control_screen.dart';
 import 'menu_builder_screen.dart';
-import '../ui/v43_theme.dart';
 
 class AdminDashboard extends StatefulWidget {
   const AdminDashboard({super.key});
@@ -85,13 +84,14 @@ class _AdminDashboardState extends State<AdminDashboard> {
   Widget build(BuildContext context) {
     final auth = AdminAuthService();
     return Scaffold(
-      backgroundColor: UiDesignProfile.fallback('client').background,
+      backgroundColor: UiDesignScope.of(context, appKey: 'admin').background,
       appBar: AppBar(
         title: Text(
           'THQ Platform • v${ThqReleaseContract.appVersion} • Build ${ThqReleaseContract.buildNumber}',
           style: const TextStyle(fontWeight: FontWeight.bold),
         ),
         actions: [
+          const ThqAppearanceButton(),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Center(
@@ -133,14 +133,17 @@ class _AdminDashboardState extends State<AdminDashboard> {
               'Platform Control Centre',
               style: TextStyle(
                 fontSize: 28,
-                fontWeight: FontWeight.w900,
+                fontWeight: FontWeight.w600,
                 letterSpacing: -0.5,
               ),
             ),
             const SizedBox(height: 8),
             Text(
               'Businesses, modules, design systems, subscriptions, security and global settings.',
-              style: TextStyle(fontSize: 16, color: Colors.grey.shade600),
+              style: TextStyle(
+                fontSize: 16,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
             ),
             const SizedBox(height: 24),
             FutureBuilder<Map<String, dynamic>>(
@@ -285,7 +288,11 @@ class _AdminDashboardState extends State<AdminDashboard> {
                           const SizedBox(height: 6),
                           Text(
                             'Subscription entitlement → tenant module enabled → user permission. Flutter only uses the Supabase publishable key; privileged actions are protected by backend RPCs.',
-                            style: TextStyle(color: Colors.grey.shade700),
+                            style: TextStyle(
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onSurfaceVariant,
+                            ),
                           ),
                         ],
                       ),
@@ -308,7 +315,7 @@ class _Metric extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final p = UiDesignProfile.fallback('client');
+    final p = UiDesignScope.of(context, appKey: 'admin');
     return Container(
       width: 162,
       padding: const EdgeInsets.all(16),
@@ -339,7 +346,7 @@ class _Metric extends StatelessWidget {
             value,
             style: const TextStyle(
               fontSize: 23,
-              fontWeight: FontWeight.w900,
+              fontWeight: FontWeight.w600,
               letterSpacing: -.4,
             ),
           ),
@@ -364,7 +371,7 @@ class DashboardCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final p = UiDesignProfile.fallback('client');
+    final p = UiDesignScope.of(context, appKey: 'admin');
     return Material(
       color: p.surface,
       borderRadius: BorderRadius.circular(p.radius),
@@ -403,7 +410,7 @@ class DashboardCard extends StatelessWidget {
                 title,
                 style: const TextStyle(
                   fontSize: 16,
-                  fontWeight: FontWeight.w900,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
               const SizedBox(height: 4),

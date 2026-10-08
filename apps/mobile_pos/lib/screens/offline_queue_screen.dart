@@ -1,3 +1,4 @@
+import 'package:thq_ui/thq_ui.dart';
 import 'package:flutter/material.dart';
 
 import '../models/pos_models.dart';
@@ -33,8 +34,11 @@ class _OfflineQueueScreenState extends State<OfflineQueueScreen> {
     future = load();
   }
 
-  Future<List<LocalInvoice>> load() =>
-      local.queue(widget.session.tenantId, widget.session.deviceId, limit: 1000);
+  Future<List<LocalInvoice>> load() => local.queue(
+    widget.session.tenantId,
+    widget.session.deviceId,
+    limit: 1000,
+  );
 
   void reload() {
     setState(() => future = load());
@@ -46,10 +50,7 @@ class _OfflineQueueScreenState extends State<OfflineQueueScreen> {
         return rows.where((row) => row.status == 'synced').toList();
       case _QueueView.notSynced:
         return rows
-            .where(
-              (row) =>
-                  row.status != 'synced' && row.status != 'cancelled',
-            )
+            .where((row) => row.status != 'synced' && row.status != 'cancelled')
             .toList();
       case _QueueView.all:
         return rows;
@@ -129,36 +130,36 @@ class _OfflineQueueScreenState extends State<OfflineQueueScreen> {
   Color _statusColor(String status) {
     switch (status) {
       case 'synced':
-        return const Color(0xFF159A5C);
+        return Theme.of(context).colorScheme.primary;
       case 'conflict':
-        return const Color(0xFFD78B00);
+        return context.thqSemanticColors.warning;
       case 'error':
-        return const Color(0xFFD06458);
+        return Theme.of(context).colorScheme.error;
       case 'cancelled':
-        return const Color(0xFF7A8798);
+        return Theme.of(context).colorScheme.onSurfaceVariant;
       default:
-        return const Color(0xFF147AF3);
+        return Theme.of(context).colorScheme.primary;
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF2F6FA),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: Colors.white,
-        surfaceTintColor: Colors.white,
+        backgroundColor: Theme.of(context).colorScheme.surface,
+        surfaceTintColor: Theme.of(context).colorScheme.surface,
         elevation: 0,
         title: const Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
               'Offline & Sync',
-              style: TextStyle(fontWeight: FontWeight.w900),
+              style: TextStyle(fontWeight: FontWeight.w600),
             ),
             Text(
               'View synced and non-synced transactions separately',
-              style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w500),
+              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500),
             ),
           ],
         ),
@@ -173,12 +174,12 @@ class _OfflineQueueScreenState extends State<OfflineQueueScreen> {
             child: FilledButton.icon(
               onPressed: busy ? null : syncAll,
               icon: busy
-                  ? const SizedBox(
+                  ? SizedBox(
                       width: 16,
                       height: 16,
                       child: CircularProgressIndicator(
                         strokeWidth: 2,
-                        color: Colors.white,
+                        color: Theme.of(context).colorScheme.surface,
                       ),
                     )
                   : const Icon(Icons.sync_rounded, size: 18),
@@ -206,8 +207,9 @@ class _OfflineQueueScreenState extends State<OfflineQueueScreen> {
           final visible = _visible(rows);
           final synced = rows.where((row) => row.status == 'synced').length;
           final notSynced = _countNotSynced(rows);
-          final conflicts =
-              rows.where((row) => row.status == 'conflict').length;
+          final conflicts = rows
+              .where((row) => row.status == 'conflict')
+              .length;
 
           return Column(
             children: [
@@ -220,7 +222,7 @@ class _OfflineQueueScreenState extends State<OfflineQueueScreen> {
                         'Not synced',
                         notSynced,
                         Icons.cloud_upload_outlined,
-                        const Color(0xFF147AF3),
+                        Theme.of(context).colorScheme.primary,
                       ),
                     ),
                     const SizedBox(width: 6),
@@ -229,7 +231,7 @@ class _OfflineQueueScreenState extends State<OfflineQueueScreen> {
                         'Synced',
                         synced,
                         Icons.cloud_done_outlined,
-                        const Color(0xFF159A5C),
+                        Theme.of(context).colorScheme.primary,
                       ),
                     ),
                     const SizedBox(width: 6),
@@ -238,7 +240,7 @@ class _OfflineQueueScreenState extends State<OfflineQueueScreen> {
                         'Conflict',
                         conflicts,
                         Icons.warning_amber_rounded,
-                        const Color(0xFFD78B00),
+                        context.thqSemanticColors.warning,
                       ),
                     ),
                   ],
@@ -284,7 +286,7 @@ class _OfflineQueueScreenState extends State<OfflineQueueScreen> {
                       vertical: 7,
                     ),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFEAF3FF),
+                      color: Theme.of(context).colorScheme.primaryContainer,
                       borderRadius: BorderRadius.circular(9),
                     ),
                     child: Text(
@@ -293,7 +295,7 @@ class _OfflineQueueScreenState extends State<OfflineQueueScreen> {
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         color: Color(0xFF315777),
-                        fontSize: 10.5,
+                        fontSize: 11,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
@@ -307,8 +309,8 @@ class _OfflineQueueScreenState extends State<OfflineQueueScreen> {
                           view == _QueueView.synced
                               ? 'No synced transactions yet.'
                               : view == _QueueView.notSynced
-                                  ? 'Nothing is waiting to sync.'
-                                  : 'No local transactions yet.',
+                              ? 'Nothing is waiting to sync.'
+                              : 'No local transactions yet.',
                           style: const TextStyle(
                             color: Color(0xFF748196),
                             fontWeight: FontWeight.w700,
@@ -324,8 +326,7 @@ class _OfflineQueueScreenState extends State<OfflineQueueScreen> {
                         child: ListView.separated(
                           padding: const EdgeInsets.fromLTRB(10, 0, 10, 12),
                           itemCount: visible.length,
-                          separatorBuilder: (_, _) =>
-                              const SizedBox(height: 6),
+                          separatorBuilder: (_, _) => const SizedBox(height: 6),
                           itemBuilder: (context, index) =>
                               _invoiceCard(visible[index]),
                         ),
@@ -338,16 +339,11 @@ class _OfflineQueueScreenState extends State<OfflineQueueScreen> {
     );
   }
 
-  Widget _summaryCard(
-    String label,
-    int count,
-    IconData icon,
-    Color accent,
-  ) {
+  Widget _summaryCard(String label, int count, IconData icon, Color accent) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 8),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(11),
         border: Border.all(color: const Color(0xFFE1E7EE)),
       ),
@@ -362,7 +358,7 @@ class _OfflineQueueScreenState extends State<OfflineQueueScreen> {
                 Text(
                   '$count',
                   style: const TextStyle(
-                    fontWeight: FontWeight.w900,
+                    fontWeight: FontWeight.w600,
                     fontSize: 14,
                   ),
                 ),
@@ -370,9 +366,9 @@ class _OfflineQueueScreenState extends State<OfflineQueueScreen> {
                   label,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Color(0xFF7A8798),
-                    fontSize: 9.5,
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    fontSize: 11,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -409,7 +405,7 @@ class _OfflineQueueScreenState extends State<OfflineQueueScreen> {
     final statusColor = _statusColor(invoice.status);
 
     return Material(
-      color: Colors.white,
+      color: Theme.of(context).colorScheme.surface,
       borderRadius: BorderRadius.circular(12),
       child: Container(
         padding: const EdgeInsets.all(10),
@@ -431,8 +427,8 @@ class _OfflineQueueScreenState extends State<OfflineQueueScreen> {
                 invoice.status == 'synced'
                     ? Icons.cloud_done_outlined
                     : hasProblem
-                        ? Icons.warning_amber_rounded
-                        : Icons.cloud_upload_outlined,
+                    ? Icons.warning_amber_rounded
+                    : Icons.cloud_upload_outlined,
                 color: statusColor,
                 size: 20,
               ),
@@ -451,16 +447,16 @@ class _OfflineQueueScreenState extends State<OfflineQueueScreen> {
                               : invoice.localNumber,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: Color(0xFF14233B),
-                            fontWeight: FontWeight.w900,
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.onSurface,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
                       ),
                       const SizedBox(width: 7),
                       Text(
                         '${widget.session.currencyCode} ${total.toStringAsFixed(2)}',
-                        style: const TextStyle(fontWeight: FontWeight.w900),
+                        style: const TextStyle(fontWeight: FontWeight.w600),
                       ),
                     ],
                   ),
@@ -471,7 +467,7 @@ class _OfflineQueueScreenState extends State<OfflineQueueScreen> {
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                       color: Color(0xFF748196),
-                      fontSize: 10.5,
+                      fontSize: 11,
                     ),
                   ),
                   const SizedBox(height: 5),
@@ -490,8 +486,8 @@ class _OfflineQueueScreenState extends State<OfflineQueueScreen> {
                           invoice.status.toUpperCase(),
                           style: TextStyle(
                             color: statusColor,
-                            fontSize: 8.5,
-                            fontWeight: FontWeight.w900,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
                       ),
@@ -503,9 +499,11 @@ class _OfflineQueueScreenState extends State<OfflineQueueScreen> {
                               : '${invoice.createdAt.toLocal().toString().split('.').first} • ${invoice.attempts} attempt(s)',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: Color(0xFF7A8798),
-                            fontSize: 9.5,
+                          style: TextStyle(
+                            color: Theme.of(context)
+                                .colorScheme
+                                .onSurfaceVariant,
+                            fontSize: 11,
                           ),
                         ),
                       ),
@@ -518,21 +516,14 @@ class _OfflineQueueScreenState extends State<OfflineQueueScreen> {
               onSelected: (action) => handleAction(action, invoice),
               itemBuilder: (_) => [
                 if (hasProblem)
-                  const PopupMenuItem(
-                    value: 'retry',
-                    child: Text('Retry'),
-                  ),
-                if (invoice.status != 'synced' &&
-                    invoice.status != 'cancelled')
+                  const PopupMenuItem(value: 'retry', child: Text('Retry')),
+                if (invoice.status != 'synced' && invoice.status != 'cancelled')
                   const PopupMenuItem(
                     value: 'cancel',
                     child: Text('Cancel local invoice'),
                   ),
                 const PopupMenuItem(value: 'print', child: Text('Print')),
-                const PopupMenuItem(
-                  value: 'share',
-                  child: Text('Share PDF'),
-                ),
+                const PopupMenuItem(value: 'share', child: Text('Share PDF')),
               ],
             ),
           ],

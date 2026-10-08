@@ -98,7 +98,7 @@ class _TasksScreenState extends State<TasksScreen> {
     DateTime? dueAt = _parse(row?['due_at']);
     DateTime? reminderAt = _parse(row?['reminder_at']);
 
-    final ok = await showDialog<bool>(
+    final ok = await showThqDialog<bool>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
@@ -371,7 +371,7 @@ class _TasksScreenState extends State<TasksScreen> {
         return;
       }
 
-      await showDialog<void>(
+      await showThqDialog<void>(
         context: context,
         builder: (dialogContext) => StatefulBuilder(
           builder: (context, setDialogState) {
@@ -512,10 +512,10 @@ class _TasksScreenState extends State<TasksScreen> {
   }
 
   Color _priorityColor(String priority) => switch (priority) {
-    'urgent' => Colors.red,
-    'high' => Colors.orange,
-    'low' => Colors.blueGrey,
-    _ => Colors.blue,
+    'urgent' => Theme.of(context).colorScheme.error,
+    'high' => context.thqSemanticColors.warning,
+    'low' => Theme.of(context).colorScheme.onSurfaceVariant,
+    _ => Theme.of(context).colorScheme.secondary,
   };
 
   @override
@@ -532,7 +532,7 @@ class _TasksScreenState extends State<TasksScreen> {
                 const Expanded(
                   child: Text(
                     'Tasks & Follow-ups',
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.w900),
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
                   ),
                 ),
                 IconButton(
@@ -616,7 +616,7 @@ class _TasksScreenState extends State<TasksScreen> {
                               title: Text(
                                 row['title']?.toString() ?? '',
                                 style: const TextStyle(
-                                  fontWeight: FontWeight.w800,
+                                  fontWeight: FontWeight.w600,
                                 ),
                               ),
                               subtitle: Text(

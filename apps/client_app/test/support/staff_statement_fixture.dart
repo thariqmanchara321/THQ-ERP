@@ -1,0 +1,112 @@
+const internalUuid = '8e9a2182-97dd-4d00-8e49-438c0266e4f7';
+Map<String, dynamic> staffStatementFixture({
+  int count = 2,
+  String notes = 'Agreed salary / payment',
+}) => {
+  'complete': true,
+  'profile': {
+    'id': internalUuid,
+    'tenant_id': internalUuid,
+    'name': 'Amina',
+    'staff_code': 'STF-001',
+    'wage_basis': 'daily',
+    'base_rate': 500,
+    'active': true,
+    'outstanding': 200,
+    'advance_balance': 0,
+  },
+  'period': {'from': '2026-10-01', 'to': '2026-10-04'},
+  'summary': {
+    'opening_balance': 700,
+    'period_earnings': 500,
+    'period_payments': 900,
+    'closing_balance': 300,
+    'closing_due': 300,
+    'closing_advance': 0,
+    'current_due': 200,
+    'current_advance': 0,
+  },
+  'ledger': [
+    for (var n = 0; n < count; n++)
+      {
+        'id': internalUuid,
+        'staff_id': internalUuid,
+        'staff_code': 'STF-001',
+        'date': n.isEven ? '2026-10-01' : '2026-10-03',
+        'document_reference': 'JE-${n + 1}',
+        'location_name': 'Main Yard',
+        'description': n.isEven ? 'Salary / wages' : 'Payment / advance',
+        'earning': n.isEven ? 500 : 0,
+        'payment': n.isEven ? 0 : 900,
+        'balance': n.isEven ? 1200 : 300,
+        'notes': notes,
+      },
+  ],
+  'balances_by_location': [
+    {
+      'location_id': internalUuid,
+      'location_name': 'Main Yard',
+      'opening_balance': 700,
+      'closing_balance': 300,
+    },
+  ],
+  'earnings': [
+    {
+      'id': internalUuid,
+      'staff_id': internalUuid,
+      'journal_id': internalUuid,
+      'staff_code': 'STF-001',
+      'entry_number': 'JE-1',
+      'earning_date': '2026-10-01',
+      'kind': 'payroll',
+      'units': 1,
+      'rate': 500,
+      'gross_amount': 500,
+      'allowances': 0,
+      'deductions': 0,
+      'amount': 500,
+      'paid_amount': 300,
+      'outstanding': 200,
+      'paid_through_end': 200,
+      'notes': notes,
+    },
+  ],
+  'payments': [
+    {
+      'id': internalUuid,
+      'request_id': internalUuid,
+      'staff_code': 'STF-001',
+      'entry_number': 'JE-2',
+      'payment_date': '2026-10-03',
+      'amount': 900,
+      'payment_method': 'bank',
+      'reference': 'BANK-REF-1',
+      'advance_amount': 0,
+      'advance_remaining': 0,
+      'advance_remaining_through_end': 0,
+      'allocations': [
+        {
+          'earning_id': internalUuid,
+          'entry_number': 'JE-1',
+          'amount': 200,
+          'from_advance': false,
+        },
+      ],
+    },
+  ],
+  'load_allocations': [
+    {
+      'load_id': internalUuid,
+      'load_number': 'LOAD-01',
+      'amount': 50,
+      'staff_mode': 'salary_allocation',
+    },
+  ],
+  'history': [
+    {
+      'id': internalUuid,
+      'action': 'earning.post',
+      'after_data': {'id': internalUuid, 'amount': 500},
+    },
+  ],
+};

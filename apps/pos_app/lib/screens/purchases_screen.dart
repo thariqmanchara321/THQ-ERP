@@ -138,7 +138,7 @@ class _PurchasesScreenState extends State<PurchasesScreen> {
                             : 'Today’s Purchases',
                         style: const TextStyle(
                           fontSize: 14.5,
-                          fontWeight: FontWeight.w900,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                       Text(
@@ -146,7 +146,7 @@ class _PurchasesScreenState extends State<PurchasesScreen> {
                             ? 'Legacy direct-purchase history'
                             : 'Purchase bills and stock received',
                         style: TextStyle(
-                          fontSize: 10.5,
+                          fontSize: 11,
                           color: scheme.onSurfaceVariant,
                         ),
                       ),
@@ -276,8 +276,8 @@ class _PurchasesScreenState extends State<PurchasesScreen> {
                                     child: Text(
                                       'Purchase',
                                       style: TextStyle(
-                                        fontSize: 10.5,
-                                        fontWeight: FontWeight.w900,
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w600,
                                       ),
                                     ),
                                   ),
@@ -286,8 +286,8 @@ class _PurchasesScreenState extends State<PurchasesScreen> {
                                     child: Text(
                                       'Supplier / Invoice',
                                       style: TextStyle(
-                                        fontSize: 10.5,
-                                        fontWeight: FontWeight.w900,
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w600,
                                       ),
                                     ),
                                   ),
@@ -297,8 +297,8 @@ class _PurchasesScreenState extends State<PurchasesScreen> {
                                       'Total',
                                       textAlign: TextAlign.right,
                                       style: TextStyle(
-                                        fontSize: 10.5,
-                                        fontWeight: FontWeight.w900,
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w600,
                                       ),
                                     ),
                                   ),
@@ -308,8 +308,8 @@ class _PurchasesScreenState extends State<PurchasesScreen> {
                                       'Due',
                                       textAlign: TextAlign.right,
                                       style: TextStyle(
-                                        fontSize: 10.5,
-                                        fontWeight: FontWeight.w900,
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w600,
                                       ),
                                     ),
                                   ),
@@ -364,9 +364,9 @@ class _PurchasesScreenState extends State<PurchasesScreen> {
                                                       overflow:
                                                           TextOverflow.ellipsis,
                                                       style: const TextStyle(
-                                                        fontSize: 10.5,
+                                                        fontSize: 11,
                                                         fontWeight:
-                                                            FontWeight.w800,
+                                                            FontWeight.w600,
                                                       ),
                                                     ),
                                                     Text(
@@ -374,7 +374,7 @@ class _PurchasesScreenState extends State<PurchasesScreen> {
                                                         purchase.purchaseDate,
                                                       ),
                                                       style: TextStyle(
-                                                        fontSize: 10,
+                                                        fontSize: 11,
                                                         color: scheme
                                                             .onSurfaceVariant,
                                                       ),
@@ -396,7 +396,7 @@ class _PurchasesScreenState extends State<PurchasesScreen> {
                                                       overflow:
                                                           TextOverflow.ellipsis,
                                                       style: const TextStyle(
-                                                        fontSize: 10.5,
+                                                        fontSize: 11,
                                                         fontWeight:
                                                             FontWeight.w700,
                                                       ),
@@ -408,7 +408,7 @@ class _PurchasesScreenState extends State<PurchasesScreen> {
                                                       overflow:
                                                           TextOverflow.ellipsis,
                                                       style: TextStyle(
-                                                        fontSize: 10,
+                                                        fontSize: 11,
                                                         color: scheme
                                                             .onSurfaceVariant,
                                                       ),
@@ -423,8 +423,8 @@ class _PurchasesScreenState extends State<PurchasesScreen> {
                                                   textAlign: TextAlign.right,
                                                   maxLines: 1,
                                                   style: const TextStyle(
-                                                    fontSize: 10.5,
-                                                    fontWeight: FontWeight.w900,
+                                                    fontSize: 11,
+                                                    fontWeight: FontWeight.w600,
                                                   ),
                                                 ),
                                               ),
@@ -435,7 +435,7 @@ class _PurchasesScreenState extends State<PurchasesScreen> {
                                                   textAlign: TextAlign.right,
                                                   maxLines: 1,
                                                   style: const TextStyle(
-                                                    fontSize: 10.5,
+                                                    fontSize: 11,
                                                   ),
                                                 ),
                                               ),
@@ -506,14 +506,14 @@ class _PurchasesScreenState extends State<PurchasesScreen> {
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     fontSize: 11,
-                    fontWeight: FontWeight.w900,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
                 Text(
                   label,
                   maxLines: 1,
                   style: TextStyle(
-                    fontSize: 10,
+                    fontSize: 11,
                     color: scheme.onSurfaceVariant,
                   ),
                 ),
@@ -680,7 +680,7 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
       return;
     }
 
-    final line = await showDialog<_PurchaseLine>(
+    final line = await showThqDialog<_PurchaseLine>(
       context: context,
       barrierDismissible: false,
       builder: (_) => _AddPurchaseItemDialog(products: available),
@@ -796,6 +796,8 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
             .map(
               (line) => {
                 'variant_id': line.product.variantId,
+                'tracking_revision': line.product.trackingRevision,
+                'tracking_mode': line.product.trackingMode,
                 'quantity': line.quantity,
                 'unit_id': line.unit?.unitId,
                 'unit_cost': line.unitCost,
@@ -850,7 +852,7 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F7FA),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         title: const Text(
           'New Purchase',
@@ -1139,12 +1141,12 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
               width: double.infinity,
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.red.shade50,
+                color: Theme.of(context).colorScheme.error,
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(
                 _error!,
-                style: TextStyle(color: Colors.red.shade700),
+                style: TextStyle(color: Theme.of(context).colorScheme.onError),
               ),
             ),
           ],
@@ -1286,7 +1288,7 @@ class _AddPurchaseItemDialogState extends State<_AddPurchaseItemDialog> {
       .toList();
 
   Future<void> _addBatch() async {
-    final batch = await showDialog<Map<String, dynamic>>(
+    final batch = await showThqDialog<Map<String, dynamic>>(
       context: context,
       builder: (_) => const _PurchaseBatchDialog(),
     );
@@ -1588,7 +1590,10 @@ class _AddPurchaseItemDialogState extends State<_AddPurchaseItemDialog> {
 
             if (_error != null) ...[
               const SizedBox(height: 14),
-              Text(_error!, style: TextStyle(color: Colors.red.shade700)),
+              Text(
+                _error!,
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
             ],
           ],
         ),
@@ -1723,7 +1728,11 @@ class _PurchaseLineRow extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 14),
       decoration: BoxDecoration(
-        border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
+        border: Border(
+          bottom: BorderSide(
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+        ),
       ),
       child: Row(
         children: [
@@ -1738,7 +1747,10 @@ class _PurchaseLineRow extends StatelessWidget {
                 ),
                 Text(
                   line.product.sku,
-                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
                 ),
               ],
             ),
@@ -1786,9 +1798,11 @@ class _PurchaseCard extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1866,10 +1880,10 @@ class _PaymentBadge extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
         color: status == 'paid'
-            ? Colors.green.shade50
+            ? Theme.of(context).colorScheme.primary
             : status == 'partial'
-            ? Colors.orange.shade50
-            : Colors.red.shade50,
+            ? context.thqSemanticColors.warning
+            : Theme.of(context).colorScheme.error,
         borderRadius: BorderRadius.circular(20),
       ),
       child: Text(

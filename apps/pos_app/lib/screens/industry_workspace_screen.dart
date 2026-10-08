@@ -1,3 +1,4 @@
+import 'package:thq_ui/thq_ui.dart';
 import 'package:flutter/material.dart';
 
 import '../models/client_session.dart';
@@ -124,16 +125,18 @@ class IndustryWorkspaceScreen extends StatelessWidget {
           const SizedBox(height: 6),
           Text(
             module.description ?? 'Industry extension workspace',
-            style: TextStyle(color: Colors.grey.shade600),
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
           ),
           const SizedBox(height: 20),
           Container(
             width: double.infinity,
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              color: Colors.amber.shade50,
+              color: context.thqSemanticColors.warning,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.amber.shade100),
+              border: Border.all(color: context.thqSemanticColors.warning),
             ),
             child: const Text(
               'Industry module foundation is enabled. The platform/template/permission structure is ready; domain-specific transactional records should be installed only with that industry pack so the ERP core stays clean.',

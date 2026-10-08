@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../foundations/thq_tokens.dart';
@@ -7,11 +8,13 @@ class ThqTableColumn {
     required this.label,
     this.width = 140,
     this.alignment = Alignment.centerLeft,
+    this.minWidth = 88,
   });
 
   final String label;
   final double width;
   final Alignment alignment;
+  final double minWidth;
 }
 
 class ThqTableRow {
@@ -38,6 +41,7 @@ class ThqDenseTable extends StatelessWidget {
     this.headerHeight = ThqTokens.tableHeader,
     this.horizontalController,
     this.verticalController,
+    this.fitToWidth = true,
     super.key,
   });
 
@@ -48,8 +52,10 @@ class ThqDenseTable extends StatelessWidget {
   final double headerHeight;
   final ScrollController? horizontalController;
   final ScrollController? verticalController;
+  final bool fitToWidth;
 
-  double get _tableWidth => columns.fold<double>(0, (sum, item) => sum + item.width);
+  double get _tableWidth =>
+      columns.fold<double>(0, (sum, item) => sum + item.width);
 
   @override
   Widget build(BuildContext context) {
@@ -60,49 +66,99 @@ class ThqDenseTable extends StatelessWidget {
     );
 
     final border = Theme.of(context).dividerColor;
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        border: Border.all(color: border),
-        borderRadius: BorderRadius.circular(ThqTokens.radiusMedium),
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(ThqTokens.radiusMedium),
-        child: Scrollbar(
-          controller: horizontalController,
-          thumbVisibility: false,
-          child: SingleChildScrollView(
-            controller: horizontalController,
-            scrollDirection: Axis.horizontal,
-            child: SizedBox(
-              width: _tableWidth,
-              child: Column(
-                children: [
-                  _TableHeader(columns: columns, height: headerHeight),
-                  Divider(height: 1, color: border),
-                  Expanded(
-                    child: rows.isEmpty
-                        ? Center(child: empty ?? const Text('No records'))
-                        : Scrollbar(
-                            controller: verticalController,
-                            child: ListView.separated(
-                              controller: verticalController,
-                              itemCount: rows.length,
-                              separatorBuilder: (_, __) =>
-                                  Divider(height: 1, color: border),
-                              itemBuilder: (context, index) => _DataRow(
-                                columns: columns,
-                                row: rows[index],
-                                height: rowHeight,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        var effective = columns;
+        final available = constraints.maxWidth - 2;
+        final minimum = columns.fold<double>(
+          0,
+          (sum, c) => sum + math.min(c.minWidth, c.width),
+        );
+        if (fitToWidth &&
+            available.isFinite &&
+            available >= minimum &&
+            available < _tableWidth) {
+          final ratio = (_tableWidth - minimum) == 0
+              ? 0.0
+              : (available - minimum) / (_tableWidth - minimum);
+          effective = [
+            for (final c in columns)
+              ThqTableColumn(
+                label: c.label,
+                alignment: c.alignment,
+                minWidth: c.minWidth,
+                width:
+                    math.min(c.minWidth, c.width) +
+                    (c.width - math.min(c.minWidth, c.width)) * ratio,
+              ),
+          ];
+        } else if (fitToWidth &&
+            available.isFinite &&
+            available > _tableWidth) {
+          effective = [
+            for (final c in columns)
+              ThqTableColumn(
+                label: c.label,
+                alignment: c.alignment,
+                minWidth: c.minWidth,
+                width: c.width * available / _tableWidth,
+              ),
+          ];
+        }
+        final scale = MediaQuery.textScalerOf(context);
+        final effectiveRowHeight = math.max(rowHeight, scale.scale(13) + 20);
+        final effectiveHeaderHeight = math.max(
+          headerHeight,
+          scale.scale(12) + 20,
+        );
+        return DecoratedBox(
+          decoration: BoxDecoration(
+            border: Border.all(color: border),
+            borderRadius: BorderRadius.circular(ThqTokens.radiusMedium),
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(ThqTokens.radiusMedium),
+            child: Scrollbar(
+              controller: horizontalController,
+              thumbVisibility: false,
+              child: SingleChildScrollView(
+                controller: horizontalController,
+                scrollDirection: Axis.horizontal,
+                child: SizedBox(
+                  width: effective.fold<double>(0, (sum, c) => sum + c.width),
+                  child: Column(
+                    children: [
+                      _TableHeader(
+                        columns: effective,
+                        height: effectiveHeaderHeight,
+                      ),
+                      Divider(height: 1, color: border),
+                      Expanded(
+                        child: rows.isEmpty
+                            ? Center(child: empty ?? const Text('No records'))
+                            : Scrollbar(
+                                controller: verticalController,
+                                child: ListView.separated(
+                                  controller: verticalController,
+                                  itemCount: rows.length,
+                                  separatorBuilder: (_, __) =>
+                                      Divider(height: 1, color: border),
+                                  itemBuilder: (context, index) => _DataRow(
+                                    columns: effective,
+                                    row: rows[index],
+                                    height: effectiveRowHeight,
+                                  ),
+                                ),
                               ),
-                            ),
-                          ),
+                      ),
+                    ],
                   ),
-                ],
+                ),
               ),
             ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }
@@ -176,7 +232,18 @@ class _DataRow extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(
                     horizontal: ThqTokens.space10,
                   ),
-                  child: row.cells[index],
+                  child: DefaultTextStyle.merge(
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    child:
+                        row.cells[index] is Text &&
+                            (row.cells[index] as Text).data != null
+                        ? Tooltip(
+                            message: (row.cells[index] as Text).data!,
+                            child: row.cells[index],
+                          )
+                        : row.cells[index],
+                  ),
                 ),
               ),
             ),

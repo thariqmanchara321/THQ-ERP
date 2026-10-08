@@ -220,7 +220,7 @@ class _InventoryMovementHistoryScreenState
                               Text(
                                 '${display >= 0 ? '+' : '-'}${_q(display)} $unit',
                                 style: const TextStyle(
-                                  fontWeight: FontWeight.w800,
+                                  fontWeight: FontWeight.w600,
                                 ),
                               ),
                               if ((display.abs() - delta.abs()).abs() > .000001)

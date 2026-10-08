@@ -116,7 +116,7 @@ class _ActivationViewState extends State<_ActivationView> {
       versionLabel: ThqClientMobileReleaseContract.versionLabel,
       footer: const Text(
         'THQ ERP â€¢ Client Mobile',
-        style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700),
+        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
       ),
       child: AutofillGroup(
         child: Column(
@@ -228,7 +228,7 @@ class _LoginViewState extends State<_LoginView> {
       versionLabel: ThqClientMobileReleaseContract.versionLabel,
       footer: const Text(
         'Secure role-based access',
-        style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700),
+        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
       ),
       child: AutofillGroup(
         child: Column(

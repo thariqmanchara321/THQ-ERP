@@ -167,7 +167,8 @@ class SalesService {
     throw Exception('Unexpected round-off response.');
   }
 
-  Future<void> updateMetadata({    required String tenantId,
+  Future<void> updateMetadata({
+    required String tenantId,
     required String saleId,
     required String customerId,
     required DateTime? dueDate,

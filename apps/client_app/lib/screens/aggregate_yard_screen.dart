@@ -9,7 +9,7 @@ import 'aggregate_loads_screen.dart';
 import 'aggregate_orders_screen.dart';
 import 'aggregate_vehicles_screen.dart';
 import 'customers_screen.dart';
-import 'inventory_products_screen.dart';
+import 'aggregate_yard_stock_screen.dart';
 import 'reports_screen.dart';
 import 'suppliers_screen.dart';
 import 'transport_logistics_hub_screen.dart';
@@ -194,27 +194,12 @@ class _AggregateYardScreenState extends State<AggregateYardScreen> {
                     ),
                     _ActionCard(
                       width: actionWidth,
-                      icon: Icons.move_to_inbox_outlined,
-                      title: 'Material Inward',
-                      subtitle: 'Receive a truck load and create the purchase.',
-                      onTap: () => _open(
-                        AggregateLoadsScreen(
-                          session: session,
-                          initialCreateDirection: 'inbound',
-                        ),
-                      ),
-                    ),
-                    _ActionCard(
-                      width: actionWidth,
-                      icon: Icons.outbox_outlined,
-                      title: 'Material Dispatch',
-                      subtitle: 'Dispatch a truck load and create the sale.',
-                      onTap: () => _open(
-                        AggregateLoadsScreen(
-                          session: session,
-                          initialCreateDirection: 'outbound',
-                        ),
-                      ),
+                      icon: Icons.local_shipping_outlined,
+                      title: 'Load Register',
+                      subtitle:
+                          'Receive or dispatch a load, then continue to Purchase or Sales.',
+                      onTap: () =>
+                          _open(AggregateLoadsScreen(session: session)),
                     ),
                     _ActionCard(
                       width: actionWidth,
@@ -223,14 +208,6 @@ class _AggregateYardScreenState extends State<AggregateYardScreen> {
                       subtitle: 'Order, delivered quantity and balance only.',
                       onTap: () =>
                           _open(AggregateOrdersScreen(session: session)),
-                    ),
-                    _ActionCard(
-                      width: actionWidth,
-                      icon: Icons.receipt_long_outlined,
-                      title: 'Load Register',
-                      subtitle: 'Find a load and see its final status.',
-                      onTap: () =>
-                          _open(AggregateLoadsScreen(session: session)),
                     ),
                     _ActionCard(
                       width: actionWidth,
@@ -360,7 +337,7 @@ class _AggregateYardScreenState extends State<AggregateYardScreen> {
                     leading: const Icon(Icons.tune_rounded),
                     title: const Text(
                       'More yard tools',
-                      style: TextStyle(fontWeight: FontWeight.w800),
+                      style: TextStyle(fontWeight: FontWeight.w600),
                     ),
                     subtitle: const Text(
                       'Stock view, freight and detailed trip tracking',
@@ -375,9 +352,10 @@ class _AggregateYardScreenState extends State<AggregateYardScreen> {
                             width: actionWidth,
                             icon: Icons.inventory_2_outlined,
                             title: 'Yard Stock',
-                            subtitle: 'Open authoritative THQ inventory.',
+                            subtitle:
+                                'Material, batch / quality, rates and yard balances.',
                             onTap: () => _open(
-                              InventoryProductsScreen(session: session),
+                              AggregateYardStockScreen(session: session),
                             ),
                           ),
                           _ActionCard(
@@ -413,7 +391,7 @@ class _AggregateYardScreenState extends State<AggregateYardScreen> {
                     leading: const Icon(Icons.dashboard_outlined),
                     title: const Text(
                       'Operational details',
-                      style: TextStyle(fontWeight: FontWeight.w800),
+                      style: TextStyle(fontWeight: FontWeight.w600),
                     ),
                     subtitle: const Text(
                       'Material balances and active load tracking',
@@ -487,8 +465,8 @@ class _HeroCard extends StatelessWidget {
                 const Text(
                   'MATERIAL YARD',
                   style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w800,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
                     letterSpacing: .8,
                   ),
                 ),
@@ -499,7 +477,7 @@ class _HeroCard extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     fontSize: 18,
-                    fontWeight: FontWeight.w800,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
                 const SizedBox(height: 2),
@@ -528,7 +506,7 @@ class _HeroCard extends StatelessWidget {
             ),
             child: const Text(
               'THQ ERP CORE',
-              style: TextStyle(fontSize: 9, fontWeight: FontWeight.w800),
+              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
             ),
           ),
         ],
@@ -582,7 +560,7 @@ class _MetricCard extends StatelessWidget {
                 Text(
                   label,
                   style: TextStyle(
-                    fontSize: 9.5,
+                    fontSize: 11,
                     color: scheme.onSurfaceVariant,
                   ),
                 ),
@@ -593,7 +571,7 @@ class _MetricCard extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     fontSize: 17,
-                    fontWeight: FontWeight.w900,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
                 const SizedBox(height: 1),
@@ -601,7 +579,10 @@ class _MetricCard extends StatelessWidget {
                   helper,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(fontSize: 9, color: scheme.onSurfaceVariant),
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: scheme.onSurfaceVariant,
+                  ),
                 ),
               ],
             ),
@@ -638,14 +619,14 @@ class _StockPanel extends StatelessWidget {
                   'Stock by material',
                   style: Theme.of(
                     context,
-                  ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800),
+                  ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
                 ),
               ],
             ),
             const SizedBox(height: 4),
             Text(
               'Authoritative location stock. Each material keeps its own base unit.',
-              style: TextStyle(fontSize: 9.5, color: scheme.onSurfaceVariant),
+              style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant),
             ),
             const SizedBox(height: 9),
             if (visibleRows.isEmpty)
@@ -688,13 +669,13 @@ class _StockPanel extends StatelessWidget {
                             '${quantityText(row['available'])} $unit',
                             style: const TextStyle(
                               fontSize: 11,
-                              fontWeight: FontWeight.w900,
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
                           Text(
                             'On hand ${quantityText(row['on_hand'])}',
                             style: TextStyle(
-                              fontSize: 8.5,
+                              fontSize: 11,
                               color: scheme.onSurfaceVariant,
                             ),
                           ),
@@ -709,7 +690,10 @@ class _StockPanel extends StatelessWidget {
                 padding: const EdgeInsets.only(top: 6),
                 child: Text(
                   '+ ${rows.length - visibleRows.length} more materials',
-                  style: TextStyle(fontSize: 9, color: scheme.onSurfaceVariant),
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: scheme.onSurfaceVariant,
+                  ),
                 ),
               ),
           ],
@@ -745,14 +729,14 @@ class _ActiveLoadsPanel extends StatelessWidget {
                   'Active loads',
                   style: Theme.of(
                     context,
-                  ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800),
+                  ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
                 ),
               ],
             ),
             const SizedBox(height: 4),
             Text(
               'Loading, dispatched, in-transit and arrived trucks.',
-              style: TextStyle(fontSize: 9.5, color: scheme.onSurfaceVariant),
+              style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant),
             ),
             const SizedBox(height: 9),
             if (visibleRows.isEmpty)
@@ -787,8 +771,8 @@ class _ActiveLoadsPanel extends StatelessWidget {
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
-                                fontSize: 10.5,
-                                fontWeight: FontWeight.w800,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
                               ),
                             ),
                             Text(
@@ -797,7 +781,7 @@ class _ActiveLoadsPanel extends StatelessWidget {
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(
-                                fontSize: 8.5,
+                                fontSize: 11,
                                 color: scheme.onSurfaceVariant,
                               ),
                             ),
@@ -812,8 +796,8 @@ class _ActiveLoadsPanel extends StatelessWidget {
                             '${quantityText(row['quantity'])} '
                             '${row['unit_code'] ?? ''}',
                             style: const TextStyle(
-                              fontSize: 10.5,
-                              fontWeight: FontWeight.w900,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
                           Text(
@@ -822,7 +806,7 @@ class _ActiveLoadsPanel extends StatelessWidget {
                               ' ',
                             ),
                             style: TextStyle(
-                              fontSize: 8.5,
+                              fontSize: 11,
                               color: scheme.onSurfaceVariant,
                             ),
                           ),
@@ -864,7 +848,7 @@ class _ErrorBanner extends StatelessWidget {
               message,
               maxLines: 3,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(fontSize: 10, color: scheme.onErrorContainer),
+              style: TextStyle(fontSize: 11, color: scheme.onErrorContainer),
             ),
           ),
           TextButton(onPressed: onRetry, child: const Text('Retry')),
@@ -888,13 +872,13 @@ class _SectionTitle extends StatelessWidget {
         title,
         style: Theme.of(
           context,
-        ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+        ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
       ),
       const SizedBox(height: 2),
       Text(
         subtitle,
         style: TextStyle(
-          fontSize: 10.5,
+          fontSize: 11,
           color: Theme.of(context).colorScheme.onSurfaceVariant,
         ),
       ),
@@ -960,7 +944,7 @@ class _ActionCard extends StatelessWidget {
                         title,
                         style: TextStyle(
                           fontSize: 12,
-                          fontWeight: FontWeight.w800,
+                          fontWeight: FontWeight.w600,
                           color: enabled
                               ? null
                               : scheme.onSurfaceVariant.withValues(alpha: .55),
@@ -972,7 +956,7 @@ class _ActionCard extends StatelessWidget {
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                          fontSize: 9.5,
+                          fontSize: 11,
                           height: 1.25,
                           color: scheme.onSurfaceVariant,
                         ),

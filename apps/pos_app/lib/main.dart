@@ -10,7 +10,6 @@ import 'config/supabase_config.dart';
 import 'config/thq_environment_frame.dart';
 import 'screens/pos_entry_screen.dart';
 import 'services/app_log_service.dart';
-import 'ui/v43_theme.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -38,29 +37,41 @@ Future<void> main() async {
     return true;
   };
 
-  runApp(const ThqPosApp());
+  final appearance = ThqAppearanceController(appKey: 'pos');
+  await appearance.load();
+  runApp(ThqPosApp(appearance: appearance));
 }
 
 class ThqPosApp extends StatelessWidget {
-  const ThqPosApp({super.key});
+  final ThqAppearanceController? appearance;
+  const ThqPosApp({super.key, this.appearance});
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: SupabaseConfig.appTitle('THQ POS'),
-      debugShowCheckedModeBanner: false,
-      // THQ_BRANDING_START
-      builder: (context, child) => ThqEnvironmentFrame(
-        child: ThqStartupGate(
-        appName: 'THQ POS',
-        child: ThqNotificationHost(
-          child: NumericZeroAutoSelect(child: child ?? const SizedBox.shrink()),
+    return ThqAppearanceHost(
+      appKey: 'pos',
+      controller: appearance,
+      builder: (context, mode) => MaterialApp(
+        title: SupabaseConfig.appTitle('THQ POS'),
+        debugShowCheckedModeBanner: false,
+        themeAnimationDuration: Duration.zero,
+        // THQ_BRANDING_START
+        builder: (context, child) => ThqEnvironmentFrame(
+          child: ThqMotionScope(
+            child: ThqStartupGate(
+              appName: 'THQ POS',
+              child: ThqNotificationHost(
+                child: NumericZeroAutoSelect(
+                  child: child ?? const SizedBox.shrink(),
+                ),
+              ),
+            ),
+          ),
         ),
+        // THQ_BRANDING_END
+        theme: UiDesignProfile.fallback('pos').forAppearance(mode).theme(),
+        home: const PosEntryScreen(),
       ),
-      // THQ_BRANDING_END
-      ),
-      theme: UiDesignProfile.fallback('pos').theme(),
-      home: const PosEntryScreen(),
     );
   }
 }

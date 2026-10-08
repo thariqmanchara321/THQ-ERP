@@ -1,3 +1,5 @@
+import 'package:erp_core/erp_core.dart';
+
 class PurchaseDetail {
   final String purchaseId;
   final String purchaseNumber;
@@ -294,6 +296,7 @@ class PurchaseDetailItem {
   final String variantId;
 
   final String productName;
+  final List<Map<String, dynamic>> batchAllocations;
   final String sku;
   final String? partNumber;
   final String? unitCode;
@@ -310,6 +313,7 @@ class PurchaseDetailItem {
   final double lineTotal;
 
   const PurchaseDetailItem({
+    this.batchAllocations = const [],
     required this.itemId,
     required this.variantId,
     required this.productName,
@@ -326,6 +330,11 @@ class PurchaseDetailItem {
     required this.lineTotal,
   });
 
+  String get invoiceDescription {
+    final detail = documentBatchDescription(batchAllocations);
+    return detail.isEmpty ? productName : '$productName\n$detail';
+  }
+
   factory PurchaseDetailItem.fromMap(Map<String, dynamic> map) {
     double number(dynamic value) {
       if (value is num) {
@@ -336,6 +345,10 @@ class PurchaseDetailItem {
     }
 
     return PurchaseDetailItem(
+      batchAllocations: (map['batch_allocations'] as List? ?? const [])
+          .whereType<Map>()
+          .map((row) => Map<String, dynamic>.from(row))
+          .toList(),
       itemId: map['item_id']?.toString() ?? '',
       variantId: map['variant_id']?.toString() ?? '',
       productName: map['product_name']?.toString() ?? '',

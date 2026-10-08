@@ -148,9 +148,10 @@ class PricingService {
     String? unitId,
     required double quantity,
     String? locationId,
+    List<Map<String, dynamic>> batches = const [],
   }) async {
     final r = await _supabase.rpc(
-      'pricing_resolve_v482',
+      batches.isEmpty ? 'pricing_resolve_v482' : 'pricing_resolve_batches_v628',
       params: {
         'p_tenant_id': tenantId,
         'p_variant_id': variantId,
@@ -158,6 +159,7 @@ class PricingService {
         'p_unit_id': unitId,
         'p_quantity': quantity,
         'p_location_id': locationId,
+        if (batches.isNotEmpty) 'p_batches': batches,
       },
     );
     return PriceResolution.fromMap(Map<String, dynamic>.from(r as Map));

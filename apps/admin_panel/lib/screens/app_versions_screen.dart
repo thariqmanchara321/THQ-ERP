@@ -1,3 +1,4 @@
+import 'package:thq_ui/thq_ui.dart';
 import 'package:flutter/material.dart';
 import 'package:erp_core/erp_core.dart';
 
@@ -57,7 +58,7 @@ class _AppVersionsScreenState extends State<AppVersionsScreen> {
     int build = ThqReleaseContract.buildNumber;
     bool minimum = false;
     bool mandatory = false;
-    final ok = await showDialog<bool>(
+    final ok = await showThqDialog<bool>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
@@ -221,7 +222,7 @@ class _AppVersionsScreenState extends State<AppVersionsScreen> {
         toolbarHeight: 42,
         title: const Text(
           'App Versions',
-          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w900),
+          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
         ),
         leading: const AdminHomeButton(),
       ),
@@ -261,7 +262,7 @@ class _AppVersionsScreenState extends State<AppVersionsScreen> {
                                 'Release Management',
                                 style: TextStyle(
                                   fontSize: 11,
-                                  fontWeight: FontWeight.w900,
+                                  fontWeight: FontWeight.w600,
                                 ),
                               ),
                               Text(
@@ -271,7 +272,7 @@ class _AppVersionsScreenState extends State<AppVersionsScreen> {
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: TextStyle(
-                                  fontSize: 7.5,
+                                  fontSize: 11,
                                   color: scheme.onSurfaceVariant,
                                 ),
                               ),
@@ -376,15 +377,15 @@ class _AppVersionsScreenState extends State<AppVersionsScreen> {
                   child: Text(
                     title,
                     style: const TextStyle(
-                      fontSize: 8.8,
-                      fontWeight: FontWeight.w900,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ),
                 Text(
                   '${rows.length}',
                   style: TextStyle(
-                    fontSize: 7.5,
+                    fontSize: 11,
                     color: scheme.onSurfaceVariant,
                   ),
                 ),
@@ -412,7 +413,7 @@ class _AppVersionsScreenState extends State<AppVersionsScreen> {
                         rows[i],
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontSize: 7.8),
+                        style: const TextStyle(fontSize: 11),
                       ),
                     ),
                   ),

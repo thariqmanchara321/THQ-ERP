@@ -38,13 +38,15 @@ class _MobilePosExpenseScreenState extends State<MobilePosExpenseScreen> {
       widget.session.allowedModules.isNotEmpty &&
       !widget.session.hasDeviceModule('expenses');
 
-  double get _base => (double.tryParse(_amount.text.trim()) ?? 0) +
+  double get _base =>
+      (double.tryParse(_amount.text.trim()) ?? 0) +
       (double.tryParse(_tax.text.trim()) ?? 0);
   double get _roundOff {
     if (_base <= 0) return 0;
     final delta = _base.roundToDouble() - _base;
     return delta.abs() < 0.000001 ? 0 : delta;
   }
+
   double get _total => _base + _roundOff;
 
   @override
@@ -102,13 +104,15 @@ class _MobilePosExpenseScreenState extends State<MobilePosExpenseScreen> {
 
   Future<void> _post() async {
     if (widget.offlineMode) {
-      setState(() => _error =
-          'Expense posting is online-only because accounting and tax-mode checks must complete atomically.');
+      setState(
+        () => _error = 'Expense posting is online-only because accounting and tax-mode checks must complete atomically.',
+      );
       return;
     }
     if (_moduleBlocked) {
-      setState(() => _error =
-          'This POS terminal is not enabled for Expenses. Enable Expenses for this terminal in Admin.');
+      setState(
+        () => _error = 'This POS terminal is not enabled for Expenses. Enable Expenses for this terminal in Admin.',
+      );
       return;
     }
     if (_categoryId == null) {
@@ -153,7 +157,8 @@ class _MobilePosExpenseScreenState extends State<MobilePosExpenseScreen> {
         notes: _notes.text,
       );
       if (!mounted) return;
-      final number = result['invoice_number']?.toString() ??
+      final number =
+          result['invoice_number']?.toString() ??
           result['expense_number']?.toString() ??
           'Expense';
       ScaffoldMessenger.of(context).showSnackBar(
@@ -164,9 +169,9 @@ class _MobilePosExpenseScreenState extends State<MobilePosExpenseScreen> {
       if (mounted) {
         final message = error.toString();
         setState(() => _error = message);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Expense not posted: $message')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Expense not posted: $message')));
       }
     } finally {
       if (mounted) setState(() => _saving = false);
@@ -198,7 +203,10 @@ class _MobilePosExpenseScreenState extends State<MobilePosExpenseScreen> {
             if (blocked)
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 10,
+                ),
                 color: scheme.errorContainer,
                 child: Text(
                   widget.offlineMode
@@ -213,9 +221,15 @@ class _MobilePosExpenseScreenState extends State<MobilePosExpenseScreen> {
             if (_error != null)
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 9,
+                ),
                 color: scheme.errorContainer.withValues(alpha: .65),
-                child: Text(_error!, style: TextStyle(color: scheme.onErrorContainer)),
+                child: Text(
+                  _error!,
+                  style: TextStyle(color: scheme.onErrorContainer),
+                ),
               ),
             Expanded(
               child: SingleChildScrollView(
@@ -232,7 +246,10 @@ class _MobilePosExpenseScreenState extends State<MobilePosExpenseScreen> {
                     children: [
                       const Text(
                         'New Expense',
-                        style: TextStyle(fontSize: 17, fontWeight: FontWeight.w900),
+                        style: TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                       const SizedBox(height: 12),
                       DropdownButtonFormField<String>(
@@ -288,9 +305,10 @@ class _MobilePosExpenseScreenState extends State<MobilePosExpenseScreen> {
                             child: TextField(
                               controller: _amount,
                               enabled: !blocked && !_saving,
-                              keyboardType: const TextInputType.numberWithOptions(
-                                decimal: true,
-                              ),
+                              keyboardType:
+                                  const TextInputType.numberWithOptions(
+                                    decimal: true,
+                                  ),
                               onChanged: (_) => setState(() {}),
                               decoration: const InputDecoration(
                                 labelText: 'Amount *',
@@ -303,9 +321,10 @@ class _MobilePosExpenseScreenState extends State<MobilePosExpenseScreen> {
                             child: TextField(
                               controller: _tax,
                               enabled: !blocked && !_saving,
-                              keyboardType: const TextInputType.numberWithOptions(
-                                decimal: true,
-                              ),
+                              keyboardType:
+                                  const TextInputType.numberWithOptions(
+                                    decimal: true,
+                                  ),
                               onChanged: (_) => setState(() {}),
                               decoration: const InputDecoration(
                                 labelText: 'Tax Amount',
@@ -329,8 +348,14 @@ class _MobilePosExpenseScreenState extends State<MobilePosExpenseScreen> {
                           DropdownMenuItem(value: 'card', child: Text('Card')),
                           DropdownMenuItem(value: 'upi', child: Text('UPI')),
                           DropdownMenuItem(value: 'bank', child: Text('Bank')),
-                          DropdownMenuItem(value: 'cheque', child: Text('Cheque')),
-                          DropdownMenuItem(value: 'other', child: Text('Other')),
+                          DropdownMenuItem(
+                            value: 'cheque',
+                            child: Text('Cheque'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'other',
+                            child: Text('Other'),
+                          ),
                         ],
                         onChanged: blocked || _saving
                             ? null
@@ -412,24 +437,24 @@ class _MobilePosExpenseScreenState extends State<MobilePosExpenseScreen> {
   }
 
   Widget _row(String label, String value, {bool strong = false}) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 3),
-        child: Row(
-          children: [
-            Expanded(
-              child: Text(
-                label,
-                style: TextStyle(
-                  fontWeight: strong ? FontWeight.w800 : FontWeight.w500,
-                ),
-              ),
+    padding: const EdgeInsets.symmetric(vertical: 3),
+    child: Row(
+      children: [
+        Expanded(
+          child: Text(
+            label,
+            style: TextStyle(
+              fontWeight: strong ? FontWeight.w600 : FontWeight.w500,
             ),
-            Text(
-              value,
-              style: TextStyle(
-                fontWeight: strong ? FontWeight.w900 : FontWeight.w700,
-              ),
-            ),
-          ],
+          ),
         ),
-      );
+        Text(
+          value,
+          style: TextStyle(
+            fontWeight: strong ? FontWeight.w600 : FontWeight.w700,
+          ),
+        ),
+      ],
+    ),
+  );
 }

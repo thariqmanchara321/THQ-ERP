@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:thq_ui/thq_ui.dart' show ThqAppearanceButton;
 import 'package:supabase_flutter/supabase_flutter.dart';
+
 import 'admin_dashboard.dart';
 
 import '../ui/v43_theme.dart';
+import '../ui/thq_brand_experience.dart';
 import '../services/admin_auth_service.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -91,17 +94,20 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: UiDesignProfile.fallback('client').background,
+      backgroundColor: UiDesignScope.of(context, appKey: 'admin').background,
       body: AutofillGroup(
         child: Center(
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(24),
             child: Container(
               width: 420,
-              padding: const EdgeInsets.all(36),
+              padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
-                color: UiDesignProfile.fallback('client').surface,
-                borderRadius: BorderRadius.circular(24),
+                color: UiDesignScope.of(context, appKey: 'admin').surface,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: Theme.of(context).colorScheme.outline,
+                ),
                 boxShadow: const [
                   BoxShadow(
                     color: Color(0x14000000),
@@ -113,7 +119,13 @@ class _LoginScreenState extends State<LoginScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const Icon(Icons.admin_panel_settings_outlined, size: 64),
+                  const Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      ThqBrandMark(size: 72, fallbackIcon: Icons.admin_panel_settings_outlined),
+                      Positioned(right: 0, child: ThqAppearanceButton()),
+                    ],
+                  ),
 
                   const SizedBox(height: 20),
 
@@ -122,7 +134,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 30,
-                      fontWeight: FontWeight.w900,
+                      fontWeight: FontWeight.w600,
                       letterSpacing: -0.6,
                     ),
                   ),
@@ -132,7 +144,10 @@ class _LoginScreenState extends State<LoginScreen> {
                   Text(
                     'Super Admin',
                     textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 16, color: Colors.grey.shade600),
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
                   ),
 
                   const SizedBox(height: 36),
@@ -181,12 +196,14 @@ class _LoginScreenState extends State<LoginScreen> {
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: Colors.red.shade50,
+                        color: Theme.of(context).colorScheme.error,
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
                         _errorMessage!,
-                        style: TextStyle(color: Colors.red.shade700),
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.onError,
+                        ),
                       ),
                     ),
                   ],
@@ -212,7 +229,10 @@ class _LoginScreenState extends State<LoginScreen> {
                   Text(
                     'Platform administration only',
                     textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
                   ),
                 ],
               ),

@@ -77,7 +77,7 @@ class _DeviceActivationScreenState extends State<DeviceActivationScreen> {
             width: 500,
             padding: const EdgeInsets.all(34),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: Theme.of(context).colorScheme.surface,
               borderRadius: BorderRadius.circular(24),
               boxShadow: const [
                 BoxShadow(
@@ -107,7 +107,9 @@ class _DeviceActivationScreenState extends State<DeviceActivationScreen> {
                 Text(
                   'This is required only once for this installed system. Get the activation code from THQ Admin.',
                   textAlign: TextAlign.center,
-                  style: TextStyle(color: Colors.grey.shade600),
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
                 ),
                 const SizedBox(height: 26),
                 TextField(
@@ -133,7 +135,9 @@ class _DeviceActivationScreenState extends State<DeviceActivationScreen> {
                     padding: const EdgeInsets.only(top: 12),
                     child: Text(
                       _error!,
-                      style: const TextStyle(color: Colors.red),
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.error,
+                      ),
                     ),
                   ),
                 const SizedBox(height: 22),

@@ -22,48 +22,51 @@ Future<void> main() async {
   FlutterError.onError = (details) {
     FlutterError.presentError(details);
     unawaited(
-      MobileAppLogService().log(
-        error: details.exception,
-        stack: details.stack,
-      ),
+      MobileAppLogService().log(error: details.exception, stack: details.stack),
     );
   };
   PlatformDispatcher.instance.onError = (error, stack) {
     unawaited(
-      MobileAppLogService().log(
-        error: error,
-        stack: stack,
-        severity: 'fatal',
-      ),
+      MobileAppLogService().log(error: error, stack: stack, severity: 'fatal'),
     );
     return true;
   };
 
-  runApp(const ThqMobilePosApp());
+  final appearance = ThqAppearanceController(appKey: 'mobile_pos');
+  await appearance.load();
+  runApp(ThqMobilePosApp(appearance: appearance));
 }
 
 class ThqMobilePosApp extends StatelessWidget {
-  const ThqMobilePosApp({super.key});
+  final ThqAppearanceController? appearance;
+  const ThqMobilePosApp({super.key, this.appearance});
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      title: SupabaseConfig.appTitle('THQ Mobile POS'),
-      // THQ_BRANDING_START
-      builder: (context, child) => ThqEnvironmentFrame(
-        child: ThqStartupGate(
-        appName: 'THQ Mobile POS',
-        child: ThqMobileProductionFrame(
-          child: ThqNotificationHost(
-            child: child ?? const SizedBox.shrink(),
+    return ThqAppearanceHost(
+      appKey: 'mobile_pos',
+      controller: appearance,
+      builder: (context, mode) => MaterialApp(
+        debugShowCheckedModeBanner: false,
+        themeAnimationDuration: Duration.zero,
+        title: SupabaseConfig.appTitle('THQ Mobile POS'),
+        // THQ_BRANDING_START
+        builder: (context, child) => ThqEnvironmentFrame(
+          child: ThqMotionScope(
+            child: ThqStartupGate(
+              appName: 'THQ Mobile POS',
+              child: ThqMobileProductionFrame(
+                child: ThqNotificationHost(
+                  child: child ?? const SizedBox.shrink(),
+                ),
+              ),
+            ),
           ),
         ),
+        // THQ_BRANDING_END
+        theme: ThqMobileTheme.pos(appearance: mode),
+        home: const MobilePosEntryScreen(),
       ),
-      // THQ_BRANDING_END
-      ),
-      theme: ThqMobileTheme.pos(),
-      home: const MobilePosEntryScreen(),
     );
   }
 }

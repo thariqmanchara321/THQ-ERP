@@ -76,7 +76,7 @@ class _MobilePartyPaymentsPageState extends State<MobilePartyPaymentsPage> {
     if (_busy || maximum <= .005) {
       return;
     }
-    final draft = await showDialog<_PaymentDraft>(
+    final draft = await showThqDialog<_PaymentDraft>(
       context: context,
       builder: (_) => _PaymentDialog(
         title: 'Receive from ${row['party_name'] ?? 'customer'}',
@@ -118,7 +118,7 @@ class _MobilePartyPaymentsPageState extends State<MobilePartyPaymentsPage> {
     if (_busy || maximum <= .005) {
       return;
     }
-    final draft = await showDialog<_PaymentDraft>(
+    final draft = await showThqDialog<_PaymentDraft>(
       context: context,
       builder: (_) => _PaymentDialog(
         title: 'Pay ${row['party_name'] ?? 'supplier'}',
@@ -163,7 +163,7 @@ class _MobilePartyPaymentsPageState extends State<MobilePartyPaymentsPage> {
     if (_busy || maximum <= .005) {
       return;
     }
-    final draft = await showDialog<_SettlementDraft>(
+    final draft = await showThqDialog<_SettlementDraft>(
       context: context,
       builder: (_) => _SettlementDialog(
         partyName: row['party_name']?.toString() ?? partyType,

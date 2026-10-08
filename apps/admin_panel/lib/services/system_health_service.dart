@@ -8,9 +8,10 @@ class SystemHealthService {
       'system_health_summary_v47',
       params: {'p_tenant_id': tenantId},
     );
-    return result is Map ? Map<String, dynamic>.from(result) : <String, dynamic>{};
+    return result is Map
+        ? Map<String, dynamic>.from(result)
+        : <String, dynamic>{};
   }
-
 
   Future<Map<String, dynamic>> connectivity(String tenantId) async {
     final api = await _supabase.rpc('thq_api_contract_v480');
@@ -20,7 +21,9 @@ class SystemHealthService {
     );
     return <String, dynamic>{
       'api': api is Map ? Map<String, dynamic>.from(api) : <String, dynamic>{},
-      'sync': sync is Map ? Map<String, dynamic>.from(sync) : <String, dynamic>{},
+      'sync': sync is Map
+          ? Map<String, dynamic>.from(sync)
+          : <String, dynamic>{},
     };
   }
 

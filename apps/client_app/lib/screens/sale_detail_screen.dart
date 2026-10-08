@@ -1,5 +1,9 @@
+import '../widgets/return_tracking_dialog.dart';
+import '../widgets/load_cost_editor.dart';
+
 import 'package:flutter/material.dart';
 import 'package:thq_ui/thq_ui.dart';
+
 import '../models/client_session.dart';
 import '../models/sale_detail.dart';
 import '../services/sales_service.dart';
@@ -100,7 +104,7 @@ class _SaleDetailScreenState extends State<SaleDetailScreen> {
       tenantId: widget.session.business.id,
     );
     if (!mounted) return;
-    final ok = await showDialog<bool>(
+    final ok = await showThqDialog<bool>(
       context: context,
       builder: (_) => _EditSaleDialog(
         session: widget.session,
@@ -129,7 +133,7 @@ class _SaleDetailScreenState extends State<SaleDetailScreen> {
   Future<void> _returnItems() async {
     final s = _sale;
     if (s == null) return;
-    final ok = await showDialog<bool>(
+    final ok = await showThqDialog<bool>(
       context: context,
       barrierDismissible: false,
       builder: (_) => _SaleReturnDialog(session: widget.session, sale: s),
@@ -146,7 +150,7 @@ class _SaleDetailScreenState extends State<SaleDetailScreen> {
     final s = _sale;
     if (s == null) return;
     final reason = TextEditingController();
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showThqDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: Text('Void ${s.saleNumber}?'),
@@ -224,7 +228,7 @@ class _SaleDetailScreenState extends State<SaleDetailScreen> {
   Future<void> _recordPayment() async {
     final s = _sale;
     if (s == null || s.balanceDue <= 0) return;
-    final ok = await showDialog<bool>(
+    final ok = await showThqDialog<bool>(
       context: context,
       barrierDismissible: false,
       builder: (_) => _SalePaymentDialog(session: widget.session, sale: s),
@@ -239,7 +243,7 @@ class _SaleDetailScreenState extends State<SaleDetailScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    backgroundColor: const Color(0xFFF5F7FA),
+    backgroundColor: Theme.of(context).scaffoldBackgroundColor,
     appBar: AppBar(title: const Text('Sale Details')),
     body: _loading
         ? const Center(child: CircularProgressIndicator())
@@ -393,7 +397,9 @@ class _SaleDetailScreenState extends State<SaleDetailScreen> {
                                           .join(' • '),
                                       style: TextStyle(
                                         fontSize: 12,
-                                        color: Colors.grey.shade600,
+                                        color: Theme.of(
+                                          context,
+                                        ).colorScheme.onSurfaceVariant,
                                       ),
                                     ),
                                   ],
@@ -502,6 +508,8 @@ class _SaleDetailScreenState extends State<SaleDetailScreen> {
                 const SizedBox(height: 18),
                 _Card(title: 'Notes', child: Text(s.notes!)),
               ],
+              if (s.materialLoad.isNotEmpty)
+                LoadEvidenceCard(record: s.materialLoad),
               const SizedBox(height: 18),
               ActivityTimelineCard(
                 future: ActivityTimelineService().load(
@@ -577,6 +585,18 @@ class _SaleReturnDialogState extends State<_SaleReturnDialog> {
       _error = null;
     });
     try {
+      for (final row in items) {
+        if (!mounted) return;
+        final allocation = await collectReturnTracking(
+          context,
+          tenantId: widget.session.business.id,
+          kind: 'sale',
+          itemId: row['sale_item_id'] as String,
+          quantity: (row['quantity'] as num).toDouble(),
+        );
+        if (!mounted || allocation == null) return;
+        row.addAll(allocation);
+      }
       final result = await _service.createReturn(
         tenantId: widget.session.business.id,
         saleId: widget.sale.saleId,
@@ -584,7 +604,7 @@ class _SaleReturnDialogState extends State<_SaleReturnDialog> {
         reason: _reason.text,
       );
       if (!mounted) return;
-      final printReceipt = await showDialog<bool>(
+      final printReceipt = await showThqDialog<bool>(
         context: context,
         builder: (dialogContext) => AlertDialog(
           title: Text('Return ${result['return_number'] ?? ''} posted'),
@@ -681,7 +701,7 @@ class _SaleReturnDialogState extends State<_SaleReturnDialog> {
                 final item = widget.sale.items[index];
                 return ListTile(
                   contentPadding: EdgeInsets.zero,
-                  title: Text(item.productName),
+                  title: Text(item.invoiceDescription),
                   subtitle: Text('${item.sku} • Sold ${item.quantity}'),
                   trailing: SizedBox(
                     width: 120,
@@ -802,7 +822,7 @@ class _SalePaymentDialogState extends State<_SalePaymentDialog> {
 
   Future<void> _closeBalanceAsRoundOff() async {
     if (!_canCloseWholeBalance || _saving) return;
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showThqDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('Close small balance?'),
@@ -935,7 +955,10 @@ class _SalePaymentDialogState extends State<_SalePaymentDialog> {
             ),
             if (_error != null) ...[
               const SizedBox(height: 10),
-              Text(_error!, style: const TextStyle(color: Colors.red)),
+              Text(
+                _error!,
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
             ],
           ],
         ),
@@ -970,9 +993,9 @@ class _Card extends StatelessWidget {
     width: double.infinity,
     padding: const EdgeInsets.all(20),
     decoration: BoxDecoration(
-      color: Colors.white,
+      color: Theme.of(context).colorScheme.surface,
       borderRadius: BorderRadius.circular(16),
-      border: Border.all(color: Colors.grey.shade200),
+      border: Border.all(color: Theme.of(context).colorScheme.onSurfaceVariant),
     ),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1007,7 +1030,13 @@ class _Info extends StatelessWidget {
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(l, style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+        Text(
+          l,
+          style: TextStyle(
+            fontSize: 12,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+        ),
         const SizedBox(height: 4),
         Text(v, style: const TextStyle(fontWeight: FontWeight.w600)),
       ],
@@ -1162,7 +1191,10 @@ class _EditSaleDialogState extends State<_EditSaleDialog> {
           if (_error != null)
             Padding(
               padding: const EdgeInsets.only(top: 10),
-              child: Text(_error!, style: const TextStyle(color: Colors.red)),
+              child: Text(
+                _error!,
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
             ),
         ],
       ),

@@ -432,8 +432,12 @@ class ThqNotificationHost extends StatelessWidget {
             valueListenable: ThqNotify._current,
             builder: (context, notification, _) {
               return AnimatedSwitcher(
-                duration: const Duration(milliseconds: 170),
-                reverseDuration: const Duration(milliseconds: 130),
+                duration: media.disableAnimations
+                    ? Duration.zero
+                    : const Duration(milliseconds: 170),
+                reverseDuration: media.disableAnimations
+                    ? Duration.zero
+                    : const Duration(milliseconds: 130),
                 switchInCurve: Curves.easeOutCubic,
                 switchOutCurve: Curves.easeInCubic,
                 transitionBuilder: (child, animation) {
