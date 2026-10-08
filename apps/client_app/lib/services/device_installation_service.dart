@@ -46,10 +46,19 @@ class DeviceInstallationService {
     return '${SupabaseConfig.environment}.$key';
   }
 
+  Future<String?> _read(String key) async {
+    final scoped = await _storage.read(key: _storageKey(key));
+    if (scoped != null && scoped.isNotEmpty) return scoped;
+    if (_storageKey(key) != key) {
+      return await _storage.read(key: key);
+    }
+    return null;
+  }
+
   Future<String> installationId() async {
     final key = _storageKey('flexi.installation_id');
 
-    var value = await _storage.read(key: key);
+    var value = await _read('flexi.installation_id');
 
     if (value == null || value.isEmpty) {
       value = const Uuid().v4();
@@ -60,17 +69,13 @@ class DeviceInstallationService {
   }
 
   Future<DeviceActivation?> readActivation() async {
-    final deviceId = await _storage.read(key: _storageKey('flexi.device_id'));
+    final deviceId = await _read('flexi.device_id');
 
-    final deviceSecret = await _storage.read(
-      key: _storageKey('flexi.device_secret'),
-    );
+    final deviceSecret = await _read('flexi.device_secret');
 
-    final tenantId = await _storage.read(key: _storageKey('flexi.tenant_id'));
+    final tenantId = await _read('flexi.tenant_id');
 
-    final locationId = await _storage.read(
-      key: _storageKey('flexi.location_id'),
-    );
+    final locationId = await _read('flexi.location_id');
 
     if ([
       deviceId,
@@ -84,23 +89,23 @@ class DeviceInstallationService {
     return DeviceActivation(
       tenantId: tenantId!,
       tenantName:
-          await _storage.read(key: _storageKey('flexi.tenant_name')) ??
+          await _read('flexi.tenant_name') ??
           'Business',
       businessCode:
-          await _storage.read(key: _storageKey('flexi.business_code')) ?? '',
+          await _read('flexi.business_code') ?? '',
       deviceId: deviceId!,
       deviceCode:
-          await _storage.read(key: _storageKey('flexi.device_code')) ?? '',
+          await _read('flexi.device_code') ?? '',
       deviceName:
-          await _storage.read(key: _storageKey('flexi.device_name')) ??
+          await _read('flexi.device_name') ??
           'System',
       deviceSecret: deviceSecret!,
       locationId: locationId!,
       locationName:
-          await _storage.read(key: _storageKey('flexi.location_name')) ??
+          await _read('flexi.location_name') ??
           'Main',
       locationCode:
-          await _storage.read(key: _storageKey('flexi.location_code')) ??
+          await _read('flexi.location_code') ??
           'MAIN',
     );
   }

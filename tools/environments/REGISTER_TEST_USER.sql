@@ -1,13 +1,13 @@
 -- ============================================================================
 -- REGISTER TEST USER / STAFF SCRIPT
 -- Project Target: krejepenqgcmnsugbpmv (THQ TEST DATABASE ONLY)
--- Run after creating a test user under Supabase Dashboard > Authentication > Users
+-- Safe to run repeatedly (Idempotent)
 -- ============================================================================
 
 do $test_user_setup$
 declare
-  v_email text := 'test-cashier@example.com'; -- Replace with the test user's email created in Auth
-  v_username text := 'thq_test_cashier';       -- Test login username (min 4 chars)
+  v_email text := 'thariqmanchara321@gmail.com'; -- Replace with the test user's email created in Auth
+  v_username text := 'thq_test_admin';            -- Test login username (min 4 chars)
   v_user_id uuid;
   v_tenant_id uuid := '11111111-1111-1111-1111-111111111111'::uuid; -- THQTEST tenant
   v_location_id uuid := '22222222-2222-2222-2222-222222222222'::uuid; -- Main Test Branch
@@ -28,8 +28,8 @@ begin
 
   -- 2. Create / Update Profile
   insert into public.profiles (id, display_name)
-  values (v_user_id, 'THQ Test Staff')
-  on conflict (id) do update set display_name = 'THQ Test Staff';
+  values (v_user_id, 'THQ Test Admin')
+  on conflict (id) do update set display_name = 'THQ Test Admin';
 
   -- 3. Create / Update Username Mapping
   insert into public.user_login_names (user_id, username, auth_email)
@@ -49,7 +49,7 @@ begin
     where tenant_id = v_tenant_id and user_id = v_user_id;
   end if;
 
-  -- 5. Assign Owner/Admin Role
+  -- 5. Assign Owner Role
   select id into v_owner_role_id from public.roles where key = 'owner' limit 1;
   if v_owner_role_id is not null then
     insert into public.user_roles (tenant_id, membership_id, role_id)
@@ -62,6 +62,18 @@ begin
   values (v_tenant_id, v_user_id, v_location_id, 'manage')
   on conflict (tenant_id, user_id, location_id) do update set access_level = 'manage';
 
-  raise notice 'Test user % (username: %) configured for THQTEST with full permissions.', v_email, v_username;
+  -- 7. Grant App Access (client, pos)
+  insert into public.business_user_app_access (tenant_id, user_id, app_key, enabled)
+  values
+    (v_tenant_id, v_user_id, 'client', true),
+    (v_tenant_id, v_user_id, 'pos', true)
+  on conflict (tenant_id, user_id, app_key) do update set enabled = true;
+
+  -- 8. Ensure Platform Admin access for test admin panel
+  insert into private.platform_admins (user_id, role, status)
+  values (v_user_id, 'super_admin', 'active')
+  on conflict (user_id) do update set role = 'super_admin', status = 'active';
+
+  raise notice 'Test user % (username: %) configured for THQTEST with full owner/admin permissions.', v_email, v_username;
 end
 $test_user_setup$;

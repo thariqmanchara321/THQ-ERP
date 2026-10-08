@@ -37,7 +37,7 @@ select null,'client','staff','module','staff',p.id,'Staff','staff',65,true,false
 from public.app_menu_nodes_v45 p where p.tenant_id is null and p.app_key='client' and p.node_key='operations'
 on conflict do nothing;
 
-create table public.staff_members_v630(
+create table if not exists public.staff_members_v630(
  id uuid primary key default gen_random_uuid(), tenant_id uuid not null references public.tenants(id),
  location_id uuid references public.business_locations(id), driver_id uuid references public.logistics_drivers_v61(id),
  staff_code text not null, name text not null check(length(trim(name))>0), phone text, address text,
@@ -50,8 +50,8 @@ create table public.staff_members_v630(
  created_at timestamptz not null default now(), updated_at timestamptz not null default now(),
  unique(tenant_id,id),unique(tenant_id,staff_code),unique(tenant_id,driver_id),check(left_on is null or left_on>=joined_on)
 );
-create index staff_members_v630_location_idx on public.staff_members_v630(tenant_id,location_id,active);
-create table public.staff_attendance_v630(
+create index if not exists staff_members_v630_location_idx on public.staff_members_v630(tenant_id,location_id,active);
+create table if not exists public.staff_attendance_v630(
  id uuid primary key default gen_random_uuid(),tenant_id uuid not null,staff_id uuid not null,
  location_id uuid not null references public.business_locations(id),work_date date not null,
  status text not null check(status in('present','half_day','absent','paid_leave','unpaid_leave')),
@@ -59,8 +59,8 @@ create table public.staff_attendance_v630(
  notes text,updated_by uuid default auth.uid(),updated_at timestamptz not null default now(),
  foreign key(tenant_id,staff_id) references public.staff_members_v630(tenant_id,id),unique(tenant_id,staff_id,work_date)
 );
-create index staff_attendance_v630_scope_idx on public.staff_attendance_v630(tenant_id,location_id,work_date);
-create table public.staff_earnings_v630(
+create index if not exists staff_attendance_v630_scope_idx on public.staff_attendance_v630(tenant_id,location_id,work_date);
+create table if not exists public.staff_earnings_v630(
  id uuid primary key default gen_random_uuid(),tenant_id uuid not null,staff_id uuid not null,
  location_id uuid not null references public.business_locations(id),earning_date date not null,
  kind text not null check(kind in('payroll','bonus','load_wage')),
@@ -73,9 +73,9 @@ create table public.staff_earnings_v630(
  foreign key(tenant_id,staff_id) references public.staff_members_v630(tenant_id,id),unique(tenant_id,request_id),
  check(deductions<=gross_amount),check(period_from is null or period_to>=period_from)
 );
-create index staff_earnings_v630_statement_idx on public.staff_earnings_v630(tenant_id,staff_id,earning_date);
-create index staff_earnings_v630_scope_idx on public.staff_earnings_v630(tenant_id,location_id,earning_date);
-create table public.staff_payments_v630(
+create index if not exists staff_earnings_v630_statement_idx on public.staff_earnings_v630(tenant_id,staff_id,earning_date);
+create index if not exists staff_earnings_v630_scope_idx on public.staff_earnings_v630(tenant_id,location_id,earning_date);
+create table if not exists public.staff_payments_v630(
  id uuid primary key default gen_random_uuid(),tenant_id uuid not null,staff_id uuid not null,
  location_id uuid not null references public.business_locations(id),payment_date date not null,
  amount numeric not null check(amount>0 and amount<=1000000000000),advance_amount numeric not null default 0,
@@ -85,16 +85,16 @@ create table public.staff_payments_v630(
  foreign key(tenant_id,staff_id) references public.staff_members_v630(tenant_id,id),unique(tenant_id,request_id),
  check(advance_amount between 0 and amount)
 );
-create index staff_payments_v630_statement_idx on public.staff_payments_v630(tenant_id,staff_id,payment_date);
-create index staff_payments_v630_scope_idx on public.staff_payments_v630(tenant_id,location_id,payment_date);
-create table public.staff_payment_allocations_v630(
+create index if not exists staff_payments_v630_statement_idx on public.staff_payments_v630(tenant_id,staff_id,payment_date);
+create index if not exists staff_payments_v630_scope_idx on public.staff_payments_v630(tenant_id,location_id,payment_date);
+create table if not exists public.staff_payment_allocations_v630(
  id uuid primary key default gen_random_uuid(),payment_id uuid not null references public.staff_payments_v630(id),
  earning_id uuid not null references public.staff_earnings_v630(id),amount numeric not null check(amount>0),
  from_advance boolean not null default false,journal_id uuid references public.journal_entries(id),
  created_at timestamptz not null default now(),unique(payment_id,earning_id)
 );
-create index staff_payment_allocations_v630_earning_idx on public.staff_payment_allocations_v630(earning_id);
-create table public.material_load_costs_v630(
+create index if not exists staff_payment_allocations_v630_earning_idx on public.staff_payment_allocations_v630(earning_id);
+create table if not exists public.material_load_costs_v630(
  id uuid primary key default gen_random_uuid(),tenant_id uuid not null references public.tenants(id),
  load_id uuid not null references public.aggregate_loads_v617(id),
  cost_kind text not null check(cost_kind in('driver_wage','staff_wage','vehicle_rent','diesel','loading','toll','freight','other')),
@@ -113,10 +113,13 @@ create table public.material_load_costs_v630(
  check(bill_amount=0 or billing_variant_id is not null),check(staff_id is not null or staff_mode='extra_wage'),
  check(staff_mode<>'salary_allocation' or initial_payment=0)
 );
-create index material_load_costs_v630_load_idx on public.material_load_costs_v630(tenant_id,load_id,status);
-create index material_load_costs_v630_staff_idx on public.material_load_costs_v630(tenant_id,staff_id);
-alter table public.staff_earnings_v630 add foreign key(load_cost_id) references public.material_load_costs_v630(id);
-create table public.material_load_cost_payments_v630(
+create index if not exists material_load_costs_v630_load_idx on public.material_load_costs_v630(tenant_id,load_id,status);
+create index if not exists material_load_costs_v630_staff_idx on public.material_load_costs_v630(tenant_id,staff_id);
+do $$ begin
+  alter table public.staff_earnings_v630 add constraint staff_earnings_v630_load_cost_fk foreign key(load_cost_id) references public.material_load_costs_v630(id);
+exception when others then null;
+end $$;
+create table if not exists public.material_load_cost_payments_v630(
  id uuid primary key default gen_random_uuid(),tenant_id uuid not null,cost_id uuid not null,
  payment_date date not null,amount numeric not null check(amount>0 and amount<=1000000000000),
  payment_method text not null check(payment_method in('cash','bank','upi','card','cheque')),reference text,notes text,
@@ -124,28 +127,28 @@ create table public.material_load_cost_payments_v630(
  created_by uuid default auth.uid(),created_at timestamptz not null default now(),
  foreign key(tenant_id,cost_id) references public.material_load_costs_v630(tenant_id,id),unique(tenant_id,request_id)
 );
-create index material_load_cost_payments_v630_cost_idx on public.material_load_cost_payments_v630(cost_id);
-create table public.material_load_delivery_v630(
+create index if not exists material_load_cost_payments_v630_cost_idx on public.material_load_cost_payments_v630(cost_id);
+create table if not exists public.material_load_delivery_v630(
  load_id uuid primary key references public.aggregate_loads_v617(id),tenant_id uuid not null references public.tenants(id),
  details jsonb not null default '{}'::jsonb,updated_by uuid default auth.uid(),updated_at timestamptz not null default now()
 );
-create table public.material_load_sale_snapshots_v630(
+create table if not exists public.material_load_sale_snapshots_v630(
  sale_id uuid primary key references public.sales(id),tenant_id uuid not null references public.tenants(id),
  load_id uuid not null unique references public.aggregate_loads_v617(id),evidence jsonb not null,
  created_by uuid default auth.uid(),created_at timestamptz not null default now()
 );
-create index material_load_sale_snapshots_v630_tenant_idx on public.material_load_sale_snapshots_v630(tenant_id,sale_id);
-create table public.material_load_requests_v630(
+create index if not exists material_load_sale_snapshots_v630_tenant_idx on public.material_load_sale_snapshots_v630(tenant_id,sale_id);
+create table if not exists public.material_load_requests_v630(
  tenant_id uuid not null references public.tenants(id),request_id text not null,payload jsonb not null,
  load_id uuid not null references public.aggregate_loads_v617(id),primary key(tenant_id,request_id)
 );
-create table public.workforce_audit_v630(
+create table if not exists public.workforce_audit_v630(
  id uuid primary key default gen_random_uuid(),tenant_id uuid not null references public.tenants(id),
  staff_id uuid,load_id uuid,action text not null,before_data jsonb,after_data jsonb,
  actor_id uuid default auth.uid(),created_at timestamptz not null default now()
 );
-create index workforce_audit_v630_load_idx on public.workforce_audit_v630(tenant_id,load_id,created_at);
-create index workforce_audit_v630_staff_idx on public.workforce_audit_v630(tenant_id,staff_id,created_at);
+create index if not exists workforce_audit_v630_load_idx on public.workforce_audit_v630(tenant_id,load_id,created_at);
+create index if not exists workforce_audit_v630_staff_idx on public.workforce_audit_v630(tenant_id,staff_id,created_at);
 
 insert into public.staff_members_v630(tenant_id,driver_id,staff_code,name,phone,job_role,wage_basis,joined_on,notes,active)
 select d.tenant_id,d.id,'DRV-'||upper(left(d.id::text,8)),d.name,d.phone,'driver','per_trip',d.created_at::date,d.notes,d.active
@@ -898,6 +901,7 @@ begin
   execute format('alter table public.%I enable row level security',relation);
   execute format('revoke all on public.%I from public,anon,authenticated',relation);
   execute format('grant all on public.%I to service_role',relation);
+  execute format('drop policy if exists rpc_only on public.%I',relation);
   execute format('create policy rpc_only on public.%I for all to authenticated using(false) with check(false)',relation);
  end loop;
  for f in select p.oid::regprocedure as signature,n.nspname from pg_proc p join pg_namespace n on n.oid=p.pronamespace
