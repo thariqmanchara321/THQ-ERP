@@ -1,18 +1,17 @@
 [CmdletBinding()]
 param(
-  [ValidateSet('client_app','pos_app','admin_panel','client_mobile','mobile_pos')]
-  [string]$App = 'client_app',
-  [ValidateSet('windows','android','web')][string]$Target = 'windows',
+  [ValidateSet('windows', 'android')][string]$Target = 'windows',
   [switch]$Build
 )
 
 $ErrorActionPreference = 'Stop'
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $root = (Resolve-Path (Join-Path $scriptDir '../..')).Path
+$appDir = Join-Path $root 'apps/client_app'
 $defines = Join-Path $scriptDir 'test.json'
 
 Write-Host "====================================================" -ForegroundColor Cyan
-Write-Host "           THQ ERP TEST UNIFIED LAUNCHER            " -ForegroundColor Cyan
+Write-Host "       THQ ERP TEST LAUNCHER: Desktop Client        " -ForegroundColor Cyan
 Write-Host "====================================================" -ForegroundColor Cyan
 
 # 1. Path Safety Guard: Protect Production!
@@ -46,36 +45,25 @@ if ($config.THQ_ENV -ne 'test' -or $config.SUPABASE_URL -ne 'https://krejepenqgc
 }
 Write-Host "Database Target: $($config.SUPABASE_URL) [ISOLATED TEST]" -ForegroundColor Green
 
-# 4. Target Validation
-if ($App -eq 'admin_panel' -and $Target -eq 'android') {
-  throw 'Admin Panel is not supported on Android (use windows or web).'
-}
-if (($App -eq 'client_mobile' -or $App -eq 'mobile_pos') -and $Target -eq 'web') {
-  throw "$App is a mobile target (use android or windows for desktop test)."
-}
-
-$appDir = Join-Path $root "apps/$App"
+# 4. Run App
 Push-Location $appDir
 try {
   if (-not (Test-Path (Join-Path $appDir '.dart_tool'))) {
-    Write-Host "Running flutter pub get for $App..." -ForegroundColor Yellow
+    Write-Host "Running flutter pub get..." -ForegroundColor Yellow
     flutter pub get
     if ($LASTEXITCODE -ne 0) { throw "flutter pub get failed" }
   }
 
   $env:THQ_TEST_BUILD = '1'
   if ($Build) {
-    $buildTarget = if ($Target -eq 'android') { 'apk' } elseif ($Target -eq 'web') { 'web' } else { 'windows' }
-    Write-Host "Building Release $buildTarget for $App (TEST Mode)..." -ForegroundColor Yellow
+    $buildTarget = if ($Target -eq 'android') { 'apk' } else { 'windows' }
+    Write-Host "Building Release $buildTarget for TEST..." -ForegroundColor Yellow
     flutter build $buildTarget --release "--dart-define-from-file=$defines"
   } elseif ($Target -eq 'android') {
-    Write-Host "Launching $App on Android (TEST Mode)..." -ForegroundColor Yellow
+    Write-Host "Launching Client on Android (TEST Mode)..." -ForegroundColor Yellow
     flutter run "--dart-define-from-file=$defines"
-  } elseif ($Target -eq 'web') {
-    Write-Host "Launching $App on Web Chrome (TEST Mode)..." -ForegroundColor Yellow
-    flutter run -d chrome "--dart-define-from-file=$defines"
   } else {
-    Write-Host "Launching $App on Windows Desktop (TEST Mode)..." -ForegroundColor Yellow
+    Write-Host "Launching Client on Windows Desktop (TEST Mode)..." -ForegroundColor Yellow
     flutter run -d windows "--dart-define-from-file=$defines"
   }
 } finally {

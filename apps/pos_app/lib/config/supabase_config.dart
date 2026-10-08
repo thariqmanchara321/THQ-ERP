@@ -1,12 +1,33 @@
 class SupabaseConfig {
   static const productionRef = 'yguzrxcdvyimjrfvtcvp';
   static const testRef = 'krejepenqgcmnsugbpmv';
-  static const environment = String.fromEnvironment('THQ_ENV', defaultValue: 'production');
-  static const url = String.fromEnvironment('SUPABASE_URL', defaultValue: 'https://yguzrxcdvyimjrfvtcvp.supabase.co');
-  static const publishableKey = String.fromEnvironment('SUPABASE_PUBLISHABLE_KEY', defaultValue: 'sb_publishable_NPqpotKR9BOujU4KgeDu-A_JI6sZIlJ');
+
+  static const defaultProductionUrl = 'https://yguzrxcdvyimjrfvtcvp.supabase.co';
+  static const defaultProductionKey = 'sb_publishable_NPqpotKR9BOujU4KgeDu-A_JI6sZIlJ';
+
+  static const defaultTestUrl = 'https://krejepenqgcmnsugbpmv.supabase.co';
+  static const defaultTestKey = 'sb_publishable_aSDI9i6gG9oP2-Bcsy0nFg_aKZDiWev';
+
+  /// Environment: 'production' or 'test'.
+  /// In this TEST workspace / staging branch, default is 'test' so development
+  /// and debugging never accidentally touch the production database.
+  static const environment = String.fromEnvironment('THQ_ENV', defaultValue: 'test');
 
   static bool get isTest => environment == 'test';
   static String appTitle(String title) => isTest ? '$title TEST' : title;
+
+  static const String _explicitUrl = String.fromEnvironment('SUPABASE_URL');
+  static const String _explicitKey = String.fromEnvironment('SUPABASE_PUBLISHABLE_KEY');
+
+  static String get url {
+    if (_explicitUrl.isNotEmpty) return _explicitUrl;
+    return isTest ? defaultTestUrl : defaultProductionUrl;
+  }
+
+  static String get publishableKey {
+    if (_explicitKey.isNotEmpty) return _explicitKey;
+    return isTest ? defaultTestKey : defaultProductionKey;
+  }
 
   // Runs before initialization, logging, sessions or offline synchronization.
   // Do not use assert: these guards must also run in release builds.
@@ -34,5 +55,5 @@ class SupabaseConfig {
     }
   }
 
-  static const publishableProductionKey = 'sb_publishable_NPqpotKR9BOujU4KgeDu-A_JI6sZIlJ';
+  static const publishableProductionKey = defaultProductionKey;
 }

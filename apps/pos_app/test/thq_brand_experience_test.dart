@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import '../lib/ui/thq_brand_experience.dart';
+import 'package:pos_app/ui/thq_brand_experience.dart';
 
 Widget _app({
   bool reducedMotion = false,
