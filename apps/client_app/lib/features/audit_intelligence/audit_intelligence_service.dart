@@ -1,14 +1,197 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
+import 'package:file_saver/file_saver.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-/// Thin deterministic client for THQ ERP v6.0 Audit Intelligence RPCs.
+import 'audit_widgets.dart';
+
+/// Thin client for the canonical accounting and audit RPCs.
 ///
 /// This service never calculates accounting numbers in Flutter. All financial,
-/// profitability and audit results come from the authoritative v6.0 backend.
+/// profitability and audit results come from the authoritative backend.
 class AuditIntelligenceService {
-  AuditIntelligenceService({SupabaseClient? client})
-    : _client = client ?? Supabase.instance.client;
+  AuditIntelligenceService({SupabaseClient? client}) : _clientOverride = client;
 
-  final SupabaseClient _client;
+  final SupabaseClient? _clientOverride;
+  SupabaseClient get _client => _clientOverride ?? Supabase.instance.client;
+
+  Future<Map<String, dynamic>> workspace({
+    required String tenantId,
+    required String view,
+    required DateTime from,
+    required DateTime to,
+    String? locationId,
+    String query = '',
+    String severity = '',
+    String status = '',
+    String sort = 'date',
+    bool descending = true,
+    int offset = 0,
+    String sourceType = '',
+  }) async => _map(
+    await _client.rpc(
+      'audit_workspace_page_v703',
+      params: {
+        'p_tenant_id': tenantId,
+        'p_view': view,
+        'p_from': _date(from),
+        'p_to': _date(to),
+        'p_location_id': locationId,
+        'p_query': query,
+        'p_severity': severity,
+        'p_status': status,
+        'p_sort_key': sort,
+        'p_sort_desc': descending,
+        'p_offset': offset,
+        'p_limit': 50,
+        'p_source_type': sourceType,
+      },
+    ),
+  );
+
+  Future<Uint8List> workspaceExportCsv({
+    required String tenantId,
+    required String view,
+    required DateTime from,
+    required DateTime to,
+    required Map<String, String> columns,
+    String? locationId,
+    String query = '',
+    String severity = '',
+    String status = '',
+    String sort = 'date',
+    bool descending = true,
+  }) async {
+    final rows = <Map<String, dynamic>>[];
+    String? token;
+    int? total;
+    do {
+      final page = await workspace(
+        tenantId: tenantId,
+        view: view,
+        from: from,
+        to: to,
+        locationId: locationId,
+        query: query,
+        severity: severity,
+        status: status,
+        sort: sort,
+        descending: descending,
+        offset: rows.length,
+      );
+      final pageTotal = auditNumber(page['total_rows']).toInt();
+      final pageToken = page['snapshot_token']?.toString();
+      if (pageToken == null ||
+          (token != null && (token != pageToken || total != pageTotal))) {
+        throw StateError(
+          'Audit data changed during export. Refresh and try again.',
+        );
+      }
+      token = pageToken;
+      total = pageTotal;
+      final batch = auditRows(page['rows']);
+      if (batch.isEmpty && rows.length < total) {
+        throw StateError('Incomplete audit export.');
+      }
+      rows.addAll(batch);
+    } while (rows.length < total);
+    String cell(dynamic value) {
+      var text = value == null ? '' : value.toString();
+      if (value is String && RegExp(r'^\s*[=+\-@]').hasMatch(text)) {
+        text = "'$text";
+      }
+      return '"${text.replaceAll('"', '""')}"';
+    }
+
+    final csv = [
+      columns.values.map(cell).join(','),
+      for (final r in rows)
+        columns.keys
+            .map(
+              (k) => cell(
+                ['severity', 'status', 'account_type'].contains(k)
+                    ? auditLabel(auditText(r[k]))
+                    : r[k],
+              ),
+            )
+            .join(','),
+    ].join('\r\n');
+    return Uint8List.fromList([0xef, 0xbb, 0xbf, ...utf8.encode(csv)]);
+  }
+
+  Future<void> exportWorkspace({
+    required String tenantId,
+    required String view,
+    required DateTime from,
+    required DateTime to,
+    required Map<String, String> columns,
+    String? locationId,
+    String query = '',
+    String severity = '',
+    String status = '',
+    String sort = 'date',
+    bool descending = true,
+  }) async {
+    final bytes = await workspaceExportCsv(
+      tenantId: tenantId,
+      view: view,
+      from: from,
+      to: to,
+      columns: columns,
+      locationId: locationId,
+      query: query,
+      severity: severity,
+      status: status,
+      sort: sort,
+      descending: descending,
+    );
+    await FileSaver.instance.saveFile(
+      name: 'THQ_Audit_${view}_${_date(from)}_${_date(to)}',
+      bytes: bytes,
+      fileExtension: 'csv',
+      mimeType: MimeType.csv,
+    );
+  }
+
+  Future<Map<String, dynamic>> ledger({
+    required String tenantId,
+    required String accountId,
+    required DateTime from,
+    required DateTime to,
+    String? locationId,
+    int offset = 0,
+    String query = '',
+  }) async => _map(
+    await _client.rpc(
+      'audit_ledger_v703',
+      params: {
+        'p_tenant_id': tenantId,
+        'p_account_id': accountId,
+        'p_from': _date(from),
+        'p_to': _date(to),
+        'p_location_id': locationId,
+        'p_offset': offset,
+        'p_limit': 50,
+        'p_query': query,
+      },
+    ),
+  );
+
+  Future<Map<String, dynamic>> journal({
+    required String tenantId,
+    required String journalId,
+    String? locationId,
+  }) async => _map(
+    await _client.rpc(
+      'audit_journal_v703',
+      params: {
+        'p_tenant_id': tenantId,
+        'p_journal_id': journalId,
+        'p_location_id': locationId,
+      },
+    ),
+  );
 
   Future<Map<String, dynamic>> riskConfig({required String tenantId}) async {
     final raw = await _client.rpc(
@@ -191,7 +374,7 @@ class AuditIntelligenceService {
     int driverLimit = 12,
   }) async {
     final raw = await _client.rpc(
-      'explain_metric_v600',
+      'explain_metric_v703',
       params: {
         'p_tenant_id': tenantId,
         'p_metric': metric,

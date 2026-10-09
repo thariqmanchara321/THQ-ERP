@@ -35,6 +35,7 @@ class ThqAccountingWorkspace extends StatefulWidget {
   final ThqAccountingLoader load;
   final ThqAccountingExporter export;
   final Future<void> Function(Map<String, dynamic>) openSource;
+  final Future<void> Function(Map<String, dynamic>)? openHistory;
   final VoidCallback? openControls;
   const ThqAccountingWorkspace({
     super.key,
@@ -45,6 +46,7 @@ class ThqAccountingWorkspace extends StatefulWidget {
     required this.load,
     required this.export,
     required this.openSource,
+    this.openHistory,
     this.openControls,
   });
   @override
@@ -1291,6 +1293,25 @@ class _ThqAccountingWorkspaceState extends State<ThqAccountingWorkspace> {
           ),
         ),
         actions: [
+          if (widget.openHistory != null &&
+              (row['journal_id'] != null || row['source_id'] != null))
+            TextButton.icon(
+              onPressed: () async {
+                try {
+                  await widget.openHistory!(row);
+                } catch (e) {
+                  if (ctx.mounted) {
+                    ScaffoldMessenger.of(ctx).showSnackBar(
+                      SnackBar(
+                        content: Text('Could not load audit history: $e'),
+                      ),
+                    );
+                  }
+                }
+              },
+              icon: const Icon(Icons.history, size: 16),
+              label: const Text('Audit history'),
+            ),
           TextButton(
             onPressed: () => Navigator.pop(ctx),
             child: const Text('Close'),
