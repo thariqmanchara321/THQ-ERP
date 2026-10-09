@@ -35,3 +35,6 @@ export 'src/theme/thq_v7_theme.dart';
 export 'src/theme/thq_appearance.dart';
 export 'src/theme/thq_design_profile.dart';
 export 'src/layout/thq_v7_workspace.dart';
+
+export 'src/accounting/thq_accounting_models.dart';
+export 'src/accounting/thq_accounting_workspace.dart';
