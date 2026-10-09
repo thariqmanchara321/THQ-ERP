@@ -1,196 +1,471 @@
-import 'package:thq_ui/thq_ui.dart';
 import 'package:flutter/material.dart';
+import 'package:thq_ui/thq_ui.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-/// Lightweight POS-side v6.0 transaction history.
-///
-/// This file is deliberately independent of POS sale writers. It only reads
-/// the immutable v6 audit/explanation APIs and therefore cannot alter billing.
+/// Read-only audit and account evidence; POS billing writers stay independent.
 class PosAuditHistoryScreen extends StatefulWidget {
   const PosAuditHistoryScreen({
     super.key,
     required this.tenantId,
     this.locationId,
   });
-
   final String tenantId;
   final String? locationId;
-
   @override
   State<PosAuditHistoryScreen> createState() => _PosAuditHistoryScreenState();
 }
 
 class _PosAuditHistoryScreenState extends State<PosAuditHistoryScreen> {
-  final SupabaseClient _client = Supabase.instance.client;
-  late Future<List<Map<String, dynamic>>> _future;
-
+  final _search = TextEditingController();
+  late DateTime _from, _to;
+  late Future<Map<String, dynamic>> _future;
+  int _offset = 0;
+  String _query = '';
+  SupabaseClient get _client => Supabase.instance.client;
+  String _date(DateTime d) => d.toIso8601String().substring(0, 10);
   @override
   void initState() {
     super.initState();
+    final now = DateTime.now();
+    _from = _to = DateTime(now.year, now.month, now.day);
     _future = _load();
   }
 
-  Future<List<Map<String, dynamic>>> _load() async {
-    final now = DateTime.now();
-    final from = DateTime(now.year, now.month, now.day);
-    final to = DateTime(now.year, now.month, now.day, 23, 59, 59, 999);
-    final raw = await _client.rpc(
-      'audit_normal_transactions_v600',
+  @override
+  void dispose() {
+    _search.dispose();
+    super.dispose();
+  }
+
+  Future<Map<String, dynamic>> _load() async => auditMap(
+    await _client.rpc(
+      'audit_workspace_page_v703',
       params: {
         'p_tenant_id': widget.tenantId,
-        'p_from': from.toUtc().toIso8601String(),
-        'p_to': to.toUtc().toIso8601String(),
+        'p_view': 'activity',
+        'p_from': _date(_from),
+        'p_to': _date(_to),
         'p_location_id': widget.locationId,
-        'p_limit': 150,
+        'p_query': _query,
+        'p_offset': _offset,
+        'p_limit': 50,
+        'p_source_type': '',
       },
+    ),
+  );
+  Future<void> _guard(Future<void> Function() task) async {
+    try {
+      await task();
+    } catch (e) {
+      if (mounted) {
+        ThqNotify.error(context, 'Could not load audit evidence: $e');
+      }
+    }
+  }
+
+  Future<void> _period() async {
+    final range = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(2020),
+      lastDate: DateTime.now(),
+      initialDateRange: DateTimeRange(start: _from, end: _to),
     );
-    if (raw is! List) return const [];
-    return raw
-        .whereType<Map>()
-        .map((row) {
-          return row.map((key, value) => MapEntry(key.toString(), value));
-        })
-        .toList(growable: false);
+    if (range == null || !mounted) return;
+    setState(() {
+      _from = range.start;
+      _to = range.end;
+      _offset = 0;
+      _future = _load();
+    });
   }
 
-  Future<void> _refresh() async {
-    setState(() => _future = _load());
-    await _future;
-  }
-
-  Future<void> _openStory(Map<String, dynamic> row) async {
-    final entityType = row['entity_type']?.toString() ?? '';
-    final entityId = row['entity_id']?.toString() ?? '';
-    if (entityType.isEmpty || entityId.isEmpty) return;
-    final raw = await _client.rpc(
-      'transaction_explain_v600',
-      params: {
-        'p_tenant_id': widget.tenantId,
-        'p_entity_type': entityType,
-        'p_entity_id': entityId,
-        'p_event_limit': 100,
-      },
+  Future<void> _story(Map<String, dynamic> row) async {
+    final data = auditMap(
+      await _client.rpc(
+        'transaction_explain_v600',
+        params: {
+          'p_tenant_id': widget.tenantId,
+          'p_entity_type': row['root_entity_type'] ?? row['entity_type'],
+          'p_entity_id': row['root_entity_id'] ?? row['entity_id'],
+          'p_event_limit': 2000,
+        },
+      ),
     );
     if (!mounted) return;
-    final data = raw is Map
-        ? raw.map((key, value) => MapEntry(key.toString(), value))
-        : <String, dynamic>{};
-    final entity = data['entity'] is Map
-        ? (data['entity'] as Map).map(
-            (key, value) => MapEntry(key.toString(), value),
-          )
-        : <String, dynamic>{};
-    final why = data['why'] is Map
-        ? (data['why'] as Map).map(
-            (key, value) => MapEntry(key.toString(), value),
-          )
-        : <String, dynamic>{};
-
-    await showThqDialog<void>(
+    await showDialog<void>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text('${entity['number'] ?? entityType} • Why / History'),
-        content: SizedBox(
-          width: 620,
-          child: ListView(
-            shrinkWrap: true,
+      builder: (context) => Dialog(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 1000, maxHeight: 760),
+          child: Column(
             children: [
-              Text(entity['history_note']?.toString() ?? ''),
-              const SizedBox(height: 10),
-              _line('What', why['what']),
-              _line('Who', why['who']),
-              _line('When', why['when']),
-              _line('Where', why['where']),
-              _line('Why', why['why']),
-              _line('Approval', why['approval']),
+              ListTile(
+                dense: true,
+                title: Text('History · ${auditText(row['reference'])}'),
+                trailing: IconButton(
+                  tooltip: 'Close',
+                  onPressed: () => Navigator.pop(context),
+                  icon: const Icon(Icons.close),
+                ),
+              ),
+              Expanded(
+                child: ListView(
+                  padding: const EdgeInsets.all(12),
+                  children: [
+                    Text(auditText(data['historical_notice'])),
+                    for (final e in auditRows(data['transaction_story']))
+                      AuditEvidence(
+                        title:
+                            '${auditDate(e['event_time'])} · ${auditLabel(auditText(e['action']))}',
+                        value: {
+                          'User': auditMap(e['actor'])['name'],
+                          'Device': auditMap(e['device'])['name'],
+                          'Reason': e['reason'],
+                          'changed_fields': e['changed_fields'],
+                          'before': e['before'],
+                          'after': e['after'],
+                          'approval': e['approval'],
+                        },
+                      ),
+                    const SizedBox(height: 10),
+                    const Text(
+                      'Journals',
+                      style: TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                    AuditTable(
+                      shrinkWrap: true,
+                      columns: const [
+                        AuditColumn('entry_number', 'Journal', flex: 3),
+                        AuditColumn('type', 'Source', compact: false),
+                        AuditColumn('debit', 'Debit', numeric: true),
+                        AuditColumn('credit', 'Credit', numeric: true),
+                      ],
+                      rows: auditRows(data['journals']),
+                      onOpen: (j) => _guard(() => _journal(j)),
+                    ),
+                    AuditEvidence(
+                      title: 'Payments',
+                      value: data['payments'],
+                      expanded: true,
+                    ),
+                    AuditEvidence(
+                      title: 'Saved transaction',
+                      value: data['current_record'],
+                    ),
+                    AuditEvidence(
+                      title: 'Stock movements',
+                      value: data['stock_movements'],
+                    ),
+                    AuditEvidence(
+                      title: 'GST evidence',
+                      value: data['gst_evidence'],
+                    ),
+                    AuditEvidence(title: 'Approvals', value: data['approvals']),
+                    AuditEvidence(
+                      title: 'Earlier audit evidence',
+                      value: data['legacy_audit_evidence'],
+                    ),
+                  ],
+                ),
+              ),
             ],
           ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Close'),
-          ),
-        ],
       ),
     );
   }
 
-  Widget _line(String label, dynamic value) {
-    final text = value?.toString().trim() ?? '';
-    if (text.isEmpty) return const SizedBox.shrink();
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Text('$label: $text'),
+  Future<void> _journal(Map<String, dynamic> row) async {
+    await showDialog<void>(
+      context: context,
+      builder: (context) => Dialog(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 1000, maxHeight: 650),
+          child: Column(
+            children: [
+              ListTile(
+                dense: true,
+                title: Text('Journal · ${auditText(row['entry_number'])}'),
+                trailing: IconButton(
+                  tooltip: 'Close',
+                  onPressed: () => Navigator.pop(context),
+                  icon: const Icon(Icons.close),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(12),
+                child: AuditMetrics({
+                  'Debit': auditMoney(row['debit']),
+                  'Credit': auditMoney(row['credit']),
+                  'Difference': auditMoney(row['difference']),
+                }),
+              ),
+              Expanded(
+                child: AuditTable(
+                  columns: const [
+                    AuditColumn('account_name', 'Account', flex: 4),
+                    AuditColumn('party', 'Party', compact: false),
+                    AuditColumn('debit', 'Debit', numeric: true),
+                    AuditColumn('credit', 'Credit', numeric: true),
+                  ],
+                  rows: auditRows(row['lines']),
+                  onOpen: (a) => _guard(() => _account(a)),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _account(Map<String, dynamic> account) async {
+    var offset = 0;
+    Future<Map<String, dynamic>> load() async => auditMap(
+      await _client.rpc(
+        'audit_ledger_v703',
+        params: {
+          'p_tenant_id': widget.tenantId,
+          'p_account_id': account['account_id'],
+          'p_from': _date(_from),
+          'p_to': _date(_to),
+          'p_location_id': widget.locationId,
+          'p_offset': offset,
+          'p_limit': 50,
+        },
+      ),
+    );
+    var future = load();
+    await showDialog<void>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => Dialog(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 1000, maxHeight: 700),
+            child: Column(
+              children: [
+                ListTile(
+                  dense: true,
+                  title: Text('Ledger · ${auditText(account['account_name'])}'),
+                  trailing: IconButton(
+                    tooltip: 'Close',
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.close),
+                  ),
+                ),
+                Expanded(
+                  child: FutureBuilder<Map<String, dynamic>>(
+                    future: future,
+                    builder: (context, snapshot) {
+                      if (snapshot.connectionState != ConnectionState.done) {
+                        return const Center(child: CircularProgressIndicator());
+                      }
+                      if (snapshot.hasError) {
+                        return Center(
+                          child: Text(
+                            'Could not load account: ${snapshot.error}',
+                          ),
+                        );
+                      }
+                      final data = snapshot.data ?? {},
+                          rows = auditRows(data['rows']),
+                          total = auditNumber(data['total_rows']).toInt();
+                      return Column(
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.all(12),
+                            child: AuditMetrics({
+                              'Opening DR ±': auditMoney(data['opening']),
+                              'Closing DR ±': auditMoney(data['closing']),
+                            }),
+                          ),
+                          Expanded(
+                            child: AuditTable(
+                              columns: const [
+                                AuditColumn('reference', 'Reference', flex: 3),
+                                AuditColumn('date', 'Date', compact: false),
+                                AuditColumn('debit', 'Debit', numeric: true),
+                                AuditColumn(
+                                  'credit',
+                                  'Credit',
+                                  numeric: true,
+                                  compact: false,
+                                ),
+                                AuditColumn(
+                                  'balance',
+                                  'Balance DR ±',
+                                  numeric: true,
+                                ),
+                              ],
+                              rows: rows,
+                              onOpen: (r) => _guard(() async {
+                                final j = auditMap(
+                                  await _client.rpc(
+                                    'audit_journal_v703',
+                                    params: {
+                                      'p_tenant_id': widget.tenantId,
+                                      'p_journal_id': r['journal_id'],
+                                      'p_location_id': widget.locationId,
+                                    },
+                                  ),
+                                );
+                                if (mounted) await _journal(j);
+                              }),
+                            ),
+                          ),
+                          Row(
+                            children: [
+                              const SizedBox(width: 12),
+                              Expanded(child: Text('$total matching records')),
+                              IconButton(
+                                tooltip: 'Previous page',
+                                onPressed: offset == 0
+                                    ? null
+                                    : () => setState(() {
+                                        offset -= 50;
+                                        future = load();
+                                      }),
+                                icon: const Icon(Icons.chevron_left),
+                              ),
+                              IconButton(
+                                tooltip: 'Next page',
+                                onPressed: offset + rows.length >= total
+                                    ? null
+                                    : () => setState(() {
+                                        offset += 50;
+                                        future = load();
+                                      }),
+                                icon: const Icon(Icons.chevron_right),
+                              ),
+                            ],
+                          ),
+                        ],
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Today • Transaction History'),
-        actions: [
-          IconButton(
-            onPressed: _refresh,
-            tooltip: 'Refresh',
-            icon: const Icon(Icons.refresh),
-          ),
-        ],
-      ),
-      body: FutureBuilder<List<Map<String, dynamic>>>(
-        future: _future,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState != ConnectionState.done) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (snapshot.hasError) {
-            return Center(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Text(
-                  'Could not load transaction history.\n${snapshot.error}',
-                  textAlign: TextAlign.center,
-                ),
-              ),
-            );
-          }
-          final rows = snapshot.data ?? const [];
-          if (rows.isEmpty) {
-            return const Center(child: Text('No transaction history today.'));
-          }
-          return RefreshIndicator(
-            onRefresh: _refresh,
-            child: ListView.builder(
-              itemCount: rows.length,
-              itemBuilder: (context, index) {
-                final row = rows[index];
-                return ListTile(
-                  leading: const Icon(Icons.history_outlined),
-                  title: Text(
-                    row['entity_number']?.toString() ??
-                        row['entity_type']?.toString() ??
-                        'Transaction',
-                  ),
-                  subtitle: Text(
-                    [
-                          row['action'],
-                          row['event_time'],
-                          row['user_name'],
-                          row['device_name'],
-                        ]
-                        .where((value) => value != null)
-                        .map((value) => value.toString())
-                        .join(' • '),
-                  ),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: () => _openStory(row),
-                );
-              },
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(
+      title: const Text('Transaction history'),
+      actions: [
+        IconButton(
+          tooltip: 'Period',
+          onPressed: _period,
+          icon: const Icon(Icons.date_range),
+        ),
+        IconButton(
+          tooltip: 'Refresh',
+          onPressed: () => setState(() => _future = _load()),
+          icon: const Icon(Icons.refresh),
+        ),
+      ],
+    ),
+    body: Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(12),
+          child: TextField(
+            controller: _search,
+            onSubmitted: (v) => setState(() {
+              _query = v;
+              _offset = 0;
+              _future = _load();
+            }),
+            decoration: InputDecoration(
+              isDense: true,
+              labelText:
+                  'Search activity · ${auditDate(_date(_from))} – ${auditDate(_date(_to))}',
+              prefixIcon: const Icon(Icons.search),
+              border: const OutlineInputBorder(),
             ),
-          );
-        },
-      ),
-    );
-  }
+          ),
+        ),
+        Expanded(
+          child: FutureBuilder<Map<String, dynamic>>(
+            future: _future,
+            builder: (context, snapshot) {
+              if (snapshot.connectionState != ConnectionState.done) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              if (snapshot.hasError) {
+                return Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text('Could not load history. ${snapshot.error}'),
+                      TextButton(
+                        onPressed: () => setState(() => _future = _load()),
+                        child: const Text('Retry'),
+                      ),
+                    ],
+                  ),
+                );
+              }
+              final data = snapshot.data ?? {},
+                  rows = auditRows(data['rows']),
+                  total = auditNumber(data['total_rows']).toInt();
+              return Column(
+                children: [
+                  Expanded(
+                    child: AuditTable(
+                      columns: const [
+                        AuditColumn('date', 'When', compact: false),
+                        AuditColumn('reference', 'Reference', flex: 3),
+                        AuditColumn('title', 'Event', flex: 4),
+                        AuditColumn('actor', 'User', compact: false),
+                        AuditColumn('device', 'Device', compact: false),
+                      ],
+                      rows: rows,
+                      onOpen: (r) => _guard(() => _story(r)),
+                    ),
+                  ),
+                  Row(
+                    children: [
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          total == 0
+                              ? 'No recorded activity'
+                              : '${_offset + 1}–${_offset + rows.length} of $total',
+                        ),
+                      ),
+                      IconButton(
+                        tooltip: 'Previous page',
+                        onPressed: _offset == 0
+                            ? null
+                            : () => setState(() {
+                                _offset -= 50;
+                                _future = _load();
+                              }),
+                        icon: const Icon(Icons.chevron_left),
+                      ),
+                      IconButton(
+                        tooltip: 'Next page',
+                        onPressed: _offset + rows.length >= total
+                            ? null
+                            : () => setState(() {
+                                _offset += 50;
+                                _future = _load();
+                              }),
+                        icon: const Icon(Icons.chevron_right),
+                      ),
+                    ],
+                  ),
+                ],
+              );
+            },
+          ),
+        ),
+      ],
+    ),
+  );
 }

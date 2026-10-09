@@ -38,3 +38,5 @@ export 'src/layout/thq_v7_workspace.dart';
 
 export 'src/accounting/thq_accounting_models.dart';
 export 'src/accounting/thq_accounting_workspace.dart';
+
+export 'src/audit/thq_audit_widgets.dart';

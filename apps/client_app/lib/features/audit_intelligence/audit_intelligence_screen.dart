@@ -1,57 +1,189 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:thq_ui/thq_ui.dart';
 
 import '../../models/client_session.dart';
 import '../../services/location_scope_service.dart';
 import 'audit_intelligence_service.dart';
+import 'audit_detail_dialogs.dart';
 import 'transaction_story_dialog.dart';
 
 class AuditIntelligenceScreen extends StatefulWidget {
-  const AuditIntelligenceScreen({super.key, required this.session});
-
+  const AuditIntelligenceScreen({
+    super.key,
+    required this.session,
+    this.service,
+  });
   final ClientSession session;
-
+  final AuditIntelligenceService? service;
   @override
   State<AuditIntelligenceScreen> createState() =>
       _AuditIntelligenceScreenState();
 }
 
-class _AuditIntelligenceScreenState extends State<AuditIntelligenceScreen> {
-  final AuditIntelligenceService _service = AuditIntelligenceService();
-  final TextEditingController _profitSearch = TextEditingController();
-
-  late DateTime _from;
-  late DateTime _to;
-  String _metric = 'gross_profit';
-  int _generation = 0;
-
+class _AuditIntelligenceScreenState extends State<AuditIntelligenceScreen>
+    with WidgetsBindingObserver {
+  late final AuditIntelligenceService _service;
+  final _search = TextEditingController();
+  late DateTime _from, _to;
+  String _view = 'findings',
+      _severity = '',
+      _status = 'active',
+      _sort = 'date',
+      _metric = 'gross_profit';
+  bool _descending = true,
+      _loading = false,
+      _exporting = false,
+      _foreground = true;
+  int _offset = 0, _request = 0;
+  Map<String, dynamic> _data = {};
+  String? _error;
+  DateTime? _refreshed;
+  Timer? _debounce, _poll;
   String get _tenantId => widget.session.business.id;
-  String? get _locationId => LocationScopeService.selectedLocationId.value;
-
-  bool get _canReview => widget.session.hasPermission('audit_center.review');
-
-  bool get _canResolve => widget.session.hasPermission('audit_center.resolve');
-
-  bool get _canActOnFindings => _canReview || _canResolve;
-
+  String? get _locationId =>
+      LocationScopeService.currentForRead(widget.session);
   bool get _canConfigure =>
       widget.session.hasPermission('audit_center.configure');
-
+  static const _sections = {
+    'findings': 'Findings',
+    'activity': 'Transaction activity',
+    'accounts': 'Account reconciliation',
+    'journals': 'All journals',
+    'profitability': 'Product profitability',
+    'explain': 'Explain a number',
+  };
+  Map<String, String> get _availableSections => {
+    for (final e in _sections.entries)
+      if ((e.key != 'profitability' ||
+              widget.session.hasPermission('profitability.view')) &&
+          (e.key != 'explain' || widget.session.hasPermission('explain.view')))
+        e.key: e.value,
+  };
+  static const _metrics = {
+    'sales': 'Sales revenue',
+    'cogs': 'Cost of goods sold',
+    'gross_profit': 'Gross profit',
+    'net_profit': 'Net profit',
+    'inventory_value': 'Inventory value',
+    'receivables': 'Receivables',
+    'payables': 'Payables',
+    'cash': 'Cash',
+    'bank': 'Bank',
+    'upi': 'UPI clearing',
+    'card': 'Card clearing',
+    'gst_payable': 'Net GST payable',
+  };
   @override
   void initState() {
     super.initState();
+    _service = widget.service ?? AuditIntelligenceService();
     final now = DateTime.now();
     _to = DateTime(now.year, now.month, now.day);
     _from = _to.subtract(const Duration(days: 29));
+    WidgetsBinding.instance.addObserver(this);
+    LocationScopeService.selectedLocationId.addListener(_scopeChanged);
+    _poll = Timer.periodic(const Duration(seconds: 45), (_) {
+      if (_foreground && !_loading && !_exporting) _reload();
+    });
+    _reload();
   }
 
   @override
   void dispose() {
-    _profitSearch.dispose();
+    _request++;
+    _debounce?.cancel();
+    _poll?.cancel();
+    _search.dispose();
+    LocationScopeService.selectedLocationId.removeListener(_scopeChanged);
+    WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
 
-  void _refresh() => setState(() => _generation++);
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    _foreground = state == AppLifecycleState.resumed;
+    if (_foreground) _reload();
+  }
+
+  void _scopeChanged() {
+    _offset = 0;
+    _data = {};
+    _reload();
+  }
+
+  void _refresh() => _reload();
+  Future<void> _reload() async {
+    _debounce?.cancel();
+    final request = ++_request;
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      Map<String, dynamic> data;
+      if (_view == 'profitability') {
+        final rows = await _service.profitability(
+          tenantId: _tenantId,
+          from: _from,
+          to: _to,
+          locationId: _locationId,
+          query: _search.text,
+          limit: 1000,
+        );
+        data = {'rows': rows, 'total_rows': rows.length};
+      } else if (_view == 'explain') {
+        data = await _service.metricExplanation(
+          tenantId: _tenantId,
+          metric: _metric,
+          from: _from,
+          to: _to,
+          locationId: _locationId,
+        );
+      } else {
+        data = await _service.workspace(
+          tenantId: _tenantId,
+          view: _view,
+          from: _from,
+          to: _to,
+          locationId: _locationId,
+          query: _search.text,
+          severity: _severity,
+          status: _status,
+          sort: _sort,
+          descending: _descending,
+          offset: _offset,
+        );
+      }
+      if (!mounted || request != _request) return;
+      if (_offset > 0 && auditRows(data['rows']).isEmpty) {
+        _offset = 0;
+        _reload();
+        return;
+      }
+      setState(() {
+        _data = data;
+        _loading = false;
+        _refreshed = DateTime.now();
+      });
+    } catch (e) {
+      if (mounted && request == _request) {
+        setState(() {
+          _loading = false;
+          _error = 'Could not refresh audit data. $e';
+        });
+      }
+    }
+  }
+
+  Future<void> _guard(Future<void> Function() action) async {
+    try {
+      await action();
+    } catch (e) {
+      if (mounted) ThqNotify.error(context, 'Could not complete action: $e');
+    }
+  }
 
   Future<void> _pickPeriod() async {
     final picked = await showDateRangePicker(
@@ -61,508 +193,672 @@ class _AuditIntelligenceScreenState extends State<AuditIntelligenceScreen> {
       initialDateRange: DateTimeRange(start: _from, end: _to),
     );
     if (picked == null || !mounted) return;
-    setState(() {
-      _from = picked.start;
-      _to = picked.end;
-      _generation++;
-    });
+    _from = picked.start;
+    _to = picked.end;
+    _offset = 0;
+    _reload();
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return DefaultTabController(
-      length: 4,
-      child: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
-            child: Row(
-              children: [
-                const Icon(Icons.policy_outlined),
-                const SizedBox(width: 9),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Audit Intelligence & Explainability',
-                        style: TextStyle(
-                          fontSize: 19,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      Text(
-                        '${_dateLabel(_from)} — ${_dateLabel(_to)}'
-                        '${_locationId == null ? ' • All permitted stores' : ' • Selected store'}',
-                        style: Theme.of(context).textTheme.bodySmall,
-                      ),
-                    ],
-                  ),
-                ),
-                if (_canConfigure) ...[
-                  IconButton(
-                    tooltip: 'Risk rules',
-                    onPressed: _openRiskRules,
-                    icon: const Icon(Icons.tune_outlined),
-                  ),
-                  const SizedBox(width: 4),
-                ],
-                OutlinedButton.icon(
-                  onPressed: _pickPeriod,
-                  icon: const Icon(Icons.date_range_outlined, size: 17),
-                  label: const Text('Period'),
-                ),
-                const SizedBox(width: 8),
-                IconButton(
-                  tooltip: 'Refresh',
-                  onPressed: _refresh,
-                  icon: const Icon(Icons.refresh),
-                ),
-              ],
-            ),
-          ),
-          const TabBar(
-            isScrollable: true,
-            tabs: [
-              Tab(icon: Icon(Icons.shield_outlined), text: 'Audit Center'),
-              Tab(icon: Icon(Icons.rule_outlined), text: 'Findings'),
-              Tab(
-                icon: Icon(Icons.trending_up_outlined),
-                text: 'Profitability',
+  void _section(String value) {
+    _view = value;
+    _offset = 0;
+    _search.clear();
+    _data = {};
+    _sort = value == 'accounts' ? 'account_name' : 'date';
+    _descending = value != 'accounts';
+    _reload();
+  }
+
+  Widget _select(
+    String label,
+    String value,
+    Map<String, String> options,
+    void Function(String) change, {
+    double width = 170,
+  }) => SizedBox(
+    width: width,
+    child: DropdownButtonFormField<String>(
+      key: ValueKey('$label-$value'),
+      initialValue: value,
+      isExpanded: true,
+      decoration: InputDecoration(
+        labelText: label,
+        isDense: true,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 10,
+          vertical: 10,
+        ),
+        border: const OutlineInputBorder(),
+      ),
+      items: options.entries
+          .map(
+            (e) => DropdownMenuItem(
+              value: e.key,
+              child: Text(
+                e.value,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontSize: 12),
               ),
-              Tab(icon: Icon(Icons.lightbulb_outline), text: 'Explain Number'),
+            ),
+          )
+          .toList(),
+      onChanged: _exporting
+          ? null
+          : (v) {
+              if (v != null) change(v);
+            },
+    ),
+  );
+  @override
+  Widget build(BuildContext context) => Column(
+    children: [
+      Padding(
+        padding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
+        child: Wrap(
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            _select(
+              'Audit section',
+              _view,
+              _availableSections,
+              _section,
+              width: 235,
+            ),
+            OutlinedButton.icon(
+              onPressed: _exporting ? null : _pickPeriod,
+              icon: const Icon(Icons.date_range, size: 16),
+              label: Text(
+                '${auditDate(_from.toIso8601String().substring(0, 10))} – ${auditDate(_to.toIso8601String().substring(0, 10))}',
+                style: const TextStyle(fontSize: 12),
+              ),
+            ),
+            IconButton(
+              tooltip: 'Refresh audit',
+              onPressed: _loading ? null : _refresh,
+              icon: const Icon(Icons.refresh, size: 20),
+            ),
+            if (_canConfigure)
+              IconButton(
+                tooltip: 'Risk rules',
+                onPressed: () => _guard(_openRiskRules),
+                icon: const Icon(Icons.tune, size: 20),
+              ),
+            if (_view != 'explain' && _view != 'profitability')
+              IconButton(
+                tooltip: 'Export all matching rows to CSV',
+                onPressed: _exporting || _loading ? null : _export,
+                icon: _exporting
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.download_outlined, size: 20),
+              ),
+          ],
+        ),
+      ),
+      Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                '${LocationScopeService.scopeLabel(widget.session)} · Live ledger evidence',
+                style: Theme.of(context).textTheme.labelSmall,
+              ),
+            ),
+            Text(
+              _refreshed == null
+                  ? ''
+                  : 'Refreshed ${auditDate(_refreshed!.toIso8601String()).split(' ').last}',
+              style: Theme.of(context).textTheme.labelSmall,
+            ),
+          ],
+        ),
+      ),
+      if (_loading)
+        const LinearProgressIndicator(minHeight: 2)
+      else
+        const SizedBox(height: 2),
+      if (_error != null)
+        Padding(
+          padding: const EdgeInsets.all(8),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  _error!,
+                  style: TextStyle(color: Theme.of(context).colorScheme.error),
+                ),
+              ),
+              TextButton(onPressed: _refresh, child: const Text('Retry')),
             ],
           ),
-          const Divider(height: 1),
-          Expanded(
-            child: TabBarView(
-              children: [
-                _overviewTab(),
-                _findingsTab(),
-                _profitabilityTab(),
-                _explainTab(),
-              ],
+        ),
+      if (_view == 'explain') ...[
+        Padding(
+          padding: const EdgeInsets.all(10),
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: _select('Explain this number', _metric, _metrics, (v) {
+              _metric = v;
+              _data = {};
+              _reload();
+            }, width: 260),
+          ),
+        ),
+        Expanded(child: _explanation()),
+      ] else ...[
+        _summary(),
+        if (_view == 'accounts')
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 12, vertical: 3),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                'Positive balances are debit; negative balances are credit. Includes archived accounts and effective reversals.',
+                style: TextStyle(fontSize: 11),
+              ),
             ),
           ),
+        if (_view == 'profitability' && auditRows(_data['rows']).length >= 1000)
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 12, vertical: 3),
+            child: Text(
+              'Showing the first 1,000 matching products. Refine your search to inspect the remaining products.',
+            ),
+          ),
+        _filters(),
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: _loading && _data.isEmpty
+                ? const Center(child: CircularProgressIndicator())
+                : AuditTable(
+                    columns: _columns,
+                    rows: auditRows(_data['rows']),
+                    currency: widget.session.currencyCode,
+                    onOpen: (row) => _guard(() => _openRow(row)),
+                    empty: _view == 'findings'
+                        ? 'No matching findings. Review all statuses or adjust the period.'
+                        : 'No matching records for this period and store.',
+                  ),
+          ),
+        ),
+        _pager(),
+      ],
+    ],
+  );
+  Widget _filters() => Padding(
+    padding: const EdgeInsets.fromLTRB(12, 7, 12, 8),
+    child: LayoutBuilder(
+      builder: (context, b) => Wrap(
+        crossAxisAlignment: WrapCrossAlignment.center,
+        spacing: 8,
+        runSpacing: 8,
+        children: [
+          SizedBox(
+            width: (b.maxWidth * .35).clamp(180, 400),
+            child: TextField(
+              controller: _search,
+              onChanged: (_) {
+                _debounce?.cancel();
+                _debounce = Timer(const Duration(milliseconds: 350), () {
+                  _offset = 0;
+                  _reload();
+                });
+              },
+              onSubmitted: (_) {
+                _offset = 0;
+                _reload();
+              },
+              decoration: InputDecoration(
+                isDense: true,
+                hintText: _view == 'profitability'
+                    ? 'Search product / SKU'
+                    : 'Search reference, account, user…',
+                prefixIcon: const Icon(Icons.search, size: 18),
+                border: const OutlineInputBorder(),
+                suffixIcon: IconButton(
+                  tooltip: 'Clear search',
+                  onPressed: () {
+                    _search.clear();
+                    _offset = 0;
+                    _reload();
+                  },
+                  icon: const Icon(Icons.clear, size: 16),
+                ),
+              ),
+            ),
+          ),
+          if (_view == 'findings') ...[
+            _select(
+              'Risk',
+              _severity,
+              const {
+                '': 'All risks',
+                'high_risk': 'High risk',
+                'needs_review': 'Needs review',
+              },
+              (v) {
+                _severity = v;
+                _offset = 0;
+                _reload();
+              },
+              width: 140,
+            ),
+            _select(
+              'Status',
+              _status,
+              const {
+                'active': 'Needs attention',
+                '': 'All statuses',
+                'open': 'Open',
+                'under_review': 'Under review',
+                'explained': 'Explained',
+                'resolved': 'Resolved',
+                'escalated': 'Escalated',
+                'dismissed': 'Dismissed',
+              },
+              (v) {
+                _status = v;
+                _offset = 0;
+                _reload();
+              },
+              width: 165,
+            ),
+          ],
+          if (_view != 'profitability') ...[
+            _select(
+              'Sort',
+              _sort,
+              _view == 'accounts'
+                  ? const {
+                      'account_name': 'Account',
+                      'closing': 'Closing balance',
+                      'debit': 'Period debit',
+                      'credit': 'Period credit',
+                      'reference': 'Code',
+                    }
+                  : _view == 'journals'
+                  ? const {
+                      'date': 'Date',
+                      'reference': 'Reference',
+                      'amount': 'Amount',
+                      'status': 'Posting status',
+                      'balance_status': 'Balance status',
+                    }
+                  : const {
+                      'date': 'Date',
+                      'reference': 'Reference',
+                      'title': 'Description',
+                      'actor': 'User',
+                    },
+              (v) {
+                _sort = v;
+                _offset = 0;
+                _reload();
+              },
+              width: 150,
+            ),
+            IconButton(
+              tooltip: _descending
+                  ? 'Newest / highest first'
+                  : 'Oldest / lowest first',
+              onPressed: () {
+                _descending = !_descending;
+                _offset = 0;
+                _reload();
+              },
+              icon: Icon(
+                _descending ? Icons.arrow_downward : Icons.arrow_upward,
+                size: 18,
+              ),
+            ),
+          ],
+        ],
+      ),
+    ),
+  );
+  Widget _summary() {
+    if (_data.isEmpty) return const SizedBox.shrink();
+    final summary = auditMap(_data['summary']),
+        checks = auditMap(_data['checks']),
+        totals = auditMap(_data['account_totals']);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+      child: AuditMetrics({
+        if (summary.isNotEmpty) 'High risk': '${summary['high_risk'] ?? 0}',
+        if (summary.isNotEmpty)
+          'Needs review': '${summary['needs_review'] ?? 0}',
+        if (summary.isNotEmpty)
+          'Active findings': '${summary['open_attention'] ?? 0}',
+        if (checks.isNotEmpty)
+          'Unbalanced journals': '${checks['unbalanced_journals'] ?? 0}',
+        if (_view == 'accounts')
+          'Period difference': auditMoney(
+            totals['difference'],
+            widget.session.currencyCode,
+          ),
+        if (_view == 'accounts')
+          'Closing difference': auditMoney(
+            totals['closing_difference'],
+            widget.session.currencyCode,
+          ),
+      }),
+    );
+  }
+
+  List<AuditColumn> get _columns => switch (_view) {
+    'accounts' => const [
+      AuditColumn('account_name', 'Account', flex: 4),
+      AuditColumn('account_type', 'Type', compact: false),
+      AuditColumn('opening', 'Opening DR ±', numeric: true, compact: false),
+      AuditColumn('debit', 'Debit', numeric: true, compact: false),
+      AuditColumn('credit', 'Credit', numeric: true, compact: false),
+      AuditColumn('closing', 'Closing DR ±', numeric: true),
+      AuditColumn('status', 'State', compact: false),
+    ],
+    'journals' => const [
+      AuditColumn('date', 'Date', compact: false),
+      AuditColumn('reference', 'Reference', flex: 3),
+      AuditColumn('type', 'Source', flex: 3, compact: false),
+      AuditColumn('party', 'Party', flex: 3, compact: false),
+      AuditColumn('amount', 'Debit total', numeric: true),
+      AuditColumn('balance_status', 'Balance'),
+      AuditColumn('status', 'Posting', compact: false),
+    ],
+    'activity' => const [
+      AuditColumn('date', 'When', compact: false),
+      AuditColumn('reference', 'Reference'),
+      AuditColumn('title', 'Event', flex: 4),
+      AuditColumn('actor', 'User', compact: false),
+      AuditColumn('location', 'Store', compact: false),
+      AuditColumn('evidence_quality', 'Evidence', compact: false),
+    ],
+    'profitability' => const [
+      AuditColumn('product_name', 'Product', flex: 4),
+      AuditColumn('sku', 'SKU', compact: false),
+      AuditColumn('net_revenue', 'Net sales', numeric: true),
+      AuditColumn('net_cogs', 'Cost of goods', numeric: true, compact: false),
+      AuditColumn('gross_profit', 'Gross profit', numeric: true),
+      AuditColumn(
+        'margin_pct',
+        'Margin',
+        numeric: true,
+        format: 'percent',
+        compact: false,
+      ),
+    ],
+    _ => const [
+      AuditColumn('date', 'Detected', compact: false),
+      AuditColumn('reference', 'Reference'),
+      AuditColumn('title', 'Finding', flex: 4),
+      AuditColumn('severity', 'Risk'),
+      AuditColumn('status', 'Status', compact: false),
+      AuditColumn('actor', 'User', compact: false),
+      AuditColumn('location', 'Store', compact: false),
+    ],
+  };
+  Widget _pager() {
+    final total = auditNumber(_data['total_rows']).toInt(),
+        count = auditRows(_data['rows']).length;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              _view == 'profitability'
+                  ? '$total products${total >= 1000 ? ' · Search to narrow the first 1,000' : ''}'
+                  : total == 0
+                  ? '0 records'
+                  : '${_offset + 1}–${_offset + count} of $total',
+              style: Theme.of(context).textTheme.labelSmall,
+            ),
+          ),
+          if (_view != 'profitability') ...[
+            IconButton(
+              tooltip: 'Previous page',
+              onPressed: _loading || _offset == 0
+                  ? null
+                  : () {
+                      _offset = (_offset - 50).clamp(0, total);
+                      _reload();
+                    },
+              icon: const Icon(Icons.chevron_left),
+            ),
+            IconButton(
+              tooltip: 'Next page',
+              onPressed: _loading || _offset + count >= total
+                  ? null
+                  : () {
+                      _offset += 50;
+                      _reload();
+                    },
+              icon: const Icon(Icons.chevron_right),
+            ),
+          ],
         ],
       ),
     );
   }
 
-  Widget _overviewTab() {
-    final key = ValueKey('overview-$_generation-${_locationId ?? 'all'}');
-    return FutureBuilder<List<dynamic>>(
-      key: key,
-      future: Future.wait<dynamic>([
-        _service.auditCenterSummary(
-          tenantId: _tenantId,
-          from: _from,
-          to: _to,
-          locationId: _locationId,
-        ),
-        _service.normalTransactions(
-          tenantId: _tenantId,
-          from: _from,
-          to: _to,
-          locationId: _locationId,
-        ),
-      ]),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState != ConnectionState.done) {
-          return const Center(child: CircularProgressIndicator());
-        }
-        if (snapshot.hasError) return _ErrorPanel(error: snapshot.error);
-        final values = snapshot.data ?? const [];
-        final summary = values.isNotEmpty
-            ? Map<String, dynamic>.from(values[0] as Map)
-            : <String, dynamic>{};
-        final normal = values.length > 1
-            ? List<Map<String, dynamic>>.from(values[1] as List)
-            : const <Map<String, dynamic>>[];
-
-        return RefreshIndicator(
-          onRefresh: () async => _refresh(),
-          child: ListView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.all(16),
-            children: [
-              Wrap(
-                spacing: 10,
-                runSpacing: 10,
-                children: [
-                  _RiskCard(
-                    label: 'High Risk',
-                    value: _integer(summary['high_risk']),
-                    icon: Icons.priority_high,
-                    emphasis: true,
-                  ),
-                  _RiskCard(
-                    label: 'Needs Review',
-                    value: _integer(summary['needs_review']),
-                    icon: Icons.manage_search_outlined,
-                  ),
-                  _RiskCard(
-                    label: 'Normal',
-                    value: _integer(summary['normal']),
-                    icon: Icons.check_circle_outline,
-                  ),
-                  _RiskCard(
-                    label: 'Open Attention',
-                    value: _integer(summary['open_attention']),
-                    icon: Icons.pending_actions_outlined,
-                  ),
-                ],
-              ),
-              const SizedBox(height: 18),
-              _SectionHeader(
-                title: 'Normal transaction story',
-                subtitle:
-                    'Risk is an attention signal, not an accusation. Open a row to see recorded evidence.',
-              ),
-              const SizedBox(height: 8),
-              if (normal.isEmpty)
-                const _EmptyPanel(
-                  message: 'No normal transactions in this period.',
-                )
-              else
-                ...normal
-                    .take(100)
-                    .map(
-                      (row) => Card(
-                        margin: const EdgeInsets.only(bottom: 7),
-                        child: ListTile(
-                          leading: const Icon(Icons.receipt_long_outlined),
-                          title: Text(
-                            _text(
-                              row['entity_number'],
-                              fallback: _text(row['entity_type']),
-                            ),
-                            style: const TextStyle(fontWeight: FontWeight.w700),
-                          ),
-                          subtitle: Text(
-                            [
-                              _text(row['action']),
-                              _text(row['event_time']),
-                              _text(row['user_name']),
-                              _text(row['device_name']),
-                            ].where((e) => e != '—').join(' • '),
-                          ),
-                          trailing: const Icon(Icons.chevron_right),
-                          onTap: () => _openStory(row),
-                        ),
-                      ),
-                    ),
-            ],
+  Widget _explanation() {
+    if (_data.isEmpty) {
+      return _loading
+          ? const Center(child: CircularProgressIndicator())
+          : const SizedBox.shrink();
+    }
+    final previous = auditMap(_data['previous']),
+        bridge = auditMap(_data['driver_reconciliation']);
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+      children: [
+        AuditMetrics({
+          auditText(_data['label']): auditMoney(
+            _data['value'],
+            widget.session.currencyCode,
           ),
-        );
-      },
+          _data['kind'] == 'balance'
+              ? 'Before selected period'
+              : 'Previous equal period': auditMoney(
+            previous['value'],
+            widget.session.currencyCode,
+          ),
+          'Change': auditMoney(_data['change'], widget.session.currencyCode),
+        }),
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          child: Text(
+            auditText(_data['equation']),
+            style: const TextStyle(fontWeight: FontWeight.w600),
+          ),
+        ),
+        const Text(
+          'Linked account contributions',
+          style: TextStyle(fontWeight: FontWeight.w700),
+        ),
+        const SizedBox(height: 5),
+        AuditTable(
+          shrinkWrap: true,
+          currency: widget.session.currencyCode,
+          columns: const [
+            AuditColumn('label', 'Account', flex: 4),
+            AuditColumn(
+              'previous_value',
+              'Previous',
+              numeric: true,
+              compact: false,
+            ),
+            AuditColumn('value', 'Contribution', numeric: true),
+            AuditColumn('change', 'Change', numeric: true),
+          ],
+          rows: auditRows(_data['components']),
+          onOpen: (r) => _guard(() => _account(r)),
+        ),
+        const SizedBox(height: 16),
+        const Text(
+          'What changed',
+          style: TextStyle(fontWeight: FontWeight.w700),
+        ),
+        const SizedBox(height: 5),
+        AuditTable(
+          shrinkWrap: true,
+          currency: widget.session.currencyCode,
+          columns: const [
+            AuditColumn('label', 'Business source', flex: 4),
+            AuditColumn(
+              'previous_value',
+              'Previous',
+              numeric: true,
+              compact: false,
+            ),
+            AuditColumn('current_value', 'Current', numeric: true),
+            AuditColumn('impact', 'Impact on change', numeric: true),
+          ],
+          rows: auditRows(_data['drivers']),
+          onOpen: (r) =>
+              _guard(() => _sourceJournals(auditText(r['source_type']))),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          child: Text(
+            bridge['reconciles'] == true
+                ? 'Source impacts reconcile to the change.'
+                : 'The source bridge differs from the change. Review the linked journals.',
+            style: TextStyle(
+              color: bridge['reconciles'] == true
+                  ? null
+                  : Theme.of(context).colorScheme.error,
+            ),
+          ),
+        ),
+        Text(
+          auditText(_data['basis']),
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
+      ],
     );
   }
 
-  Widget _findingsTab() {
-    final key = ValueKey('findings-$_generation-${_locationId ?? 'all'}');
-    return FutureBuilder<List<Map<String, dynamic>>>(
-      key: key,
-      future: _service.findings(
+  Future<void> _openRow(Map<String, dynamic> row) async {
+    if (_view == 'accounts') {
+      await _account(row);
+      return;
+    }
+    if (_view == 'journals') {
+      await showAuditJournalDialog(
+        context: context,
+        service: _service,
         tenantId: _tenantId,
+        journal: row,
+        session: widget.session,
         from: _from,
         to: _to,
         locationId: _locationId,
+      );
+      return;
+    }
+    if (_view == 'profitability') {
+      final data = await _service.productProfitExplanation(
+        tenantId: _tenantId,
+        variantId: auditText(row['variant_id']),
+        from: _from,
+        to: _to,
+        locationId: _locationId,
+      );
+      if (!mounted) return;
+      await showAuditEvidenceDialog(
+        context: context,
+        title: 'Product profitability · ${auditText(row['product_name'])}',
+        currency: widget.session.currencyCode,
+        sections: {
+          'Profit equation': data['equation'],
+          'Profit drivers': data['drivers'],
+          'Returns': data['returns'],
+          'Previous period': data['previous_period'],
+          'Profit change': data['profit_change'],
+        },
+      );
+      return;
+    }
+    if (_view == 'findings') {
+      final changed = await showAuditFindingDialog(
+        context: context,
+        service: _service,
+        session: widget.session,
+        findingId: auditText(row['finding_id'] ?? row['id']),
+        from: _from,
+        to: _to,
+        locationId: _locationId,
+      );
+      if (changed && mounted) _reload();
+      return;
+    }
+    final type = auditText(
+          row['root_entity_type'] ?? row['entity_type'],
+          fallback: '',
+        ),
+        id = auditText(row['root_entity_id'] ?? row['entity_id'], fallback: '');
+    if (type.isEmpty || id.isEmpty) return;
+    await showTransactionStoryDialog(
+      context: context,
+      service: _service,
+      tenantId: _tenantId,
+      entityType: type,
+      entityId: id,
+      session: widget.session,
+      from: _from,
+      to: _to,
+      locationId: _locationId,
+    );
+  }
+
+  Future<void> _account(Map<String, dynamic> row) => showAuditLedgerDialog(
+    context: context,
+    service: _service,
+    session: widget.session,
+    accountId: auditText(row['account_id'] ?? row['id']),
+    accountName: auditText(row['account_name'] ?? row['label']),
+    from: _from,
+    to: _to,
+    locationId: _locationId,
+  );
+  Future<void> _sourceJournals(String source) => showAuditSourceJournalsDialog(
+    context: context,
+    service: _service,
+    session: widget.session,
+    source: source,
+    from: _data['kind'] == 'period'
+        ? DateTime.tryParse(auditText(auditMap(_data['previous'])['from'])) ??
+              _from
+        : _from,
+    to: _to,
+    locationId: _locationId,
+  );
+  Future<void> _export() async {
+    _debounce?.cancel();
+    setState(() => _exporting = true);
+    await _guard(
+      () => _service.exportWorkspace(
+        tenantId: _tenantId,
+        view: _view,
+        from: _from,
+        to: _to,
+        locationId: _locationId,
+        query: _search.text,
+        severity: _severity,
+        status: _status,
+        sort: _sort,
+        descending: _descending,
+        columns: {for (final c in _columns) c.key: c.label},
       ),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState != ConnectionState.done) {
-          return const Center(child: CircularProgressIndicator());
-        }
-        if (snapshot.hasError) return _ErrorPanel(error: snapshot.error);
-        final rows = snapshot.data ?? const <Map<String, dynamic>>[];
-        if (rows.isEmpty) {
-          return const _EmptyPanel(
-            message: 'No audit findings for this period.',
-          );
-        }
-
-        return RefreshIndicator(
-          onRefresh: () async => _refresh(),
-          child: ListView.builder(
-            physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.all(16),
-            itemCount: rows.length,
-            itemBuilder: (context, index) {
-              final row = rows[index];
-              final severity = _text(row['severity']);
-              final status = _text(row['status']);
-              return Card(
-                child: ListTile(
-                  leading: Icon(_severityIcon(severity)),
-                  title: Text(
-                    _text(row['title']),
-                    style: const TextStyle(fontWeight: FontWeight.w700),
-                  ),
-                  subtitle: Text(
-                    [
-                      severity,
-                      status,
-                      _text(row['entity_number']),
-                      _text(row['event_time']),
-                    ].where((e) => e != '—').join(' • '),
-                  ),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: () => _openFinding(row),
-                ),
-              );
-            },
-          ),
-        );
-      },
     );
-  }
-
-  Widget _profitabilityTab() {
-    final key = ValueKey(
-      'profit-$_generation-${_locationId ?? 'all'}-${_profitSearch.text}',
-    );
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.all(12),
-          child: TextField(
-            controller: _profitSearch,
-            onSubmitted: (_) => _refresh(),
-            decoration: InputDecoration(
-              isDense: true,
-              labelText: 'Search product / SKU',
-              prefixIcon: const Icon(Icons.search),
-              suffixIcon: IconButton(
-                tooltip: 'Search',
-                onPressed: _refresh,
-                icon: const Icon(Icons.arrow_forward),
-              ),
-              border: const OutlineInputBorder(),
-            ),
-          ),
-        ),
-        Expanded(
-          child: FutureBuilder<List<Map<String, dynamic>>>(
-            key: key,
-            future: _service.profitability(
-              tenantId: _tenantId,
-              from: _from,
-              to: _to,
-              locationId: _locationId,
-              query: _profitSearch.text,
-            ),
-            builder: (context, snapshot) {
-              if (snapshot.connectionState != ConnectionState.done) {
-                return const Center(child: CircularProgressIndicator());
-              }
-              if (snapshot.hasError) return _ErrorPanel(error: snapshot.error);
-              final rows = snapshot.data ?? const <Map<String, dynamic>>[];
-              if (rows.isEmpty) {
-                return const _EmptyPanel(
-                  message:
-                      'No recognized product profitability for this period.',
-                );
-              }
-              return RefreshIndicator(
-                onRefresh: () async => _refresh(),
-                child: ListView.builder(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-                  itemCount: rows.length,
-                  itemBuilder: (context, index) {
-                    final row = rows[index];
-                    final profit = _number(
-                      row['gross_profit'] ?? row['profit'],
-                    );
-                    final margin = _number(
-                      row['margin_pct'] ??
-                          row['margin_percent'] ??
-                          row['margin'],
-                    );
-                    return Card(
-                      child: ListTile(
-                        title: Text(
-                          _text(row['product_name'] ?? row['name']),
-                          style: const TextStyle(fontWeight: FontWeight.w700),
-                        ),
-                        subtitle: Text(
-                          [
-                            _text(row['sku'], fallback: ''),
-                            _text(row['category_name'], fallback: ''),
-                            _text(row['brand_name'], fallback: ''),
-                          ].where((e) => e.isNotEmpty).join(' • '),
-                        ),
-                        trailing: SizedBox(
-                          width: 300,
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.end,
-                            children: [
-                              _MoneyStat(
-                                label: 'Sales',
-                                value: _money(
-                                  _number(row['net_revenue'] ?? row['sales']),
-                                ),
-                              ),
-                              _MoneyStat(
-                                label: 'COGS',
-                                value: _money(
-                                  _number(row['net_cogs'] ?? row['cost']),
-                                ),
-                              ),
-                              _MoneyStat(
-                                label: 'Profit',
-                                value: _money(profit),
-                              ),
-                              _MoneyStat(
-                                label: 'Margin',
-                                value: '${margin.toStringAsFixed(2)}%',
-                              ),
-                              const Icon(Icons.chevron_right),
-                            ],
-                          ),
-                        ),
-                        onTap: () => _openProductProfit(row),
-                      ),
-                    );
-                  },
-                ),
-              );
-            },
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _explainTab() {
-    final key = ValueKey(
-      'metric-$_generation-${_locationId ?? 'all'}-$_metric',
-    );
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.all(12),
-          child: Align(
-            alignment: Alignment.centerLeft,
-            child: SizedBox(
-              width: 340,
-              child: DropdownButtonFormField<String>(
-                initialValue: _metric,
-                decoration: const InputDecoration(
-                  isDense: true,
-                  labelText: 'Explain this number',
-                  border: OutlineInputBorder(),
-                ),
-                items: const [
-                  DropdownMenuItem(value: 'sales', child: Text('Sales')),
-                  DropdownMenuItem(value: 'cogs', child: Text('COGS')),
-                  DropdownMenuItem(
-                    value: 'gross_profit',
-                    child: Text('Gross Profit'),
-                  ),
-                  DropdownMenuItem(
-                    value: 'net_profit',
-                    child: Text('Net Profit'),
-                  ),
-                  DropdownMenuItem(
-                    value: 'inventory_value',
-                    child: Text('Inventory Value'),
-                  ),
-                  DropdownMenuItem(
-                    value: 'receivables',
-                    child: Text('Accounts Receivable'),
-                  ),
-                  DropdownMenuItem(
-                    value: 'payables',
-                    child: Text('Accounts Payable'),
-                  ),
-                  DropdownMenuItem(value: 'cash', child: Text('Cash')),
-                  DropdownMenuItem(value: 'bank', child: Text('Bank')),
-                  DropdownMenuItem(
-                    value: 'net_gst_payable',
-                    child: Text('Net GST Payable'),
-                  ),
-                ],
-                onChanged: (value) {
-                  if (value == null) return;
-                  setState(() {
-                    _metric = value;
-                    _generation++;
-                  });
-                },
-              ),
-            ),
-          ),
-        ),
-        Expanded(
-          child: FutureBuilder<Map<String, dynamic>>(
-            key: key,
-            future: _service.metricExplanation(
-              tenantId: _tenantId,
-              metric: _metric,
-              from: _from,
-              to: _to,
-              locationId: _locationId,
-            ),
-            builder: (context, snapshot) {
-              if (snapshot.connectionState != ConnectionState.done) {
-                return const Center(child: CircularProgressIndicator());
-              }
-              if (snapshot.hasError) return _ErrorPanel(error: snapshot.error);
-              final data = snapshot.data ?? const <String, dynamic>{};
-              final metric = data;
-              final previous = _map(data['previous']);
-              return ListView(
-                padding: const EdgeInsets.all(16),
-                children: [
-                  Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(18),
-                      child: Wrap(
-                        spacing: 28,
-                        runSpacing: 10,
-                        children: [
-                          _LargeMetric(
-                            label: _text(metric['label'], fallback: _metric),
-                            value: _money(_number(metric['value'])),
-                          ),
-                          _LargeMetric(
-                            label: 'Previous',
-                            value: _money(_number(previous['value'])),
-                          ),
-                          _LargeMetric(
-                            label: 'Change',
-                            value: _money(_number(data['change'])),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  _StructuredSection(
-                    title: 'Formula',
-                    value: metric['equation'],
-                  ),
-                  _StructuredSection(
-                    title: 'Components',
-                    value: data['components'],
-                  ),
-                  _StructuredSection(
-                    title: 'Deterministic drivers',
-                    value: data['drivers'],
-                  ),
-                  const SizedBox(height: 8),
-                  const _EmptyPanel(
-                    message:
-                        'THQ calculates first and explains second. These values are returned by the authoritative accounting / inventory engine; the UI does not invent or recompute them.',
-                  ),
-                ],
-              );
-            },
-          ),
-        ),
-      ],
-    );
+    if (mounted) setState(() => _exporting = false);
   }
 
   Future<void> _openRiskRules() async {
@@ -570,22 +866,25 @@ class _AuditIntelligenceScreenState extends State<AuditIntelligenceScreen> {
     if (!mounted) return;
 
     final discountReview = TextEditingController(
-      text: _text(config['discount_review_pct'], fallback: '10'),
+      text: auditText(config['discount_review_pct'], fallback: '10'),
     );
     final discountHigh = TextEditingController(
-      text: _text(config['discount_high_pct'], fallback: '20'),
+      text: auditText(config['discount_high_pct'], fallback: '20'),
     );
     final stockReview = TextEditingController(
-      text: _text(config['stock_adjustment_review_value'], fallback: '10000'),
+      text: auditText(
+        config['stock_adjustment_review_value'],
+        fallback: '10000',
+      ),
     );
     final stockHigh = TextEditingController(
-      text: _text(config['stock_adjustment_high_value'], fallback: '50000'),
+      text: auditText(config['stock_adjustment_high_value'], fallback: '50000'),
     );
     final backdateReview = TextEditingController(
-      text: _text(config['backdate_review_days'], fallback: '1'),
+      text: auditText(config['backdate_review_days'], fallback: '1'),
     );
     final backdateHigh = TextEditingController(
-      text: _text(config['backdate_high_days'], fallback: '7'),
+      text: auditText(config['backdate_high_days'], fallback: '7'),
     );
 
     var negativeMargin = config['negative_margin_high'] != false;
@@ -611,6 +910,17 @@ class _AuditIntelligenceScreenState extends State<AuditIntelligenceScreen> {
         );
         return;
       }
+      if (numeric['discount_high_pct']! > 100 ||
+          numeric['discount_review_pct']! > numeric['discount_high_pct']! ||
+          numeric['stock_adjustment_review_value']! >
+              numeric['stock_adjustment_high_value']! ||
+          numeric['backdate_review_days']! > numeric['backdate_high_days']!) {
+        ThqNotify.error(
+          context,
+          'Review thresholds must not exceed high-risk thresholds. Discount percentages cannot exceed 100.',
+        );
+        return;
+      }
       await _service.setRiskConfig(
         tenantId: _tenantId,
         config: {
@@ -629,6 +939,7 @@ class _AuditIntelligenceScreenState extends State<AuditIntelligenceScreen> {
       ThqNotify.success(context, 'Audit risk rules updated.');
     }
 
+    var saving = false;
     await showThqDialog<void>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
@@ -742,13 +1053,22 @@ class _AuditIntelligenceScreenState extends State<AuditIntelligenceScreen> {
             ),
             actions: [
               TextButton(
-                onPressed: () => Navigator.pop(dialogContext),
+                onPressed: saving ? null : () => Navigator.pop(dialogContext),
                 child: const Text('Cancel'),
               ),
               FilledButton.icon(
-                onPressed: () => save(dialogContext),
+                onPressed: saving
+                    ? null
+                    : () async {
+                        if (saving) return;
+                        setDialogState(() => saving = true);
+                        await _guard(() => save(dialogContext));
+                        if (dialogContext.mounted) {
+                          setDialogState(() => saving = false);
+                        }
+                      },
                 icon: const Icon(Icons.save_outlined),
-                label: const Text('Save'),
+                label: Text(saving ? 'Saving…' : 'Save'),
               ),
             ],
           );
@@ -763,538 +1083,4 @@ class _AuditIntelligenceScreenState extends State<AuditIntelligenceScreen> {
     backdateReview.dispose();
     backdateHigh.dispose();
   }
-
-  Future<void> _openStory(Map<String, dynamic> row) async {
-    final entityType = _text(
-      row['root_entity_type'] ?? row['entity_type'],
-      fallback: '',
-    );
-    final entityId = _text(
-      row['root_entity_id'] ?? row['entity_id'],
-      fallback: '',
-    );
-    if (entityType.isEmpty || entityId.isEmpty) return;
-    await showTransactionStoryDialog(
-      context: context,
-      service: _service,
-      tenantId: _tenantId,
-      entityType: entityType,
-      entityId: entityId,
-    );
-  }
-
-  Future<void> _openFinding(Map<String, dynamic> row) async {
-    final findingId = _text(row['finding_id'], fallback: '');
-    if (findingId.isEmpty) return;
-    final detail = await _service.findingDetail(
-      tenantId: _tenantId,
-      findingId: findingId,
-    );
-    if (!mounted) return;
-
-    final finding = _map(detail['finding']);
-    final controller = TextEditingController();
-    await showThqDialog<void>(
-      context: context,
-      builder: (dialogContext) => Dialog(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 880, maxHeight: 720),
-          child: Column(
-            children: [
-              ListTile(
-                leading: Icon(_severityIcon(_text(finding['severity']))),
-                title: Text(
-                  _text(finding['title']),
-                  style: const TextStyle(fontWeight: FontWeight.w600),
-                ),
-                subtitle: Text(
-                  '${_text(finding['severity'])} • ${_text(finding['status'])}',
-                ),
-                trailing: IconButton(
-                  onPressed: () => Navigator.pop(dialogContext),
-                  icon: const Icon(Icons.close),
-                ),
-              ),
-              const Divider(height: 1),
-              Expanded(
-                child: ListView(
-                  padding: const EdgeInsets.all(16),
-                  children: [
-                    Text(_text(finding['description'])),
-                    const SizedBox(height: 12),
-                    _StructuredSection(
-                      title: 'Transaction Story',
-                      value: detail['transaction_story'],
-                    ),
-                    _StructuredSection(
-                      title: 'Finding Evidence',
-                      value: finding['evidence'],
-                    ),
-                    _StructuredSection(
-                      title: 'Review History',
-                      value: {
-                        'reviewer_id': finding['reviewer_id'],
-                        'reviewed_at': finding['reviewed_at'],
-                        'review_note': finding['review_note'],
-                        'resolution_note': finding['resolution_note'],
-                      },
-                    ),
-                    if (_canActOnFindings) ...[
-                      const SizedBox(height: 12),
-                      TextField(
-                        controller: controller,
-                        minLines: 2,
-                        maxLines: 4,
-                        decoration: const InputDecoration(
-                          labelText: 'Review / resolution note',
-                          border: OutlineInputBorder(),
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.all(12),
-                child: Row(
-                  children: [
-                    OutlinedButton.icon(
-                      onPressed: () {
-                        final entityType = _text(
-                          finding['entity_type'],
-                          fallback: '',
-                        );
-                        final entityId = _text(
-                          finding['entity_id'],
-                          fallback: '',
-                        );
-                        if (entityType.isEmpty || entityId.isEmpty) return;
-                        showTransactionStoryDialog(
-                          context: dialogContext,
-                          service: _service,
-                          tenantId: _tenantId,
-                          entityType: entityType,
-                          entityId: entityId,
-                        );
-                      },
-                      icon: const Icon(Icons.account_tree_outlined),
-                      label: const Text('Why / History'),
-                    ),
-                    const Spacer(),
-                    if (_canActOnFindings)
-                      PopupMenuButton<String>(
-                        tooltip: 'Update finding',
-                        onSelected: (status) async {
-                          final note = controller.text.trim();
-                          if (note.isEmpty) {
-                            ThqNotify.showSnackBar(
-                              context,
-                              const SnackBar(
-                                content: Text(
-                                  'Add a review note before changing status.',
-                                ),
-                              ),
-                            );
-                            return;
-                          }
-                          await _service.reviewFinding(
-                            tenantId: _tenantId,
-                            findingId: findingId,
-                            status: status,
-                            note: note,
-                          );
-                          if (!mounted || !dialogContext.mounted) {
-                            return;
-                          }
-                          Navigator.of(dialogContext).pop();
-                          _refresh();
-                        },
-                        itemBuilder: (_) => [
-                          if (_canReview)
-                            const PopupMenuItem(
-                              value: 'under_review',
-                              child: Text('Under Review'),
-                            ),
-                          if (_canReview)
-                            const PopupMenuItem(
-                              value: 'explained',
-                              child: Text('Explained'),
-                            ),
-                          if (_canResolve)
-                            const PopupMenuItem(
-                              value: 'resolved',
-                              child: Text('Resolved'),
-                            ),
-                          if (_canResolve)
-                            const PopupMenuItem(
-                              value: 'escalated',
-                              child: Text('Escalated'),
-                            ),
-                          if (_canResolve)
-                            const PopupMenuItem(
-                              value: 'dismissed',
-                              child: Text('Dismissed'),
-                            ),
-                        ],
-                        child: DecoratedBox(
-                          decoration: BoxDecoration(
-                            color: Theme.of(
-                              context,
-                            ).colorScheme.primaryContainer,
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: const Padding(
-                            padding: EdgeInsets.symmetric(
-                              horizontal: 14,
-                              vertical: 10,
-                            ),
-                            child: Text(
-                              'Review action',
-                              style: TextStyle(fontWeight: FontWeight.w700),
-                            ),
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-    controller.dispose();
-  }
-
-  Future<void> _openProductProfit(Map<String, dynamic> row) async {
-    final variantId = _text(
-      row['variant_id'] ?? row['product_variant_id'] ?? row['product_id'],
-      fallback: '',
-    );
-    if (variantId.isEmpty) return;
-    final data = await _service.productProfitExplanation(
-      tenantId: _tenantId,
-      variantId: variantId,
-      from: _from,
-      to: _to,
-      locationId: _locationId,
-    );
-    if (!mounted) return;
-    final equation = _map(data['equation']);
-    final product = _map(data['product']);
-    await showThqDialog<void>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(
-          'Why is profit low? • ${_text(product['product_name'], fallback: _text(row['product_name']))}',
-        ),
-        content: SizedBox(
-          width: 680,
-          child: ListView(
-            shrinkWrap: true,
-            children: [
-              Wrap(
-                spacing: 12,
-                runSpacing: 12,
-                children: [
-                  _LargeMetric(
-                    label: 'Sales',
-                    value: _money(_number(equation['net_sales'])),
-                  ),
-                  _LargeMetric(
-                    label: 'COGS',
-                    value: _money(_number(equation['recognized_cogs'])),
-                  ),
-                  _LargeMetric(
-                    label: 'Profit',
-                    value: _money(_number(equation['gross_profit'])),
-                  ),
-                  _LargeMetric(
-                    label: 'Margin',
-                    value:
-                        '${_number(equation['margin_pct']).toStringAsFixed(2)}%',
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              _StructuredSection(
-                title: 'Profit drivers',
-                value: data['drivers'],
-              ),
-              _StructuredSection(title: 'Returns', value: data['returns']),
-              _StructuredSection(
-                title: 'Previous period',
-                value: data['previous_period'],
-              ),
-              _StructuredSection(
-                title: 'Profit change',
-                value: data['profit_change'],
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Close'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  String _money(num value) {
-    final symbol = widget.session.currencyCode == 'INR'
-        ? '₹'
-        : '${widget.session.currencyCode} ';
-    return '$symbol${value.toStringAsFixed(2)}';
-  }
-}
-
-class _RiskCard extends StatelessWidget {
-  const _RiskCard({
-    required this.label,
-    required this.value,
-    required this.icon,
-    this.emphasis = false,
-  });
-
-  final String label;
-  final int value;
-  final IconData icon;
-  final bool emphasis;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: 185,
-      child: Card(
-        child: Padding(
-          padding: const EdgeInsets.all(14),
-          child: Row(
-            children: [
-              Icon(icon, size: 22),
-              const SizedBox(width: 10),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    '$value',
-                    style: TextStyle(
-                      fontSize: 23,
-                      fontWeight: FontWeight.w600,
-                      color: emphasis && value > 0
-                          ? Theme.of(context).colorScheme.error
-                          : null,
-                    ),
-                  ),
-                  Text(label, style: Theme.of(context).textTheme.bodySmall),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _MoneyStat extends StatelessWidget {
-  const _MoneyStat({required this.label, required this.value});
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 7),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          Text(label, style: Theme.of(context).textTheme.labelSmall),
-          Text(value, style: const TextStyle(fontWeight: FontWeight.w700)),
-        ],
-      ),
-    );
-  }
-}
-
-class _LargeMetric extends StatelessWidget {
-  const _LargeMetric({required this.label, required this.value});
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: 180,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(label, style: Theme.of(context).textTheme.labelMedium),
-          const SizedBox(height: 4),
-          SelectableText(
-            value,
-            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _StructuredSection extends StatelessWidget {
-  const _StructuredSection({required this.title, required this.value});
-  final String title;
-  final dynamic value;
-
-  @override
-  Widget build(BuildContext context) {
-    if (_isEmpty(value)) return const SizedBox.shrink();
-    return Card(
-      margin: const EdgeInsets.only(bottom: 10),
-      child: ExpansionTile(
-        initiallyExpanded: true,
-        title: Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
-        children: [
-          Align(
-            alignment: Alignment.centerLeft,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
-              child: SelectableText(
-                _pretty(value),
-                style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _SectionHeader extends StatelessWidget {
-  const _SectionHeader({required this.title, required this.subtitle});
-  final String title;
-  final String subtitle;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          title,
-          style: Theme.of(
-            context,
-          ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
-        ),
-        const SizedBox(height: 2),
-        Text(subtitle, style: Theme.of(context).textTheme.bodySmall),
-      ],
-    );
-  }
-}
-
-class _EmptyPanel extends StatelessWidget {
-  const _EmptyPanel({required this.message});
-  final String message;
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(28),
-        child: Text(message, textAlign: TextAlign.center),
-      ),
-    );
-  }
-}
-
-class _ErrorPanel extends StatelessWidget {
-  const _ErrorPanel({required this.error});
-  final Object? error;
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(28),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.error_outline, size: 36),
-            const SizedBox(height: 10),
-            const Text(
-              'Audit Intelligence could not load.',
-              style: TextStyle(fontWeight: FontWeight.w600),
-            ),
-            const SizedBox(height: 6),
-            SelectableText(
-              error?.toString() ?? 'Unknown error',
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-IconData _severityIcon(String severity) {
-  return switch (severity.toLowerCase()) {
-    'high risk' || 'high_risk' => Icons.priority_high,
-    'needs review' || 'needs_review' => Icons.manage_search_outlined,
-    _ => Icons.info_outline,
-  };
-}
-
-Map<String, dynamic> _map(dynamic value) {
-  if (value is Map<String, dynamic>) return Map<String, dynamic>.from(value);
-  if (value is Map) {
-    return value.map((key, value) => MapEntry(key.toString(), value));
-  }
-  return <String, dynamic>{};
-}
-
-String _text(dynamic value, {String fallback = '—'}) {
-  final text = value?.toString().trim() ?? '';
-  return text.isEmpty ? fallback : text;
-}
-
-num _number(dynamic value) {
-  if (value is num) return value;
-  return num.tryParse(value?.toString() ?? '') ?? 0;
-}
-
-int _integer(dynamic value) => _number(value).toInt();
-
-bool _isEmpty(dynamic value) {
-  if (value == null) return true;
-  if (value is Map) return value.isEmpty;
-  if (value is List) return value.isEmpty;
-  final text = value.toString().trim();
-  return text.isEmpty || text == '{}' || text == '[]' || text == 'null';
-}
-
-String _pretty(dynamic value) {
-  if (value is Map) {
-    return value.entries
-        .map((entry) => '${entry.key}: ${_pretty(entry.value)}')
-        .join('\n');
-  }
-  if (value is List) {
-    return value
-        .asMap()
-        .entries
-        .map((entry) => '[${entry.key + 1}] ${_pretty(entry.value)}')
-        .join('\n');
-  }
-  return value?.toString() ?? 'null';
-}
-
-String _dateLabel(DateTime value) {
-  final d = value.day.toString().padLeft(2, '0');
-  final m = value.month.toString().padLeft(2, '0');
-  return '$d-$m-${value.year}';
 }

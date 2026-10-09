@@ -21,13 +21,10 @@ const thqAccountingSections = <String, String>{
   'gst': 'GST Register',
 };
 
-typedef ThqAccountingLoader = Future<ThqAccountingResult> Function(
-  ThqAccountingQuery,
-);
-typedef ThqAccountingExporter = Future<void> Function(
-  ThqAccountingQuery,
-  String,
-);
+typedef ThqAccountingLoader =
+    Future<ThqAccountingResult> Function(ThqAccountingQuery);
+typedef ThqAccountingExporter =
+    Future<void> Function(ThqAccountingQuery, String);
 
 /// Shared read-only accounting workspace. All financial writes remain in the apps.
 class ThqAccountingWorkspace extends StatefulWidget {
@@ -38,6 +35,7 @@ class ThqAccountingWorkspace extends StatefulWidget {
   final ThqAccountingLoader load;
   final ThqAccountingExporter export;
   final Future<void> Function(Map<String, dynamic>) openSource;
+  final Future<void> Function(Map<String, dynamic>)? openHistory;
   final VoidCallback? openControls;
   const ThqAccountingWorkspace({
     super.key,
@@ -48,6 +46,7 @@ class ThqAccountingWorkspace extends StatefulWidget {
     required this.load,
     required this.export,
     required this.openSource,
+    this.openHistory,
     this.openControls,
   });
   @override
@@ -216,8 +215,9 @@ class _ThqAccountingWorkspaceState extends State<ThqAccountingWorkspace> {
       await widget.export(snapshot, format);
     } catch (error) {
       if (mounted)
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(error.toString())));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(error.toString())));
     } finally {
       if (mounted) setState(() => _exporting = false);
     }
@@ -431,7 +431,8 @@ class _ThqAccountingWorkspaceState extends State<ThqAccountingWorkspace> {
                       (rate.text.isNotEmpty &&
                           num.tryParse(rate.text) == null)) {
                     update(
-                      () => validation = 'Enter valid amounts/rate and a minimum no greater than maximum.',
+                      () => validation =
+                          'Enter valid amounts/rate and a minimum no greater than maximum.',
                     );
                     return;
                   }
@@ -962,8 +963,9 @@ class _ThqAccountingWorkspaceState extends State<ThqAccountingWorkspace> {
                 trailing: const Icon(Icons.chevron_right),
                 onTap: () => _section(
                   r['target'].toString(),
-                  filters: accountingMap(r['filters'])
-                      .map((k, v) => MapEntry(k, v.toString())),
+                  filters: accountingMap(
+                    r['filters'],
+                  ).map((k, v) => MapEntry(k, v.toString())),
                   drill: true,
                   from: DateTime.tryParse(r['from']?.toString() ?? ''),
                 ),
@@ -1396,6 +1398,25 @@ class _ThqAccountingWorkspaceState extends State<ThqAccountingWorkspace> {
           ),
         ),
         actions: [
+          if (widget.openHistory != null &&
+              (row['journal_id'] != null || row['source_id'] != null))
+            TextButton.icon(
+              onPressed: () async {
+                try {
+                  await widget.openHistory!(row);
+                } catch (e) {
+                  if (ctx.mounted) {
+                    ScaffoldMessenger.of(ctx).showSnackBar(
+                      SnackBar(
+                        content: Text('Could not load audit history: $e'),
+                      ),
+                    );
+                  }
+                }
+              },
+              icon: const Icon(Icons.history, size: 16),
+              label: const Text('Audit history'),
+            ),
           TextButton(
             onPressed: () => Navigator.pop(ctx),
             child: const Text('Close'),

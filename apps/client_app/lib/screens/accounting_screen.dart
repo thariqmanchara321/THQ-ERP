@@ -8,6 +8,8 @@ import '../services/location_scope_service.dart';
 import 'accounting_controls_screen.dart';
 import 'sale_detail_screen.dart';
 import 'purchase_detail_screen.dart';
+import '../features/audit_intelligence/audit_intelligence_service.dart';
+import '../features/audit_intelligence/transaction_story_dialog.dart';
 
 class AccountingScreen extends StatelessWidget {
   final ClientSession session;
@@ -24,8 +26,9 @@ class AccountingScreen extends StatelessWidget {
       screen = PurchaseDetailScreen(session: session, purchaseId: id);
     }
     if (screen != null) {
-      await Navigator.of(context)
-          .push(MaterialPageRoute(builder: (_) => screen!));
+      await Navigator.of(
+        context,
+      ).push(MaterialPageRoute(builder: (_) => screen!));
     } else if (type == 'purchase_invoice_v484') {
       final response = await Supabase.instance.client.rpc(
         'purchase_invoice_detail_v484',
@@ -114,6 +117,17 @@ class AccountingScreen extends StatelessWidget {
           session.currencyCode,
         ),
         openSource: (row) => _source(context, row),
+        openHistory: (row) => showTransactionStoryDialog(
+          context: context,
+          service: AuditIntelligenceService(),
+          tenantId: session.business.id,
+          entityType: row['journal_id'] != null
+              ? 'journal_entry'
+              : row['source_type'].toString(),
+          entityId: (row['journal_id'] ?? row['source_id']).toString(),
+          session: session,
+          locationId: effective,
+        ),
         openControls: () => Navigator.of(context).push(
           MaterialPageRoute(
             builder: (_) => Scaffold(
