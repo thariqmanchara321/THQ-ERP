@@ -3,6 +3,7 @@ import 'package:erp_core/erp_core.dart';
 class PosSession {
   final String tenantId;
   final String businessName;
+  final String logoUrl;
   final String deviceId;
   final String deviceCode;
   final String deviceName;
@@ -18,6 +19,7 @@ class PosSession {
   const PosSession({
     required this.tenantId,
     required this.businessName,
+    this.logoUrl = '',
     required this.deviceId,
     required this.deviceCode,
     required this.deviceName,

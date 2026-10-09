@@ -93,23 +93,20 @@ class WorkspaceHero extends StatelessWidget {
         children: [
           Row(
             children: [
-              Container(
-                width: 42,
-                height: 42,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: Theme.of(
-                    context,
-                  ).colorScheme.surface.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(
-                    color: Theme.of(
-                      context,
-                    ).colorScheme.surface.withValues(alpha: 0.16),
-                  ),
-                ),
-                child: Text(
-                  'T',
+              ThqBusinessLogo(
+                logoUrl: session.logoUrl,
+                size: 42,
+                borderRadius: BorderRadius.circular(14),
+                backgroundColor: Theme.of(
+                  context,
+                ).colorScheme.surface.withValues(alpha: 0.15),
+                borderColor: Theme.of(
+                  context,
+                ).colorScheme.surface.withValues(alpha: 0.16),
+                fallback: Text(
+                  session.businessName.trim().isNotEmpty
+                      ? session.businessName.trim().substring(0, 1).toUpperCase()
+                      : 'T',
                   style: TextStyle(
                     color: scheme.onPrimary,
                     fontSize: 19,

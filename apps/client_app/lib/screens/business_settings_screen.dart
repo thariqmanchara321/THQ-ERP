@@ -1,24 +1,35 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:file_selector/file_selector.dart';
 import 'package:thq_ui/thq_ui.dart';
 import 'package:erp_core/erp_core.dart';
 
 import '../models/client_session.dart';
 import '../services/tenant_settings_service.dart';
+import '../services/invoice_template_service.dart';
 import '../widgets/additional_charges_dialog.dart';
 import 'custom_fields_screen.dart';
 import '../widgets/payment_method_ledger_settings.dart';
 
 class BusinessSettingsScreen extends StatefulWidget {
   final ClientSession session;
-  const BusinessSettingsScreen({super.key, required this.session});
+  final ValueChanged<Map<String, dynamic>>? onSettingsSaved;
+  const BusinessSettingsScreen({
+    super.key,
+    required this.session,
+    this.onSettingsSaved,
+  });
   @override
   State<BusinessSettingsScreen> createState() => _BusinessSettingsScreenState();
 }
 
 class _BusinessSettingsScreenState extends State<BusinessSettingsScreen> {
   final _service = TenantSettingsService();
+  final _templateService = InvoiceTemplateService();
+  final TextEditingController _logoController = TextEditingController();
   bool _loading = true;
   bool _saving = false;
+  bool _uploadingLogo = false;
   String? _error;
   Map<String, dynamic> _settings = {};
 
@@ -32,6 +43,12 @@ class _BusinessSettingsScreenState extends State<BusinessSettingsScreen> {
     _load();
   }
 
+  @override
+  void dispose() {
+    _logoController.dispose();
+    super.dispose();
+  }
+
   Future<void> _load() async {
     setState(() {
       _loading = true;
@@ -39,6 +56,7 @@ class _BusinessSettingsScreenState extends State<BusinessSettingsScreen> {
     });
     try {
       _settings = await _service.getSettings(widget.session.business.id);
+      _logoController.text = _value('business.logo_url', '');
     } catch (error) {
       _error = error.toString();
     } finally {
@@ -51,17 +69,91 @@ class _BusinessSettingsScreenState extends State<BusinessSettingsScreen> {
     return value is T ? value : fallback;
   }
 
+  Future<void> _pickAndUploadLogo() async {
+    if (!_canManage || _uploadingLogo) return;
+    try {
+      final file = await openFile(
+        acceptedTypeGroups: const [
+          XTypeGroup(
+            label: 'Logo image',
+            extensions: ['png', 'jpg', 'jpeg', 'webp'],
+          ),
+        ],
+      );
+      if (file == null || !mounted) return;
+      final ext = file.name.contains('.')
+          ? file.name.split('.').last.toLowerCase()
+          : 'png';
+      if (!const {'png', 'jpg', 'jpeg', 'webp'}.contains(ext)) {
+        if (!mounted) return;
+        ThqNotify.error(context, 'Please choose a PNG, JPG, or WEBP image.');
+        return;
+      }
+      setState(() => _uploadingLogo = true);
+      final bytes = await file.readAsBytes();
+      if (!mounted) return;
+      if (bytes.lengthInBytes > 5 * 1024 * 1024) {
+        ThqNotify.error(context, 'Logo image must be smaller than 5 MB.');
+        return;
+      }
+
+      String logoUrl = '';
+      try {
+        logoUrl = await _templateService.uploadBusinessLogo(
+          tenantId: widget.session.business.id,
+          bytes: bytes,
+          extension: ext == 'webp' ? 'png' : ext,
+        );
+      } catch (_) {
+        // Fallback: encode as base64 data URI so logo works even without cloud storage
+        final mime = ext == 'png' ? 'image/png' : 'image/jpeg';
+        logoUrl = 'data:$mime;base64,${base64Encode(bytes)}';
+      }
+
+      if (!mounted) return;
+      setState(() {
+        _settings['business.logo_url'] = logoUrl;
+        _logoController.text = logoUrl;
+      });
+      ThqNotify.success(
+        context,
+        'Logo selected. Click "Save Settings" below to apply across all devices.',
+      );
+    } catch (e) {
+      if (mounted) ThqNotify.error(context, 'Error selecting logo: $e');
+    } finally {
+      if (mounted) setState(() => _uploadingLogo = false);
+    }
+  }
+
+  void _removeLogo() {
+    setState(() {
+      _settings['business.logo_url'] = '';
+      _logoController.text = '';
+    });
+    ThqNotify.info(
+      context,
+      'Logo removed. Click "Save Settings" below to apply.',
+    );
+  }
+
   Future<void> _save() async {
     setState(() {
       _saving = true;
       _error = null;
     });
     try {
+      _settings['business.logo_url'] = _logoController.text.trim();
       await _service.setSettings(widget.session.business.id, _settings);
+      try {
+        widget.session.settings['business.logo_url'] =
+            _settings['business.logo_url'];
+      } catch (_) {}
+      widget.onSettingsSaved?.call(_settings);
       if (!mounted) return;
       ThqNotify.success(
         context,
-        'Business settings saved. Sign out/in to refresh session-wide settings.',
+        'Business settings and logo saved successfully.',
       );
     } catch (error) {
       if (mounted) setState(() => _error = error.toString());
@@ -141,16 +233,7 @@ class _BusinessSettingsScreenState extends State<BusinessSettingsScreen> {
                   onChanged: (v) => _settings['business.email'] = v,
                 ),
                 const SizedBox(height: 12),
-                TextFormField(
-                  initialValue: _value('business.logo_url', ''),
-                  enabled: _canManage,
-                  decoration: const InputDecoration(
-                    labelText: 'Business logo URL (optional)',
-                    helperText:
-                        'Used on invoice templates that show a logo. A branch logo overrides this.',
-                  ),
-                  onChanged: (v) => _settings['business.logo_url'] = v,
-                ),
+                _buildLogoCard(),
                 const SizedBox(height: 12),
                 TextFormField(
                   initialValue: _value('business.address', ''),
@@ -413,6 +496,114 @@ class _BusinessSettingsScreenState extends State<BusinessSettingsScreen> {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildLogoCard() {
+    final logoVal = _logoController.text.trim();
+    final scheme = Theme.of(context).colorScheme;
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: scheme.outlineVariant),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              ThqBusinessLogo(
+                logoUrl: logoVal,
+                size: 64,
+                borderRadius: BorderRadius.circular(14),
+                backgroundColor: Colors.white,
+                borderColor: scheme.outlineVariant,
+                fallback: Container(
+                  width: 64,
+                  height: 64,
+                  decoration: BoxDecoration(
+                    color: scheme.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: scheme.outlineVariant),
+                  ),
+                  child: Icon(
+                    Icons.add_photo_alternate_outlined,
+                    size: 28,
+                    color: scheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Business Logo',
+                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      'Visible on the sidebar across all 4 devices (Client Desktop, Client Mobile, POS, and Mobile POS) and printed receipts.',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: scheme.onSurfaceVariant,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        FilledButton.tonalIcon(
+                          onPressed: _canManage && !_uploadingLogo ? _pickAndUploadLogo : null,
+                          icon: _uploadingLogo
+                              ? const SizedBox(
+                                  width: 14,
+                                  height: 14,
+                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                )
+                              : const Icon(Icons.upload_rounded, size: 16),
+                          label: Text(
+                            _uploadingLogo
+                                ? 'Uploading...'
+                                : (logoVal.isNotEmpty ? 'Change Logo' : 'Upload Logo'),
+                          ),
+                        ),
+                        if (logoVal.isNotEmpty)
+                          OutlinedButton.icon(
+                            onPressed: _canManage && !_uploadingLogo ? _removeLogo : null,
+                            icon: const Icon(Icons.delete_outline_rounded, size: 16),
+                            label: const Text('Remove'),
+                          ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          TextFormField(
+            controller: _logoController,
+            enabled: _canManage && !_uploadingLogo,
+            decoration: const InputDecoration(
+              labelText: 'Logo Image URL',
+              prefixIcon: Icon(Icons.link_rounded),
+              helperText: 'Upload a logo file above, or paste an external HTTPS image URL.',
+            ),
+            onChanged: (v) {
+              setState(() {
+                _settings['business.logo_url'] = v.trim();
+              });
+            },
+          ),
+        ],
       ),
     );
   }

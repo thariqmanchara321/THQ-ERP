@@ -4,6 +4,7 @@ export 'src/components/thq_dialog.dart';
 export 'src/components/thq_appearance_button.dart';
 export 'src/components/thq_product_selection_header.dart';
 export 'src/components/thq_invoice_paper_scope.dart';
+export 'src/components/thq_business_logo.dart';
 
 export 'src/components/thq_buttons.dart';
 export 'src/components/thq_card.dart';

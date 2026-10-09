@@ -71,9 +71,21 @@ class MobilePosSessionService {
         .where((value) => value.isNotEmpty)
         .toSet();
 
+    String logoUrl = '';
+    try {
+      final v2SettingsRaw = await _supabase.rpc(
+        'tenant_settings_v2_get',
+        params: {'p_tenant_id': activation.tenantId},
+      );
+      if (v2SettingsRaw is Map) {
+        logoUrl = v2SettingsRaw['business.logo_url']?.toString() ?? '';
+      }
+    } catch (_) {}
+
     return PosSession(
       tenantId: activation.tenantId,
       businessName: activation.tenantName,
+      logoUrl: logoUrl,
       deviceId: activation.deviceId,
       deviceCode: map['device_code']?.toString() ?? activation.deviceCode,
       deviceName: map['device_name']?.toString() ?? activation.deviceName,

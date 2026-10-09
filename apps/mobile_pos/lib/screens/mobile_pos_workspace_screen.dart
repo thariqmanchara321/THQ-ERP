@@ -806,6 +806,7 @@ class _MoreWorkspace extends StatelessWidget {
         ],
         _IdentityCard(
           title: session.businessName,
+          logoUrl: session.logoUrl,
           rows: [
             ('User', session.username),
             ('Store', '${session.locationName} â€¢ ${session.locationCode}'),
@@ -1101,9 +1102,14 @@ class _OrderCard extends StatelessWidget {
 
 class _IdentityCard extends StatelessWidget {
   final String title;
+  final String? logoUrl;
   final List<(String, String)> rows;
 
-  const _IdentityCard({required this.title, required this.rows});
+  const _IdentityCard({
+    required this.title,
+    this.logoUrl,
+    required this.rows,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -1118,7 +1124,22 @@ class _IdentityCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: Theme.of(context).textTheme.titleLarge),
+          Row(
+            children: [
+              if (logoUrl != null && logoUrl!.trim().isNotEmpty) ...[
+                ThqBusinessLogo(
+                  logoUrl: logoUrl,
+                  size: 38,
+                  borderRadius: BorderRadius.circular(10),
+                  backgroundColor: scheme.surfaceContainerHighest,
+                ),
+                const SizedBox(width: 10),
+              ],
+              Expanded(
+                child: Text(title, style: Theme.of(context).textTheme.titleLarge),
+              ),
+            ],
+          ),
           const SizedBox(height: 10),
           for (var index = 0; index < rows.length; index++) ...[
             Row(
