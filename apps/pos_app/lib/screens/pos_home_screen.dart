@@ -852,24 +852,17 @@ class _PosHomeScreenState extends State<PosHomeScreen> {
                     ? MainAxisAlignment.start
                     : MainAxisAlignment.center,
                 children: [
-                  Container(
+                  ThqBusinessLogo(
+                    logoUrl: logo,
+                    size: 36,
                     width: 34,
                     height: 36,
-                    clipBehavior: Clip.antiAlias,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(8),
-                      color: profile.primary.withValues(alpha: .10),
+                    borderRadius: BorderRadius.circular(8),
+                    backgroundColor: profile.primary.withValues(alpha: .10),
+                    fallback: Icon(
+                      Icons.point_of_sale,
+                      color: profile.primary,
                     ),
-                    child: logo.isNotEmpty
-                        ? Image.network(
-                            logo,
-                            fit: BoxFit.contain,
-                            errorBuilder: (_, _, _) => Icon(
-                              Icons.point_of_sale,
-                              color: profile.primary,
-                            ),
-                          )
-                        : Icon(Icons.point_of_sale, color: profile.primary),
                   ),
                   if (showExpanded) ...[
                     const SizedBox(width: 7),

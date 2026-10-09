@@ -86,9 +86,21 @@ class MobileSessionService {
         .map((row) => MobileLocation.fromMap(Map<String, dynamic>.from(row)))
         .toList();
 
+    String logoUrl = '';
+    try {
+      final v2SettingsRaw = await _supabase.rpc(
+        'tenant_settings_v2_get',
+        params: {'p_tenant_id': activation.tenantId},
+      );
+      if (v2SettingsRaw is Map) {
+        logoUrl = v2SettingsRaw['business.logo_url']?.toString() ?? '';
+      }
+    } catch (_) {}
+
     return MobileSession(
       tenantId: activation.tenantId,
       businessName: activation.tenantName,
+      logoUrl: logoUrl,
       deviceId: activation.deviceId,
       deviceCode: runtime['device_code']?.toString() ?? activation.deviceCode,
       deviceName: runtime['device_name']?.toString() ?? activation.deviceName,

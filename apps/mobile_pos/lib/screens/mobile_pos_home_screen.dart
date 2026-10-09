@@ -1630,16 +1630,18 @@ class _State extends State<MobilePosHomeScreen> {
             children: [
               Row(
                 children: [
-                  Container(
-                    width: 40,
-                    height: 40,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.primary,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      'T',
+                  ThqBusinessLogo(
+                    logoUrl: widget.session.logoUrl,
+                    size: 40,
+                    borderRadius: BorderRadius.circular(12),
+                    backgroundColor: Theme.of(context).colorScheme.primary,
+                    fallback: Text(
+                      widget.session.businessName.trim().isNotEmpty
+                          ? widget.session.businessName
+                              .trim()
+                              .substring(0, 1)
+                              .toUpperCase()
+                          : 'T',
                       style: TextStyle(
                         color: Theme.of(context).colorScheme.onPrimary,
                         fontSize: 19,
@@ -1653,11 +1655,15 @@ class _State extends State<MobilePosHomeScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'THQ ERP',
-                          style: TextStyle(
+                          widget.session.businessName.trim().isNotEmpty
+                              ? widget.session.businessName
+                              : 'THQ ERP',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
                             color: Colors.white,
                             fontWeight: FontWeight.w600,
-                            fontSize: 17,
+                            fontSize: 16,
                           ),
                         ),
                         Text(

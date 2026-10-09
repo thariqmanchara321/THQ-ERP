@@ -387,6 +387,14 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
     super.dispose();
   }
 
+  void _onSettingsSaved(Map<String, dynamic> updated) {
+    setState(() {
+      final newSettings = Map<String, dynamic>.from(_session.settings);
+      newSettings.addAll(updated);
+      _session = _session.copyWith(settings: newSettings);
+    });
+  }
+
   Future<void> _logout() async {
     await _authService.signOut();
     if (!mounted) return;
@@ -620,6 +628,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
                                     child: _ModulePage(
                                       module: selected,
                                       session: _session,
+                                      onSettingsSaved: _onSettingsSaved,
                                       onBack: () => setState(
                                         () => _selectedModuleKey =
                                             _preferredLandingModuleKey(
@@ -741,6 +750,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
                 child: _ModulePage(
                   module: selected,
                   session: _session,
+                  onSettingsSaved: _onSettingsSaved,
                   onBack: () => setState(
                     () => _selectedModuleKey = _preferredLandingModuleKey(
                       _modules,
@@ -769,21 +779,29 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
             ? MainAxisAlignment.center
             : MainAxisAlignment.start,
         children: [
-          Container(
-            width: 38,
-            height: 38,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  profile?.primary ?? Theme.of(context).colorScheme.primary,
-                  profile?.accent ?? context.thqSemanticColors.warning,
-                ],
+          ThqBusinessLogo(
+            logoUrl: _session.setting('business.logo_url', '')?.toString(),
+            size: 38,
+            borderRadius: BorderRadius.circular(14),
+            padding: const EdgeInsets.all(2),
+            backgroundColor: Colors.white,
+            borderColor: Theme.of(context).colorScheme.outlineVariant,
+            fallback: Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    profile?.primary ?? Theme.of(context).colorScheme.primary,
+                    profile?.accent ?? context.thqSemanticColors.warning,
+                  ],
+                ),
+                borderRadius: BorderRadius.circular(14),
               ),
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: Icon(
-              Icons.grid_view_rounded,
-              color: Theme.of(context).colorScheme.onSurface,
+              child: Icon(
+                Icons.grid_view_rounded,
+                color: Theme.of(context).colorScheme.onSurface,
+              ),
             ),
           ),
           if (!collapsed) ...[
@@ -1523,9 +1541,15 @@ class _SubscriptionBanner extends StatelessWidget {
 class _ModulePage extends StatelessWidget {
   final ClientModule module;
   final ClientSession session;
-
   final VoidCallback? onBack;
-  const _ModulePage({required this.module, required this.session, this.onBack});
+  final ValueChanged<Map<String, dynamic>>? onSettingsSaved;
+
+  const _ModulePage({
+    required this.module,
+    required this.session,
+    this.onBack,
+    this.onSettingsSaved,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -1573,7 +1597,10 @@ class _ModulePage extends StatelessWidget {
       'payments' => PaymentCenterScreen(session: session),
       'bulk_import' => BulkImportScreen(session: session),
       'logs' => ErrorLogsScreen(session: session),
-      'settings' => BusinessSettingsScreen(session: session),
+      'settings' => BusinessSettingsScreen(
+        session: session,
+        onSettingsSaved: onSettingsSaved,
+      ),
       'locations' => LocationsScreen(session: session),
       'users' => TeamAccessScreen(session: session),
       'production' => ProductionScreen(session: session),

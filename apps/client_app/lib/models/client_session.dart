@@ -233,4 +233,38 @@ class ClientSession {
 
   dynamic setting(String key, [dynamic fallback]) =>
       settings.containsKey(key) ? settings[key] : fallback;
+
+  ClientSession copyWith({
+    ClientBusiness? business,
+    String? userId,
+    String? username,
+    List<ClientModule>? modules,
+    Set<String>? roles,
+    Set<String>? permissions,
+    String? currencyCode,
+    String? timezone,
+    String? locale,
+    ClientSubscription? subscription,
+    Map<String, dynamic>? settings,
+    ClientDeviceContext? device,
+    List<ClientLocationAccess>? locations,
+    bool? canViewAllLocations,
+  }) {
+    return ClientSession(
+      business: business ?? this.business,
+      userId: userId ?? this.userId,
+      username: username ?? this.username,
+      modules: modules ?? this.modules,
+      roles: roles ?? this.roles,
+      permissions: permissions ?? this.permissions,
+      currencyCode: currencyCode ?? this.currencyCode,
+      timezone: timezone ?? this.timezone,
+      locale: locale ?? this.locale,
+      subscription: subscription ?? this.subscription,
+      settings: settings ?? this.settings,
+      device: device ?? this.device,
+      locations: locations ?? this.locations,
+      canViewAllLocations: canViewAllLocations ?? this.canViewAllLocations,
+    );
+  }
 }
