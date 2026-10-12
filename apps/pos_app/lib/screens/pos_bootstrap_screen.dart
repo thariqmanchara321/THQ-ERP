@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:thq_ui/thq_ui.dart';
 import '../models/client_session.dart';
 import '../services/client_session_service.dart';
+import '../services/device_installation_service.dart';
+import 'pos_entry_screen.dart';
 import 'pos_home_screen.dart';
 
 class PosBootstrapScreen extends StatefulWidget {
@@ -18,7 +21,38 @@ class _PosBootstrapScreenState extends State<PosBootstrapScreen> {
   @override
   void initState() {
     super.initState();
-    _future = _service.getAvailableBusinesses();
+    _future = _load();
+  }
+
+  Future<List<ClientBusiness>> _load() async {
+    final act = await DeviceInstallationService().readAndVerifyActivation();
+    if (act == null) {
+      await DeviceInstallationService().clearActivation();
+      try {
+        await Supabase.instance.client.auth.signOut();
+      } catch (_) {}
+      if (mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const PosEntryScreen()),
+        );
+      }
+      return const [];
+    }
+    final rows = await _service.getAvailableBusinesses();
+    if (rows.isEmpty) {
+      await DeviceInstallationService().clearActivation();
+      try {
+        await Supabase.instance.client.auth.signOut();
+      } catch (_) {}
+      if (mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const PosEntryScreen()),
+        );
+      }
+    }
+    return rows;
   }
 
   Future<void> _open(ClientBusiness business) async {

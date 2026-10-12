@@ -12,7 +12,7 @@ class PosEntryScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<DeviceActivation?>(
-      future: DeviceInstallationService().readActivation(),
+      future: DeviceInstallationService().readAndVerifyActivation(),
       builder: (context, snapshot) {
         if (snapshot.connectionState != ConnectionState.done) {
           return const Scaffold(

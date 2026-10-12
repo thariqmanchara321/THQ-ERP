@@ -4,9 +4,10 @@ import '../models/client_session.dart';
 import '../services/backend_compatibility_service.dart';
 import '../services/client_auth_service.dart';
 import '../services/client_session_service.dart';
+import '../services/device_installation_service.dart';
 import 'business_selector_screen.dart';
+import 'client_entry_screen.dart';
 import 'client_home_screen.dart';
-import 'client_login_screen.dart';
 
 class ClientBootstrapScreen extends StatefulWidget {
   const ClientBootstrapScreen({super.key});
@@ -32,11 +33,40 @@ class _ClientBootstrapScreenState extends State<ClientBootstrapScreen> {
   }
 
   Future<List<ClientBusiness>> _loadBusinesses() async {
+    final act = await DeviceInstallationService().readAndVerifyActivation();
+    if (act == null) {
+      await DeviceInstallationService().clearActivation();
+      try {
+        await _authService.signOut();
+      } catch (_) {}
+      if (mounted) {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const ClientEntryScreen()),
+          (_) => false,
+        );
+      }
+      return const [];
+    }
+
     await _backendCompatibility.verify();
-    return _sessionService.getAvailableBusinesses();
+    final businesses = await _sessionService.getAvailableBusinesses();
+    if (businesses.isEmpty) {
+      await DeviceInstallationService().clearActivation();
+      try {
+        await _authService.signOut();
+      } catch (_) {}
+      if (mounted) {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const ClientEntryScreen()),
+          (_) => false,
+        );
+      }
+    }
+    return businesses;
   }
 
   Future<void> _logout() async {
+    await DeviceInstallationService().clearActivation();
     await _authService.signOut();
 
     if (!mounted) {
@@ -44,7 +74,7 @@ class _ClientBootstrapScreenState extends State<ClientBootstrapScreen> {
     }
 
     Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => const ClientLoginScreen()),
+      MaterialPageRoute(builder: (_) => const ClientEntryScreen()),
       (_) => false,
     );
   }

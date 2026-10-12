@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:thq_ui/thq_ui.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -27,6 +28,22 @@ class _ClientLoginScreenState extends State<ClientLoginScreen> {
   bool _hidePassword = true;
 
   String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_verifyActivationOnline());
+  }
+
+  Future<void> _verifyActivationOnline() async {
+    final act = await DeviceInstallationService().readAndVerifyActivation();
+    if (act == null && mounted) {
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const ClientEntryScreen()),
+        (_) => false,
+      );
+    }
+  }
 
   Future<void> _login() async {
     final username = _usernameController.text.trim();
@@ -63,6 +80,26 @@ class _ClientLoginScreenState extends State<ClientLoginScreen> {
         return;
       }
 
+      final isRevokedOrDeleted = error.message.toLowerCase().contains('business_deleted') ||
+          error.message.toLowerCase().contains('device_revoked') ||
+          error.message.toLowerCase().contains('inactive') ||
+          error.message.toLowerCase().contains('revoked') ||
+          error.message.toLowerCase().contains('device_invalid') ||
+          error.message.toLowerCase().contains('not found');
+      if (isRevokedOrDeleted) {
+        await DeviceInstallationService().clearActivation();
+        try {
+          await Supabase.instance.client.auth.signOut();
+        } catch (_) {}
+        if (mounted) {
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(builder: (_) => const ClientEntryScreen()),
+            (_) => false,
+          );
+        }
+        return;
+      }
+
       setState(() {
         _error = error.message;
       });
@@ -72,6 +109,26 @@ class _ClientLoginScreenState extends State<ClientLoginScreen> {
       }
 
       final raw = error.toString().replaceFirst(RegExp(r'^Exception:\s*'), '');
+      final isRevokedOrDeleted = raw.toLowerCase().contains('business_deleted') ||
+          raw.toLowerCase().contains('device_revoked') ||
+          raw.toLowerCase().contains('inactive') ||
+          raw.toLowerCase().contains('revoked') ||
+          raw.toLowerCase().contains('device_invalid') ||
+          raw.toLowerCase().contains('not found');
+      if (isRevokedOrDeleted) {
+        await DeviceInstallationService().clearActivation();
+        try {
+          await Supabase.instance.client.auth.signOut();
+        } catch (_) {}
+        if (mounted) {
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(builder: (_) => const ClientEntryScreen()),
+            (_) => false,
+          );
+        }
+        return;
+      }
+
       setState(() {
         _error = raw.isNotEmpty ? raw : 'Login failed. Please try again.';
       });

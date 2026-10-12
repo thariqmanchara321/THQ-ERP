@@ -9,7 +9,7 @@ class MobileSessionService {
   SupabaseClient get _supabase => Supabase.instance.client;
 
   Future<MobileSession> load() async {
-    final activation = await DeviceInstallationService().readActivation();
+    final activation = await DeviceInstallationService().readAndVerifyActivation();
     if (activation == null) {
       throw StateError('Client Mobile is not activated.');
     }

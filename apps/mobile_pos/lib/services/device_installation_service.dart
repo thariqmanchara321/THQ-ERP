@@ -131,6 +131,46 @@ class DeviceInstallationService {
     return activation;
   }
 
+  Future<DeviceActivation?> readAndVerifyActivation() async {
+    final activation = await readActivation();
+    if (activation == null) return null;
+
+    try {
+      final res = await _supabase.rpc(
+        'verify_device_binding_v704',
+        params: {
+          'p_device_id': activation.deviceId,
+          'p_tenant_id': activation.tenantId,
+        },
+      ).timeout(const Duration(seconds: 8));
+
+      if (res is Map) {
+        final valid = res['valid'] == true;
+        if (!valid) {
+          await clearActivation();
+          try {
+            await _supabase.auth.signOut();
+          } catch (_) {}
+          return null;
+        }
+      }
+    } catch (e) {
+      final msg = e.toString().toLowerCase();
+      if (msg.contains('business_deleted') ||
+          msg.contains('device_revoked') ||
+          msg.contains('inactive') ||
+          msg.contains('not found')) {
+        await clearActivation();
+        try {
+          await _supabase.auth.signOut();
+        } catch (_) {}
+        return null;
+      }
+    }
+
+    return activation;
+  }
+
   Future<void> clearActivation() async {
     for (final key in [
       'tenant_id',

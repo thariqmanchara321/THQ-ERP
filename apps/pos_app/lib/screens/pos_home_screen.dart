@@ -22,7 +22,9 @@ import 'expenses_screen.dart';
 import 'inventory_products_screen.dart';
 import 'loan_screen.dart';
 import 'notifications_screen.dart';
+import '../services/device_installation_service.dart';
 import 'offline_pos_sync_screen.dart';
+import 'pos_entry_screen.dart';
 import 'pos_login_screen.dart';
 import 'pos_screen.dart';
 import 'pos_settings_screen.dart';
@@ -91,9 +93,40 @@ class _PosHomeScreenState extends State<PosHomeScreen> {
     if (locationId != null && locationId.isNotEmpty) {
       LocationScopeService.selectedLocationId.value = locationId;
     }
-    unawaited(DeviceHeartbeatService().send(_session));
+    unawaited(_sendHeartbeat());
     unawaited(_loadMenu());
     _startSyncMonitor();
+  }
+
+  Future<void> _handleDeletedBusinessOrDevice() async {
+    _syncWarmupTimer?.cancel();
+    _syncTimer?.cancel();
+    await DeviceInstallationService().clearActivation();
+    try {
+      await ClientAuthService().signOut();
+    } catch (_) {}
+    if (mounted) {
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const PosEntryScreen()),
+        (_) => false,
+      );
+    }
+  }
+
+  Future<void> _sendHeartbeat() async {
+    try {
+      await DeviceHeartbeatService().send(_session);
+    } catch (error) {
+      final msg = error.toString().toLowerCase();
+      if (msg.contains('business is inactive') ||
+          msg.contains('system installation is not active') ||
+          msg.contains('business_deleted') ||
+          msg.contains('device_revoked') ||
+          msg.contains('access denied') ||
+          msg.contains('not found')) {
+        await _handleDeletedBusinessOrDevice();
+      }
+    }
   }
 
   void _startSyncMonitor() {
@@ -126,8 +159,14 @@ class _PosHomeScreenState extends State<PosHomeScreen> {
         // to Refresh so Billing/cart state cannot be interrupted.
         setState(() => _updatesAvailable = true);
       }
-    } catch (_) {
-      // Background drift detection is intentionally non-blocking.
+    } catch (error) {
+      final msg = error.toString().toLowerCase();
+      if (msg.contains('business is inactive') ||
+          msg.contains('business_deleted') ||
+          msg.contains('not found') ||
+          msg.contains('access denied')) {
+        await _handleDeletedBusinessOrDevice();
+      }
     } finally {
       _syncCheckBusy = false;
     }

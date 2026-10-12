@@ -22,12 +22,12 @@ class _MobilePosEntryScreenState extends State<MobilePosEntryScreen> {
   @override
   void initState() {
     super.initState();
-    _activation = DeviceInstallationService().readActivation();
+    _activation = DeviceInstallationService().readAndVerifyActivation();
   }
 
   void _reloadActivation() {
     setState(() {
-      _activation = DeviceInstallationService().readActivation();
+      _activation = DeviceInstallationService().readAndVerifyActivation();
     });
   }
 
@@ -50,9 +50,12 @@ class _MobilePosEntryScreenState extends State<MobilePosEntryScreen> {
           return _ActivationView(onDone: _reloadActivation);
         }
         if (Supabase.instance.client.auth.currentSession == null) {
-          return _LoginView(onDone: () => setState(() {}));
+          return _LoginView(
+            onDone: () => setState(() {}),
+            onReset: _reloadActivation,
+          );
         }
-        return const _SessionLoader();
+        return _SessionLoader(onReset: _reloadActivation);
       },
     );
   }
@@ -170,8 +173,9 @@ class _ActivationViewState extends State<_ActivationView> {
 
 class _LoginView extends StatefulWidget {
   final VoidCallback onDone;
+  final VoidCallback? onReset;
 
-  const _LoginView({required this.onDone});
+  const _LoginView({required this.onDone, this.onReset});
 
   @override
   State<_LoginView> createState() => _LoginViewState();
@@ -183,6 +187,16 @@ class _LoginViewState extends State<_LoginView> {
   bool _busy = false;
   bool _showPassword = false;
   String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    DeviceInstallationService().readAndVerifyActivation().then((act) {
+      if (act == null && mounted) {
+        widget.onReset?.call();
+      }
+    });
+  }
 
   @override
   void dispose() {
@@ -208,6 +222,21 @@ class _LoginViewState extends State<_LoginView> {
       );
       widget.onDone();
     } catch (error) {
+      final msg = error.toString().toLowerCase();
+      if (msg.contains('revoked') ||
+          msg.contains('business_deleted') ||
+          msg.contains('business not found') ||
+          msg.contains('not found') ||
+          msg.contains('inactive')) {
+        await DeviceInstallationService().clearActivation();
+        try {
+          await Supabase.instance.client.auth.signOut();
+        } catch (_) {}
+        if (mounted) {
+          widget.onReset?.call();
+          return;
+        }
+      }
       if (mounted) setState(() => _error = error.toString());
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -290,7 +319,9 @@ class _LoginViewState extends State<_LoginView> {
 }
 
 class _SessionLoader extends StatefulWidget {
-  const _SessionLoader();
+  final VoidCallback? onReset;
+
+  const _SessionLoader({this.onReset});
 
   @override
   State<_SessionLoader> createState() => _SessionLoaderState();
@@ -318,6 +349,20 @@ class _SessionLoaderState extends State<_SessionLoader> {
           return const ThqMobileLoadingPage(label: 'Preparing the POS…');
         }
         if (snapshot.hasError) {
+          final errStr = snapshot.error.toString().toLowerCase();
+          if (errStr.contains('not activated') ||
+              errStr.contains('not have access') ||
+              errStr.contains('inactive') ||
+              errStr.contains('deleted') ||
+              errStr.contains('revoked')) {
+            WidgetsBinding.instance.addPostFrameCallback((_) async {
+              await DeviceInstallationService().clearActivation();
+              try {
+                await Supabase.instance.client.auth.signOut();
+              } catch (_) {}
+              widget.onReset?.call();
+            });
+          }
           return ThqMobileFailurePage(
             title: 'Could not open Mobile POS',
             message: snapshot.error.toString(),

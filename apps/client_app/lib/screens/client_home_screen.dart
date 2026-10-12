@@ -25,6 +25,7 @@ import 'approvals_screen.dart';
 import 'backup_export_screen.dart';
 import 'bulk_import_screen.dart';
 import 'business_settings_screen.dart';
+import 'client_entry_screen.dart';
 import 'client_login_screen.dart';
 import 'customers_screen.dart';
 import 'dashboard_screen.dart';
@@ -220,12 +221,43 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
       tenantId: _session.business.id,
       appKey: 'client',
     );
-    unawaited(DeviceHeartbeatService().send(_session));
+    unawaited(_sendHeartbeat());
     unawaited(_loadNavigation());
     _startSyncMonitor();
     final modules = _modules;
     if (modules.isNotEmpty) {
       _selectedModuleKey = _preferredLandingModuleKey(modules);
+    }
+  }
+
+  Future<void> _handleDeletedBusinessOrDevice() async {
+    _syncWarmupTimer?.cancel();
+    _syncTimer?.cancel();
+    await DeviceInstallationService().clearActivation();
+    try {
+      await _authService.signOut();
+    } catch (_) {}
+    if (mounted) {
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const ClientEntryScreen()),
+        (_) => false,
+      );
+    }
+  }
+
+  Future<void> _sendHeartbeat() async {
+    try {
+      await DeviceHeartbeatService().send(_session);
+    } catch (error) {
+      final msg = error.toString().toLowerCase();
+      if (msg.contains('business is inactive') ||
+          msg.contains('system installation is not active') ||
+          msg.contains('business_deleted') ||
+          msg.contains('device_revoked') ||
+          msg.contains('access denied') ||
+          msg.contains('not found')) {
+        await _handleDeletedBusinessOrDevice();
+      }
     }
   }
 
@@ -257,8 +289,14 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
         // launch a full application refresh or interrupt the active workspace.
         setState(() => _updatesAvailable = true);
       }
-    } catch (_) {
-      // Quiet background detection; explicit Refresh shows actionable failures.
+    } catch (error) {
+      final msg = error.toString().toLowerCase();
+      if (msg.contains('business is inactive') ||
+          msg.contains('business_deleted') ||
+          msg.contains('not found') ||
+          msg.contains('access denied')) {
+        await _handleDeletedBusinessOrDevice();
+      }
     } finally {
       _syncCheckBusy = false;
     }
@@ -308,6 +346,10 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
       final businesses = await _sessionService.getAvailableBusinesses().timeout(
         const Duration(seconds: 20),
       );
+      if (businesses.isEmpty) {
+        await _handleDeletedBusinessOrDevice();
+        return;
+      }
       final currentBusiness = businesses.firstWhere(
         (business) => business.id == _session.business.id,
         orElse: () => _session.business,
@@ -345,7 +387,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
       if (!mounted) return;
       _updatesAvailable = false;
       setState(() => _contentGeneration++);
-      unawaited(DeviceHeartbeatService().send(refreshed));
+      unawaited(_sendHeartbeat());
       if (!mounted) return;
       ThqNotify.showSnackBar(
         context,
@@ -356,6 +398,16 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
         ),
       );
     } catch (error) {
+      final msg = error.toString().toLowerCase();
+      if (msg.contains('business is inactive') ||
+          msg.contains('system installation is not active') ||
+          msg.contains('business_deleted') ||
+          msg.contains('device_revoked') ||
+          msg.contains('access denied') ||
+          msg.contains('not found')) {
+        await _handleDeletedBusinessOrDevice();
+        return;
+      }
       if (mounted) {
         ThqNotify.showSnackBar(
           context,

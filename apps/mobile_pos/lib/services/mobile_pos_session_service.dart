@@ -9,7 +9,7 @@ class MobilePosSessionService {
   SupabaseClient get _supabase => Supabase.instance.client;
 
   Future<PosSession> load() async {
-    final activation = await DeviceInstallationService().readActivation();
+    final activation = await DeviceInstallationService().readAndVerifyActivation();
     if (activation == null) {
       throw StateError('Mobile POS is not activated.');
     }
