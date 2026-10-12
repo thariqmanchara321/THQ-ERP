@@ -6,6 +6,7 @@ import '../services/location_scope_service.dart';
 import '../services/operational_export_service.dart';
 import '../services/staff_load_service.dart';
 import '../widgets/record_preview.dart';
+import 'material_yard_crusher_report_screen.dart';
 
 class MaterialLoadReportsScreen extends StatefulWidget {
   final ClientSession session;
@@ -191,10 +192,24 @@ class _MaterialLoadReportsScreenState extends State<MaterialLoadReportsScreen> {
       appBar: AppBar(
         title: const Text('Material Yard • Load reports'),
         actions: [
+          FilledButton.tonalIcon(
+            onPressed: () => Navigator.push<void>(
+              context,
+              MaterialPageRoute(
+                builder: (_) => MaterialYardCrusherReportScreen(
+                  session: widget.session,
+                ),
+              ),
+            ),
+            icon: const Icon(Icons.table_chart_outlined, size: 16),
+            label: const Text('Crusher Register'),
+          ),
+          const SizedBox(width: 8),
           IconButton(
             onPressed: _busy ? null : _reload,
             icon: const Icon(Icons.refresh),
           ),
+          const SizedBox(width: 8),
         ],
       ),
       body: Column(

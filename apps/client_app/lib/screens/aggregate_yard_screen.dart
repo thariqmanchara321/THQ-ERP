@@ -10,6 +10,7 @@ import 'aggregate_orders_screen.dart';
 import 'aggregate_vehicles_screen.dart';
 import 'customers_screen.dart';
 import 'aggregate_yard_stock_screen.dart';
+import 'material_yard_crusher_report_screen.dart';
 import 'reports_screen.dart';
 import 'suppliers_screen.dart';
 import 'transport_logistics_hub_screen.dart';
@@ -238,6 +239,15 @@ class _AggregateYardScreenState extends State<AggregateYardScreen> {
                           runSpacing: 8,
                           children: [
                             _SmallAction(
+                              icon: Icons.table_chart_outlined,
+                              label: 'Crusher Register',
+                              onTap: () => _open(
+                                MaterialYardCrusherReportScreen(
+                                  session: session,
+                                ),
+                              ),
+                            ),
+                            _SmallAction(
                               icon: Icons.insights_outlined,
                               label: 'Reports',
                               onTap: () => _openWorkspace(
@@ -348,6 +358,16 @@ class _AggregateYardScreenState extends State<AggregateYardScreen> {
                         spacing: gap,
                         runSpacing: gap,
                         children: [
+                          _ActionCard(
+                            width: actionWidth,
+                            icon: Icons.table_chart_outlined,
+                            title: 'Crusher Register',
+                            subtitle:
+                                'Daily crusher loads, vehicle quantities, rates & purchase totals.',
+                            onTap: () => _open(
+                              MaterialYardCrusherReportScreen(session: session),
+                            ),
+                          ),
                           _ActionCard(
                             width: actionWidth,
                             icon: Icons.inventory_2_outlined,

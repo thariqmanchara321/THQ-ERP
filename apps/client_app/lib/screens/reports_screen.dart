@@ -1,4 +1,5 @@
 import 'material_load_reports_screen.dart';
+import 'material_yard_crusher_report_screen.dart';
 import 'staff_screen.dart';
 
 import 'package:flutter/material.dart';
@@ -237,7 +238,19 @@ class _ReportsScreenState extends State<ReportsScreen> {
             child: LayoutBuilder(
               builder: (context, constraints) {
                 final controls = <Widget>[
-                  if (widget.session.hasModule('aggregate_yard'))
+                  if (widget.session.hasModule('aggregate_yard')) ...[
+                    OutlinedButton.icon(
+                      onPressed: () => Navigator.push<void>(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => MaterialYardCrusherReportScreen(
+                            session: widget.session,
+                          ),
+                        ),
+                      ),
+                      icon: const Icon(Icons.table_chart_outlined),
+                      label: const Text('Crusher Register'),
+                    ),
                     OutlinedButton.icon(
                       onPressed: () => Navigator.push<void>(
                         context,
@@ -250,6 +263,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                       icon: const Icon(Icons.local_shipping_outlined),
                       label: const Text('Loads, drivers & costs'),
                     ),
+                  ],
                   if (widget.session.hasModule('staff') &&
                       (widget.session.hasRole('owner') ||
                           widget.session.hasPermission('staff.view')))
