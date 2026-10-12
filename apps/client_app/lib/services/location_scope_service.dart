@@ -1,5 +1,8 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
+import '../config/supabase_config.dart';
 import '../models/client_session.dart';
 
 /// Central location/store context for V4.2.
@@ -10,22 +13,44 @@ import '../models/client_session.dart';
 class LocationScopeService {
   LocationScopeService._();
 
+  static const FlutterSecureStorage _storage = FlutterSecureStorage();
+
   static final ValueNotifier<String?> selectedLocationId =
       ValueNotifier<String?>(null);
+
+  static String _storageKey(String tenantId) {
+    if (SupabaseConfig.environment == 'production') {
+      return 'flexi.selected_location.$tenantId';
+    }
+    return '${SupabaseConfig.environment}.flexi.selected_location.$tenantId';
+  }
 
   static void initialize(ClientSession session) {
     if (session.canViewAllLocations) {
       selectedLocationId.value = null; // All Stores is the owner/admin default.
-      return;
+    } else {
+      final deviceLocation = session.device?.locationId;
+      if (deviceLocation != null && session.canAccessLocation(deviceLocation)) {
+        selectedLocationId.value = deviceLocation;
+      } else {
+        selectedLocationId.value = session.locations.isEmpty
+            ? null
+            : orderedLocations(session).first.id;
+      }
     }
-    final deviceLocation = session.device?.locationId;
-    if (deviceLocation != null && session.canAccessLocation(deviceLocation)) {
-      selectedLocationId.value = deviceLocation;
-      return;
-    }
-    selectedLocationId.value = session.locations.isEmpty
-        ? null
-        : orderedLocations(session).first.id;
+    unawaited(_restoreSavedLocation(session));
+  }
+
+  static Future<void> _restoreSavedLocation(ClientSession session) async {
+    try {
+      final key = _storageKey(session.business.id);
+      final savedId = await _storage.read(key: key);
+      if (savedId != null &&
+          savedId.isNotEmpty &&
+          session.canAccessLocation(savedId)) {
+        selectedLocationId.value = savedId;
+      }
+    } catch (_) {}
   }
 
   static List<ClientLocationAccess> orderedLocations(ClientSession session) {
@@ -76,6 +101,7 @@ class LocationScopeService {
       throw StateError('This user cannot view all stores.');
     }
     selectedLocationId.value = null;
+    unawaited(_storage.delete(key: _storageKey(session.business.id)));
   }
 
   static void select(ClientSession session, String locationId) {
@@ -83,6 +109,10 @@ class LocationScopeService {
       throw StateError('This user cannot access the selected store.');
     }
     selectedLocationId.value = locationId;
+    unawaited(_storage.write(
+      key: _storageKey(session.business.id),
+      value: locationId,
+    ));
   }
 
   static String? currentForRead(ClientSession session) {

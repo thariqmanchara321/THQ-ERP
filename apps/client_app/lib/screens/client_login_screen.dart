@@ -71,8 +71,9 @@ class _ClientLoginScreenState extends State<ClientLoginScreen> {
         return;
       }
 
+      final raw = error.toString().replaceFirst(RegExp(r'^Exception:\s*'), '');
       setState(() {
-        _error = 'Login failed. Please try again.';
+        _error = raw.isNotEmpty ? raw : 'Login failed. Please try again.';
       });
     } finally {
       if (mounted) {
@@ -94,7 +95,7 @@ class _ClientLoginScreenState extends State<ClientLoginScreen> {
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
-          title: const Text('Change Store / Business'),
+          title: const Text('Change Store / Business Binding'),
           content: SizedBox(
             width: 390,
             child: Column(
@@ -102,7 +103,7 @@ class _ClientLoginScreenState extends State<ClientLoginScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const Text(
-                  'Owner or administrator authorization is required before this installation can be changed.',
+                  'Owner or administrator authorization is required to release this system binding and connect to a different store or business.',
                 ),
                 const SizedBox(height: 16),
                 TextField(
@@ -149,7 +150,7 @@ class _ClientLoginScreenState extends State<ClientLoginScreen> {
                 'password': adminPassword.text,
               }),
               icon: const Icon(Icons.verified_user_outlined),
-              label: const Text('Authorize & Change'),
+              label: const Text('Authorize & Reset Binding'),
             ),
           ],
         ),
@@ -187,11 +188,13 @@ class _ClientLoginScreenState extends State<ClientLoginScreen> {
       );
     } on AuthException catch (error) {
       if (mounted) setState(() => _error = error.message);
-    } catch (_) {
+    } catch (error) {
       if (mounted) {
+        final raw = error.toString().replaceFirst(RegExp(r'^Exception:\s*'), '');
         setState(
-          () => _error =
-              'Could not change this store/business. Owner/admin authorization failed.',
+          () => _error = raw.isNotEmpty
+              ? raw
+              : 'Could not change this store/business. Owner/admin authorization failed.',
         );
       }
     } finally {

@@ -578,6 +578,12 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
                     onTap: () => setState(() => _navCollapsed = !_navCollapsed),
                   ),
                   _navAction(
+                    icon: Icons.store_mall_directory_outlined,
+                    label: 'Change Store',
+                    collapsed: _navCollapsed,
+                    onTap: _showChangeStoreDialog,
+                  ),
+                  _navAction(
                     icon: Icons.logout_rounded,
                     label: 'Sign Out',
                     collapsed: _navCollapsed,
@@ -1496,7 +1502,112 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
       },
     );
   }
+
+  Future<void> _showChangeStoreDialog() async {
+    final locations = LocationScopeService.orderedLocations(_session);
+    final canAll = _session.canViewAllLocations;
+    if (locations.length <= 1 && !canAll) {
+      ThqNotify.showSnackBar(
+        context,
+        SnackBar(
+          content: Text(
+            '${_session.business.name} currently has 1 store (${_session.locations.firstOrNull?.name ?? "Main"}). To add more stores, visit Stores & Systems in Settings.',
+          ),
+        ),
+      );
+      return;
+    }
+
+    final currentId = LocationScopeService.selectedLocationId.value;
+
+    await showThqDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Row(
+          children: [
+            const Icon(Icons.store_mall_directory_outlined),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Select Active Store / Branch'),
+                  Text(
+                    _session.business.name,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        content: SizedBox(
+          width: 420,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (canAll)
+                ListTile(
+                  leading: const Icon(Icons.hub_outlined),
+                  title: const Text('All Stores (Merged Scope)'),
+                  subtitle: const Text(
+                    'View consolidated sales, stock and financials across all locations',
+                  ),
+                  trailing: currentId == null
+                      ? const Icon(Icons.check_circle, color: Colors.teal)
+                      : null,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  selected: currentId == null,
+                  onTap: () {
+                    Navigator.pop(dialogContext);
+                    LocationScopeService.selectAll(_session);
+                  },
+                ),
+              if (canAll && locations.isNotEmpty) const Divider(),
+              ...locations.map((loc) {
+                final isSelected = loc.id == currentId;
+                return ListTile(
+                  leading: Icon(
+                    loc.isMain
+                        ? Icons.store_mall_directory
+                        : Icons.storefront_outlined,
+                  ),
+                  title: Text('${loc.code} • ${loc.name}'),
+                  subtitle: Text(
+                    '${loc.roleLabel} • ${loc.type.toUpperCase()}',
+                  ),
+                  trailing: isSelected
+                      ? const Icon(Icons.check_circle, color: Colors.teal)
+                      : null,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  selected: isSelected,
+                  onTap: () {
+                    Navigator.pop(dialogContext);
+                    LocationScopeService.select(_session, loc.id);
+                  },
+                );
+              }),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
 }
+
 
 class _SubscriptionBanner extends StatelessWidget {
   final ClientSession session;

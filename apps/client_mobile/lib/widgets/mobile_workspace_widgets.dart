@@ -105,7 +105,10 @@ class WorkspaceHero extends StatelessWidget {
                 ).colorScheme.surface.withValues(alpha: 0.16),
                 fallback: Text(
                   session.businessName.trim().isNotEmpty
-                      ? session.businessName.trim().substring(0, 1).toUpperCase()
+                      ? session.businessName
+                            .trim()
+                            .substring(0, 1)
+                            .toUpperCase()
                       : 'T',
                   style: TextStyle(
                     color: scheme.onPrimary,
