@@ -40,14 +40,63 @@ Deno.serve(async (req) => {
       const suppliedHash = await sha256(deviceSecret)
       const { data: installation } = await admin.from('system_installations')
         .select('id,secret_hash,status').eq('system_id', deviceId).eq('status', 'active').maybeSingle()
-      if (!data || data.status !== 'active' || data.app_type !== appKey || data.device_secret_hash !== suppliedHash || !installation || installation.secret_hash !== suppliedHash) {
-        return json({ error: 'Device registration is invalid or revoked.', code:'DEVICE_INVALID' }, 403)
+
+      const isRegistrationValid = data && data.status === 'active' && data.app_type === appKey && data.device_secret_hash === suppliedHash && installation && installation.secret_hash === suppliedHash
+
+      if (!isRegistrationValid) {
+        // If caller is authorizing a binding change (reset/unbind), allow it to unbind an already inactive/invalid device
+        if (authorizationScope === 'change_binding' && data && data.tenant_id) {
+          device = data
+        } else {
+          return json({ error: 'Device registration is invalid or revoked.', code:'DEVICE_INVALID' }, 403)
+        }
+      } else {
+        device = data
       }
-      device = data
     }
 
-    const { data: identity, error: identityError } = await admin.from('user_login_names').select('user_id,auth_email').eq('username', username).maybeSingle()
-    if (identityError || !identity) return json({ error: 'Invalid username or password.' }, 401)
+    let identity: any = null
+    if (device?.tenant_id) {
+      // 1. Scoped lookup: Find user in the specific business this PC is registered to
+      const { data: tenantIdentity } = await admin
+        .from('user_login_names')
+        .select('user_id,auth_email')
+        .eq('tenant_id', device.tenant_id)
+        .ilike('username', username)
+        .maybeSingle()
+
+      if (tenantIdentity) {
+        identity = tenantIdentity
+      } else {
+        // 2. Fallback: Find among active members of this tenant
+        const { data: tenantMembers } = await admin
+          .from('tenant_memberships')
+          .select('user_id')
+          .eq('tenant_id', device.tenant_id)
+          .eq('status', 'active')
+
+        if (tenantMembers && tenantMembers.length > 0) {
+          const memberIds = tenantMembers.map((m: any) => m.user_id)
+          const { data: matchedMember } = await admin
+            .from('user_login_names')
+            .select('user_id,auth_email')
+            .in('user_id', memberIds)
+            .ilike('username', username)
+            .maybeSingle()
+          identity = matchedMember
+        }
+      }
+    } else {
+      // Admin or global login (no device provided)
+      const { data: globalIdentity } = await admin
+        .from('user_login_names')
+        .select('user_id,auth_email')
+        .ilike('username', username)
+        .maybeSingle()
+      identity = globalIdentity
+    }
+
+    if (!identity) return json({ error: 'Invalid username or password.' }, 401)
 
     if (device) {
       const { data: activeMembership } = await admin.from('tenant_memberships').select('id').eq('tenant_id',device.tenant_id).eq('user_id',identity.user_id).eq('status','active').maybeSingle()
@@ -117,7 +166,7 @@ Deno.serve(async (req) => {
       access_token:data.session.access_token, refresh_token:data.session.refresh_token, expires_at:data.session.expires_at, user:data.user,
       tenant_id:device?.tenant_id ?? null, location_id:device?.location_id ?? null, device_id:device?.id ?? null,
     })
-  } catch (_) {
-    return json({ error: 'Login failed.' }, 500)
+  } catch (err: any) {
+    return json({ error: err?.message || 'Login failed.' }, 500)
   }
 })

@@ -141,6 +141,13 @@ class _ClientLoginScreenState extends State<ClientLoginScreen> {
           ),
           actions: [
             TextButton(
+              onPressed: () {
+                Navigator.pop(dialogContext);
+                _resetDeviceActivation();
+              },
+              child: const Text('Reset PC Directly'),
+            ),
+            TextButton(
               onPressed: () => Navigator.pop(dialogContext),
               child: const Text('Cancel'),
             ),
@@ -191,6 +198,20 @@ class _ClientLoginScreenState extends State<ClientLoginScreen> {
     } catch (error) {
       if (mounted) {
         final raw = error.toString().replaceFirst(RegExp(r'^Exception:\s*'), '');
+        final isRevoked = raw.toLowerCase().contains('revoked') ||
+            raw.toLowerCase().contains('invalid') ||
+            raw.toLowerCase().contains('device_invalid');
+        if (isRevoked) {
+          // If the server confirmed registration is already revoked/invalid, release local binding directly
+          await DeviceInstallationService().clearActivation();
+          if (mounted) {
+            Navigator.of(context).pushAndRemoveUntil(
+              MaterialPageRoute(builder: (_) => const ClientEntryScreen()),
+              (_) => false,
+            );
+          }
+          return;
+        }
         setState(
           () => _error = raw.isNotEmpty
               ? raw
@@ -200,6 +221,38 @@ class _ClientLoginScreenState extends State<ClientLoginScreen> {
     } finally {
       if (mounted) setState(() => _loading = false);
     }
+  }
+
+  Future<void> _resetDeviceActivation() async {
+    final confirmed = await showThqDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Reset PC Store Registration?'),
+        content: const Text(
+          'This will clear the current store and business registration from this PC so you can connect to a different store or enter a new activation code.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+            ),
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Reset & Re-activate PC'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    await DeviceInstallationService().clearActivation();
+    if (!mounted) return;
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const ClientEntryScreen()),
+      (_) => false,
+    );
   }
 
   @override
@@ -278,25 +331,49 @@ class _ClientLoginScreenState extends State<ClientLoginScreen> {
                   color: Theme.of(context).colorScheme.error,
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Icon(
-                      Icons.error_outline,
-                      size: 20,
-                      color: Theme.of(context).colorScheme.onError,
-                    ),
-
-                    const SizedBox(width: 8),
-
-                    Expanded(
-                      child: Text(
-                        _error!,
-                        style: TextStyle(
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(
+                          Icons.error_outline,
+                          size: 20,
                           color: Theme.of(context).colorScheme.onError,
                         ),
-                      ),
+
+                        const SizedBox(width: 8),
+
+                        Expanded(
+                          child: Text(
+                            _error!,
+                            style: TextStyle(
+                              color: Theme.of(context).colorScheme.onError,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
+                    if (_error!.toLowerCase().contains('revoked') ||
+                        _error!.toLowerCase().contains('invalid') ||
+                        _error!.toLowerCase().contains('device') ||
+                        _error!.toLowerCase().contains('activated')) ...[
+                      const SizedBox(height: 10),
+                      FilledButton.icon(
+                        style: FilledButton.styleFrom(
+                          backgroundColor:
+                              Theme.of(context).colorScheme.onError,
+                          foregroundColor: Theme.of(context).colorScheme.error,
+                        ),
+                        onPressed: _loading ? null : _resetDeviceActivation,
+                        icon: const Icon(Icons.refresh_rounded, size: 18),
+                        label: const Text(
+                          'Reset & Re-activate This PC',
+                          style: TextStyle(fontWeight: FontWeight.w700),
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -320,10 +397,21 @@ class _ClientLoginScreenState extends State<ClientLoginScreen> {
 
             const SizedBox(height: 8),
 
-            TextButton.icon(
-              onPressed: _loading ? null : _changeBusiness,
-              icon: const Icon(Icons.swap_horiz),
-              label: const Text('Change Store / Business'),
+            Wrap(
+              alignment: WrapAlignment.center,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                TextButton.icon(
+                  onPressed: _loading ? null : _changeBusiness,
+                  icon: const Icon(Icons.swap_horiz),
+                  label: const Text('Change Store / Business'),
+                ),
+                TextButton.icon(
+                  onPressed: _loading ? null : _resetDeviceActivation,
+                  icon: const Icon(Icons.link_off_outlined, size: 16),
+                  label: const Text('Reset PC'),
+                ),
+              ],
             ),
           ],
         ),

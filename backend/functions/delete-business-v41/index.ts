@@ -43,11 +43,45 @@ Deno.serve(async (req) => {
     if (!email) return json({ error: 'Current admin account has no authentication email.' }, 400)
 
     // Re-authenticate the current admin with the supplied password.
-    const verifier = createClient(url, anonKey, { auth: { persistSession: false } })
-    const { error: passwordError } = await verifier.auth.signInWithPassword({ email, password })
-    if (passwordError) return json({ error: 'Incorrect password.' }, 403)
-
     const admin = createClient(url, serviceKey, { auth: { persistSession: false } })
+    const verifier = createClient(url, anonKey, { auth: { persistSession: false } })
+    let authenticated = false
+    let lastError: any = null
+
+    const emailCandidates: string[] = [email.toLowerCase().trim()]
+    const { data: userLogin } = await admin
+      .from('user_login_names')
+      .select('auth_email')
+      .eq('user_id', authData.user.id)
+      .maybeSingle()
+    if (userLogin?.auth_email) {
+      const uEmail = userLogin.auth_email.toLowerCase().trim()
+      if (!emailCandidates.includes(uEmail)) emailCandidates.push(uEmail)
+    }
+
+    const passwordCandidates = Array.from(new Set([password, password.trim()])).filter((p) => p.length > 0)
+
+    for (const candEmail of emailCandidates) {
+      for (const pass of passwordCandidates) {
+        const { data: signInRes, error: signInErr } = await verifier.auth.signInWithPassword({
+          email: candEmail,
+          password: pass,
+        })
+        if (!signInErr && signInRes?.session) {
+          authenticated = true
+          break
+        }
+        if (signInErr) {
+          lastError = signInErr
+        }
+      }
+      if (authenticated) break
+    }
+
+    if (!authenticated) {
+      const msg = lastError?.message || 'Incorrect password.'
+      return json({ error: msg.toLowerCase().includes('invalid login credentials') ? 'Incorrect password.' : msg }, 403)
+    }
 
     if (mode === 'archive') {
       const { error } = await caller.rpc('platform_business_archive_v41', {

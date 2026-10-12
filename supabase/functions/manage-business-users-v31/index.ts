@@ -113,14 +113,36 @@ Deno.serve(async (req) => {
         )
       }
 
+      // Check if username already exists within this business
       const { data: exists } = await admin
         .from('user_login_names')
         .select('user_id')
+        .eq('tenant_id', body.tenant_id)
         .ilike('username', username)
         .maybeSingle()
 
       if (exists) {
-        return json({ success: false, error: 'Username already exists.' }, 409)
+        return json({ success: false, error: 'Username already exists in this business.' }, 409)
+      }
+
+      // Also check if any existing member of this business has this username
+      const { data: activeMembers } = await admin
+        .from('tenant_memberships')
+        .select('user_id')
+        .eq('tenant_id', body.tenant_id)
+        .eq('status', 'active')
+
+      if (activeMembers && activeMembers.length > 0) {
+        const memberIds = activeMembers.map((m: any) => m.user_id)
+        const { data: duplicate } = await admin
+          .from('user_login_names')
+          .select('user_id')
+          .in('user_id', memberIds)
+          .ilike('username', username)
+          .maybeSingle()
+        if (duplicate) {
+          return json({ success: false, error: 'Username already exists in this business.' }, 409)
+        }
       }
 
       const syntheticEmail =
@@ -158,6 +180,7 @@ Deno.serve(async (req) => {
 
       const { error: mappingError } = await admin.from('user_login_names').upsert({
         user_id: created.user_id,
+        tenant_id: body.tenant_id,
         username,
         auth_email: syntheticEmail,
       })

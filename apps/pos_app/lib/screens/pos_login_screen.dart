@@ -109,6 +109,13 @@ class _PosLoginScreenState extends State<PosLoginScreen> {
           ),
           actions: [
             TextButton(
+              onPressed: () {
+                Navigator.pop(dialogContext);
+                _resetDeviceActivation();
+              },
+              child: const Text('Reset POS Directly'),
+            ),
+            TextButton(
               onPressed: () => Navigator.pop(dialogContext),
               child: const Text('Cancel'),
             ),
@@ -156,16 +163,63 @@ class _PosLoginScreenState extends State<PosLoginScreen> {
       );
     } on AuthException catch (error) {
       if (mounted) setState(() => _error = error.message);
-    } catch (_) {
+    } catch (error) {
       if (mounted) {
+        final raw = error.toString().replaceFirst(RegExp(r'^Exception:\s*'), '');
+        final isRevoked = raw.toLowerCase().contains('revoked') ||
+            raw.toLowerCase().contains('invalid') ||
+            raw.toLowerCase().contains('device_invalid');
+        if (isRevoked) {
+          await DeviceInstallationService().clearActivation();
+          if (mounted) {
+            Navigator.of(context).pushAndRemoveUntil(
+              MaterialPageRoute(builder: (_) => const PosEntryScreen()),
+              (_) => false,
+            );
+          }
+          return;
+        }
         setState(
-          () => _error =
-              'Could not change this store/business. Owner/admin authorization failed.',
+          () => _error = raw.isNotEmpty
+              ? raw
+              : 'Could not change this store/business. Owner/admin authorization failed.',
         );
       }
     } finally {
       if (mounted) setState(() => _loading = false);
     }
+  }
+
+  Future<void> _resetDeviceActivation() async {
+    final confirmed = await showThqDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Reset POS Terminal Registration?'),
+        content: const Text(
+          'This will clear the current store and business registration from this PC so you can re-activate or connect to a different store.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+            ),
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Reset & Re-activate POS'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    await DeviceInstallationService().clearActivation();
+    if (!mounted) return;
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const PosEntryScreen()),
+      (_) => false,
+    );
   }
 
   @override
@@ -229,9 +283,32 @@ class _PosLoginScreenState extends State<PosLoginScreen> {
                   color: scheme.errorContainer,
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Text(
-                  _error!,
-                  style: TextStyle(color: scheme.onErrorContainer),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(
+                      _error!,
+                      style: TextStyle(color: scheme.onErrorContainer),
+                    ),
+                    if (_error!.toLowerCase().contains('revoked') ||
+                        _error!.toLowerCase().contains('invalid') ||
+                        _error!.toLowerCase().contains('device') ||
+                        _error!.toLowerCase().contains('activated')) ...[
+                      const SizedBox(height: 10),
+                      FilledButton.icon(
+                        style: FilledButton.styleFrom(
+                          backgroundColor: scheme.error,
+                          foregroundColor: scheme.onError,
+                        ),
+                        onPressed: _loading ? null : _resetDeviceActivation,
+                        icon: const Icon(Icons.refresh_rounded, size: 18),
+                        label: const Text(
+                          'Reset & Re-activate POS',
+                          style: TextStyle(fontWeight: FontWeight.w700),
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               ),
             ],
@@ -248,10 +325,21 @@ class _PosLoginScreenState extends State<PosLoginScreen> {
               label: Text(_loading ? 'Signing in…' : 'Open POS'),
             ),
             const SizedBox(height: 8),
-            TextButton.icon(
-              onPressed: _loading ? null : _changeBusiness,
-              icon: const Icon(Icons.swap_horiz),
-              label: const Text('Change Store / Business'),
+            Wrap(
+              alignment: WrapAlignment.center,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                TextButton.icon(
+                  onPressed: _loading ? null : _changeBusiness,
+                  icon: const Icon(Icons.swap_horiz),
+                  label: const Text('Change Store / Business'),
+                ),
+                TextButton.icon(
+                  onPressed: _loading ? null : _resetDeviceActivation,
+                  icon: const Icon(Icons.link_off_outlined, size: 16),
+                  label: const Text('Reset POS'),
+                ),
+              ],
             ),
           ],
         ),

@@ -418,7 +418,7 @@ class _BusinessDetailsScreenState extends State<BusinessDetailsScreen> {
     try {
       await _businessService.deleteBusiness(
         tenantId: widget.business.id,
-        password: password.text,
+        password: password.text.trim(),
         businessCode: confirmation.text.trim().toUpperCase(),
       );
       if (mounted) Navigator.of(context).pop(true);

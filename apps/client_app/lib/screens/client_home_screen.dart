@@ -13,6 +13,7 @@ import '../models/app_menu_node.dart';
 import '../services/client_auth_service.dart';
 import '../services/client_session_service.dart';
 import '../services/device_heartbeat_service.dart';
+import '../services/device_installation_service.dart';
 import '../services/location_scope_service.dart';
 import '../services/navigation_service.dart';
 import '../services/thq_api_service.dart';
@@ -1506,18 +1507,6 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
   Future<void> _showChangeStoreDialog() async {
     final locations = LocationScopeService.orderedLocations(_session);
     final canAll = _session.canViewAllLocations;
-    if (locations.length <= 1 && !canAll) {
-      ThqNotify.showSnackBar(
-        context,
-        SnackBar(
-          content: Text(
-            '${_session.business.name} currently has 1 store (${_session.locations.firstOrNull?.name ?? "Main"}). To add more stores, visit Stores & Systems in Settings.',
-          ),
-        ),
-      );
-      return;
-    }
-
     final currentId = LocationScopeService.selectedLocationId.value;
 
     await showThqDialog<void>(
@@ -1545,7 +1534,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
           ],
         ),
         content: SizedBox(
-          width: 420,
+          width: 440,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -1569,6 +1558,11 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
                   },
                 ),
               if (canAll && locations.isNotEmpty) const Divider(),
+              if (locations.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.all(16),
+                  child: Text('No registered stores found for this business.'),
+                ),
               ...locations.map((loc) {
                 final isSelected = loc.id == currentId;
                 return ListTile(
@@ -1598,6 +1592,17 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
           ),
         ),
         actions: [
+          TextButton.icon(
+            style: TextButton.styleFrom(
+              foregroundColor: Theme.of(context).colorScheme.error,
+            ),
+            onPressed: () {
+              Navigator.pop(dialogContext);
+              _disconnectPcFromStore();
+            },
+            icon: const Icon(Icons.link_off_rounded, size: 16),
+            label: const Text('Unbind / Reset PC Store Binding'),
+          ),
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
             child: const Text('Close'),
@@ -1605,6 +1610,34 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
         ],
       ),
     );
+  }
+
+  Future<void> _disconnectPcFromStore() async {
+    final confirmed = await showThqDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Unbind / Reset Store on this PC?'),
+        content: Text(
+          'This will disconnect this PC from "${_session.business.name}" and clear its store binding so you can re-activate or connect to a different store or business.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+            ),
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Unbind & Reset PC'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    await DeviceInstallationService().clearActivation();
+    await _logout();
   }
 }
 
