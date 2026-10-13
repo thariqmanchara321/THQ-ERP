@@ -230,7 +230,7 @@ class GstV520Gateway {
 
   Future<Map<String, dynamic>> createPurchase({
     required String supplierId,
-    required String supplierInvoiceNumber,
+    String? supplierInvoiceNumber,
     required DateTime purchaseDate,
     required DateTime dueDate,
     required List<Map<String, dynamic>> items,
@@ -248,10 +248,14 @@ class GstV520Gateway {
   }) async {
     _requireRequestId(requestId);
 
+    final cleanInvoiceNumber =
+        (supplierInvoiceNumber != null && supplierInvoiceNumber.trim().isNotEmpty)
+            ? supplierInvoiceNumber.trim()
+            : null;
+
     final params = <String, dynamic>{
       'p_tenant_id': tenantId,
       'p_supplier_id': supplierId,
-      'p_supplier_invoice_number': supplierInvoiceNumber,
       'p_purchase_date': _dateOnly(purchaseDate),
       'p_due_date': _dateOnly(dueDate),
       'p_items': items,
@@ -262,6 +266,7 @@ class GstV520Gateway {
       'p_request_id': requestId,
     };
 
+    _putIfNotNull(params, 'p_supplier_invoice_number', cleanInvoiceNumber);
     _putIfNotNull(params, 'p_payment_reference', paymentReference);
     _putIfNotNull(params, 'p_notes', notes);
     _putIfNotNull(params, 'p_location_id', locationId);
@@ -278,7 +283,7 @@ class GstV520Gateway {
 
   Future<Map<String, dynamic>> createPurchaseInvoiceV2({
     required String purchaseOrderId,
-    required String supplierInvoiceNumber,
+    String? supplierInvoiceNumber,
     required DateTime invoiceDate,
     required DateTime dueDate,
     required List<Map<String, dynamic>> items,
@@ -291,10 +296,14 @@ class GstV520Gateway {
   }) async {
     _requireRequestId(requestId);
 
+    final cleanInvoiceNumber =
+        (supplierInvoiceNumber != null && supplierInvoiceNumber.trim().isNotEmpty)
+            ? supplierInvoiceNumber.trim()
+            : null;
+
     final params = <String, dynamic>{
       'p_tenant_id': tenantId,
       'p_purchase_order_id': purchaseOrderId,
-      'p_supplier_invoice_number': supplierInvoiceNumber,
       'p_invoice_date': _dateOnly(invoiceDate),
       'p_due_date': _dateOnly(dueDate),
       'p_items': items,
@@ -302,6 +311,8 @@ class GstV520Gateway {
       'p_round_off': roundOff,
       'p_request_id': requestId,
     };
+
+    _putIfNotNull(params, 'p_supplier_invoice_number', cleanInvoiceNumber);
 
     _putIfNotNull(params, 'p_notes', notes);
     _putIfNotNull(params, 'p_supply_type', supplyType);

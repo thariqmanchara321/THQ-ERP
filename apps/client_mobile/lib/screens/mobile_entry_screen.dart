@@ -102,10 +102,26 @@ class _ActivationViewState extends State<_ActivationView> {
       );
       widget.onDone();
     } catch (error) {
-      if (mounted) setState(() => _error = error.toString());
+      if (mounted) setState(() => _error = _formatError(error));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
+  }
+
+  String _formatError(dynamic error) {
+    if (error is FunctionException) {
+      final details = error.details;
+      if (details is Map && details['error'] != null) {
+        return details['error'].toString();
+      }
+      if (details is String && details.trim().isNotEmpty) {
+        return details.trim();
+      }
+      if (error.reasonPhrase != null && error.reasonPhrase!.trim().isNotEmpty) {
+        return error.reasonPhrase!.trim();
+      }
+    }
+    return error.toString().replaceFirst(RegExp(r'^Exception:\s*'), '');
   }
 
   @override
@@ -225,22 +241,7 @@ class _LoginViewState extends State<_LoginView> {
       );
       widget.onDone();
     } catch (error) {
-      final msg = error.toString().toLowerCase();
-      if (msg.contains('revoked') ||
-          msg.contains('business_deleted') ||
-          msg.contains('business not found') ||
-          msg.contains('not found') ||
-          msg.contains('inactive')) {
-        await DeviceInstallationService().clearActivation();
-        try {
-          await Supabase.instance.client.auth.signOut();
-        } catch (_) {}
-        if (mounted) {
-          widget.onReset?.call();
-          return;
-        }
-      }
-      if (mounted) setState(() => _error = error.toString());
+      if (mounted) setState(() => _error = error.toString().replaceFirst(RegExp(r'^Exception:\s*'), ''));
     } finally {
       if (mounted) setState(() => _busy = false);
     }

@@ -12,8 +12,8 @@ void main() {
           MaterialApp(
             home: Scaffold(
               body: ThqVersionClock(
-                version: '7.0.1',
-                buildNumber: 15,
+                version: '8.1.0',
+                buildNumber: 16,
                 singleLine: singleLine,
                 showClock: showClock,
               ),
@@ -21,8 +21,8 @@ void main() {
           ),
         );
         final text = tester.widget<Text>(find.byType(Text)).data!;
-        expect(text, contains('v7.0.1'));
-        expect(text, contains('Build 15'));
+        expect(text, contains('v8.1.0'));
+        expect(text, contains('Build 16'));
         expect(text.contains('\n'), !singleLine);
         expect(RegExp(r'\d{2}:\d{2}').hasMatch(text), showClock);
         expect(tester.takeException(), isNull);

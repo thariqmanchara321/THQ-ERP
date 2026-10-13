@@ -23,6 +23,8 @@ import 'inventory_products_screen.dart';
 import 'loan_screen.dart';
 import 'notifications_screen.dart';
 import '../services/device_installation_service.dart';
+import '../services/workspace_manager.dart';
+import 'device_activation_screen.dart';
 import 'offline_pos_sync_screen.dart';
 import 'pos_entry_screen.dart';
 import 'pos_login_screen.dart';
@@ -688,6 +690,176 @@ class _PosHomeScreenState extends State<PosHomeScreen> {
     );
   }
 
+  Future<void> _showChangeStoreDialog() async {
+    final locations = LocationScopeService.orderedLocations(_session);
+    final currentId = LocationScopeService.selectedLocationId.value ?? _session.device?.locationId;
+
+    await showThqDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Row(
+          children: [
+            const Icon(Icons.storefront_outlined),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Change POS Store'),
+                  Text(
+                    _session.business.name,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        content: SizedBox(
+          width: 440,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (locations.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.all(16),
+                  child: Text('No registered stores found for this business.'),
+                ),
+              ...locations.map((loc) {
+                final isSelected = loc.id == currentId;
+                return ListTile(
+                  leading: Icon(
+                    loc.isMain ? Icons.store_mall_directory : Icons.storefront_outlined,
+                  ),
+                  title: Text('${loc.code} • ${loc.name}'),
+                  subtitle: Text('${loc.roleLabel} • ${loc.type.toUpperCase()}'),
+                  trailing: isSelected ? const Icon(Icons.check_circle, color: Colors.teal) : null,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  selected: isSelected,
+                  onTap: () async {
+                    Navigator.pop(dialogContext);
+                    LocationScopeService.select(_session, loc.id);
+                    final active = await ThqWorkspaceManager().getActiveProfile();
+                    if (active != null) {
+                      await ThqWorkspaceManager().updateProfileLocation(
+                        profileId: active.id,
+                        locationId: loc.id,
+                        locationName: loc.name,
+                        locationCode: loc.code,
+                      );
+                    }
+                    await _refreshAll();
+                  },
+                );
+              }),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _showChangeBusinessDialog() async {
+    final manager = ThqWorkspaceManager();
+    final profiles = await manager.getProfiles();
+    final active = await manager.getActiveProfile();
+
+    if (!mounted) return;
+
+    await showThqDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.point_of_sale_outlined),
+            SizedBox(width: 8),
+            Text('Switch POS Workspaces'),
+          ],
+        ),
+        content: SizedBox(
+          width: 440,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Text(
+                'Switch to another activated POS store or business workspace on this computer.',
+                style: TextStyle(fontSize: 13, color: Colors.black54),
+              ),
+              const SizedBox(height: 14),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 280),
+                child: ListView.separated(
+                  shrinkWrap: true,
+                  itemCount: profiles.length,
+                  separatorBuilder: (_, _) => const Divider(height: 1),
+                  itemBuilder: (ctx, index) {
+                    final p = profiles[index];
+                    final isActive = p.id == active?.id;
+                    return ListTile(
+                      dense: true,
+                      leading: Icon(
+                        isActive ? Icons.check_circle : Icons.point_of_sale_outlined,
+                        color: isActive ? Colors.teal : Colors.grey,
+                      ),
+                      title: Text(
+                        p.tenantName,
+                        style: TextStyle(
+                          fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
+                        ),
+                      ),
+                      subtitle: Text('${p.locationName} (${p.locationCode}) • ${p.deviceCode}'),
+                      selected: isActive,
+                      onTap: () async {
+                        Navigator.pop(dialogContext);
+                        if (!isActive) {
+                          await manager.setActiveProfile(p.id);
+                          await _logout();
+                        }
+                      },
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(height: 16),
+              OutlinedButton.icon(
+                onPressed: () {
+                  Navigator.pop(dialogContext);
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => DeviceActivationScreen(
+                        appKey: 'pos',
+                        canCancel: true,
+                        nextScreen: () => const PosLoginScreen(),
+                      ),
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.add_circle_outline, size: 18),
+                label: const Text('+ Activate Another POS Location'),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _selectPage(String key) {
     if (_selectedKey == key) return;
     FocusManager.instance.primaryFocus?.unfocus();
@@ -843,6 +1015,10 @@ class _PosHomeScreenState extends State<PosHomeScreen> {
                 unawaited(_requestRefresh());
               } else if (action == 'motion') {
                 ThqMotionSettings.enabled.value = !motionEnabled;
+              } else if (action == 'change_store') {
+                unawaited(_showChangeStoreDialog());
+              } else if (action == 'switch_workspace') {
+                unawaited(_showChangeBusinessDialog());
               }
             },
             itemBuilder: (context) => [
@@ -867,6 +1043,28 @@ class _PosHomeScreenState extends State<PosHomeScreen> {
                   ],
                 ),
               ),
+              const PopupMenuDivider(),
+              const PopupMenuItem<String>(
+                value: 'change_store',
+                child: Row(
+                  children: [
+                    Icon(Icons.storefront_outlined, size: 18),
+                    SizedBox(width: 8),
+                    Text('Change POS Store'),
+                  ],
+                ),
+              ),
+              const PopupMenuItem<String>(
+                value: 'switch_workspace',
+                child: Row(
+                  children: [
+                    Icon(Icons.point_of_sale_outlined, size: 18),
+                    SizedBox(width: 8),
+                    Text('Switch Workspaces'),
+                  ],
+                ),
+              ),
+              const PopupMenuDivider(),
               ...ThqAppearanceActions.menuItems(context),
               PopupMenuItem<String>(
                 value: 'motion',
@@ -1035,6 +1233,18 @@ class _PosHomeScreenState extends State<PosHomeScreen> {
   }
 
   Widget _footer(bool expanded, bool narrow, UiDesignProfile profile) {
+    final changeStore = _action(
+      Icons.storefront_outlined,
+      'Change Store',
+      expanded,
+      _showChangeStoreDialog,
+    );
+    final switchWorkspace = _action(
+      Icons.point_of_sale_outlined,
+      'Switch POS',
+      expanded,
+      _showChangeBusinessDialog,
+    );
     final signOut = _action(Icons.logout, 'Sign Out', expanded, _logout);
     final collapse = _action(
       expanded
@@ -1056,6 +1266,9 @@ class _PosHomeScreenState extends State<PosHomeScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              changeStore,
+              switchWorkspace,
+              const SizedBox(height: 2),
               if (horizontal)
                 Row(
                   children: [

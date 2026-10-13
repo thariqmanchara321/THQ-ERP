@@ -156,10 +156,7 @@ class DeviceInstallationService {
       }
     } catch (e) {
       final msg = e.toString().toLowerCase();
-      if (msg.contains('business_deleted') ||
-          msg.contains('device_revoked') ||
-          msg.contains('inactive') ||
-          msg.contains('not found')) {
+      if (msg.contains('business_deleted') || msg.contains('device_revoked')) {
         await clearActivation();
         try {
           await _supabase.auth.signOut();

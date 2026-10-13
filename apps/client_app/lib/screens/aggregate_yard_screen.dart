@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../models/client_session.dart';
+import '../models/material_measurement_engine.dart';
 import '../services/aggregate_yard_service.dart';
 import '../services/location_scope_service.dart';
 import 'aggregate_direct_supply_screen.dart';
@@ -10,6 +11,8 @@ import 'aggregate_orders_screen.dart';
 import 'aggregate_vehicles_screen.dart';
 import 'customers_screen.dart';
 import 'aggregate_yard_stock_screen.dart';
+import 'daily_material_rate_board_screen.dart';
+import 'driver_master_screen.dart';
 import 'material_yard_crusher_report_screen.dart';
 import 'reports_screen.dart';
 import 'suppliers_screen.dart';
@@ -129,41 +132,58 @@ class _AggregateYardScreenState extends State<AggregateYardScreen> {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        const gap = 10.0;
-        final width = constraints.maxWidth;
-        final actionColumns = width >= 1250
+        const gap = 8.0;
+        const horizontalPadding = 28.0; // 14.0 left + 14.0 right
+        final usableWidth = (constraints.maxWidth - horizontalPadding).clamp(280.0, 5000.0);
+        final kpiColumns = usableWidth >= 1150
             ? 4
-            : width >= 820
+            : usableWidth >= 650
+                ? 2
+                : 1;
+        final actionColumns = usableWidth >= 1150
             ? 3
-            : width >= 560
-            ? 2
-            : 1;
-        final summaryColumns = width >= 1050
-            ? 4
-            : width >= 650
-            ? 2
-            : 1;
-        final actionWidth =
-            (width - ((actionColumns - 1) * gap)) / actionColumns;
-        final summaryWidth =
-            (width - ((summaryColumns - 1) * gap)) / summaryColumns;
+            : usableWidth >= 750
+                ? 2
+                : 1;
+        final kpiWidth = (usableWidth - ((kpiColumns - 1) * gap)) / kpiColumns;
+        final actionWidth = (usableWidth - ((actionColumns - 1) * gap)) / actionColumns;
         final receivablesVisible = _dashboard['receivables_visible'] == true;
+        final payablesVisible = _dashboard['payables_visible'] == true;
+        final isDesktopWide = usableWidth >= 1050;
 
         return RefreshIndicator(
           onRefresh: _loadDashboard,
           child: SingleChildScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.fromLTRB(14, 12, 14, 18),
+            padding: const EdgeInsets.fromLTRB(14, 10, 14, 24),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _HeroCard(
+                // 1. TOP COMPACT HEADER
+                _CompactTopBar(
                   businessName: session.business.name,
                   locationName: locationName,
+                  isLoading: _dashboardLoading,
                   onRefresh: _dashboardLoading ? null : _loadDashboard,
+                  onNewInward: () => _open(
+                    AggregateLoadsScreen(
+                      session: session,
+                      initialDirection: 'inbound',
+                    ),
+                  ),
+                  onNewOutward: () => _open(
+                    AggregateLoadsScreen(
+                      session: session,
+                      initialDirection: 'outbound',
+                    ),
+                  ),
+                  onRateBoard: () => _open(
+                    DailyMaterialRateBoardScreen(session: session),
+                  ),
                 ),
+
                 if (_dashboardLoading) ...[
-                  const SizedBox(height: 6),
+                  const SizedBox(height: 4),
                   const LinearProgressIndicator(minHeight: 2),
                 ],
                 if (_dashboardError != null) ...[
@@ -173,259 +193,333 @@ class _AggregateYardScreenState extends State<AggregateYardScreen> {
                     onRetry: _loadDashboard,
                   ),
                 ],
-                const SizedBox(height: 12),
-                const _SectionTitle(
-                  title: 'Do the work',
-                  subtitle:
-                      'Start with the real business action. Extra tracking is optional.',
-                ),
-                const SizedBox(height: 7),
+
+                const SizedBox(height: 10),
+
+                // 2. IMPORTANT OPERATIONAL KPI ROW (8 authoritative metrics)
                 Wrap(
                   spacing: gap,
                   runSpacing: gap,
                   children: [
-                    _ActionCard(
-                      width: actionWidth,
-                      icon: Icons.compare_arrows_rounded,
-                      title: 'Direct Supply',
-                      subtitle:
-                          'Quarry -> customer. Purchase first, sale next.',
-                      onTap: () =>
-                          _open(AggregateDirectSupplyScreen(session: session)),
+                    // 1. Today's Inward Loads
+                    _CompactKpiCard(
+                      width: kpiWidth,
+                      icon: Icons.south_west_rounded,
+                      iconColor: const Color(0xFF00875A),
+                      label: "Today's Inward Loads",
+                      value: '${_integer(_dashboard['today_in_loads'])} loads',
+                      secondary: '${MaterialMeasurementEngine.formatQuantity(_dashboard['today_in_cft'] ?? 0, 'CFT')} received',
                     ),
-                    _ActionCard(
-                      width: actionWidth,
-                      icon: Icons.local_shipping_outlined,
-                      title: 'Load Register',
-                      subtitle:
-                          'Receive or dispatch a load, then continue to Purchase or Sales.',
-                      onTap: () =>
-                          _open(AggregateLoadsScreen(session: session)),
+                    // 2. Today's Outward Loads
+                    _CompactKpiCard(
+                      width: kpiWidth,
+                      icon: Icons.north_east_rounded,
+                      iconColor: const Color(0xFF635BFF),
+                      label: "Today's Outward Loads",
+                      value: '${_integer(_dashboard['today_out_loads'])} loads',
+                      secondary: '${MaterialMeasurementEngine.formatQuantity(_dashboard['today_out_cft'] ?? 0, 'CFT')} dispatched',
                     ),
-                    _ActionCard(
-                      width: actionWidth,
-                      icon: Icons.assignment_outlined,
-                      title: 'Customer Orders',
-                      subtitle: 'Order, delivered quantity and balance only.',
-                      onTap: () =>
-                          _open(AggregateOrdersScreen(session: session)),
+                    // 3. Today's Purchase Value
+                    _CompactKpiCard(
+                      width: kpiWidth,
+                      icon: Icons.shopping_cart_checkout_outlined,
+                      iconColor: const Color(0xFF0D9488),
+                      label: "Today's Purchase Value",
+                      value: _money(_dashboard['today_purchase_value'] ?? 0),
+                      secondary: '${_integer(_dashboard['today_in_loads'])} quarry bills',
                     ),
-                    _ActionCard(
-                      width: actionWidth,
-                      icon: Icons.local_shipping_outlined,
-                      title: 'Truck Setup',
-                      subtitle: 'Add a truck or update capacity and ownership.',
-                      onTap: () =>
-                          _open(AggregateVehiclesScreen(session: session)),
+                    // 4. Today's Sales Value
+                    _CompactKpiCard(
+                      width: kpiWidth,
+                      icon: Icons.point_of_sale_outlined,
+                      iconColor: const Color(0xFF7C3AED),
+                      label: "Today's Sales Value",
+                      value: _money(_dashboard['today_sales_value'] ?? 0),
+                      secondary: '${_integer(_dashboard['today_out_loads'])} sales orders',
                     ),
-                  ],
-                ),
-                const SizedBox(height: 14),
-                Card(
-                  margin: EdgeInsets.zero,
-                  child: Padding(
-                    padding: const EdgeInsets.all(12),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const _SectionTitle(
-                          title: 'Reports & masters',
-                          subtitle:
-                              'The final records that matter most day to day.',
-                        ),
-                        const SizedBox(height: 8),
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          children: [
-                            _SmallAction(
-                              icon: Icons.table_chart_outlined,
-                              label: 'Crusher Register',
-                              onTap: () => _open(
-                                MaterialYardCrusherReportScreen(
-                                  session: session,
-                                ),
-                              ),
-                            ),
-                            _SmallAction(
-                              icon: Icons.insights_outlined,
-                              label: 'Reports',
-                              onTap: () => _openWorkspace(
-                                'Reports',
-                                ReportsScreen(session: session),
-                              ),
-                            ),
-                            _SmallAction(
-                              icon: Icons.groups_outlined,
-                              label: 'Customers',
-                              onTap: () => _openWorkspace(
-                                'Customers',
-                                CustomersScreen(session: session),
-                              ),
-                            ),
-                            _SmallAction(
-                              icon: Icons.factory_outlined,
-                              label: 'Suppliers / Quarries',
-                              onTap: () => _openWorkspace(
-                                'Suppliers / Quarries',
-                                SuppliersScreen(session: session),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 14),
-                const _SectionTitle(
-                  title: 'At a glance',
-                  subtitle: 'Only the numbers needed to run the yard today.',
-                ),
-                const SizedBox(height: 7),
-                Wrap(
-                  spacing: gap,
-                  runSpacing: gap,
-                  children: [
-                    _MetricCard(
-                      width: summaryWidth,
+                    // 5. Available Bulk Stock
+                    _CompactKpiCard(
+                      width: kpiWidth,
                       icon: Icons.inventory_2_outlined,
-                      label: 'Available Stock',
-                      value: '${_qty(_dashboard['stock_available_cft'])} CFT',
-                      helper:
-                          'On hand ${_qty(_dashboard['stock_on_hand_cft'])} CFT',
+                      iconColor: const Color(0xFF0052CC),
+                      label: 'Available Bulk Stock',
+                      value: MaterialMeasurementEngine.formatQuantity(_dashboard['stock_available_cft'] ?? 0, 'CFT'),
+                      secondary: 'On hand ${MaterialMeasurementEngine.formatQuantity(_dashboard['stock_on_hand_cft'] ?? 0, 'CFT')}',
                     ),
-                    _MetricCard(
-                      width: summaryWidth,
+                    // 6. Customer Receivables
+                    _CompactKpiCard(
+                      width: kpiWidth,
                       icon: Icons.account_balance_wallet_outlined,
-                      label: 'Receivable',
+                      iconColor: const Color(0xFFD97706),
+                      label: 'Customer Receivables',
                       value: receivablesVisible
                           ? _money(_dashboard['receivables'])
                           : 'Restricted',
-                      helper: receivablesVisible
-                          ? 'Customer outstanding'
-                          : 'Needs finance access',
+                      secondary: receivablesVisible
+                          ? 'Ledger outstanding'
+                          : 'Finance permission needed',
                     ),
-                    _MetricCard(
-                      width: summaryWidth,
-                      icon: Icons.assignment_outlined,
-                      label: 'Open Orders',
-                      value: '${_integer(_dashboard['open_order_count'])}',
-                      helper:
-                          '${_qty(_dashboard['open_order_cft'])} CFT remaining',
+                    // 7. Supplier Payables
+                    _CompactKpiCard(
+                      width: kpiWidth,
+                      icon: Icons.payments_outlined,
+                      iconColor: const Color(0xFFDC2626),
+                      label: 'Supplier Payables',
+                      value: payablesVisible
+                          ? _money(_dashboard['payables'])
+                          : 'Restricted',
+                      secondary: payablesVisible
+                          ? 'Quarry outstanding'
+                          : 'Finance permission needed',
                     ),
-                    _MetricCard(
-                      width: summaryWidth,
-                      icon: Icons.local_shipping_outlined,
-                      label: 'Trucks On Road',
-                      value: '${_integer(_dashboard['trucks_on_road'])}',
-                      helper:
-                          '${_integer(_dashboard['active_trucks'])} active trucks',
-                    ),
-                    _MetricCard(
-                      width: summaryWidth,
-                      icon: Icons.south_west_rounded,
-                      label: 'Today In',
-                      value: '${_qty(_dashboard['today_in_cft'])} CFT',
-                      helper: '${_integer(_dashboard['today_in_loads'])} loads',
-                    ),
-                    _MetricCard(
-                      width: summaryWidth,
-                      icon: Icons.north_east_rounded,
-                      label: 'Today Out',
-                      value: '${_qty(_dashboard['today_out_cft'])} CFT',
-                      helper:
-                          '${_integer(_dashboard['today_out_loads'])} loads',
+                    // 8. Pending Deliveries
+                    _CompactKpiCard(
+                      width: kpiWidth,
+                      icon: Icons.pending_actions_outlined,
+                      iconColor: const Color(0xFFEA580C),
+                      label: 'Pending Orders',
+                      value: '${_integer(_dashboard['open_order_count'])} orders',
+                      secondary:
+                          '${MaterialMeasurementEngine.formatQuantity(_dashboard['pending_delivery_cft'] ?? _dashboard['open_order_cft'] ?? 0, 'CFT')} remaining',
                     ),
                   ],
                 ),
-                const SizedBox(height: 12),
-                Card(
-                  margin: EdgeInsets.zero,
-                  child: ExpansionTile(
-                    initiallyExpanded: false,
-                    leading: const Icon(Icons.tune_rounded),
-                    title: const Text(
-                      'More yard tools',
-                      style: TextStyle(fontWeight: FontWeight.w600),
+
+                const SizedBox(height: 14),
+
+                // 3. MAIN OPERATIONAL ACTIONS
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const _SectionHeader(
+                      title: 'Operational Actions',
+                      subtitle: 'Primary workflows for yard operators and managers',
                     ),
-                    subtitle: const Text(
-                      'Stock view, freight and detailed trip tracking',
+                    TextButton.icon(
+                      style: TextButton.styleFrom(
+                        visualDensity: VisualDensity.compact,
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                      ),
+                      onPressed: () => _open(AggregateLoadsScreen(session: session)),
+                      icon: const Icon(Icons.table_rows_outlined, size: 15),
+                      label: const Text('Open Load Register', style: TextStyle(fontSize: 12)),
                     ),
-                    childrenPadding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Wrap(
+                  spacing: gap,
+                  runSpacing: gap,
+                  children: [
+                    _CompactActionTile(
+                      width: actionWidth,
+                      icon: Icons.south_west_rounded,
+                      iconColor: const Color(0xFF00875A),
+                      title: 'Purchase / Inward Load',
+                      subtitle: 'Quarry loads, weighment, dimensional CFT & receipt.',
+                      onTap: () => _open(
+                        AggregateLoadsScreen(
+                          session: session,
+                          initialDirection: 'inbound',
+                        ),
+                      ),
+                    ),
+                    _CompactActionTile(
+                      width: actionWidth,
+                      icon: Icons.north_east_rounded,
+                      iconColor: const Color(0xFF635BFF),
+                      title: 'Sales / Outward Load',
+                      subtitle: 'Customer dispatches, delivery slip & invoicing.',
+                      onTap: () => _open(
+                        AggregateLoadsScreen(
+                          session: session,
+                          initialDirection: 'outbound',
+                        ),
+                      ),
+                    ),
+                    _CompactActionTile(
+                      width: actionWidth,
+                      icon: Icons.price_change_outlined,
+                      iconColor: const Color(0xFFD97706),
+                      title: 'Daily Rate Board',
+                      subtitle: 'Effective buy/sell rates with margin guardrails.',
+                      onTap: () => _open(DailyMaterialRateBoardScreen(session: session)),
+                    ),
+                    _CompactActionTile(
+                      width: actionWidth,
+                      icon: Icons.compare_arrows_rounded,
+                      iconColor: const Color(0xFF0284C7),
+                      title: 'Direct Supply',
+                      subtitle: 'Direct quarry to customer transit without yard holding.',
+                      onTap: () => _open(AggregateDirectSupplyScreen(session: session)),
+                    ),
+                    _CompactActionTile(
+                      width: actionWidth,
+                      icon: Icons.assignment_outlined,
+                      iconColor: const Color(0xFF8B5CF6),
+                      title: 'Customer Orders',
+                      subtitle: 'Book orders and fulfill across multiple truck loads.',
+                      onTap: () => _open(AggregateOrdersScreen(session: session)),
+                    ),
+                    _CompactActionTile(
+                      width: actionWidth,
+                      icon: Icons.local_shipping_outlined,
+                      iconColor: const Color(0xFF475569),
+                      title: 'Truck & Driver Setup',
+                      subtitle: 'Vehicles, tare weight, capacity, driver assignment.',
+                      onTap: () => _open(AggregateVehiclesScreen(session: session)),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 16),
+
+                // 4. LOWER OPERATIONAL PANELS: VISIBLE LIVE DATA WITHOUT HIDDEN EXPANSION TILES
+                if (isDesktopWide)
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Wrap(
-                        spacing: gap,
-                        runSpacing: gap,
+                      Expanded(
+                        flex: 6,
+                        child: _ActiveLoadsSection(
+                          rows: _rows('active_loads'),
+                          quantityText: _qty,
+                          onViewAll: () => _open(AggregateLoadsScreen(session: session)),
+                          onOpenLoad: (row) => _open(
+                            AggregateLoadsScreen(
+                              session: session,
+                              initialLoadId: row['load_id']?.toString(),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        flex: 5,
+                        child: _StockSection(
+                          rows: _rows('stock_by_material'),
+                          quantityText: _qty,
+                          onViewAll: () => _open(AggregateYardStockScreen(session: session)),
+                        ),
+                      ),
+                    ],
+                  )
+                else ...[
+                  _ActiveLoadsSection(
+                    rows: _rows('active_loads'),
+                    quantityText: _qty,
+                    onViewAll: () => _open(AggregateLoadsScreen(session: session)),
+                    onOpenLoad: (row) => _open(
+                      AggregateLoadsScreen(
+                        session: session,
+                        initialLoadId: row['load_id']?.toString(),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  _StockSection(
+                    rows: _rows('stock_by_material'),
+                    quantityText: _qty,
+                    onViewAll: () => _open(AggregateYardStockScreen(session: session)),
+                  ),
+                ],
+
+                const SizedBox(height: 16),
+
+                // 5. SECONDARY MASTERS & REPORTS TOOLBAR
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.surface,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.6),
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
                         children: [
-                          _ActionCard(
-                            width: actionWidth,
-                            icon: Icons.table_chart_outlined,
-                            title: 'Crusher Register',
-                            subtitle:
-                                'Daily crusher loads, vehicle quantities, rates & purchase totals.',
-                            onTap: () => _open(
-                              MaterialYardCrusherReportScreen(session: session),
-                            ),
+                          Icon(
+                            Icons.tune_rounded,
+                            size: 15,
+                            color: Theme.of(context).colorScheme.primary,
                           ),
-                          _ActionCard(
-                            width: actionWidth,
-                            icon: Icons.inventory_2_outlined,
-                            title: 'Yard Stock',
-                            subtitle:
-                                'Material, batch / quality, rates and yard balances.',
-                            onTap: () => _open(
-                              AggregateYardStockScreen(session: session),
-                            ),
-                          ),
-                          _ActionCard(
-                            width: actionWidth,
-                            icon: Icons.payments_outlined,
-                            title: 'Freight & Profit',
-                            subtitle: 'Settlement and per-load contribution.',
-                            onTap: () =>
-                                _open(AggregateFreightScreen(session: session)),
-                          ),
-                          _ActionCard(
-                            width: actionWidth,
-                            icon: Icons.route_outlined,
-                            title: 'Trips & Vehicles',
-                            subtitle: _hasTransport
-                                ? 'Trip details and advanced transport workflow.'
-                                : 'Enable Vehicle Logistics for trip tracking.',
-                            enabled: _hasTransport,
-                            onTap: () => _open(
-                              TransportLogisticsHubScreen(session: session),
+                          const SizedBox(width: 6),
+                          Text(
+                            'Masters, Reports & Logistics',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: Theme.of(context).colorScheme.onSurface,
                             ),
                           ),
                         ],
                       ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 10),
-                Card(
-                  margin: EdgeInsets.zero,
-                  child: ExpansionTile(
-                    initiallyExpanded: false,
-                    leading: const Icon(Icons.dashboard_outlined),
-                    title: const Text(
-                      'Operational details',
-                      style: TextStyle(fontWeight: FontWeight.w600),
-                    ),
-                    subtitle: const Text(
-                      'Material balances and active load tracking',
-                    ),
-                    childrenPadding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-                    children: [
-                      _StockPanel(
-                        rows: _rows('stock_by_material'),
-                        quantityText: _qty,
-                      ),
-                      const SizedBox(height: 10),
-                      _ActiveLoadsPanel(
-                        rows: _rows('active_loads'),
-                        quantityText: _qty,
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 6,
+                        children: [
+                          _CompactChipBtn(
+                            icon: Icons.table_chart_outlined,
+                            label: 'Crusher Register',
+                            onTap: () => _open(
+                              MaterialYardCrusherReportScreen(session: session),
+                            ),
+                          ),
+                          _CompactChipBtn(
+                            icon: Icons.inventory_2_outlined,
+                            label: 'Yard Stock Balances',
+                            onTap: () => _open(
+                              AggregateYardStockScreen(session: session),
+                            ),
+                          ),
+                          _CompactChipBtn(
+                            icon: Icons.badge_outlined,
+                            label: 'Driver Master',
+                            onTap: () => _open(DriverMasterScreen(session: session)),
+                          ),
+                          _CompactChipBtn(
+                            icon: Icons.monetization_on_outlined,
+                            label: 'Yard Profitability',
+                            onTap: () => _open(AggregateFreightScreen(session: session)),
+                          ),
+                          _CompactChipBtn(
+                            icon: Icons.factory_outlined,
+                            label: 'Quarries / Suppliers',
+                            onTap: () => _openWorkspace(
+                              'Suppliers / Quarries',
+                              SuppliersScreen(session: session),
+                            ),
+                          ),
+                          _CompactChipBtn(
+                            icon: Icons.groups_outlined,
+                            label: 'Customers',
+                            onTap: () => _openWorkspace(
+                              'Customers',
+                              CustomersScreen(session: session),
+                            ),
+                          ),
+                          _CompactChipBtn(
+                            icon: Icons.insights_outlined,
+                            label: 'Reports Center',
+                            onTap: () => _openWorkspace(
+                              'Reports',
+                              ReportsScreen(session: session),
+                            ),
+                          ),
+                          if (_hasTransport)
+                            _CompactChipBtn(
+                              icon: Icons.route_outlined,
+                              label: 'Trips & Transport',
+                              onTap: () => _open(
+                                TransportLogisticsHubScreen(session: session),
+                              ),
+                            ),
+                        ],
                       ),
                     ],
                   ),
@@ -439,15 +533,26 @@ class _AggregateYardScreenState extends State<AggregateYardScreen> {
   }
 }
 
-class _HeroCard extends StatelessWidget {
+// ==========================================
+// COMPACT TOP APP BAR / HEADER
+// ==========================================
+class _CompactTopBar extends StatelessWidget {
   final String businessName;
   final String locationName;
+  final bool isLoading;
   final VoidCallback? onRefresh;
+  final VoidCallback onNewInward;
+  final VoidCallback onNewOutward;
+  final VoidCallback onRateBoard;
 
-  const _HeroCard({
+  const _CompactTopBar({
     required this.businessName,
     required this.locationName,
+    required this.isLoading,
     required this.onRefresh,
+    required this.onNewInward,
+    required this.onNewOutward,
+    required this.onRateBoard,
   });
 
   @override
@@ -456,151 +561,210 @@ class _HeroCard extends StatelessWidget {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: scheme.primaryContainer.withValues(alpha: .48),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: scheme.outlineVariant),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 46,
-            height: 46,
-            decoration: BoxDecoration(
-              color: scheme.primary.withValues(alpha: .12),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(
-              Icons.landscape_outlined,
-              color: scheme.primary,
-              size: 26,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'MATERIAL YARD',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: .8,
-                  ),
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  businessName,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  locationName,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: scheme.onSurfaceVariant,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          IconButton(
-            tooltip: 'Refresh dashboard',
-            onPressed: onRefresh,
-            icon: const Icon(Icons.refresh_rounded),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            decoration: BoxDecoration(
-              color: scheme.surface.withValues(alpha: .80),
-              borderRadius: BorderRadius.circular(999),
-            ),
-            child: const Text(
-              'THQ ERP CORE',
-              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _MetricCard extends StatelessWidget {
-  final double width;
-  final IconData icon;
-  final String label;
-  final String value;
-  final String helper;
-
-  const _MetricCard({
-    required this.width,
-    required this.icon,
-    required this.label,
-    required this.value,
-    required this.helper,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Container(
-      width: width,
-      padding: const EdgeInsets.all(13),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
       decoration: BoxDecoration(
         color: scheme.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: scheme.outlineVariant),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: scheme.outlineVariant.withValues(alpha: 0.6)),
       ),
       child: Row(
         children: [
+          // Left Badge
           Container(
-            width: 38,
-            height: 38,
+            width: 32,
+            height: 32,
             decoration: BoxDecoration(
-              color: scheme.primary.withValues(alpha: .10),
-              borderRadius: BorderRadius.circular(10),
+              color: scheme.primary.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(8),
             ),
-            child: Icon(icon, size: 20, color: scheme.primary),
+            child: Icon(
+              Icons.landscape_rounded,
+              color: scheme.primary,
+              size: 18,
+            ),
           ),
           const SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  children: [
+                    Text(
+                      businessName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                      decoration: BoxDecoration(
+                        color: scheme.primary.withValues(alpha: 0.10),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        'MATERIAL YARD',
+                        style: TextStyle(
+                          fontSize: 9.5,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.5,
+                          color: scheme.primary,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 1),
+                Row(
+                  children: [
+                    Icon(Icons.storefront_outlined, size: 12, color: scheme.onSurfaceVariant),
+                    const SizedBox(width: 4),
+                    Text(
+                      locationName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: scheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          // Action Buttons
+          OutlinedButton.icon(
+            style: OutlinedButton.styleFrom(
+              visualDensity: VisualDensity.compact,
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              side: BorderSide(color: scheme.outlineVariant),
+            ),
+            onPressed: onRateBoard,
+            icon: const Icon(Icons.price_change_outlined, size: 14),
+            label: const Text('Rate Board', style: TextStyle(fontSize: 11.5)),
+          ),
+          const SizedBox(width: 6),
+          FilledButton.tonalIcon(
+            style: FilledButton.styleFrom(
+              visualDensity: VisualDensity.compact,
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            ),
+            onPressed: onNewOutward,
+            icon: const Icon(Icons.north_east_rounded, size: 14),
+            label: const Text('+ Outward Load', style: TextStyle(fontSize: 11.5)),
+          ),
+          const SizedBox(width: 6),
+          FilledButton.icon(
+            style: FilledButton.styleFrom(
+              visualDensity: VisualDensity.compact,
+              padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
+            ),
+            onPressed: onNewInward,
+            icon: const Icon(Icons.south_west_rounded, size: 14),
+            label: const Text('+ Inward Load', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600)),
+          ),
+          const SizedBox(width: 4),
+          IconButton(
+            visualDensity: VisualDensity.compact,
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+            tooltip: 'Refresh yard data',
+            onPressed: onRefresh,
+            icon: Icon(
+              Icons.refresh_rounded,
+              size: 18,
+              color: scheme.onSurfaceVariant,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ==========================================
+// COMPACT KPI METRIC CARD
+// ==========================================
+class _CompactKpiCard extends StatelessWidget {
+  final double width;
+  final IconData icon;
+  final Color iconColor;
+  final String label;
+  final String value;
+  final String secondary;
+
+  const _CompactKpiCard({
+    required this.width,
+    required this.icon,
+    required this.iconColor,
+    required this.label,
+    required this.value,
+    required this.secondary,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
+    return Container(
+      width: width,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: scheme.surface,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: scheme.outlineVariant.withValues(alpha: 0.6)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              color: iconColor.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(7),
+            ),
+            child: Icon(icon, size: 16, color: iconColor),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
                   label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontSize: 11,
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w500,
                     color: scheme.onSurfaceVariant,
                   ),
                 ),
-                const SizedBox(height: 2),
+                const SizedBox(height: 1),
                 Text(
                   value,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    fontSize: 17,
-                    fontWeight: FontWeight.w600,
+                    fontSize: 14.5,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.2,
                   ),
                 ),
-                const SizedBox(height: 1),
                 Text(
-                  helper,
+                  secondary,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontSize: 11,
+                    fontSize: 10,
                     color: scheme.onSurfaceVariant,
                   ),
                 ),
@@ -613,61 +777,342 @@ class _MetricCard extends StatelessWidget {
   }
 }
 
-class _StockPanel extends StatelessWidget {
-  final List<Map<String, dynamic>> rows;
-  final String Function(dynamic value, {int decimals}) quantityText;
+// ==========================================
+// COMPACT ACTION TILE
+// ==========================================
+class _CompactActionTile extends StatelessWidget {
+  final double width;
+  final IconData icon;
+  final Color iconColor;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
 
-  const _StockPanel({required this.rows, required this.quantityText});
+  const _CompactActionTile({
+    required this.width,
+    required this.icon,
+    required this.iconColor,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final visibleRows = rows.take(8).toList(growable: false);
 
-    return Card(
-      margin: EdgeInsets.zero,
-      child: Padding(
-        padding: const EdgeInsets.all(13),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+    return SizedBox(
+      width: width,
+      child: Material(
+        color: scheme.surface,
+        borderRadius: BorderRadius.circular(8),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(8),
+          onTap: onTap,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: scheme.outlineVariant.withValues(alpha: 0.6)),
+            ),
+            child: Row(
               children: [
-                const Icon(Icons.warehouse_outlined, size: 18),
-                const SizedBox(width: 7),
-                Text(
-                  'Stock by material',
-                  style: Theme.of(
-                    context,
-                  ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
+                Container(
+                  width: 30,
+                  height: 30,
+                  decoration: BoxDecoration(
+                    color: iconColor.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Icon(icon, size: 16, color: iconColor),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 1),
+                      Text(
+                        subtitle,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 10.5,
+                          color: scheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 4),
+                Icon(
+                  Icons.chevron_right_rounded,
+                  size: 16,
+                  color: scheme.onSurfaceVariant.withValues(alpha: 0.6),
                 ),
               ],
             ),
-            const SizedBox(height: 4),
-            Text(
-              'Authoritative location stock. Each material keeps its own base unit.',
-              style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ==========================================
+// ACTIVE LOADS SECTION (TABLE FORMAT)
+// ==========================================
+class _ActiveLoadsSection extends StatelessWidget {
+  final List<Map<String, dynamic>> rows;
+  final String Function(dynamic value, {int decimals}) quantityText;
+  final VoidCallback onViewAll;
+  final void Function(Map<String, dynamic> row) onOpenLoad;
+
+  const _ActiveLoadsSection({
+    required this.rows,
+    required this.quantityText,
+    required this.onViewAll,
+    required this.onOpenLoad,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final visibleRows = rows.take(6).toList(growable: false);
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: scheme.surface,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: scheme.outlineVariant.withValues(alpha: 0.6)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.route_outlined, size: 16, color: scheme.primary),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Active & Dispatched Loads (${rows.length})',
+                    style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700),
+                  ),
+                ],
+              ),
+              InkWell(
+                onTap: onViewAll,
+                borderRadius: BorderRadius.circular(4),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  child: Text(
+                    'View all →',
+                    style: TextStyle(fontSize: 11, color: scheme.primary, fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          if (visibleRows.isEmpty)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 24),
+              child: Center(
+                child: Text('No active loads in transit or loading right now.', style: TextStyle(fontSize: 11)),
+              ),
+            )
+          else
+            ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: visibleRows.length,
+              separatorBuilder: (_, _) => Divider(
+                height: 1,
+                thickness: 0.5,
+                color: scheme.outlineVariant.withValues(alpha: 0.4),
+              ),
+              itemBuilder: (context, i) {
+                final row = visibleRows[i];
+                final isInbound = row['direction'] == 'inbound';
+                final status = (row['status'] ?? '').toString().replaceAll('_', ' ').toUpperCase();
+
+                return InkWell(
+                  onTap: () => onOpenLoad(row),
+                  borderRadius: BorderRadius.circular(4),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: BoxDecoration(
+                            color: isInbound
+                                ? const Color(0xFF00875A).withValues(alpha: 0.1)
+                                : const Color(0xFF635BFF).withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Icon(
+                            isInbound ? Icons.south_west_rounded : Icons.north_east_rounded,
+                            size: 13,
+                            color: isInbound ? const Color(0xFF00875A) : const Color(0xFF635BFF),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                '${row['load_number'] ?? ''}  •  ${row['product_name'] ?? ''}',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600),
+                              ),
+                              Text(
+                                '${row['vehicle_registration'] ?? 'No truck'} • ${row['driver_name'] ?? 'No driver'}',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(fontSize: 10, color: scheme.onSurfaceVariant),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Text(
+                              '${quantityText(row['quantity'])} ${row['unit_code'] ?? 'CFT'}',
+                              style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700),
+                            ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                              decoration: BoxDecoration(
+                                color: scheme.surfaceContainerHighest,
+                                borderRadius: BorderRadius.circular(3),
+                              ),
+                              child: Text(
+                                status,
+                                style: TextStyle(
+                                  fontSize: 8.5,
+                                  fontWeight: FontWeight.w700,
+                                  color: scheme.onSurfaceVariant,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
             ),
-            const SizedBox(height: 9),
-            if (visibleRows.isEmpty)
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 16),
-                child: Center(child: Text('No stock balance to display yet.')),
-              )
-            else
-              ...visibleRows.map((row) {
+        ],
+      ),
+    );
+  }
+}
+
+// ==========================================
+// STOCK SECTION (COMPACT TABLE FORMAT)
+// ==========================================
+class _StockSection extends StatelessWidget {
+  final List<Map<String, dynamic>> rows;
+  final String Function(dynamic value, {int decimals}) quantityText;
+  final VoidCallback onViewAll;
+
+  const _StockSection({
+    required this.rows,
+    required this.quantityText,
+    required this.onViewAll,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final visibleRows = rows.take(6).toList(growable: false);
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: scheme.surface,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: scheme.outlineVariant.withValues(alpha: 0.6)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.warehouse_outlined, size: 16, color: scheme.primary),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Yard Material Stock (${rows.length})',
+                    style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700),
+                  ),
+                ],
+              ),
+              InkWell(
+                onTap: onViewAll,
+                borderRadius: BorderRadius.circular(4),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  child: Text(
+                    'View all →',
+                    style: TextStyle(fontSize: 11, color: scheme.primary, fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          if (visibleRows.isEmpty)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 24),
+              child: Center(
+                child: Text('No stock balances recorded in this yard.', style: TextStyle(fontSize: 11)),
+              ),
+            )
+          else
+            ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: visibleRows.length,
+              separatorBuilder: (_, _) => Divider(
+                height: 1,
+                thickness: 0.5,
+                color: scheme.outlineVariant.withValues(alpha: 0.4),
+              ),
+              itemBuilder: (context, i) {
+                final row = visibleRows[i];
                 final variant = row['variant_name']?.toString().trim() ?? '';
                 final product = row['product_name']?.toString() ?? '';
-                final name =
-                    variant.isEmpty ||
+                final name = variant.isEmpty ||
                         variant.toLowerCase() == 'default' ||
                         variant.toLowerCase() == 'standard'
                     ? product
                     : '$product • $variant';
-                final unit = row['unit_code']?.toString() ?? '';
+                final unit = row['unit_code']?.toString() ?? 'CFT';
 
                 return Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 5),
+                  padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
                   child: Row(
                     children: [
                       Expanded(
@@ -675,10 +1120,7 @@ class _StockPanel extends StatelessWidget {
                           name,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                          ),
+                          style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600),
                         ),
                       ),
                       const SizedBox(width: 8),
@@ -687,162 +1129,82 @@ class _StockPanel extends StatelessWidget {
                         children: [
                           Text(
                             '${quantityText(row['available'])} $unit',
-                            style: const TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                            ),
+                            style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700),
                           ),
                           Text(
                             'On hand ${quantityText(row['on_hand'])}',
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: scheme.onSurfaceVariant,
-                            ),
+                            style: TextStyle(fontSize: 10, color: scheme.onSurfaceVariant),
                           ),
                         ],
                       ),
                     ],
                   ),
                 );
-              }),
-            if (rows.length > visibleRows.length)
-              Padding(
-                padding: const EdgeInsets.only(top: 6),
-                child: Text(
-                  '+ ${rows.length - visibleRows.length} more materials',
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: scheme.onSurfaceVariant,
-                  ),
-                ),
-              ),
-          ],
-        ),
+              },
+            ),
+        ],
       ),
     );
   }
 }
 
-class _ActiveLoadsPanel extends StatelessWidget {
-  final List<Map<String, dynamic>> rows;
-  final String Function(dynamic value, {int decimals}) quantityText;
+// ==========================================
+// CHIP BUTTON HELPER
+// ==========================================
+class _CompactChipBtn extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
 
-  const _ActiveLoadsPanel({required this.rows, required this.quantityText});
+  const _CompactChipBtn({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ActionChip(
+      visualDensity: VisualDensity.compact,
+      avatar: Icon(icon, size: 14),
+      label: Text(label, style: const TextStyle(fontSize: 11)),
+      onPressed: onTap,
+    );
+  }
+}
+
+// ==========================================
+// SECTION HEADER HELPER
+// ==========================================
+class _SectionHeader extends StatelessWidget {
+  final String title;
+  final String subtitle;
+
+  const _SectionHeader({required this.title, required this.subtitle});
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final visibleRows = rows.take(8).toList(growable: false);
 
-    return Card(
-      margin: EdgeInsets.zero,
-      child: Padding(
-        padding: const EdgeInsets.all(13),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                const Icon(Icons.route_outlined, size: 18),
-                const SizedBox(width: 7),
-                Text(
-                  'Active loads',
-                  style: Theme.of(
-                    context,
-                  ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
-                ),
-              ],
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'Loading, dispatched, in-transit and arrived trucks.',
-              style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant),
-            ),
-            const SizedBox(height: 9),
-            if (visibleRows.isEmpty)
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 16),
-                child: Center(child: Text('No active truck loads right now.')),
-              )
-            else
-              ...visibleRows.map((row) {
-                final direction = row['direction']?.toString() ?? '';
-                final isInbound = direction == 'inbound';
-
-                return Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 5),
-                  child: Row(
-                    children: [
-                      Icon(
-                        isInbound
-                            ? Icons.south_west_rounded
-                            : Icons.north_east_rounded,
-                        size: 16,
-                        color: scheme.primary,
-                      ),
-                      const SizedBox(width: 7),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              '${row['load_number'] ?? ''} • '
-                              '${row['product_name'] ?? ''}',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            Text(
-                              '${row['vehicle_registration'] ?? 'No truck'}'
-                              ' • ${row['driver_name'] ?? 'No driver'}',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: scheme.onSurfaceVariant,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Text(
-                            '${quantityText(row['quantity'])} '
-                            '${row['unit_code'] ?? ''}',
-                            style: const TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          Text(
-                            (row['status'] ?? '').toString().replaceAll(
-                              '_',
-                              ' ',
-                            ),
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: scheme.onSurfaceVariant,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                );
-              }),
-          ],
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
         ),
-      ),
+        Text(
+          subtitle,
+          style: TextStyle(fontSize: 10.5, color: scheme.onSurfaceVariant),
+        ),
+      ],
     );
   }
 }
 
+// ==========================================
+// ERROR BANNER
+// ==========================================
 class _ErrorBanner extends StatelessWidget {
   final String message;
   final VoidCallback onRetry;
@@ -854,166 +1216,30 @@ class _ErrorBanner extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(10),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
         color: scheme.errorContainer,
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(8),
       ),
       child: Row(
         children: [
-          Icon(Icons.error_outline_rounded, color: scheme.onErrorContainer),
+          Icon(Icons.error_outline_rounded, size: 16, color: scheme.onErrorContainer),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
               message,
-              maxLines: 3,
+              maxLines: 2,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(fontSize: 11, color: scheme.onErrorContainer),
             ),
           ),
-          TextButton(onPressed: onRetry, child: const Text('Retry')),
+          TextButton(
+            style: TextButton.styleFrom(visualDensity: VisualDensity.compact),
+            onPressed: onRetry,
+            child: const Text('Retry', style: TextStyle(fontSize: 11)),
+          ),
         ],
       ),
     );
   }
-}
-
-class _SectionTitle extends StatelessWidget {
-  final String title;
-  final String subtitle;
-
-  const _SectionTitle({required this.title, required this.subtitle});
-
-  @override
-  Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Text(
-        title,
-        style: Theme.of(
-          context,
-        ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
-      ),
-      const SizedBox(height: 2),
-      Text(
-        subtitle,
-        style: TextStyle(
-          fontSize: 11,
-          color: Theme.of(context).colorScheme.onSurfaceVariant,
-        ),
-      ),
-    ],
-  );
-}
-
-class _ActionCard extends StatelessWidget {
-  final double width;
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final VoidCallback onTap;
-  final bool enabled;
-
-  const _ActionCard({
-    required this.width,
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.onTap,
-    this.enabled = true,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-
-    return SizedBox(
-      width: width,
-      child: Card(
-        margin: EdgeInsets.zero,
-        child: InkWell(
-          borderRadius: BorderRadius.circular(12),
-          onTap: enabled ? onTap : null,
-          child: Padding(
-            padding: const EdgeInsets.all(13),
-            child: Row(
-              children: [
-                Container(
-                  width: 38,
-                  height: 38,
-                  decoration: BoxDecoration(
-                    color: scheme.primary.withValues(
-                      alpha: enabled ? .10 : .04,
-                    ),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Icon(
-                    icon,
-                    size: 20,
-                    color: enabled
-                        ? scheme.primary
-                        : scheme.onSurfaceVariant.withValues(alpha: .45),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        title,
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: enabled
-                              ? null
-                              : scheme.onSurfaceVariant.withValues(alpha: .55),
-                        ),
-                      ),
-                      const SizedBox(height: 3),
-                      Text(
-                        subtitle,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 11,
-                          height: 1.25,
-                          color: scheme.onSurfaceVariant,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 6),
-                Icon(
-                  Icons.chevron_right_rounded,
-                  size: 18,
-                  color: scheme.onSurfaceVariant,
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _SmallAction extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-
-  const _SmallAction({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) => OutlinedButton.icon(
-    onPressed: onTap,
-    icon: Icon(icon, size: 16),
-    label: Text(label),
-  );
 }

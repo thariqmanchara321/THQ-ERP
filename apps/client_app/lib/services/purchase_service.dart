@@ -91,7 +91,8 @@ class PurchaseService {
           'p_load_id': ?materialLoadId,
           'p_tenant_id': tenantId,
           'p_supplier_id': supplierId,
-          'p_supplier_invoice_number': supplierInvoiceNumber.trim(),
+          'p_supplier_invoice_number':
+              supplierInvoiceNumber.trim().isEmpty ? null : supplierInvoiceNumber.trim(),
           'p_purchase_date': _dateOnly(purchaseDate),
           'p_due_date': dueDate == null ? null : _dateOnly(dueDate),
           'p_items': items,
@@ -108,12 +109,27 @@ class PurchaseService {
       if (result is! Map) throw StateError('Unexpected response from $rpc.');
       await _requestIds.complete(lease);
       return Map<String, dynamic>.from(result);
+    } on PostgrestException catch (error) {
+      throw StateError(error.message);
     } catch (error) {
       throw StateError(
-        'Authoritative GST v5.2 purchase failed. Legacy purchase fallback is '
-        'disabled. Retry the unchanged invoice. $error',
+        'Purchase confirmation could not be completed: $error',
       );
     }
+  }
+
+  Future<void> updateVariantPricing({
+    required String tenantId,
+    required List<Map<String, dynamic>> updates,
+  }) async {
+    if (updates.isEmpty) return;
+    await _supabase.rpc(
+      'purchase_update_variant_pricing_v707',
+      params: {
+        'p_tenant_id': tenantId,
+        'p_updates': updates,
+      },
+    );
   }
 
   Future<Map<String, dynamic>> quotePurchase({

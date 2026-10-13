@@ -1,9 +1,9 @@
 import 'package:erp_core/erp_core.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
 
-import '../config/supabase_config.dart';
+import '../models/workspace_profile.dart';
+import 'workspace_manager.dart';
 
 class DeviceActivation {
   final String tenantId;
@@ -29,80 +29,36 @@ class DeviceActivation {
     required this.locationName,
     required this.locationCode,
   });
+
+  factory DeviceActivation.fromProfile(ThqWorkspaceProfile profile) {
+    return DeviceActivation(
+      tenantId: profile.tenantId,
+      tenantName: profile.tenantName,
+      businessCode: profile.businessCode,
+      deviceId: profile.deviceId,
+      deviceCode: profile.deviceCode,
+      deviceName: profile.deviceName,
+      deviceSecret: profile.deviceSecret,
+      locationId: profile.locationId,
+      locationName: profile.locationName,
+      locationCode: profile.locationCode,
+    );
+  }
 }
 
 class DeviceInstallationService {
-  static const FlutterSecureStorage _storage = FlutterSecureStorage();
+  final ThqWorkspaceManager _workspaceManager = ThqWorkspaceManager();
 
   SupabaseClient get _supabase => Supabase.instance.client;
 
-  String _storageKey(String key) {
-    // Preserve the existing production activation keys exactly as they are.
-    // Non-production environments get their own isolated namespace.
-    if (SupabaseConfig.environment == 'production') {
-      return key;
-    }
-
-    return '${SupabaseConfig.environment}.$key';
-  }
-
-  Future<String> installationId() async {
-    final key = _storageKey('flexi.installation_id');
-
-    var value = await _storage.read(key: key);
-
-    if (value == null || value.isEmpty) {
-      value = const Uuid().v4();
-      await _storage.write(key: key, value: value);
-    }
-
-    return value;
-  }
+  Future<String> installationId() => _workspaceManager.getInstallationId();
 
   Future<DeviceActivation?> readActivation() async {
-    final deviceId = await _storage.read(key: _storageKey('flexi.device_id'));
-
-    final deviceSecret = await _storage.read(
-      key: _storageKey('flexi.device_secret'),
-    );
-
-    final tenantId = await _storage.read(key: _storageKey('flexi.tenant_id'));
-
-    final locationId = await _storage.read(
-      key: _storageKey('flexi.location_id'),
-    );
-
-    if ([
-      deviceId,
-      deviceSecret,
-      tenantId,
-      locationId,
-    ].any((value) => value == null || value.isEmpty)) {
-      return null;
-    }
-
-    return DeviceActivation(
-      tenantId: tenantId!,
-      tenantName:
-          await _storage.read(key: _storageKey('flexi.tenant_name')) ??
-          'Business',
-      businessCode:
-          await _storage.read(key: _storageKey('flexi.business_code')) ?? '',
-      deviceId: deviceId!,
-      deviceCode:
-          await _storage.read(key: _storageKey('flexi.device_code')) ?? '',
-      deviceName:
-          await _storage.read(key: _storageKey('flexi.device_name')) ??
-          'System',
-      deviceSecret: deviceSecret!,
-      locationId: locationId!,
-      locationName:
-          await _storage.read(key: _storageKey('flexi.location_name')) ??
-          'Main',
-      locationCode:
-          await _storage.read(key: _storageKey('flexi.location_code')) ??
-          'MAIN',
-    );
+    final profile = await _workspaceManager
+        .getActiveProfile()
+        .timeout(const Duration(seconds: 5), onTimeout: () => null);
+    if (profile == null) return null;
+    return DeviceActivation.fromProfile(profile);
   }
 
   Future<DeviceActivation> activate({
@@ -119,7 +75,7 @@ class DeviceInstallationService {
         'app_key': appKey,
         'app_version': ThqReleaseContract.appVersion,
       },
-    );
+    ).timeout(const Duration(seconds: 15));
 
     if (response.data is! Map) {
       throw Exception('Unexpected activation response.');
@@ -131,77 +87,40 @@ class DeviceInstallationService {
       throw Exception(data['error'].toString());
     }
 
-    final activation = DeviceActivation(
-      tenantId: data['tenant_id']?.toString() ?? '',
-      tenantName: data['tenant_name']?.toString() ?? 'Business',
-      businessCode: data['business_code']?.toString() ?? '',
-      deviceId: data['device_id']?.toString() ?? '',
-      deviceCode: data['device_code']?.toString() ?? '',
-      deviceName: data['device_name']?.toString() ?? 'System',
-      deviceSecret: data['device_secret']?.toString() ?? '',
-      locationId: data['location_id']?.toString() ?? '',
-      locationName: data['location_name']?.toString() ?? 'Main',
-      locationCode: data['location_code']?.toString() ?? 'MAIN',
-    );
+    final tenantId = data['tenant_id']?.toString() ?? '';
+    final tenantName = data['tenant_name']?.toString() ?? 'Business';
+    final bCode = data['business_code']?.toString() ?? businessCode.trim().toUpperCase();
+    final deviceId = data['device_id']?.toString() ?? '';
+    final deviceCode = data['device_code']?.toString() ?? '';
+    final deviceName = data['device_name']?.toString() ?? 'System';
+    final deviceSecret = data['device_secret']?.toString() ?? '';
+    final locationId = data['location_id']?.toString() ?? '';
+    final locationName = data['location_name']?.toString() ?? 'Main';
+    final locationCode = data['location_code']?.toString() ?? 'MAIN';
 
-    if (activation.deviceId.isEmpty ||
-        activation.deviceSecret.isEmpty ||
-        activation.tenantId.isEmpty ||
-        activation.locationId.isEmpty) {
+    if (deviceId.isEmpty || deviceSecret.isEmpty || tenantId.isEmpty || locationId.isEmpty) {
       throw Exception('Activation response was incomplete.');
     }
 
-    await _storage.write(
-      key: _storageKey('flexi.tenant_id'),
-      value: activation.tenantId,
+    final profile = ThqWorkspaceProfile(
+      id: const Uuid().v4(),
+      tenantId: tenantId,
+      tenantName: tenantName,
+      businessCode: bCode,
+      locationId: locationId,
+      locationName: locationName,
+      locationCode: locationCode,
+      deviceId: deviceId,
+      deviceCode: deviceCode,
+      deviceName: deviceName,
+      deviceSecret: deviceSecret,
+      appKey: appKey,
+      activatedAt: DateTime.now(),
+      lastActiveAt: DateTime.now(),
     );
 
-    await _storage.write(
-      key: _storageKey('flexi.tenant_name'),
-      value: activation.tenantName,
-    );
-
-    await _storage.write(
-      key: _storageKey('flexi.business_code'),
-      value: activation.businessCode,
-    );
-
-    await _storage.write(
-      key: _storageKey('flexi.device_id'),
-      value: activation.deviceId,
-    );
-
-    await _storage.write(
-      key: _storageKey('flexi.device_code'),
-      value: activation.deviceCode,
-    );
-
-    await _storage.write(
-      key: _storageKey('flexi.device_name'),
-      value: activation.deviceName,
-    );
-
-    await _storage.write(
-      key: _storageKey('flexi.device_secret'),
-      value: activation.deviceSecret,
-    );
-
-    await _storage.write(
-      key: _storageKey('flexi.location_id'),
-      value: activation.locationId,
-    );
-
-    await _storage.write(
-      key: _storageKey('flexi.location_name'),
-      value: activation.locationName,
-    );
-
-    await _storage.write(
-      key: _storageKey('flexi.location_code'),
-      value: activation.locationCode,
-    );
-
-    return activation;
+    await _workspaceManager.saveProfile(profile);
+    return DeviceActivation.fromProfile(profile);
   }
 
   Future<void> updateRuntimeBinding({
@@ -211,55 +130,37 @@ class DeviceInstallationService {
     required String locationName,
     required String locationCode,
   }) async {
-    if (deviceCode.isNotEmpty) {
-      await _storage.write(
-        key: _storageKey('flexi.device_code'),
-        value: deviceCode,
-      );
-    }
+    final profile = await _workspaceManager.getActiveProfile();
+    if (profile == null) return;
 
-    if (deviceName.isNotEmpty) {
-      await _storage.write(
-        key: _storageKey('flexi.device_name'),
-        value: deviceName,
-      );
-    }
-
-    if (locationId.isNotEmpty) {
-      await _storage.write(
-        key: _storageKey('flexi.location_id'),
-        value: locationId,
-      );
-
-      await _storage.write(
-        key: _storageKey('flexi.location_name'),
-        value: locationName,
-      );
-
-      await _storage.write(
-        key: _storageKey('flexi.location_code'),
-        value: locationCode,
-      );
-    }
+    await _workspaceManager.updateProfileLocation(
+      profileId: profile.id,
+      locationId: locationId.isNotEmpty ? locationId : profile.locationId,
+      locationName: locationName.isNotEmpty ? locationName : profile.locationName,
+      locationCode: locationCode.isNotEmpty ? locationCode : profile.locationCode,
+    );
   }
 
   Future<DeviceActivation?> readAndVerifyActivation() async {
-    final activation = await readActivation();
-    if (activation == null) return null;
+    final profile = await _workspaceManager
+        .getActiveProfile()
+        .timeout(const Duration(seconds: 5), onTimeout: () => null);
+    if (profile == null) return null;
 
     try {
       final res = await _supabase.rpc(
         'verify_device_binding_v704',
         params: {
-          'p_device_id': activation.deviceId,
-          'p_tenant_id': activation.tenantId,
+          'p_device_id': profile.deviceId,
+          'p_tenant_id': profile.tenantId,
         },
       ).timeout(const Duration(seconds: 8));
 
       if (res is Map) {
         final valid = res['valid'] == true;
         if (!valid) {
-          await clearActivation();
+          // Explicit revocation by admin
+          await _workspaceManager.removeProfile(profile.id);
           try {
             await _supabase.auth.signOut();
           } catch (_) {}
@@ -267,12 +168,11 @@ class DeviceInstallationService {
         }
       }
     } catch (e) {
+      // Do not clear activation on network timeouts or temporary connectivity issues.
+      // Only clear if the server explicitly confirms device revocation.
       final msg = e.toString().toLowerCase();
-      if (msg.contains('business_deleted') ||
-          msg.contains('device_revoked') ||
-          msg.contains('inactive') ||
-          msg.contains('not found')) {
-        await clearActivation();
+      if (msg.contains('device_revoked') || msg.contains('business_deleted')) {
+        await _workspaceManager.removeProfile(profile.id);
         try {
           await _supabase.auth.signOut();
         } catch (_) {}
@@ -280,24 +180,19 @@ class DeviceInstallationService {
       }
     }
 
-    return activation;
+    return DeviceActivation.fromProfile(profile);
   }
 
+  /// Removes the currently active workspace profile only.
   Future<void> clearActivation() async {
-    for (final key in <String>[
-      'flexi.tenant_id',
-      'flexi.tenant_name',
-      'flexi.business_code',
-      'flexi.device_id',
-      'flexi.device_code',
-      'flexi.device_name',
-      'flexi.device_secret',
-      'flexi.location_id',
-      'flexi.location_name',
-      'flexi.location_code',
-    ]) {
-      await _storage.delete(key: _storageKey(key));
+    final profile = await _workspaceManager.getActiveProfile();
+    if (profile != null) {
+      await _workspaceManager.removeProfile(profile.id);
     }
   }
-}
 
+  /// Removes all saved workspace profiles (full reset).
+  Future<void> resetAllWorkspaces() async {
+    await _workspaceManager.clearAllWorkspaces();
+  }
+}

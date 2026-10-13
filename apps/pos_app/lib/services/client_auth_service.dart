@@ -48,8 +48,9 @@ class ClientAuthService {
           'app_key': appKey,
           'device_id': activation.deviceId,
           'device_secret': activation.deviceSecret,
+          'tenant_id': activation.tenantId,
         },
-      );
+      ).timeout(const Duration(seconds: 15));
       if (response.data is! Map) throw const AuthException('Unexpected login response.');
       final data = Map<String, dynamic>.from(response.data as Map);
       if (data['error'] != null) throw AuthException(data['error'].toString());
@@ -57,7 +58,9 @@ class ClientAuthService {
       if (refreshToken == null || refreshToken.isEmpty) {
         throw const AuthException('Login failed.');
       }
-      await _supabase.auth.setSession(refreshToken);
+      await _supabase.auth
+          .setSession(refreshToken)
+          .timeout(const Duration(seconds: 15));
     } catch (e) {
       if (e is AuthException) rethrow;
       throw AuthException(_extractErrorMessage(e, fallback: 'Login failed. Please try again.'));
@@ -83,7 +86,7 @@ class ClientAuthService {
           'device_secret': activation.deviceSecret,
           'authorization_scope': 'change_binding',
         },
-      );
+      ).timeout(const Duration(seconds: 15));
       if (response.data is! Map) {
         throw const AuthException('Unexpected authorization response.');
       }
@@ -105,6 +108,8 @@ class ClientAuthService {
     }
   }
 
-  Future<void> signOut() => _supabase.auth.signOut();
+  Future<void> signOut() => _supabase.auth
+      .signOut()
+      .timeout(const Duration(seconds: 5), onTimeout: () {});
 }
 

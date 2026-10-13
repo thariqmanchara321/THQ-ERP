@@ -3,11 +3,11 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   test('THQ current release/API contract is available to Client', () {
-    expect(ThqReleaseContract.appVersion, '7.0.1');
-    expect(ThqReleaseContract.buildNumber, 15);
+    expect(ThqReleaseContract.appVersion, '8.1.0');
+    expect(ThqReleaseContract.buildNumber, 16);
     expect(
       ThqReleaseContract.releaseName,
-      'Classic / V7 Switchable UI',
+      'THQ ERP v8.1 Production Release',
     );
     expect(ThqReleaseContract.minimumMigration, 213);
     expect(ThqReleaseContract.apiVersion, 'v1');

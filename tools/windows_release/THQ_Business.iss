@@ -5,10 +5,10 @@
   #error OutputDir was not provided.
 #endif
 #ifndef AppVersion
-  #define AppVersion "6.2.8"
+  #define AppVersion "8.1.0"
 #endif
 #ifndef BuildNumber
-  #define BuildNumber "13"
+  #define BuildNumber "16"
 #endif
 
 [Setup]
@@ -24,7 +24,7 @@ PrivilegesRequired=admin
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 OutputDir={#OutputDir}
-OutputBaseFilename=THQ-Business-v6.2.8-build13-windows-x64
+OutputBaseFilename=THQ-Business-v{#AppVersion}-build{#BuildNumber}-windows-x64
 Compression=lzma2/max
 SolidCompression=yes
 WizardStyle=modern
@@ -59,3 +59,4 @@ Name: "{autodesktop}\THQ Business"; Filename: "{app}\thq_business.exe"; Tasks: d
 Filename: "{tmp}\vc_redist.x64.exe"; Parameters: "/install /quiet /norestart"; StatusMsg: "Installing Microsoft Visual C++ Runtime..."; Flags: waituntilterminated
 #endif
 Filename: "{app}\thq_business.exe"; Description: "Launch THQ Business"; Flags: nowait postinstall skipifsilent
+

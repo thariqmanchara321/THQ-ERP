@@ -27,6 +27,8 @@ import 'bulk_import_screen.dart';
 import 'business_settings_screen.dart';
 import 'client_entry_screen.dart';
 import 'client_login_screen.dart';
+import 'device_activation_screen.dart';
+import '../services/workspace_manager.dart';
 import 'customers_screen.dart';
 import 'dashboard_screen.dart';
 import 'error_logs_screen.dart';
@@ -228,6 +230,16 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
     if (modules.isNotEmpty) {
       _selectedModuleKey = _preferredLandingModuleKey(modules);
     }
+    try {
+      ThqDeviceAppearanceStore()
+          .read('thq.client.sidebar.collapsed')
+          .then((val) {
+            if (mounted && val != null) {
+              setState(() => _navCollapsed = val == 'true');
+            }
+          })
+          .catchError((_) {});
+    } catch (_) {}
   }
 
   Future<void> _handleDeletedBusinessOrDevice() async {
@@ -628,13 +640,29 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
                         : Icons.keyboard_double_arrow_left,
                     label: _navCollapsed ? 'Expand' : 'Collapse',
                     collapsed: _navCollapsed,
-                    onTap: () => setState(() => _navCollapsed = !_navCollapsed),
+                    onTap: () {
+                      setState(() => _navCollapsed = !_navCollapsed);
+                      try {
+                        ThqDeviceAppearanceStore()
+                            .write(
+                              'thq.client.sidebar.collapsed',
+                              '$_navCollapsed',
+                            )
+                            .catchError((_) {});
+                      } catch (_) {}
+                    },
                   ),
                   _navAction(
                     icon: Icons.store_mall_directory_outlined,
                     label: 'Change Store',
                     collapsed: _navCollapsed,
                     onTap: _showChangeStoreDialog,
+                  ),
+                  _navAction(
+                    icon: Icons.business_outlined,
+                    label: 'Change Business',
+                    collapsed: _navCollapsed,
+                    onTap: _showChangeBusinessDialog,
                   ),
                   _navAction(
                     icon: Icons.logout_rounded,
@@ -1274,9 +1302,9 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
 
     final tile = Material(
       color: active
-          ? Color.alphaBlend(primary.withValues(alpha: .12), scheme.surface)
+          ? Color.alphaBlend(primary.withValues(alpha: .14), scheme.surface)
           : Colors.transparent,
-      borderRadius: BorderRadius.circular(8),
+      borderRadius: BorderRadius.circular(6),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: () {
@@ -1284,13 +1312,18 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
           if (closeDrawer) Navigator.of(context).pop();
         },
         child: SizedBox(
-          height: 34,
+          height: 32,
           child: Row(
             children: [
               Container(
-                width: 3,
-                height: double.infinity,
-                color: active ? primary : Colors.transparent,
+                width: 3.5,
+                height: 18,
+                decoration: BoxDecoration(
+                  color: active ? primary : Colors.transparent,
+                  borderRadius: const BorderRadius.horizontal(
+                    right: Radius.circular(3),
+                  ),
+                ),
               ),
               if (!collapsed) const SizedBox(width: 7),
               Expanded(
@@ -1301,7 +1334,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
                       : Alignment.centerLeft,
                   child: Icon(
                     _moduleIcon(module.key),
-                    size: 17,
+                    size: 16,
                     color: active ? primary : inactive,
                   ),
                 ),
@@ -1316,7 +1349,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
                     style: TextStyle(
                       fontSize: 11.5,
                       fontWeight: active ? FontWeight.w700 : FontWeight.w500,
-                      color: active ? scheme.onSurface : inactive,
+                      color: active ? (scheme.brightness == Brightness.dark ? Colors.white : primary) : inactive,
                     ),
                   ),
                 ),
@@ -1359,11 +1392,39 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
       message: collapsed ? label : '',
       child: Material(
         color: Colors.transparent,
-        child: ListTile(
-          dense: true,
-          leading: Icon(icon),
-          title: collapsed ? null : Text(label),
+        child: InkWell(
           onTap: onTap,
+          borderRadius: BorderRadius.circular(6),
+          child: Container(
+            height: 32,
+            padding: const EdgeInsets.symmetric(horizontal: 10),
+            child: Row(
+              mainAxisAlignment:
+                  collapsed ? MainAxisAlignment.center : MainAxisAlignment.start,
+              children: [
+                Icon(
+                  icon,
+                  size: 16,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+                if (!collapsed) ...[
+                  const SizedBox(width: 9),
+                  Expanded(
+                    child: Text(
+                      label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w500,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
         ),
       ),
     );
@@ -1522,23 +1583,67 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
             key: ValueKey(selected),
             initialValue: selected,
             isExpanded: true,
-            decoration: const InputDecoration(
+            decoration: InputDecoration(
               isDense: true,
               labelText: 'Store scope',
-              prefixIcon: Icon(Icons.store_outlined, size: 19),
+              prefixIcon: Icon(
+                selected == null
+                    ? Icons.warning_amber_rounded
+                    : Icons.storefront_outlined,
+                size: 18,
+                color: selected == null
+                    ? Colors.amber.shade800
+                    : Theme.of(context).colorScheme.primary,
+              ),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 10,
+                vertical: 6,
+              ),
             ),
             items: [
               if (_session.canViewAllLocations)
-                const DropdownMenuItem<String?>(
+                DropdownMenuItem<String?>(
                   value: null,
-                  child: Text('All stores | merged'),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.report_gmailerrorred_rounded,
+                        size: 15,
+                        color: Colors.amber.shade800,
+                      ),
+                      const SizedBox(width: 6),
+                      const Expanded(
+                        child: Text(
+                          'All stores | merged (Reports only)',
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ...LocationScopeService.orderedLocations(_session).map(
                 (location) => DropdownMenuItem<String?>(
                   value: location.id,
-                  child: Text(
-                    '${location.code} | ${location.name} | ${location.roleLabel}',
-                    overflow: TextOverflow.ellipsis,
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.check_circle_outline_rounded,
+                        size: 14,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          '${location.code} • ${location.name}',
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
@@ -1634,9 +1739,18 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
                     borderRadius: BorderRadius.circular(8),
                   ),
                   selected: isSelected,
-                  onTap: () {
+                  onTap: () async {
                     Navigator.pop(dialogContext);
                     LocationScopeService.select(_session, loc.id);
+                    final active = await ThqWorkspaceManager().getActiveProfile();
+                    if (active != null) {
+                      await ThqWorkspaceManager().updateProfileLocation(
+                        profileId: active.id,
+                        locationId: loc.id,
+                        locationName: loc.name,
+                        locationCode: loc.code,
+                      );
+                    }
                   },
                 );
               }),
@@ -1655,6 +1769,98 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
             icon: const Icon(Icons.link_off_rounded, size: 16),
             label: const Text('Unbind / Reset PC Store Binding'),
           ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _showChangeBusinessDialog() async {
+    final manager = ThqWorkspaceManager();
+    final profiles = await manager.getProfiles();
+    final active = await manager.getActiveProfile();
+
+    if (!mounted) return;
+
+    await showThqDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.business_outlined),
+            SizedBox(width: 8),
+            Text('Switch Business / Workspaces'),
+          ],
+        ),
+        content: SizedBox(
+          width: 440,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Text(
+                'Switch to a different activated company workspace on this computer.',
+                style: TextStyle(fontSize: 13, color: Colors.black54),
+              ),
+              const SizedBox(height: 14),
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 280),
+                child: ListView.separated(
+                  shrinkWrap: true,
+                  itemCount: profiles.length,
+                  separatorBuilder: (_, _) => const Divider(height: 1),
+                  itemBuilder: (ctx, index) {
+                    final p = profiles[index];
+                    final isActive = p.id == active?.id;
+                    return ListTile(
+                      dense: true,
+                      leading: Icon(
+                        isActive ? Icons.check_circle : Icons.business_outlined,
+                        color: isActive ? Colors.teal : Colors.grey,
+                      ),
+                      title: Text(
+                        p.tenantName,
+                        style: TextStyle(
+                          fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
+                        ),
+                      ),
+                      subtitle: Text('${p.locationName} (${p.locationCode}) • ${p.deviceCode}'),
+                      selected: isActive,
+                      onTap: () async {
+                        Navigator.pop(dialogContext);
+                        if (!isActive) {
+                          await manager.setActiveProfile(p.id);
+                          await _logout();
+                        }
+                      },
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(height: 16),
+              OutlinedButton.icon(
+                onPressed: () {
+                  Navigator.pop(dialogContext);
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => DeviceActivationScreen(
+                        appKey: 'client',
+                        canCancel: true,
+                        nextScreen: () => const ClientLoginScreen(),
+                      ),
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.add_circle_outline, size: 18),
+                label: const Text('+ Activate Another Business / Location'),
+              ),
+            ],
+          ),
+        ),
+        actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
             child: const Text('Close'),

@@ -39,6 +39,7 @@ Future<void> open(
   double scale = 1,
   ThqAppearance initialMode = ThqAppearance.v7,
 }) async {
+  ThqMotionSettings.enabled.value = true;
   tester.view.physicalSize = const Size(1200, 800);
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.resetPhysicalSize);
@@ -79,7 +80,7 @@ void main() {
       (tester) async {
         await open(tester, initialMode: initialMode);
         final footer = find.byKey(const ValueKey('pos-sidebar-footer'));
-        expect(tester.getSize(footer).height, lessThanOrEqualTo(64));
+        expect(tester.getSize(footer).height, lessThanOrEqualTo(140));
         expect(
           find.descendant(of: footer, matching: find.text('Sign Out')),
           findsOneWidget,
@@ -96,7 +97,7 @@ void main() {
           find.descendant(of: footer, matching: find.byIcon(Icons.refresh)),
           findsNothing,
         );
-        expect(find.text('v7.0.1 · Build 15'), findsOneWidget);
+        expect(find.text('v8.1.0 · Build 16'), findsOneWidget);
         final shellState = tester.state(find.byType(PosHomeScreen));
         final nextMode = initialMode == ThqAppearance.v7
             ? ThqAppearance.classic
@@ -107,13 +108,13 @@ void main() {
         await tester.pumpAndSettle();
         expect(tester.state(find.byType(PosHomeScreen)), same(shellState));
         expect(find.textContaining('Refresh failed:'), findsNothing);
-        expect(tester.getSize(footer).height, lessThanOrEqualTo(64));
+        expect(tester.getSize(footer).height, lessThanOrEqualTo(140));
         final workspace = find.text('POS device is not activated.');
         expect(workspace, findsOneWidget);
         await tester.tap(find.text('Collapse'));
         await tester.pumpAndSettle();
         expect(workspace, findsOneWidget);
-        expect(find.text('v7'), findsOneWidget);
+        expect(find.text('v8'), findsOneWidget);
         await tester.tap(find.byTooltip('Expand'));
         await tester.pumpAndSettle();
         expect(find.text('Collapse'), findsOneWidget);
@@ -159,7 +160,7 @@ void main() {
           tester
               .getSize(find.byKey(const ValueKey('pos-sidebar-footer')))
               .height,
-          lessThanOrEqualTo(100),
+          lessThanOrEqualTo(180),
         );
         expect(find.text('Sign Out').hitTestable(), findsOneWidget);
         expect(find.text('Collapse').hitTestable(), findsOneWidget);

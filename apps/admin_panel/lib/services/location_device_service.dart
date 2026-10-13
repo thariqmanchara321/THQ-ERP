@@ -117,6 +117,46 @@ class LocationDeviceService {
     return Map<String, dynamic>.from(result);
   }
 
+  Future<Map<String, dynamic>> issueActivationV709({
+    required String tenantId,
+    required String locationId,
+    required String appType,
+    String? name,
+    String? deviceId,
+  }) async {
+    final result = await _supabase.rpc(
+      'platform_device_issue_activation_v709',
+      params: {
+        'p_tenant_id': tenantId,
+        'p_location_id': locationId,
+        'p_app_type': appType,
+        'p_name': name,
+        'p_device_id': deviceId,
+      },
+    );
+    if (result is! Map) throw Exception('Unexpected activation response.');
+    return Map<String, dynamic>.from(result);
+  }
+
+  Future<Map<String, dynamic>> createLocationV709({
+    required String tenantId,
+    required String name,
+    required String code,
+    String locationType = 'store',
+  }) async {
+    final result = await _supabase.rpc(
+      'platform_location_create_v709',
+      params: {
+        'p_tenant_id': tenantId,
+        'p_name': name.trim(),
+        'p_code': code.trim().toUpperCase(),
+        'p_location_type': locationType,
+      },
+    );
+    if (result is! Map) throw Exception('Unexpected location response.');
+    return Map<String, dynamic>.from(result);
+  }
+
   Future<Map<String, dynamic>> updateDevice({
     required String tenantId,
     required String deviceId,

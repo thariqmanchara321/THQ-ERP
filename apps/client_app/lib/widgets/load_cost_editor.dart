@@ -389,35 +389,93 @@ class LoadEvidenceCard extends StatelessWidget {
   final Map<String, dynamic> record;
   const LoadEvidenceCard({super.key, required this.record});
   @override
-  Widget build(BuildContext context) => Card(
-    child: Padding(
-      padding: const EdgeInsets.all(14),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Load ${record['load_number'] ?? ''}',
-            style: Theme.of(context).textTheme.titleMedium,
-          ),
-          Text(
-            'Vehicle: ${record['vehicle_registration'] ?? record['vehicle_registration_snapshot'] ?? 'Not assigned'} • Driver: ${record['driver_name'] ?? record['driver_name_snapshot'] ?? 'Not assigned'}',
-          ),
-          Text(
-            '${record['source_name'] ?? ''} → ${record['destination_name'] ?? ''} • ${record['location_name'] ?? ''}',
-          ),
-          Text(
-            'Load cost: ${StaffLoadService.number(record['cost_total']).toStringAsFixed(2)} • Customer charges: ${StaffLoadService.number(record['customer_charge_total']).toStringAsFixed(2)} before tax',
-          ),
-          TextButton(
-            onPressed: () => RecordPreview.show(
-              context,
-              title: 'All saved load, cost, driver and delivery details',
-              record: record,
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final calcCft = record['calculated_cft'];
+    final heapAdj = record['heap_adjustment_cft'];
+    final billableQty = record['approved_billable_qty'];
+    final varianceNotes = record['measurement_notes'];
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Text(
+                  'Load ${record['load_number'] ?? ''}',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const Spacer(),
+                if (record['direction'] != null)
+                  Chip(
+                    visualDensity: VisualDensity.compact,
+                    label: Text(
+                      record['direction'] == 'inbound'
+                          ? 'Inward / Quarry'
+                          : record['direction'] == 'outbound'
+                          ? 'Outward / Sales'
+                          : '${record['direction']}',
+                      style: const TextStyle(fontSize: 11),
+                    ),
+                  ),
+              ],
             ),
-            child: const Text('Preview all saved details'),
-          ),
-        ],
+            const SizedBox(height: 4),
+            Text(
+              'Material: ${record['product_name'] ?? 'Not specified'}'
+              '${record['variant_name'] != null && record['variant_name'].toString().isNotEmpty ? ' (${record['variant_name']})' : ''}',
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
+            Text(
+              'Quantity: ${record['quantity'] ?? ''} ${record['unit_code'] ?? ''}'
+              '${calcCft != null && calcCft > 0 ? ' • Calculated: $calcCft CFT' : ''}'
+              '${heapAdj != null && heapAdj != 0 ? ' • Heap: $heapAdj CFT' : ''}'
+              '${billableQty != null && billableQty != record['quantity'] ? ' • Billable: $billableQty ${record['unit_code'] ?? ''}' : ''}',
+            ),
+            if (varianceNotes != null &&
+                varianceNotes.toString().trim().isNotEmpty) ...[
+              const SizedBox(height: 4),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: scheme.tertiaryContainer.withValues(alpha: 0.4),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  'Measurement Audit: $varianceNotes',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
+              ),
+            ],
+            const SizedBox(height: 4),
+            Text(
+              'Vehicle: ${record['vehicle_registration'] ?? record['vehicle_registration_snapshot'] ?? 'Not assigned'} • Driver: ${record['driver_name'] ?? record['driver_name_snapshot'] ?? 'Not assigned'}',
+            ),
+            Text(
+              '${record['source_name'] ?? ''} → ${record['destination_name'] ?? ''} • ${record['location_name'] ?? ''}',
+            ),
+            Text(
+              'Load cost: ${StaffLoadService.number(record['cost_total']).toStringAsFixed(2)} • Customer charges: ${StaffLoadService.number(record['customer_charge_total']).toStringAsFixed(2)} before tax',
+            ),
+            TextButton(
+              onPressed: () => RecordPreview.show(
+                context,
+                title: 'All saved load, cost, driver and delivery details',
+                record: record,
+              ),
+              child: const Text('Preview all saved details'),
+            ),
+          ],
+        ),
       ),
-    ),
-  );
+    );
+  }
 }

@@ -80,6 +80,7 @@ class SearchableSelect<T> extends StatelessWidget {
           labelText: effectiveLabel,
           hintText: hintText ?? 'Search and select',
           border: const OutlineInputBorder(),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           prefixIcon: Icon(prefixIcon),
           suffixIcon: Icon(
             Icons.search,
@@ -100,19 +101,29 @@ class SearchableSelect<T> extends StatelessWidget {
             : Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Text(
                     selected.label,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
-                  if ((selected.subtitle ?? '').trim().isNotEmpty)
+                  if ((selected.subtitle ?? '').trim().isNotEmpty) ...[
+                    const SizedBox(height: 1),
                     Text(
                       selected.subtitle!,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.bodySmall,
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
                     ),
+                  ],
                 ],
               ),
       ),

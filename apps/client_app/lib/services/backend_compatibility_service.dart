@@ -5,7 +5,9 @@ class BackendCompatibilityService {
   SupabaseClient get _supabase => Supabase.instance.client;
 
   Future<Map<String, dynamic>> verify() async {
-    final result = await _supabase.rpc('thq_backend_contract_v47');
+    final result = await _supabase
+        .rpc('thq_backend_contract_v47')
+        .timeout(const Duration(seconds: 10));
     if (result is! Map) {
       throw StateError('THQ backend version could not be verified.');
     }

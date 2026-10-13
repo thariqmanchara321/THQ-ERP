@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:thq_ui/thq_ui.dart';
 
 import '../services/device_installation_service.dart';
@@ -6,11 +7,13 @@ import '../services/device_installation_service.dart';
 class DeviceActivationScreen extends StatefulWidget {
   final String appKey;
   final Widget Function() nextScreen;
+  final bool canCancel;
 
   const DeviceActivationScreen({
     super.key,
     required this.appKey,
     required this.nextScreen,
+    this.canCancel = false,
   });
 
   @override
@@ -51,13 +54,27 @@ class _DeviceActivationScreenState extends State<DeviceActivationScreen> {
       ).pushReplacement(MaterialPageRoute(builder: (_) => widget.nextScreen()));
     } catch (error) {
       if (mounted) {
-        setState(
-          () => _error = error.toString().replaceFirst('Exception: ', ''),
-        );
+        setState(() => _error = _formatError(error));
       }
     } finally {
       if (mounted) setState(() => _loading = false);
     }
+  }
+
+  String _formatError(dynamic error) {
+    if (error is FunctionException) {
+      final details = error.details;
+      if (details is Map && details['error'] != null) {
+        return details['error'].toString();
+      }
+      if (details is String && details.trim().isNotEmpty) {
+        return details.trim();
+      }
+      if (error.reasonPhrase != null && error.reasonPhrase!.trim().isNotEmpty) {
+        return error.reasonPhrase!.trim();
+      }
+    }
+    return error.toString().replaceFirst(RegExp(r'^Exception:\s*'), '');
   }
 
   @override
@@ -149,6 +166,13 @@ class _DeviceActivationScreenState extends State<DeviceActivationScreen> {
                     label: Text(_loading ? 'Activating...' : 'Activate System'),
                   ),
                 ),
+                if (widget.canCancel) ...[
+                  const SizedBox(height: 10),
+                  TextButton(
+                    onPressed: _loading ? null : () => Navigator.maybePop(context),
+                    child: const Text('Cancel & Return to Login'),
+                  ),
+                ],
               ],
             ),
           ),

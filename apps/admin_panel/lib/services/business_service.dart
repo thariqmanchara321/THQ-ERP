@@ -46,6 +46,37 @@ class BusinessService {
     return result.toString();
   }
 
+  Future<Map<String, dynamic>> createBusinessV709({
+    required String name,
+    required String businessType,
+    required String ownerUsername,
+    required String ownerPassword,
+    String? ownerPhone,
+    String? ownerEmail,
+    String storeName = 'Main',
+    String storeCode = 'MAIN',
+    List<String>? moduleKeys,
+    String? gstin,
+  }) async {
+    final result = await _supabase.rpc(
+      'platform_create_business_v709',
+      params: {
+        'p_name': name.trim(),
+        'p_business_type': businessType,
+        'p_owner_username': ownerUsername.trim().toLowerCase(),
+        'p_owner_password': ownerPassword,
+        'p_owner_phone': ownerPhone?.trim().isEmpty == true ? null : ownerPhone?.trim(),
+        'p_owner_email': ownerEmail?.trim().isEmpty == true ? null : ownerEmail?.trim(),
+        'p_store_name': storeName.trim().isEmpty ? 'Main' : storeName.trim(),
+        'p_store_code': storeCode.trim().isEmpty ? 'MAIN' : storeCode.trim().toUpperCase(),
+        'p_module_keys': moduleKeys,
+        'p_gstin': gstin?.trim().isEmpty == true ? null : gstin?.trim().toUpperCase(),
+      },
+    );
+    if (result is! Map) throw Exception('Unexpected business creation response.');
+    return Map<String, dynamic>.from(result);
+  }
+
   Future<void> applyTemplateSettings({
     required String tenantId,
     required String templateKey,

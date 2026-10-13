@@ -350,6 +350,94 @@ class AggregateYardService {
     return Map<String, dynamic>.from(result);
   }
 
+  Future<List<Map<String, dynamic>>> dailyRates({
+    required String tenantId,
+    String? locationId,
+    DateTime? date,
+  }) async {
+    final effectiveDate = date ?? DateTime.now();
+    final dateStr =
+        '${effectiveDate.year.toString().padLeft(4, '0')}-'
+        '${effectiveDate.month.toString().padLeft(2, '0')}-'
+        '${effectiveDate.day.toString().padLeft(2, '0')}';
+
+    final result = await _db.rpc(
+      'material_daily_rates_get_v708',
+      params: {
+        'p_tenant_id': tenantId,
+        'p_location_id': locationId,
+        'p_date': dateStr,
+      },
+    );
+    return (result as List? ?? const [])
+        .whereType<Map>()
+        .map((row) => Map<String, dynamic>.from(row))
+        .toList();
+  }
+
+  Future<Map<String, dynamic>> saveDailyRates({
+    required String tenantId,
+    String? locationId,
+    required List<Map<String, dynamic>> rates,
+    DateTime? effectiveDate,
+  }) async {
+    final date = effectiveDate ?? DateTime.now();
+    final dateStr =
+        '${date.year.toString().padLeft(4, '0')}-'
+        '${date.month.toString().padLeft(2, '0')}-'
+        '${date.day.toString().padLeft(2, '0')}';
+
+    final result = await _db.rpc(
+      'material_daily_rates_bulk_save_v708',
+      params: {
+        'p_tenant_id': tenantId,
+        'p_location_id': locationId,
+        'p_rates': rates,
+        'p_effective_date': dateStr,
+      },
+    );
+    if (result is! Map) {
+      throw StateError('Unexpected daily rate save response.');
+    }
+    return Map<String, dynamic>.from(result);
+  }
+
+  Future<List<Map<String, dynamic>>> drivers({
+    required String tenantId,
+    String? query,
+    int limit = 100,
+  }) async {
+    final result = await _db.rpc(
+      'logistics_driver_list_v708',
+      params: {
+        'p_tenant_id': tenantId,
+        'p_query': query,
+        'p_limit': limit,
+      },
+    );
+    return (result as List? ?? const [])
+        .whereType<Map>()
+        .map((row) => Map<String, dynamic>.from(row))
+        .toList();
+  }
+
+  Future<Map<String, dynamic>> saveDriver({
+    required String tenantId,
+    required Map<String, dynamic> driver,
+  }) async {
+    final result = await _db.rpc(
+      'logistics_driver_save_v708',
+      params: {
+        'p_tenant_id': tenantId,
+        'p_driver': driver,
+      },
+    );
+    if (result is! Map) {
+      throw StateError('Unexpected driver save response.');
+    }
+    return Map<String, dynamic>.from(result);
+  }
+
   Future<Map<String, dynamic>> createLoad({
     required String tenantId,
     required String direction,
@@ -379,6 +467,13 @@ class AggregateYardService {
     List<Map<String, dynamic>> costs = const [],
     Map<String, dynamic> delivery = const {},
     String? requestId,
+    Map<String, dynamic>? rawDimensions,
+    String? dimensionUnit,
+    double? calculatedCft,
+    double? heapAdjustmentCft,
+    double? approvedBillableQty,
+    String? approvedBy,
+    String? measurementNotes,
   }) async {
     final result = await StaffLoadService().load(
       tenantId: tenantId,
@@ -411,6 +506,13 @@ class AggregateYardService {
           'p_capacity_override': capacityOverride,
           'p_capacity_override_reason': capacityOverrideReason,
           'p_notes': notes,
+          'p_raw_dimensions': rawDimensions,
+          'p_dimension_unit': dimensionUnit,
+          'p_calculated_cft': calculatedCft,
+          'p_heap_adjustment_cft': heapAdjustmentCft,
+          'p_approved_billable_qty': approvedBillableQty,
+          'p_approved_by': approvedBy,
+          'p_measurement_notes': measurementNotes,
         },
         'costs': costs,
         'delivery': delivery,
@@ -477,6 +579,13 @@ class AggregateYardService {
     List<Map<String, dynamic>> costs = const [],
     Map<String, dynamic> delivery = const {},
     String? requestId,
+    Map<String, dynamic>? rawDimensions,
+    String? dimensionUnit,
+    double? calculatedCft,
+    double? heapAdjustmentCft,
+    double? approvedBillableQty,
+    String? approvedBy,
+    String? measurementNotes,
   }) async {
     final result = await StaffLoadService().load(
       tenantId: tenantId,
@@ -510,6 +619,13 @@ class AggregateYardService {
           'p_capacity_override': capacityOverride,
           'p_capacity_override_reason': capacityOverrideReason,
           'p_notes': notes,
+          'p_raw_dimensions': rawDimensions,
+          'p_dimension_unit': dimensionUnit,
+          'p_calculated_cft': calculatedCft,
+          'p_heap_adjustment_cft': heapAdjustmentCft,
+          'p_approved_billable_qty': approvedBillableQty,
+          'p_approved_by': approvedBy,
+          'p_measurement_notes': measurementNotes,
         },
         'costs': costs,
         'delivery': delivery,

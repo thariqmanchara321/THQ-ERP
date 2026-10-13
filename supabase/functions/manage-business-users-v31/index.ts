@@ -178,7 +178,8 @@ Deno.serve(async (req) => {
         )
       }
 
-      const { error: mappingError } = await admin.from('user_login_names').upsert({
+      await admin.from('user_login_names').delete().eq('user_id', created.user_id).eq('tenant_id', body.tenant_id)
+      const { error: mappingError } = await admin.from('user_login_names').insert({
         user_id: created.user_id,
         tenant_id: body.tenant_id,
         username,

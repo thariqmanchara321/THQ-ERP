@@ -45,4 +45,29 @@ class LocationScopeService {
         .where((location) => location.id == locationId && location.canOperate)
         .toList(growable: false);
   }
+
+  static List<ClientLocationAccess> orderedLocations(ClientSession session) {
+    final rows = [...session.locations];
+    int rank(ClientLocationAccess location) {
+      if (location.isMain) return 0;
+      if (location.isWarehouse) return 2;
+      return 1;
+    }
+
+    rows.sort((a, b) {
+      final roleCompare = rank(a).compareTo(rank(b));
+      if (roleCompare != 0) return roleCompare;
+      final orderCompare = a.sortOrder.compareTo(b.sortOrder);
+      if (orderCompare != 0) return orderCompare;
+      return a.name.toLowerCase().compareTo(b.name.toLowerCase());
+    });
+    return rows;
+  }
+
+  static void select(ClientSession session, String locationId) {
+    if (!session.canAccessLocation(locationId)) {
+      throw StateError('This user cannot access the selected store.');
+    }
+    selectedLocationId.value = locationId;
+  }
 }

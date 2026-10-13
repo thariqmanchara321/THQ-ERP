@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../models/client_session.dart';
@@ -8,6 +9,7 @@ import '../services/device_installation_service.dart';
 import 'business_selector_screen.dart';
 import 'client_entry_screen.dart';
 import 'client_home_screen.dart';
+import 'client_login_screen.dart';
 
 class ClientBootstrapScreen extends StatefulWidget {
   const ClientBootstrapScreen({super.key});
@@ -28,14 +30,18 @@ class _ClientBootstrapScreenState extends State<ClientBootstrapScreen> {
   @override
   void initState() {
     super.initState();
-
     _businessesFuture = _loadBusinesses();
+  }
+
+  void _retry() {
+    setState(() {
+      _businessesFuture = _loadBusinesses();
+    });
   }
 
   Future<List<ClientBusiness>> _loadBusinesses() async {
     final act = await DeviceInstallationService().readAndVerifyActivation();
     if (act == null) {
-      await DeviceInstallationService().clearActivation();
       try {
         await _authService.signOut();
       } catch (_) {}
@@ -48,16 +54,24 @@ class _ClientBootstrapScreenState extends State<ClientBootstrapScreen> {
       return const [];
     }
 
-    await _backendCompatibility.verify();
-    final businesses = await _sessionService.getAvailableBusinesses();
+    try {
+      await _backendCompatibility.verify().timeout(const Duration(seconds: 12));
+    } catch (e) {
+      // Re-throw so user gets clear error view with retry button
+      throw Exception('Backend compatibility check failed: $e');
+    }
+
+    final businesses = await _sessionService
+        .getAvailableBusinesses()
+        .timeout(const Duration(seconds: 15));
+
     if (businesses.isEmpty) {
-      await DeviceInstallationService().clearActivation();
       try {
         await _authService.signOut();
       } catch (_) {}
       if (mounted) {
         Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (_) => const ClientEntryScreen()),
+          MaterialPageRoute(builder: (_) => const ClientLoginScreen()),
           (_) => false,
         );
       }
@@ -66,15 +80,16 @@ class _ClientBootstrapScreenState extends State<ClientBootstrapScreen> {
   }
 
   Future<void> _logout() async {
-    await DeviceInstallationService().clearActivation();
-    await _authService.signOut();
+    try {
+      await _authService.signOut();
+    } catch (_) {}
 
     if (!mounted) {
       return;
     }
 
     Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => const ClientEntryScreen()),
+      MaterialPageRoute(builder: (_) => const ClientLoginScreen()),
       (_) => false,
     );
   }
@@ -87,12 +102,16 @@ class _ClientBootstrapScreenState extends State<ClientBootstrapScreen> {
         future: _businessesFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const _LoadingView(message: 'Loading your business...');
+            return _LoadingView(
+              message: 'Loading your business...',
+              onLogout: _logout,
+            );
           }
 
           if (snapshot.hasError) {
             return _ErrorView(
               message: snapshot.error.toString(),
+              onRetry: _retry,
               onLogout: _logout,
             );
           }
@@ -104,7 +123,10 @@ class _ClientBootstrapScreenState extends State<ClientBootstrapScreen> {
           }
 
           if (businesses.length == 1) {
-            return _SingleBusinessLoader(business: businesses.first);
+            return _SingleBusinessLoader(
+              business: businesses.first,
+              onLogout: _logout,
+            );
           }
 
           return BusinessSelectorScreen(businesses: businesses);
@@ -116,8 +138,12 @@ class _ClientBootstrapScreenState extends State<ClientBootstrapScreen> {
 
 class _SingleBusinessLoader extends StatefulWidget {
   final ClientBusiness business;
+  final Future<void> Function() onLogout;
 
-  const _SingleBusinessLoader({required this.business});
+  const _SingleBusinessLoader({
+    required this.business,
+    required this.onLogout,
+  });
 
   @override
   State<_SingleBusinessLoader> createState() => _SingleBusinessLoaderState();
@@ -131,8 +157,19 @@ class _SingleBusinessLoaderState extends State<_SingleBusinessLoader> {
   @override
   void initState() {
     super.initState();
+    _sessionFuture = _loadSession();
+  }
 
-    _sessionFuture = _sessionService.loadSession(business: widget.business);
+  Future<ClientSession> _loadSession() {
+    return _sessionService
+        .loadSession(business: widget.business)
+        .timeout(const Duration(seconds: 20));
+  }
+
+  void _retry() {
+    setState(() {
+      _sessionFuture = _loadSession();
+    });
   }
 
   @override
@@ -141,28 +178,52 @@ class _SingleBusinessLoaderState extends State<_SingleBusinessLoader> {
       future: _sessionFuture,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const _LoadingView(message: 'Preparing THQ Business...');
+          return _LoadingView(
+            message: 'Preparing THQ Business...',
+            onLogout: widget.onLogout,
+          );
         }
 
         if (snapshot.hasError) {
+          final err = snapshot.error
+              .toString()
+              .replaceFirst(RegExp(r'^Exception:\s*'), '');
           return Center(
-            child: Padding(
+            child: Container(
+              width: 520,
               padding: const EdgeInsets.all(32),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.error_outline, size: 54),
-
+                  const Icon(Icons.error_outline, size: 54, color: Colors.orange),
                   const SizedBox(height: 16),
-
                   const Text(
                     'Could not load business',
                     style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
                   ),
-
                   const SizedBox(height: 10),
-
-                  Text(snapshot.error.toString(), textAlign: TextAlign.center),
+                  Text(
+                    err,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(fontSize: 13, color: Colors.black87),
+                  ),
+                  const SizedBox(height: 24),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      FilledButton.icon(
+                        onPressed: _retry,
+                        icon: const Icon(Icons.refresh, size: 18),
+                        label: const Text('Retry'),
+                      ),
+                      const SizedBox(width: 12),
+                      OutlinedButton.icon(
+                        onPressed: () => widget.onLogout(),
+                        icon: const Icon(Icons.logout, size: 18),
+                        label: const Text('Sign Out'),
+                      ),
+                    ],
+                  ),
                 ],
               ),
             ),
@@ -175,10 +236,33 @@ class _SingleBusinessLoaderState extends State<_SingleBusinessLoader> {
   }
 }
 
-class _LoadingView extends StatelessWidget {
+class _LoadingView extends StatefulWidget {
   final String message;
+  final Future<void> Function()? onLogout;
 
-  const _LoadingView({required this.message});
+  const _LoadingView({required this.message, this.onLogout});
+
+  @override
+  State<_LoadingView> createState() => _LoadingViewState();
+}
+
+class _LoadingViewState extends State<_LoadingView> {
+  bool _showCancel = false;
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    _timer = Timer(const Duration(seconds: 4), () {
+      if (mounted) setState(() => _showCancel = true);
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -187,10 +271,21 @@ class _LoadingView extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           const CircularProgressIndicator(),
-
           const SizedBox(height: 20),
-
-          Text(message, style: const TextStyle(fontSize: 16)),
+          Text(widget.message, style: const TextStyle(fontSize: 16)),
+          if (_showCancel && widget.onLogout != null) ...[
+            const SizedBox(height: 16),
+            const Text(
+              'Taking longer than expected?',
+              style: TextStyle(fontSize: 12, color: Colors.black54),
+            ),
+            const SizedBox(height: 8),
+            OutlinedButton.icon(
+              onPressed: () => widget.onLogout!(),
+              icon: const Icon(Icons.logout, size: 16),
+              label: const Text('Back to Login'),
+            ),
+          ],
         ],
       ),
     );
@@ -212,16 +307,12 @@ class _NoBusinessView extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             const Icon(Icons.store_mall_directory_outlined, size: 64),
-
             const SizedBox(height: 18),
-
             const Text(
               'No Business Access',
               style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
             ),
-
             const SizedBox(height: 10),
-
             Text(
               'Your account is not connected to an active THQ Business business.',
               textAlign: TextAlign.center,
@@ -229,9 +320,7 @@ class _NoBusinessView extends StatelessWidget {
                 color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
             ),
-
             const SizedBox(height: 24),
-
             OutlinedButton(
               onPressed: () => onLogout(),
               child: const Text('Sign Out'),
@@ -245,12 +334,19 @@ class _NoBusinessView extends StatelessWidget {
 
 class _ErrorView extends StatelessWidget {
   final String message;
+  final VoidCallback onRetry;
   final Future<void> Function() onLogout;
 
-  const _ErrorView({required this.message, required this.onLogout});
+  const _ErrorView({
+    required this.message,
+    required this.onRetry,
+    required this.onLogout,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final cleanMessage =
+        message.replaceFirst(RegExp(r'^Exception:\s*'), '');
     return Center(
       child: Container(
         width: 520,
@@ -258,24 +354,30 @@ class _ErrorView extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.error_outline, size: 60),
-
+            const Icon(Icons.error_outline, size: 60, color: Colors.orange),
             const SizedBox(height: 16),
-
             const Text(
               'Unable to start THQ Business',
               style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
             ),
-
             const SizedBox(height: 12),
-
-            Text(message, textAlign: TextAlign.center),
-
+            Text(cleanMessage, textAlign: TextAlign.center),
             const SizedBox(height: 24),
-
-            OutlinedButton(
-              onPressed: () => onLogout(),
-              child: const Text('Sign Out'),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                FilledButton.icon(
+                  onPressed: onRetry,
+                  icon: const Icon(Icons.refresh, size: 18),
+                  label: const Text('Retry'),
+                ),
+                const SizedBox(width: 12),
+                OutlinedButton.icon(
+                  onPressed: () => onLogout(),
+                  icon: const Icon(Icons.logout, size: 18),
+                  label: const Text('Sign Out'),
+                ),
+              ],
             ),
           ],
         ),

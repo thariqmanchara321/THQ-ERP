@@ -30,7 +30,8 @@ class ClientSessionService {
         .eq('user_id', user.id)
         .eq('status', 'active')
         .eq('tenant_id', activation.tenantId)
-        .order('joined_at');
+        .order('joined_at')
+        .timeout(const Duration(seconds: 12));
 
     final membershipRows = (membershipResult as List)
         .map((row) => Map<String, dynamic>.from(row as Map))
@@ -47,7 +48,8 @@ class ClientSessionService {
     final tenantResult = await _supabase
         .from('tenants')
         .select('id, name, slug, business_type, status')
-        .inFilter('id', tenantIds);
+        .inFilter('id', tenantIds)
+        .timeout(const Duration(seconds: 12));
 
     final tenantRows = (tenantResult as List)
         .map((row) => Map<String, dynamic>.from(row as Map))
@@ -106,7 +108,8 @@ class ClientSessionService {
         .from('tenant_modules')
         .select('module_key, enabled')
         .eq('tenant_id', business.id)
-        .eq('enabled', true);
+        .eq('enabled', true)
+        .timeout(const Duration(seconds: 10));
 
     final tenantModuleRows = (tenantModuleResult as List)
         .map((row) => Map<String, dynamic>.from(row as Map))
@@ -123,7 +126,8 @@ class ClientSessionService {
           .from('modules')
           .select('key, name, description, category, sort_order')
           .inFilter('key', moduleKeys)
-          .order('sort_order');
+          .order('sort_order')
+          .timeout(const Duration(seconds: 10));
 
       final moduleRows = (moduleResult as List)
           .map((row) => Map<String, dynamic>.from(row as Map))
@@ -136,7 +140,8 @@ class ClientSessionService {
         .from('user_roles')
         .select('role_id')
         .eq('tenant_id', business.id)
-        .eq('membership_id', business.membershipId);
+        .eq('membership_id', business.membershipId)
+        .timeout(const Duration(seconds: 10));
 
     final userRoleRows = (userRoleResult as List)
         .map((row) => Map<String, dynamic>.from(row as Map))
@@ -153,7 +158,8 @@ class ClientSessionService {
       final roleResult = await _supabase
           .from('roles')
           .select('id, key, name')
-          .inFilter('id', roleIds);
+          .inFilter('id', roleIds)
+          .timeout(const Duration(seconds: 10));
 
       final roleRows = (roleResult as List)
           .map((row) => Map<String, dynamic>.from(row as Map))
@@ -164,7 +170,8 @@ class ClientSessionService {
       final permissionResult = await _supabase
           .from('role_permissions')
           .select('role_id, permission_key')
-          .inFilter('role_id', roleIds);
+          .inFilter('role_id', roleIds)
+          .timeout(const Duration(seconds: 10));
 
       final permissionRows = (permissionResult as List)
           .map((row) => Map<String, dynamic>.from(row as Map))
@@ -179,7 +186,8 @@ class ClientSessionService {
         .from('tenant_settings')
         .select('currency_code, timezone, locale')
         .eq('tenant_id', business.id)
-        .maybeSingle();
+        .maybeSingle()
+        .timeout(const Duration(seconds: 10));
 
     final settings = settingsResult == null
         ? <String, dynamic>{}
@@ -192,7 +200,7 @@ class ClientSessionService {
       final subscriptionResult = await _supabase.rpc(
         'client_subscription_context',
         params: {'p_tenant_id': business.id},
-      );
+      ).timeout(const Duration(seconds: 8));
       if (subscriptionResult is Map) {
         subscription = ClientSubscription.fromMap(
           Map<String, dynamic>.from(subscriptionResult),
@@ -206,7 +214,7 @@ class ClientSessionService {
       final v2SettingsResult = await _supabase.rpc(
         'tenant_settings_v2_get',
         params: {'p_tenant_id': business.id},
-      );
+      ).timeout(const Duration(seconds: 8));
       if (v2SettingsResult is Map) {
         v2Settings = Map<String, dynamic>.from(v2SettingsResult);
       }
@@ -223,7 +231,7 @@ class ClientSessionService {
           'p_device_id': activation.deviceId,
           'p_app_key': appKey,
         },
-      );
+      ).timeout(const Duration(seconds: 12));
       if (runtimeResult is Map) {
         runtime = Map<String, dynamic>.from(runtimeResult);
       }

@@ -55,13 +55,16 @@ Deno.serve(async (req) => {
       }
     }
 
+    const explicitTenantId = String(body.tenant_id ?? '').trim()
+    const targetTenantId = device?.tenant_id || (explicitTenantId ? explicitTenantId : null)
+
     let identity: any = null
-    if (device?.tenant_id) {
-      // 1. Scoped lookup: Find user in the specific business this PC is registered to
+    if (targetTenantId) {
+      // 1. Scoped lookup: Find user in the specific business
       const { data: tenantIdentity } = await admin
         .from('user_login_names')
         .select('user_id,auth_email')
-        .eq('tenant_id', device.tenant_id)
+        .eq('tenant_id', targetTenantId)
         .ilike('username', username)
         .maybeSingle()
 
@@ -72,7 +75,7 @@ Deno.serve(async (req) => {
         const { data: tenantMembers } = await admin
           .from('tenant_memberships')
           .select('user_id')
-          .eq('tenant_id', device.tenant_id)
+          .eq('tenant_id', targetTenantId)
           .eq('status', 'active')
 
         if (tenantMembers && tenantMembers.length > 0) {
@@ -87,7 +90,7 @@ Deno.serve(async (req) => {
         }
       }
     } else {
-      // Admin or global login (no device provided)
+      // Admin or global login (no device or tenant provided)
       const { data: globalIdentity } = await admin
         .from('user_login_names')
         .select('user_id,auth_email')
@@ -98,8 +101,9 @@ Deno.serve(async (req) => {
 
     if (!identity) return json({ error: 'Invalid username or password.' }, 401)
 
-    if (device) {
-      const { data: activeMembership } = await admin.from('tenant_memberships').select('id').eq('tenant_id',device.tenant_id).eq('user_id',identity.user_id).eq('status','active').maybeSingle()
+    if (device || targetTenantId) {
+      const tenantForMembership = device?.tenant_id || targetTenantId
+      const { data: activeMembership } = await admin.from('tenant_memberships').select('id').eq('tenant_id',tenantForMembership).eq('user_id',identity.user_id).eq('status','active').maybeSingle()
       if (!activeMembership) return json({ error: 'This user does not have access to this business.', code:'TENANT_ACCESS_DENIED' }, 403)
       membership = activeMembership
     }
