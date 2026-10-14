@@ -380,6 +380,13 @@ class _AggregateLoadsScreenState extends State<AggregateLoadsScreen> {
                                   child: SearchableTruckSelector(
                                     vehicles: vehicles,
                                     initialVehicleId: vehicleId,
+                                    session: widget.session,
+                                    locationId: locationId,
+                                    onVehicleCreated: (veh) {
+                                      setLocalState(() {
+                                        vehicles.insert(0, veh);
+                                      });
+                                    },
                                     onVehicleSelected: (veh) {
                                       setLocalState(() {
                                         vehicleId = veh?['vehicle_id']?.toString() ?? veh?['id']?.toString();
@@ -1430,6 +1437,13 @@ class _AggregateLoadsScreenState extends State<AggregateLoadsScreen> {
                                     child: SearchableTruckSelector(
                                       vehicles: vehicles,
                                       initialVehicleId: vehicleId,
+                                      session: widget.session,
+                                      locationId: locationId,
+                                      onVehicleCreated: (veh) {
+                                        setLocalState(() {
+                                          vehicles.insert(0, veh);
+                                        });
+                                      },
                                       onVehicleSelected: (veh) {
                                         setLocalState(() {
                                           vehicleId = veh?['vehicle_id']?.toString() ?? veh?['id']?.toString();
