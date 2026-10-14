@@ -10,3 +10,6 @@ export 'src/numeric_zero_auto_select.dart';
 export 'src/desktop_release_status.dart';
 
 export 'src/tracking_allocations.dart';
+export 'src/software_update_models.dart';
+export 'src/software_update_verifier.dart';
+export 'src/software_update_downloader.dart';

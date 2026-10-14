@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:thq_ui/thq_ui.dart';
 
 import '../models/client_session.dart';
+import '../services/software_update_service.dart';
 import '../services/support_service.dart';
 
 class SupportScreen extends StatefulWidget {
@@ -21,11 +22,18 @@ class SupportScreen extends StatefulWidget {
 
 class _SupportScreenState extends State<SupportScreen> {
   final SupportService _service = SupportService();
+  final SoftwareUpdateService _updateService = SoftwareUpdateService();
   final TextEditingController _subject = TextEditingController();
   final TextEditingController _description = TextEditingController();
   String _category = 'general';
   String _priority = 'normal';
   bool _saving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _updateService.initialize();
+  }
 
   @override
   void dispose() {
@@ -74,6 +82,38 @@ class _SupportScreenState extends State<SupportScreen> {
     }
   }
 
+  Future<void> _confirmAndInstall() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Install Software Update'),
+        content: Text(
+          'THQ ERP will close safely and the installer will upgrade your application.\n\n'
+          'All business activations, database configurations and local settings will remain preserved.\n\n'
+          'Proceed with installation now?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Install Later'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Install Now'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      await _updateService.installUpdate(
+        tenantId: widget.session.business.id,
+        deviceId: widget.session.device?.deviceId,
+        silent: false,
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -97,12 +137,25 @@ class _SupportScreenState extends State<SupportScreen> {
                     color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
                 ),
-                const SizedBox(height: 18),
+                const SizedBox(height: 16),
+                ValueListenableBuilder<SoftwareUpdateState>(
+                  valueListenable: _updateService.stateNotifier,
+                  builder: (context, updateState, _) {
+                    return _buildSoftwareUpdatesCard(context, updateState);
+                  },
+                ),
+                const SizedBox(height: 16),
                 Card(
                   child: Padding(
                     padding: const EdgeInsets.all(20),
                     child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        const Text(
+                          'Submit Support Request',
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                        ),
+                        const SizedBox(height: 12),
                         Wrap(
                           spacing: 10,
                           runSpacing: 10,
@@ -239,8 +292,293 @@ class _SupportScreenState extends State<SupportScreen> {
     );
   }
 
+  Widget _buildSoftwareUpdatesCard(BuildContext context, SoftwareUpdateState updateState) {
+    final scheme = Theme.of(context).colorScheme;
+    final rel = updateState.release;
+    final isBusy = updateState.status == UpdateStatus.checking ||
+        updateState.status == UpdateStatus.downloading ||
+        updateState.status == UpdateStatus.installing;
+
+    Color badgeBg;
+    Color badgeFg;
+    String badgeText;
+
+    switch (updateState.status) {
+      case UpdateStatus.checking:
+        badgeBg = scheme.primaryContainer;
+        badgeFg = scheme.onPrimaryContainer;
+        badgeText = 'Checking…';
+        break;
+      case UpdateStatus.available:
+        badgeBg = Colors.teal.shade100;
+        badgeFg = Colors.teal.shade900;
+        badgeText = 'Update Available';
+        break;
+      case UpdateStatus.downloading:
+        badgeBg = Colors.blue.shade100;
+        badgeFg = Colors.blue.shade900;
+        badgeText = 'Downloading';
+        break;
+      case UpdateStatus.verifying:
+        badgeBg = Colors.indigo.shade100;
+        badgeFg = Colors.indigo.shade900;
+        badgeText = 'Verifying Integrity';
+        break;
+      case UpdateStatus.readyToInstall:
+        badgeBg = Colors.green.shade100;
+        badgeFg = Colors.green.shade900;
+        badgeText = 'Ready to Install';
+        break;
+      case UpdateStatus.installing:
+        badgeBg = Colors.amber.shade100;
+        badgeFg = Colors.amber.shade900;
+        badgeText = 'Installing…';
+        break;
+      case UpdateStatus.error:
+        badgeBg = scheme.errorContainer;
+        badgeFg = scheme.onErrorContainer;
+        badgeText = 'Update Error';
+        break;
+      case UpdateStatus.upToDate:
+      case UpdateStatus.idle:
+        badgeBg = scheme.surfaceContainerHighest;
+        badgeFg = scheme.onSurfaceVariant;
+        badgeText = 'Up to Date';
+        break;
+    }
+
+    String formatDateTime(DateTime? dt) {
+      if (dt == null) return 'Never';
+      return '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}/${dt.year} '
+          '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+    }
+
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: scheme.outlineVariant),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.system_update_alt_rounded, color: scheme.primary, size: 22),
+                const SizedBox(width: 8),
+                const Text(
+                  'Software Updates',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                ),
+                const Spacer(),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: badgeBg,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    badgeText,
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: badgeFg,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: scheme.surfaceContainerLowest,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: scheme.outlineVariant.withValues(alpha: 0.5)),
+              ),
+              child: Column(
+                children: [
+                  _infoRow(
+                    context,
+                    label: 'Installed Version',
+                    value: 'v${ThqReleaseContract.appVersion} (Build ${ThqReleaseContract.buildNumber})',
+                  ),
+                  const Divider(height: 12),
+                  _infoRow(
+                    context,
+                    label: 'Latest Available',
+                    value: rel != null && rel.latestVersion.isNotEmpty
+                        ? 'v${rel.latestVersion} (Build ${rel.latestBuild})'
+                        : 'v${ThqReleaseContract.appVersion} (Current)',
+                  ),
+                  const Divider(height: 12),
+                  _infoRow(
+                    context,
+                    label: 'Last Checked',
+                    value: formatDateTime(updateState.lastCheckedAt),
+                  ),
+                  const Divider(height: 12),
+                  _infoRow(
+                    context,
+                    label: 'Last Successful Update',
+                    value: formatDateTime(updateState.lastSuccessfulUpdate),
+                  ),
+                  if (rel != null && rel.packageSizeBytes > 0) ...[
+                    const Divider(height: 12),
+                    _infoRow(
+                      context,
+                      label: 'Download Package Size',
+                      value: rel.formattedSize,
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            if (updateState.errorMessage != null) ...[
+              const SizedBox(height: 10),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: scheme.errorContainer.withValues(alpha: 0.6),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.error_outline, color: scheme.error, size: 18),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        updateState.errorMessage!,
+                        style: TextStyle(fontSize: 12, color: scheme.onErrorContainer),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+            if (rel != null && rel.releaseNotes.isNotEmpty && rel.isUpdateAvailable) ...[
+              const SizedBox(height: 12),
+              const Text(
+                'Release Notes:',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 4),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: scheme.surfaceContainerHighest.withValues(alpha: 0.35),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  rel.releaseNotes,
+                  style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
+                ),
+              ),
+            ],
+            if (updateState.status == UpdateStatus.downloading &&
+                updateState.downloadProgress != null) ...[
+              const SizedBox(height: 12),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        updateState.downloadProgress!.statusText,
+                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+                      ),
+                      Text(
+                        updateState.downloadProgress!.percentageText,
+                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  LinearProgressIndicator(
+                    value: updateState.downloadProgress!.progressFraction > 0
+                        ? updateState.downloadProgress!.progressFraction
+                        : null,
+                    minHeight: 6,
+                    borderRadius: BorderRadius.circular(3),
+                  ),
+                  const SizedBox(height: 4),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: Text(
+                      updateState.downloadProgress!.downloadedFormatted,
+                      style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+            const SizedBox(height: 14),
+            Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              children: [
+                OutlinedButton.icon(
+                  onPressed: isBusy
+                      ? null
+                      : () => _updateService.checkForUpdate(
+                            tenantId: widget.session.business.id,
+                            deviceId: widget.session.device?.deviceId,
+                          ),
+                  icon: const Icon(Icons.refresh_rounded, size: 16),
+                  label: const Text('Check for Updates'),
+                ),
+                if (updateState.status == UpdateStatus.available)
+                  FilledButton.icon(
+                    onPressed: () => _updateService.downloadRelease(
+                      tenantId: widget.session.business.id,
+                      deviceId: widget.session.device?.deviceId,
+                    ),
+                    icon: const Icon(Icons.download_rounded, size: 16),
+                    label: const Text('Download Update'),
+                  ),
+                if (updateState.status == UpdateStatus.downloading)
+                  OutlinedButton.icon(
+                    onPressed: _updateService.cancelDownload,
+                    icon: const Icon(Icons.cancel_outlined, size: 16),
+                    label: const Text('Cancel Download'),
+                  ),
+                if (updateState.status == UpdateStatus.readyToInstall)
+                  FilledButton.icon(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: Colors.green.shade700,
+                      foregroundColor: Colors.white,
+                    ),
+                    onPressed: _confirmAndInstall,
+                    icon: const Icon(Icons.system_update_rounded, size: 16),
+                    label: const Text('Download & Install'),
+                  ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _infoRow(BuildContext context, {required String label, required String value}) {
+    final scheme = Theme.of(context).colorScheme;
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(label, style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant)),
+        Text(value, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+      ],
+    );
+  }
+
   Widget _contextChip(IconData icon, String value) => Chip(
     avatar: Icon(icon, size: 16),
     label: Text(value.isEmpty ? 'Unknown' : value),
   );
 }
+

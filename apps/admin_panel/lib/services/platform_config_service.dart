@@ -294,13 +294,20 @@ class PlatformConfigService {
     required bool mandatory,
     required String releaseNotes,
     required String downloadUrl,
+    String channel = 'stable',
+    int packageSizeBytes = 0,
+    String? sha256Checksum,
+    String? publisherSignature,
+    String? minSupportedVersion,
+    int rolloutPercentage = 100,
   }) async {
     await _supabase.rpc(
-      'platform_app_release_save_v4',
+      'platform_app_release_save_v820',
       params: {
         'p_id': id,
         'p_app_key': appKey,
         'p_platform': platform,
+        'p_channel': channel,
         'p_version': version,
         'p_build_number': buildNumber,
         'p_status': status,
@@ -308,8 +315,43 @@ class PlatformConfigService {
         'p_mandatory': mandatory,
         'p_release_notes': releaseNotes,
         'p_download_url': downloadUrl,
+        'p_package_size_bytes': packageSizeBytes,
+        'p_sha256_checksum': sha256Checksum,
+        'p_publisher_signature': publisherSignature,
+        'p_min_supported_version': minSupportedVersion,
+        'p_rollout_percentage': rolloutPercentage,
       },
     );
+  }
+
+  Future<void> setAppReleaseStatus(String id, String status) async {
+    await _supabase.rpc(
+      'platform_app_release_set_status_v820',
+      params: {
+        'p_id': id,
+        'p_status': status,
+      },
+    );
+  }
+
+  Future<List<Map<String, dynamic>>> getAppUpdateLogs({
+    int limit = 100,
+    int offset = 0,
+    String? status,
+    String? appKey,
+  }) async {
+    final result = await _supabase.rpc(
+      'platform_app_update_logs_list_v820',
+      params: {
+        'p_limit': limit,
+        'p_offset': offset,
+        'p_status': status,
+        'p_app_key': appKey,
+      },
+    );
+    return (result as List? ?? const [])
+        .map((row) => Map<String, dynamic>.from(row as Map))
+        .toList();
   }
 
   Future<List<Map<String, dynamic>>> getDeviceVersions() async {
