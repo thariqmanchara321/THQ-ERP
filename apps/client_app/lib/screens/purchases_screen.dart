@@ -431,7 +431,10 @@ class _PurchasesScreenState extends State<PurchasesScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      purchase.number,
+                      Purchase.cleanTrackingNumber(
+                        purchase.number,
+                        fallbackPrefix: 'PUR',
+                      ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
@@ -539,6 +542,7 @@ class NewPurchaseScreen extends StatefulWidget {
   final String? initialVariantId;
   final double? initialQuantity;
   final String? initialUnitCode;
+  final double? initialUnitPrice;
   final String? initialSupplierInvoiceNumber;
   final String? initialNotes;
   final String? materialLoadId;
@@ -554,6 +558,7 @@ class NewPurchaseScreen extends StatefulWidget {
     this.initialVariantId,
     this.initialQuantity,
     this.initialUnitCode,
+    this.initialUnitPrice,
     this.initialSupplierInvoiceNumber,
     this.initialNotes,
     this.materialLoadId,
@@ -768,6 +773,7 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
             initialVariantId: material.variantId,
             initialUnitCode: requestedUnit,
             initialQuantity: quantity,
+            initialUnitPrice: widget.initialUnitPrice,
           ),
         );
         if (line != null && mounted) {
@@ -782,8 +788,9 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
           product: product,
           unit: unit,
           quantity: quantity,
-          unitCost:
-              unit?.purchaseCostFor(product.costPrice) ?? product.costPrice,
+          unitCost: widget.initialUnitPrice != null && widget.initialUnitPrice! > 0
+              ? widget.initialUnitPrice!
+              : (unit?.purchaseCostFor(product.costPrice) ?? product.costPrice),
           discount: 0,
           taxRate: product.taxRate,
         ),
@@ -2057,6 +2064,7 @@ class _AddPurchaseItemDialog extends StatefulWidget {
   final String? initialVariantId;
   final String? initialUnitCode;
   final double? initialQuantity;
+  final double? initialUnitPrice;
 
   const _AddPurchaseItemDialog({
     required this.products,
@@ -2064,6 +2072,7 @@ class _AddPurchaseItemDialog extends StatefulWidget {
     this.initialVariantId,
     this.initialUnitCode,
     this.initialQuantity,
+    this.initialUnitPrice,
   });
 
   @override
@@ -2162,10 +2171,14 @@ class _AddPurchaseItemDialogState extends State<_AddPurchaseItemDialog> {
           _unitId = unit.unitId;
         }
       }
-      _costController.text =
-          (_selectedUnit?.purchaseCostFor(_product!.costPrice) ??
-                  _product!.costPrice)
-              .toStringAsFixed(4);
+      if (widget.initialUnitPrice != null && widget.initialUnitPrice! > 0) {
+        _costController.text = widget.initialUnitPrice!.toStringAsFixed(4);
+      } else {
+        _costController.text =
+            (_selectedUnit?.purchaseCostFor(_product!.costPrice) ??
+                    _product!.costPrice)
+                .toStringAsFixed(4);
+      }
       _sellingPriceController.text =
           _product?.sellingPrice.toStringAsFixed(2) ?? '';
       if (_product?.trackingMode == 'serial') {

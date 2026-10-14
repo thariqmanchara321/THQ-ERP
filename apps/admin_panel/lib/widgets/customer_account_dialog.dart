@@ -73,12 +73,13 @@ class _CustomerAccountDialogState extends State<CustomerAccountDialog> {
 
   Future<void> _receivePayment() async {
     final outstanding = _number(_account['outstanding']);
-    if (outstanding <= 0.005) return;
     final invoices = (_account['open_invoices'] as List? ?? const [])
         .whereType<Map>()
         .map((row) => Map<String, dynamic>.from(row))
         .toList();
-    final amount = TextEditingController(text: outstanding.toStringAsFixed(2));
+    final amount = TextEditingController(
+      text: outstanding > 0.005 ? outstanding.toStringAsFixed(2) : '',
+    );
     final reference = TextEditingController();
     final notes = TextEditingController();
     String? saleId;
@@ -88,7 +89,11 @@ class _CustomerAccountDialogState extends State<CustomerAccountDialog> {
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setLocalState) => AlertDialog(
-          title: const Text('Receive Customer Payment'),
+          title: Text(
+            outstanding > 0.005
+                ? 'Receive Customer Payment'
+                : 'Receive Customer Advance / Deposit',
+          ),
           content: SizedBox(
             width: 560,
             child: SingleChildScrollView(
@@ -109,15 +114,20 @@ class _CustomerAccountDialogState extends State<CustomerAccountDialog> {
                   DropdownButtonFormField<String?>(
                     initialValue: saleId,
                     isExpanded: true,
-                    decoration: const InputDecoration(
+                    decoration: InputDecoration(
                       labelText: 'Apply payment to',
-                      helperText:
-                          'Account payment automatically settles oldest invoices first.',
+                      helperText: invoices.isEmpty
+                          ? 'Payment will be credited to customer account as an advance deposit.'
+                          : 'Account payment automatically settles oldest invoices first.',
                     ),
                     items: [
-                      const DropdownMenuItem<String?>(
+                      DropdownMenuItem<String?>(
                         value: null,
-                        child: Text('Customer account • oldest invoices first'),
+                        child: Text(
+                          invoices.isEmpty
+                              ? 'Customer account • on-account deposit / advance'
+                              : 'Customer account • oldest invoices first',
+                        ),
                       ),
                       ...invoices.map(
                         (invoice) => DropdownMenuItem<String?>(
@@ -305,9 +315,17 @@ class _CustomerAccountDialogState extends State<CustomerAccountDialog> {
                             ? Icons.schedule
                             : Icons.check_circle_outline,
                       ),
-                      title: const Text('Outstanding balance'),
+                      title: Text(
+                        _number(_account['unallocated_advance']) > 0.005 && outstanding <= 0.005
+                            ? 'On-account advance deposit / credit'
+                            : (_number(_account['unallocated_advance']) > 0.005
+                                ? 'Net outstanding (${_money(_account['unallocated_advance'])} advance credited)'
+                                : 'Outstanding balance'),
+                      ),
                       trailing: Text(
-                        _money(outstanding),
+                        _number(_account['unallocated_advance']) > 0.005 && outstanding <= 0.005
+                            ? '-${_money(_account['unallocated_advance'])}'
+                            : _money(outstanding),
                         style: const TextStyle(
                           fontSize: 22,
                           fontWeight: FontWeight.w600,
@@ -324,11 +342,15 @@ class _CustomerAccountDialogState extends State<CustomerAccountDialog> {
                           style: TextStyle(fontWeight: FontWeight.w600),
                         ),
                       ),
-                      if (widget.canReceive && outstanding > 0.005)
+                      if (widget.canReceive)
                         FilledButton.icon(
                           onPressed: _receiving ? null : _receivePayment,
                           icon: const Icon(Icons.payments_outlined),
-                          label: const Text('Receive Payment'),
+                          label: Text(
+                            outstanding > 0.005
+                                ? 'Receive Payment'
+                                : 'Receive Advance',
+                          ),
                         ),
                     ],
                   ),

@@ -19,6 +19,8 @@ import '../services/tracking_service.dart';
 import '../widgets/batch_allocation_dialog.dart';
 import '../services/transaction_print_service.dart';
 import 'sale_detail_screen.dart';
+import 'invoice_preview_screen.dart';
+import '../models/sale_detail.dart';
 import '../widgets/searchable_select.dart';
 import '../widgets/multi_payment_editor.dart';
 
@@ -433,7 +435,10 @@ class _SalesScreenState extends State<SalesScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      sale.number,
+                      Sale.cleanTrackingNumber(
+                        sale.number,
+                        fallbackPrefix: 'SAL',
+                      ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
@@ -541,6 +546,7 @@ class NewSaleScreen extends StatefulWidget {
   final String? initialVariantId;
   final double? initialQuantity;
   final String? initialUnitCode;
+  final double? initialUnitPrice;
   final String? initialNotes;
   final String? materialLoadId;
 
@@ -555,6 +561,7 @@ class NewSaleScreen extends StatefulWidget {
     this.initialVariantId,
     this.initialQuantity,
     this.initialUnitCode,
+    this.initialUnitPrice,
     this.initialNotes,
     this.materialLoadId,
   });
@@ -893,6 +900,7 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
           initialVariantId: material.variantId,
           initialQuantity: quantity,
           initialUnitCode: requestedUnit,
+          initialUnitPrice: widget.initialUnitPrice,
         ),
       );
       if (selected != null && mounted) {
@@ -910,30 +918,36 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
       product: product,
       unit: unit,
       quantity: quantity,
-      unitPrice:
-          unit?.salePriceFor(product.sellingPrice) ?? product.sellingPrice,
+      unitPrice: widget.initialUnitPrice != null && widget.initialUnitPrice! > 0
+          ? widget.initialUnitPrice!
+          : (unit?.salePriceFor(product.sellingPrice) ?? product.sellingPrice),
       discount: 0,
       taxRate: _gstApplicable ? product.taxRate : 0,
       cuttingChargeApplied: false,
-      pricingSource: 'Material Yard load',
+      manualPrice: widget.initialUnitPrice != null && widget.initialUnitPrice! > 0,
+      pricingSource: widget.initialUnitPrice != null && widget.initialUnitPrice! > 0
+          ? 'Negotiated Load Rate'
+          : 'Material Yard load',
     );
 
-    try {
-      final price = await _pricingService.resolve(
-        tenantId: widget.session.business.id,
-        variantId: product.variantId,
-        customerId: _customerId,
-        unitId: line.unitId,
-        quantity: quantity,
-        locationId: widget.locationId,
-      );
-      line = line.copyWith(
-        unitPrice: price.unitPrice,
-        pricingSource: price.sourceLabel,
-      );
-    } catch (_) {
-      // Keep the product/unit selling price. The authoritative Sale writer
-      // still validates the transaction on confirmation.
+    if (widget.initialUnitPrice == null || widget.initialUnitPrice! <= 0) {
+      try {
+        final price = await _pricingService.resolve(
+          tenantId: widget.session.business.id,
+          variantId: product.variantId,
+          customerId: _customerId,
+          unitId: line.unitId,
+          quantity: quantity,
+          locationId: widget.locationId,
+        );
+        line = line.copyWith(
+          unitPrice: price.unitPrice,
+          pricingSource: price.sourceLabel,
+        );
+      } catch (_) {
+        // Keep the product/unit selling price. The authoritative Sale writer
+        // still validates the transaction on confirmation.
+      }
     }
 
     if (!mounted) return;
@@ -2465,6 +2479,89 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
     );
   }
 
+  void _openEstimatePreview() {
+    if (_lines.isEmpty) {
+      setState(() => _error = 'Add at least one product to generate an Estimate.');
+      return;
+    }
+    final customer = _selectedCustomer;
+    final items = <SaleDetailItem>[];
+    for (var i = 0; i < _lines.length; i++) {
+      final line = _lines[i];
+      final cost = line.quantity * line.product.costPrice;
+      items.add(
+        SaleDetailItem(
+          itemId: 'item-$i',
+          variantId: line.product.variantId,
+          productName: line.product.productName,
+          sku: line.product.sku,
+          partNumber: line.product.partNumber,
+          unitCode: line.unitCode,
+          hsnSac: null,
+          quantity: line.quantity,
+          unitPrice: line.unitPrice,
+          discountAmount: line.discount,
+          taxRate: line.taxRate,
+          subtotal: line.subtotal,
+          taxableAmount: line.taxable,
+          taxAmount: line.tax,
+          lineTotal: line.total,
+          unitCost: line.product.costPrice,
+          costTotal: cost,
+          grossProfit: line.total - cost,
+        ),
+      );
+    }
+
+    final costTotal = _lines.fold(
+      0.0,
+      (sum, l) => sum + (l.quantity * l.product.costPrice),
+    );
+    final estimateSale = SaleDetail(
+      saleId: 'estimate-draft',
+      saleNumber:
+          'EST-${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}',
+      saleDate: _saleDate,
+      dueDate: _dueDate ?? _saleDate,
+      customerId: customer?.id ?? 'walk-in',
+      customerName: customer?.name ?? 'Walk-in Customer',
+      customerPhone: customer?.phone,
+      customerEmail: customer?.email,
+      customerAddress: customer?.addressLine1,
+      customerTaxNumber: customer?.gstGstin ?? customer?.taxNumber,
+      status: 'estimate',
+      subtotal: _subtotal,
+      discountTotal: _discount,
+      taxableTotal: _subtotal - _discount,
+      taxTotal: _tax,
+      additionalCharges: _classifiedChargeTotal,
+      grandTotal: _grandTotal,
+      costTotal: costTotal,
+      grossProfit: _grandTotal - costTotal,
+      paidAmount: 0,
+      balanceDue: _grandTotal,
+      items: items,
+      payments: const [],
+      createdAt: DateTime.now(),
+      notes: _notesController.text.trim().isEmpty
+          ? null
+          : _notesController.text.trim(),
+      gst: null,
+    );
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => InvoicePreviewScreen(
+          session: widget.session,
+          sale: estimateSale,
+          paperType: 'a4',
+          documentType: 'estimate',
+        ),
+      ),
+    );
+  }
+
   Widget _invoiceActions() => Container(
     width: double.infinity,
     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -2544,6 +2641,14 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
                         icon: const Icon(Icons.close),
                       ),
                       const SizedBox(width: 6),
+                      OutlinedButton(
+                        onPressed: _saving ? null : _openEstimatePreview,
+                        child: const Text(
+                          'Estimate',
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
                       Expanded(
                         child: OutlinedButton(
                           onPressed: _saving
@@ -2587,6 +2692,11 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
                     OutlinedButton(
                       onPressed: cancel,
                       child: const Text('Cancel'),
+                    ),
+                    OutlinedButton.icon(
+                      onPressed: _saving ? null : _openEstimatePreview,
+                      icon: const Icon(Icons.request_quote_outlined),
+                      label: const Text('Estimate'),
                     ),
                     OutlinedButton.icon(
                       onPressed: _saving
@@ -2733,6 +2843,7 @@ class _AddSaleItemDialog extends StatefulWidget {
   final String? initialVariantId;
   final String? initialUnitCode;
   final double? initialQuantity;
+  final double? initialUnitPrice;
 
   const _AddSaleItemDialog({
     this.initialLine,
@@ -2745,6 +2856,7 @@ class _AddSaleItemDialog extends StatefulWidget {
     this.initialVariantId,
     this.initialUnitCode,
     this.initialQuantity,
+    this.initialUnitPrice,
   });
 
   @override
@@ -2841,10 +2953,15 @@ class _AddSaleItemDialogState extends State<_AddSaleItemDialog> {
           }
           final product = _product;
           if (product != null) {
-            _priceController.text =
-                (_selectedUnit?.salePriceFor(product.sellingPrice) ??
-                        product.sellingPrice)
-                    .toStringAsFixed(2);
+            if (widget.initialUnitPrice != null && widget.initialUnitPrice! > 0) {
+              _priceController.text = widget.initialUnitPrice!.toStringAsFixed(2);
+              _priceEdited = true;
+            } else {
+              _priceController.text =
+                  (_selectedUnit?.salePriceFor(product.sellingPrice) ??
+                          product.sellingPrice)
+                      .toStringAsFixed(2);
+            }
           }
           final initial = widget.initialLine;
           if (initial != null) {

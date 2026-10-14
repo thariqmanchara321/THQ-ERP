@@ -1,4 +1,5 @@
 import 'package:erp_core/erp_core.dart';
+import 'sale.dart';
 
 class SaleDetail {
   final String saleId;
@@ -72,7 +73,10 @@ class SaleDetail {
     final paymentsRaw = map['payments'] as List? ?? const [];
     return SaleDetail(
       saleId: sale['sale_id']?.toString() ?? '',
-      saleNumber: sale['sale_number']?.toString() ?? '',
+      saleNumber: Sale.cleanTrackingNumber(
+        (sale['sale_number'] ?? sale['invoice_number'])?.toString() ?? '',
+        fallbackPrefix: 'SAL',
+      ),
       customerId: sale['customer_id']?.toString() ?? '',
       customerName: sale['customer_name']?.toString() ?? '',
       customerTaxNumber: sale['customer_tax_number']?.toString(),

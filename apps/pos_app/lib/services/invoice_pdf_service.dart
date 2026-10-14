@@ -32,17 +32,104 @@ class InvoicePdfService {
   }
 
   PdfColor _accent(Map<String, dynamic> config) {
-    var raw = (config['accent'] ?? '#4F46E5').toString().trim().replaceAll(
-      '#',
-      '',
-    );
-    if (raw.length != 6) raw = '4F46E5';
-    final value = int.tryParse(raw, radix: 16) ?? 0x4F46E5;
-    return PdfColor(
-      ((value >> 16) & 0xff) / 255,
-      ((value >> 8) & 0xff) / 255,
-      (value & 0xff) / 255,
-    );
+    final raw = (config['accent'] ?? '#4F46E5').toString().trim().toLowerCase();
+    switch (raw) {
+      case 'indigo':
+        return const PdfColor.fromInt(0xFF4F46E5);
+      case 'teal':
+        return const PdfColor.fromInt(0xFF0D9488);
+      case 'emerald':
+      case 'green':
+        return const PdfColor.fromInt(0xFF059669);
+      case 'navy':
+      case 'blue':
+        return const PdfColor.fromInt(0xFF1E40AF);
+      case 'slate':
+      case 'mono':
+      case 'gray':
+      case 'grey':
+      case 'charcoal':
+        return const PdfColor.fromInt(0xFF334155);
+      case 'crimson':
+      case 'red':
+      case 'rose':
+        return const PdfColor.fromInt(0xFFBE123C);
+      case 'amber':
+      case 'orange':
+        return const PdfColor.fromInt(0xFFD97706);
+      case 'violet':
+      case 'purple':
+        return const PdfColor.fromInt(0xFF7C3AED);
+      case 'dark':
+      case 'black':
+        return const PdfColor.fromInt(0xFF0F172A);
+    }
+    final hex = raw.replaceAll('#', '');
+    if (hex.length == 6) {
+      final value = int.tryParse(hex, radix: 16);
+      if (value != null) {
+        return PdfColor(
+          ((value >> 16) & 0xff) / 255,
+          ((value >> 8) & 0xff) / 255,
+          (value & 0xff) / 255,
+        );
+      }
+    }
+    return const PdfColor.fromInt(0xFF4F46E5);
+  }
+
+  PdfColor _parsePdfColor(
+    dynamic rawValue, {
+    required PdfColor fallback,
+    required PdfColor accent,
+  }) {
+    if (rawValue == null) return fallback;
+    final raw = rawValue.toString().trim().toLowerCase();
+    if (raw.isEmpty) return fallback;
+    if (raw == 'accent') return accent;
+    switch (raw) {
+      case 'indigo':
+        return const PdfColor.fromInt(0xFF4F46E5);
+      case 'teal':
+        return const PdfColor.fromInt(0xFF0D9488);
+      case 'emerald':
+      case 'green':
+        return const PdfColor.fromInt(0xFF059669);
+      case 'navy':
+      case 'blue':
+        return const PdfColor.fromInt(0xFF1E40AF);
+      case 'slate':
+      case 'mono':
+      case 'gray':
+      case 'grey':
+      case 'charcoal':
+        return const PdfColor.fromInt(0xFF334155);
+      case 'crimson':
+      case 'red':
+      case 'rose':
+        return const PdfColor.fromInt(0xFFBE123C);
+      case 'amber':
+      case 'orange':
+        return const PdfColor.fromInt(0xFFD97706);
+      case 'violet':
+      case 'purple':
+        return const PdfColor.fromInt(0xFF7C3AED);
+      case 'dark':
+      case 'black':
+        return const PdfColor.fromInt(0xFF0F172A);
+    }
+    final hex = raw.replaceAll('#', '');
+    if (hex.length == 6) {
+      final value = int.tryParse(hex, radix: 16);
+      if (value != null) {
+        return PdfColor(
+          ((value >> 16) & 0xff) / 255,
+          ((value >> 8) & 0xff) / 255,
+          (value & 0xff) / 255,
+        );
+      }
+    }
+    return fallback;
   }
 
   pw.TextAlign _alignment(Map<String, dynamic> config) =>
@@ -52,11 +139,37 @@ class InvoicePdfService {
         _ => pw.TextAlign.center,
       };
 
+  String _cleanInvoiceNumber(String raw) {
+    final trimmed = raw.trim();
+    if (trimmed.isEmpty) return '';
+    final docMatch = RegExp(
+      r'(?:^|[-_])((?:INV|EST|PUR|EXP|BILL|SAL|TAX|RET)[-_]\d+)',
+      caseSensitive: false,
+    ).firstMatch(trimmed);
+    if (docMatch != null) {
+      return docMatch.group(1)!.toUpperCase();
+    }
+    final parts = trimmed.split('-');
+    if (parts.length >= 3) {
+      final last = parts.last.trim();
+      final prev = parts[parts.length - 2].trim();
+      if (RegExp(r'^\d+$').hasMatch(last) && RegExp(r'^[A-Za-z]+$').hasMatch(prev)) {
+        return '$prev-$last'.toUpperCase();
+      }
+      if (RegExp(r'^\d+$').hasMatch(last)) {
+        return 'INV-$last';
+      }
+    }
+    return trimmed;
+  }
+
   String _invoiceNumber(SaleDetail sale, Map<String, dynamic> origin) {
     final terminal = _text(origin, 'invoice_number');
-    if (terminal.isNotEmpty) return terminal;
     final local = _text(origin, 'local_number');
-    return local.isNotEmpty ? local : sale.saleNumber;
+    final raw = terminal.isNotEmpty
+        ? terminal
+        : (local.isNotEmpty ? local : sale.saleNumber);
+    return _cleanInvoiceNumber(raw);
   }
 
   String _dateLabel(DateTime value) {
@@ -152,6 +265,21 @@ class InvoicePdfService {
       template['config'] as Map? ?? const {},
     );
     final settings = settingsOverride ?? session.settings;
+    final docType = (config['document_type'] ?? '').toString().toLowerCase();
+    final isEstimate = docType == 'estimate' ||
+        (template['name']?.toString().toLowerCase().contains('estimate') ?? false) ||
+        (template['template_name']?.toString().toLowerCase().contains('estimate') ?? false) ||
+        sale.status == 'estimate' ||
+        sale.saleNumber.startsWith('EST-');
+    final nonGst = sale.gst?.isNonGst == true;
+    final String headingText;
+    if (isEstimate) {
+      headingText = 'ESTIMATE';
+    } else if (nonGst) {
+      headingText = 'INVOICE';
+    } else {
+      headingText = sale.gst?.invoiceTitle ?? 'TAX INVOICE';
+    }
     final accent = _accent(config);
     final align = _alignment(config);
     final baseFont = _number(
@@ -295,18 +423,37 @@ class InvoicePdfService {
             ),
           );
         }
+        final configuredCompanyName = _text(config, 'company_name');
+        final rawName = configuredCompanyName.isNotEmpty ? configuredCompanyName : legalName;
+        final displayName = _flag(config, 'company_name_uppercase', false)
+            ? rawName.toUpperCase()
+            : rawName;
+        final nameColor = _parsePdfColor(
+          config['company_name_color'],
+          fallback: const PdfColor.fromInt(0xFF0F172A),
+          accent: accent,
+        );
+        final customSize = double.tryParse(config['company_name_size']?.toString() ?? '');
+        final double nameFontSize = customSize != null
+            ? (narrow ? customSize * 0.75 : customSize)
+            : (narrow ? baseFont + 5 : baseFont + 10);
+        final isBold = _flag(config, 'company_name_bold', true);
+        final isItalic = _flag(config, 'company_name_italic', false);
+
         children.add(
           pw.Text(
-            legalName,
+            displayName,
             textAlign: align,
             style: pw.TextStyle(
-              fontSize: narrow ? baseFont + 5 : baseFont + 10,
-              fontWeight: pw.FontWeight.bold,
+              fontSize: nameFontSize,
+              fontWeight: isBold ? pw.FontWeight.bold : pw.FontWeight.normal,
+              fontStyle: isItalic ? pw.FontStyle.italic : pw.FontStyle.normal,
+              color: nameColor,
             ),
           ),
         );
       }
-      if (branchName.isNotEmpty) {
+      if (_flag(config, 'show_branch_name', false) && branchName.isNotEmpty) {
         children.add(
           pw.Text(
             branchName,
@@ -374,7 +521,7 @@ class InvoicePdfService {
         crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
           pw.Text(
-            'TAX INVOICE',
+            headingText,
             style: pw.TextStyle(
               fontWeight: pw.FontWeight.bold,
               fontSize: baseFont + 1,
@@ -382,13 +529,14 @@ class InvoicePdfService {
             ),
           ),
           pw.Text(
-            'Invoice: $invoiceNumber',
+            isEstimate ? 'Estimate: $invoiceNumber' : 'Invoice: $invoiceNumber',
             style: pw.TextStyle(
               fontWeight: pw.FontWeight.bold,
               fontSize: baseFont,
             ),
           ),
-          if (invoiceNumber != sale.saleNumber)
+          if (_flag(config, 'show_erp_ref', false) &&
+              invoiceNumber != sale.saleNumber)
             pw.Text(
               'THQ Ref: ${sale.saleNumber}',
               style: pw.TextStyle(fontSize: baseFont - .5),
@@ -613,7 +761,9 @@ class InvoicePdfService {
     pw.Widget taxSummary() {
       final gst = sale.gst;
       final rows = gst?.rateSummaries ?? const <SaleGstRateSummary>[];
-      if (gst?.authoritative != true || rows.isEmpty) {
+      if (gst?.authoritative != true ||
+          rows.isEmpty ||
+          !_flag(config, 'show_tax_breakup', true)) {
         return pw.SizedBox();
       }
       pw.Widget cell(String value, {bool bold = false}) => pw.Padding(
@@ -747,9 +897,11 @@ class InvoicePdfService {
               if (sale.additionalCharges > 0)
                 row('Additional Charges', sale.additionalCharges),
               pw.Divider(color: accent),
-              row('Grand Total', sale.grandTotal, bold: true),
-              row('Paid', sale.paidAmount),
-              row('Balance', sale.balanceDue, bold: sale.balanceDue > .005),
+              row(isEstimate ? 'Estimated Total' : 'Grand Total', sale.grandTotal, bold: true),
+              if (!isEstimate) ...[
+                row('Paid', sale.paidAmount),
+                row('Balance', sale.balanceDue, bold: sale.balanceDue > .005),
+              ],
             ],
           ),
         ),

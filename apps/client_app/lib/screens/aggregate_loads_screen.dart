@@ -203,8 +203,9 @@ class _AggregateLoadsScreenState extends State<AggregateLoadsScreen> {
       if (p != null) {
         final rawRate = dir == 'inbound' ? p['cost_price'] : p['selling_price'];
         final numRate = rawRate is num ? rawRate.toDouble() : double.tryParse(rawRate?.toString() ?? '') ?? 0.0;
-        if (numRate > 0 || rateCtrl.text.isEmpty) {
-          rateCtrl.text = numRate > 0 ? numRate.toStringAsFixed(2) : '0.00';
+        // Suggested price from Daily Rate Board; manual rates take priority
+        if (numRate > 0 && rateCtrl.text.isEmpty) {
+          rateCtrl.text = numRate.toStringAsFixed(2);
         }
       }
     }
@@ -502,8 +503,9 @@ class _AggregateLoadsScreenState extends State<AggregateLoadsScreen> {
                                     keyboardType: const TextInputType.numberWithOptions(decimal: true),
                                     decoration: InputDecoration(
                                       labelText: direction == 'inbound'
-                                          ? 'Material Buy Rate / ${measurementData.unitCode} *'
-                                          : 'Material Sell Rate / ${measurementData.unitCode} *',
+                                          ? 'Material Buy Rate / ${measurementData.unitCode} (Optional)'
+                                          : 'Material Sell Rate / ${measurementData.unitCode} (Optional)',
+                                      helperText: 'Optional. Final rate is confirmed on the invoice.',
                                       prefixText: '₹ ',
                                       isDense: true,
                                     ),
@@ -528,8 +530,14 @@ class _AggregateLoadsScreenState extends State<AggregateLoadsScreen> {
                                         ),
                                         const SizedBox(height: 2),
                                         Text(
-                                          '₹ ${NumberFormat('#,##0.00').format((measurementData.approvedBillableQty > 0 ? measurementData.approvedBillableQty : measurementData.physicalQty) * (_double(rateCtrl.text) ?? 0.0))}',
-                                          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+                                          (_double(rateCtrl.text) ?? 0.0) > 0
+                                              ? '₹ ${NumberFormat('#,##0.00').format((measurementData.approvedBillableQty > 0 ? measurementData.approvedBillableQty : measurementData.physicalQty) * (_double(rateCtrl.text) ?? 0.0))}'
+                                              : 'Rate pending',
+                                          style: TextStyle(
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w700,
+                                            color: (_double(rateCtrl.text) ?? 0.0) > 0 ? null : const Color(0xFFC06200),
+                                          ),
                                         ),
                                       ],
                                     ),
@@ -681,10 +689,13 @@ class _AggregateLoadsScreenState extends State<AggregateLoadsScreen> {
                                     borderRadius: BorderRadius.circular(5),
                                   ),
                                   child: Text(
-                                    'Est: ₹ ${NumberFormat('#,##0.00').format((measurementData.approvedBillableQty > 0 ? measurementData.approvedBillableQty : measurementData.physicalQty) * (_double(rateCtrl.text) ?? 0.0))}',
-                                    style: const TextStyle(
+                                    (_double(rateCtrl.text) ?? 0.0) > 0
+                                        ? 'Est: ₹ ${NumberFormat('#,##0.00').format((measurementData.approvedBillableQty > 0 ? measurementData.approvedBillableQty : measurementData.physicalQty) * (_double(rateCtrl.text) ?? 0.0))}'
+                                        : 'Est: Rate pending',
+                                    style: TextStyle(
                                       fontSize: 11,
                                       fontWeight: FontWeight.w700,
+                                      color: (_double(rateCtrl.text) ?? 0.0) > 0 ? null : const Color(0xFFC06200),
                                     ),
                                   ),
                                 ),
@@ -767,40 +778,55 @@ class _AggregateLoadsScreenState extends State<AggregateLoadsScreen> {
 
                                     setLocalState(() => saving = true);
                                     try {
-                                      await _service.createLoad(
-                                        tenantId: widget.session.business.id,
-                                        direction: direction,
-                                        locationId: locationId,
-                                        variantId: productId!,
-                                        quantity: quantity,
-                                        unitCode: measurementData.unitCode,
-                                        measurementMethod: measurementData.method,
-                                        bodyLengthFt: measurementData.length,
-                                        bodyWidthFt: measurementData.width,
-                                        bodyHeightFt: measurementData.height,
-                                        rawDimensions: measurementData.toRawDimensionsMap(),
-                                        dimensionUnit: measurementData.dimensionUnit,
-                                        calculatedCft: measurementData.calculatedCft,
-                                        heapAdjustmentCft: measurementData.heapAdjustmentCft,
-                                        approvedBillableQty: measurementData.approvedBillableQty,
-                                        approvedBy: widget.session.userId.isNotEmpty ? widget.session.userId : null,
-                                        measurementNotes: measurementData.varianceReason,
-                                        vehicleId: vehicleId,
-                                        driverId: driverId,
-                                        supplierId: supplierId,
-                                        customerId: customerId,
-                                        sourceName: source.text,
-                                        destinationName: destination.text,
-                                        sourceReference: reference.text,
-                                        freightMode: freightMode,
-                                        freightAmount: _double(freight.text) ?? 0,
-                                        capacityOverride: capacityOverride,
-                                        capacityOverrideReason: overrideReason.text,
-                                        notes: notes.text,
-                                        costs: costs,
-                                        delivery: delivery,
-                                        requestId: requestId,
-                                      );
+                                        final enteredRate = _double(rateCtrl.text) ?? 0.0;
+                                        final effectiveDelivery = Map<String, dynamic>.from(delivery);
+                                        if (enteredRate > 0) {
+                                          final effectiveQty = measurementData.approvedBillableQty > 0
+                                              ? measurementData.approvedBillableQty
+                                              : measurementData.physicalQty;
+                                          if (direction == 'inbound') {
+                                            effectiveDelivery['purchasing_price'] = enteredRate;
+                                            effectiveDelivery['purchasing_total'] = enteredRate * effectiveQty;
+                                          } else {
+                                            effectiveDelivery['selling_price'] = enteredRate;
+                                            effectiveDelivery['selling_total'] = enteredRate * effectiveQty;
+                                          }
+                                        }
+
+                                        await _service.createLoad(
+                                          tenantId: widget.session.business.id,
+                                          direction: direction,
+                                          locationId: locationId,
+                                          variantId: productId!,
+                                          quantity: quantity,
+                                          unitCode: measurementData.unitCode,
+                                          measurementMethod: measurementData.method,
+                                          bodyLengthFt: measurementData.length,
+                                          bodyWidthFt: measurementData.width,
+                                          bodyHeightFt: measurementData.height,
+                                          rawDimensions: measurementData.toRawDimensionsMap(),
+                                          dimensionUnit: measurementData.dimensionUnit,
+                                          calculatedCft: measurementData.calculatedCft,
+                                          heapAdjustmentCft: measurementData.heapAdjustmentCft,
+                                          approvedBillableQty: measurementData.approvedBillableQty,
+                                          approvedBy: widget.session.userId.isNotEmpty ? widget.session.userId : null,
+                                          measurementNotes: measurementData.varianceReason,
+                                          vehicleId: vehicleId,
+                                          driverId: driverId,
+                                          supplierId: supplierId,
+                                          customerId: customerId,
+                                          sourceName: source.text,
+                                          destinationName: destination.text,
+                                          sourceReference: reference.text,
+                                          freightMode: freightMode,
+                                          freightAmount: _double(freight.text) ?? 0,
+                                          capacityOverride: capacityOverride,
+                                          capacityOverrideReason: overrideReason.text,
+                                          notes: notes.text,
+                                          costs: costs,
+                                          delivery: effectiveDelivery,
+                                          requestId: requestId,
+                                        );
                                       if (dialogContext.mounted) {
                                         Navigator.of(dialogContext).pop(true);
                                       }
@@ -941,6 +967,14 @@ class _AggregateLoadsScreenState extends State<AggregateLoadsScreen> {
           if (_id(load['notes']) != null) load['notes'].toString(),
         ].join('\n');
         final quantity = double.tryParse('${load['quantity']}');
+        final del = load['delivery'] is Map ? load['delivery'] as Map : null;
+        final delRate = del != null
+            ? (outbound ? del['selling_price'] : del['purchasing_price'])
+            : null;
+        final unitPrice = delRate is num
+            ? delRate.toDouble()
+            : double.tryParse(delRate?.toString() ?? '');
+
         final completed = await Navigator.of(context).push<bool>(
           MaterialPageRoute(
             builder: (_) => outbound
@@ -952,6 +986,7 @@ class _AggregateLoadsScreenState extends State<AggregateLoadsScreen> {
                     initialVariantId: _id(load['variant_id']),
                     initialQuantity: quantity,
                     initialUnitCode: _id(load['unit_code']),
+                    initialUnitPrice: unitPrice,
                     initialNotes: notes,
                   )
                 : NewPurchaseScreen(
@@ -962,6 +997,7 @@ class _AggregateLoadsScreenState extends State<AggregateLoadsScreen> {
                     initialVariantId: _id(load['variant_id']),
                     initialQuantity: quantity,
                     initialUnitCode: _id(load['unit_code']),
+                    initialUnitPrice: unitPrice,
                     initialSupplierInvoiceNumber: _id(load['source_reference']),
                     initialNotes: notes,
                   ),
@@ -1842,6 +1878,7 @@ class _AggregateLoadsScreenState extends State<AggregateLoadsScreen> {
 
     final hasPurchase = row['purchase_id'] != null;
     final hasSale = row['sale_id'] != null;
+    final invNum = row['invoice_number']?.toString();
 
     if (hasPurchase) {
       return Container(
@@ -1851,9 +1888,9 @@ class _AggregateLoadsScreenState extends State<AggregateLoadsScreen> {
           borderRadius: BorderRadius.circular(4),
           border: Border.all(color: const Color(0xFF00875A).withValues(alpha: 0.3), width: 0.8),
         ),
-        child: const Text(
-          'PURCHASE POSTED',
-          style: TextStyle(
+        child: Text(
+          invNum != null && invNum.isNotEmpty ? 'PURCHASE: $invNum' : 'PURCHASE POSTED',
+          style: const TextStyle(
             fontSize: 8.5,
             fontWeight: FontWeight.w700,
             color: Color(0xFF00875A),
@@ -1871,7 +1908,7 @@ class _AggregateLoadsScreenState extends State<AggregateLoadsScreen> {
           border: Border.all(color: scheme.primary.withValues(alpha: 0.3), width: 0.8),
         ),
         child: Text(
-          'SALE POSTED',
+          invNum != null && invNum.isNotEmpty ? 'SALE: $invNum' : 'SALE POSTED',
           style: TextStyle(
             fontSize: 8.5,
             fontWeight: FontWeight.w700,
@@ -1881,7 +1918,7 @@ class _AggregateLoadsScreenState extends State<AggregateLoadsScreen> {
       );
     }
 
-    // Unbilled / Invoice Pending
+    // Unbilled / Invoice Pending (THQ Rule 4)
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
       decoration: BoxDecoration(
@@ -1890,7 +1927,7 @@ class _AggregateLoadsScreenState extends State<AggregateLoadsScreen> {
         border: Border.all(color: const Color(0xFFFF8B00).withValues(alpha: 0.5), width: 0.8),
       ),
       child: const Text(
-        'INVOICE PENDING',
+        'RATE PENDING',
         style: TextStyle(
           fontSize: 8.5,
           fontWeight: FontWeight.w700,
@@ -1904,8 +1941,6 @@ class _AggregateLoadsScreenState extends State<AggregateLoadsScreen> {
   // TABLE VIEW BUILDER
   // ==========================================
   Widget _buildLoadsTable(BuildContext context, ColorScheme scheme) {
-    final products = _list('products');
-
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(12, 4, 12, 90),
       child: Container(
@@ -1975,17 +2010,24 @@ class _AggregateLoadsScreenState extends State<AggregateLoadsScreen> {
                       : scheme.primary;
               final dateText = _formatLoadDate(row);
 
-              // Resolve product rate if available
-              final p = products.cast<Map<String, dynamic>?>().firstWhere(
-                (item) => item?['variant_id']?.toString() == row['variant_id']?.toString(),
-                orElse: () => null,
-              );
+              // Resolve actual confirmed invoice rate or pre-negotiated quote (THQ Pricing Rules v713)
+              final invRate = row['invoice_rate'] is num
+                  ? (row['invoice_rate'] as num).toDouble()
+                  : double.tryParse(row['invoice_rate']?.toString() ?? '');
+
               String? matRateText;
-              if (p != null) {
-                final rawRate = isInbound ? p['cost_price'] : p['selling_price'];
-                final numRate = rawRate is num ? rawRate.toDouble() : double.tryParse(rawRate?.toString() ?? '');
-                if (numRate != null && numRate > 0) {
-                  matRateText = '₹ ${NumberFormat('#,##0.00').format(numRate)} / ${row['unit_code'] ?? 'CFT'}';
+              bool isRatePending = false;
+              if (invRate != null && invRate > 0) {
+                matRateText = '₹ ${NumberFormat('#,##0.00').format(invRate)} / ${row['unit_code'] ?? 'CFT'}';
+              } else {
+                final del = row['delivery'] is Map ? row['delivery'] as Map : null;
+                final delRate = del != null ? (isInbound ? del['purchasing_price'] : del['selling_price']) : null;
+                final numDelRate = delRate is num ? delRate.toDouble() : double.tryParse(delRate?.toString() ?? '');
+                if (numDelRate != null && numDelRate > 0) {
+                  matRateText = '₹ ${NumberFormat('#,##0.00').format(numDelRate)} (Est)';
+                } else {
+                  isRatePending = true;
+                  matRateText = simpleStat == 'confirmed' ? 'Rate pending' : null;
                 }
               }
 
@@ -2051,7 +2093,11 @@ class _AggregateLoadsScreenState extends State<AggregateLoadsScreen> {
                         if (matRateText != null)
                           Text(
                             matRateText,
-                            style: TextStyle(fontSize: 9.5, color: scheme.onSurfaceVariant),
+                            style: TextStyle(
+                              fontSize: 9.5,
+                              fontWeight: isRatePending ? FontWeight.w600 : FontWeight.normal,
+                              color: isRatePending ? const Color(0xFFC06200) : scheme.onSurfaceVariant,
+                            ),
                           ),
                       ],
                     ),
@@ -2173,7 +2219,6 @@ class _AggregateLoadsScreenState extends State<AggregateLoadsScreen> {
   }
 
   Widget _buildLoadCard(Map<String, dynamic> row, ColorScheme scheme) {
-    final products = _list('products');
     final calcCft = row['calculated_cft'];
     final heapAdj = row['heap_adjustment_cft'];
     final billableQty = row['approved_billable_qty'];
@@ -2187,17 +2232,22 @@ class _AggregateLoadsScreenState extends State<AggregateLoadsScreen> {
             : scheme.primary;
     final dateText = _formatLoadDate(row);
 
-    // Resolve product rate if available
-    final p = products.cast<Map<String, dynamic>?>().firstWhere(
-      (item) => item?['variant_id']?.toString() == row['variant_id']?.toString(),
-      orElse: () => null,
-    );
+    // Resolve actual confirmed invoice rate or pre-negotiated quote (THQ Pricing Rules v713)
+    final invRate = row['invoice_rate'] is num
+        ? (row['invoice_rate'] as num).toDouble()
+        : double.tryParse(row['invoice_rate']?.toString() ?? '');
+
     String? matRateText;
-    if (p != null) {
-      final rawRate = isInbound ? p['cost_price'] : p['selling_price'];
-      final numRate = rawRate is num ? rawRate.toDouble() : double.tryParse(rawRate?.toString() ?? '');
-      if (numRate != null && numRate > 0) {
-        matRateText = '₹ ${NumberFormat('#,##0.00').format(numRate)} / ${row['unit_code'] ?? 'CFT'}';
+    if (invRate != null && invRate > 0) {
+      matRateText = '₹ ${NumberFormat('#,##0.00').format(invRate)} / ${row['unit_code'] ?? 'CFT'}';
+    } else {
+      final del = row['delivery'] is Map ? row['delivery'] as Map : null;
+      final delRate = del != null ? (isInbound ? del['purchasing_price'] : del['selling_price']) : null;
+      final numDelRate = delRate is num ? delRate.toDouble() : double.tryParse(delRate?.toString() ?? '');
+      if (numDelRate != null && numDelRate > 0) {
+        matRateText = '₹ ${NumberFormat('#,##0.00').format(numDelRate)} (Est)';
+      } else {
+        matRateText = simpleStat == 'confirmed' ? 'Rate pending' : null;
       }
     }
 

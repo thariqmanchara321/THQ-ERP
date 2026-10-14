@@ -1233,18 +1233,6 @@ class _PosHomeScreenState extends State<PosHomeScreen> {
   }
 
   Widget _footer(bool expanded, bool narrow, UiDesignProfile profile) {
-    final changeStore = _action(
-      Icons.storefront_outlined,
-      'Change Store',
-      expanded,
-      _showChangeStoreDialog,
-    );
-    final switchWorkspace = _action(
-      Icons.point_of_sale_outlined,
-      'Switch POS',
-      expanded,
-      _showChangeBusinessDialog,
-    );
     final signOut = _action(Icons.logout, 'Sign Out', expanded, _logout);
     final collapse = _action(
       expanded
@@ -1266,9 +1254,6 @@ class _PosHomeScreenState extends State<PosHomeScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              changeStore,
-              switchWorkspace,
-              const SizedBox(height: 2),
               if (horizontal)
                 Row(
                   children: [

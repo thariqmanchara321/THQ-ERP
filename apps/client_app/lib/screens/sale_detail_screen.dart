@@ -118,6 +118,9 @@ class _SaleDetailScreenState extends State<SaleDetailScreen> {
   void _preview(String paper) {
     final s = _sale;
     if (s == null) return;
+    final docType = (s.status == 'estimate' || s.saleNumber.startsWith('EST-'))
+        ? 'estimate'
+        : 'tax_invoice';
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -125,6 +128,7 @@ class _SaleDetailScreenState extends State<SaleDetailScreen> {
           session: widget.session,
           sale: s,
           paperType: paper,
+          documentType: docType,
         ),
       ),
     );

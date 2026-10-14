@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
 
 import '../models/client_session.dart';
@@ -464,6 +465,53 @@ class LoadEvidenceCard extends StatelessWidget {
             ),
             Text(
               'Load cost: ${StaffLoadService.number(record['cost_total']).toStringAsFixed(2)} • Customer charges: ${StaffLoadService.number(record['customer_charge_total']).toStringAsFixed(2)} before tax',
+            ),
+            Builder(
+              builder: (context) {
+                final invNum = record['invoice_number']?.toString() ??
+                    (record['purchase'] is Map ? record['purchase']['purchase_number']?.toString() : null) ??
+                    (record['sale'] is Map ? record['sale']['sale_number']?.toString() : null);
+                final invRate = record['invoice_rate'] is num
+                    ? (record['invoice_rate'] as num).toDouble()
+                    : double.tryParse(record['invoice_rate']?.toString() ?? '');
+                final invAmount = record['invoice_amount'] is num
+                    ? (record['invoice_amount'] as num).toDouble()
+                    : double.tryParse(record['invoice_amount']?.toString() ?? '');
+                final isConfirmed = record['status'] == 'completed';
+
+                if (invNum != null && invNum.isNotEmpty) {
+                  return Padding(
+                    padding: const EdgeInsets.only(top: 3),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.receipt_long_outlined, size: 14, color: Color(0xFF00875A)),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Invoice: $invNum'
+                          '${invRate != null && invRate > 0 ? ' • Rate: ₹${NumberFormat('#,##0.00').format(invRate)} / ${record['unit_code'] ?? 'CFT'}' : ''}'
+                          '${invAmount != null && invAmount > 0 ? ' • Total: ₹${NumberFormat('#,##0.00').format(invAmount)}' : ''}',
+                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF00875A)),
+                        ),
+                      ],
+                    ),
+                  );
+                } else if (isConfirmed) {
+                  return const Padding(
+                    padding: EdgeInsets.only(top: 3),
+                    child: Row(
+                      children: [
+                        Icon(Icons.pending_actions_outlined, size: 14, color: Color(0xFFC06200)),
+                        SizedBox(width: 4),
+                        Text(
+                          'Invoice: Not invoiced (Rate pending)',
+                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFFC06200)),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+                return const SizedBox.shrink();
+              },
             ),
             TextButton(
               onPressed: () => RecordPreview.show(

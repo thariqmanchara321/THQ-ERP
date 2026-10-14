@@ -61,7 +61,49 @@ class InvoiceTemplateService {
     required String paperType,
     String? locationId,
     String? deviceId,
+    String? documentType,
   }) async {
+    final cleanDocType = documentType?.toLowerCase().trim();
+    if (cleanDocType != null && cleanDocType.isNotEmpty) {
+      try {
+        final list = await listTemplates(tenantId: tenantId, paperType: paperType);
+        Map<String, dynamic>? match;
+        for (final item in list) {
+          final cfg = item['effective_config'] is Map
+              ? Map<String, dynamic>.from(item['effective_config'] as Map)
+              : <String, dynamic>{};
+          final itemDocType = (cfg['document_type'] ?? '').toString().toLowerCase();
+          final isEstimateName = (item['template_name'] ?? '').toString().toLowerCase().contains('estimate');
+          final matches = cleanDocType == 'estimate'
+              ? (itemDocType == 'estimate' || isEstimateName)
+              : (itemDocType == 'tax_invoice' || (!isEstimateName && itemDocType != 'estimate'));
+          if (matches) {
+            if (item['selected'] == true) {
+              match = item;
+              break;
+            }
+            match ??= item;
+          }
+        }
+        if (match != null) {
+          final effectiveConfig = match['effective_config'] is Map
+              ? Map<String, dynamic>.from(match['effective_config'] as Map)
+              : <String, dynamic>{};
+          effectiveConfig['document_type'] = cleanDocType;
+          return {
+            'id': match['template_id'],
+            'key': match['template_key'],
+            'name': match['template_name'],
+            'paper_type': match['paper_type'],
+            'config': effectiveConfig,
+            'sample_logo_key': match['sample_logo_key'],
+          };
+        }
+      } catch (_) {
+        // Fall back to RPC getTemplate below
+      }
+    }
+
     final result = await _supabase.rpc(
       'tenant_invoice_template_get_v45',
       params: {
@@ -71,9 +113,15 @@ class InvoiceTemplateService {
         'p_device_id': deviceId,
       },
     );
-    return result is Map
+    final map = result is Map
         ? Map<String, dynamic>.from(result)
         : <String, dynamic>{};
+    if (cleanDocType != null && cleanDocType.isNotEmpty && map.containsKey('config')) {
+      final cfg = Map<String, dynamic>.from(map['config'] as Map? ?? const {});
+      cfg['document_type'] = cleanDocType;
+      map['config'] = cfg;
+    }
+    return map;
   }
 
   Future<List<Map<String, dynamic>>> listTemplates({
