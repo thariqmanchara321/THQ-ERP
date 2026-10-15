@@ -10,6 +10,8 @@ dependencies:
   flutter:
     sdk: flutter
   shared_preferences: 2.5.5
+  erp_core:
+    path: ../erp_core
 
 dev_dependencies:
   flutter_test:

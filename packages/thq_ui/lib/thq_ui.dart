@@ -28,6 +28,7 @@ export 'src/mobile/thq_mobile_production.dart';
 export 'src/mobile/thq_mobile_theme.dart';
 export 'src/navigation/thq_desktop_shell.dart';
 export 'src/navigation/thq_top_bar.dart';
+export 'src/navigation/thq_workspace_customization.dart';
 export 'src/status/thq_status.dart';
 export 'src/theme/thq_semantic_colors.dart';
 export 'src/theme/thq_theme.dart';

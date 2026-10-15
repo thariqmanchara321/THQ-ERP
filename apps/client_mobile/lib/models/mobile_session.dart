@@ -65,4 +65,6 @@ class MobileSession {
     required this.locations,
     required this.release,
   });
+
+  String get currency => currencyCode;
 }
