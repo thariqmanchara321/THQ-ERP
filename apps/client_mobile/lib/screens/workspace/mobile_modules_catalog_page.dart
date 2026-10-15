@@ -144,6 +144,7 @@ class _MobileModulesCatalogPageState extends State<MobileModulesCatalogPage> {
         break;
       case 'material_yard':
       case 'quarry':
+      case 'aggregate_yard':
         Navigator.of(context).push(
           MaterialPageRoute(
             builder: (_) => MobileMaterialYardPage(

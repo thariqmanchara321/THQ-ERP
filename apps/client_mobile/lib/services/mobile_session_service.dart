@@ -97,6 +97,55 @@ class MobileSessionService {
       }
     } catch (_) {}
 
+    final roles = (runtime['roles'] as List? ?? const [])
+        .map((e) => e.toString().trim())
+        .where((e) => e.isNotEmpty)
+        .toSet();
+
+    final permissionKeys = <String>{};
+    try {
+      final userRoleResult = await _supabase
+          .from('user_roles')
+          .select('role_id')
+          .eq('tenant_id', activation.tenantId)
+          .eq('membership_id', membership['id'])
+          .timeout(const Duration(seconds: 5));
+      final roleIds = (userRoleResult as List? ?? const [])
+          .whereType<Map>()
+          .map((row) => row['role_id']?.toString() ?? '')
+          .where((id) => id.isNotEmpty)
+          .toList();
+      if (roleIds.isNotEmpty) {
+        final permResult = await _supabase
+            .from('role_permissions')
+            .select('permission_key')
+            .inFilter('role_id', roleIds)
+            .timeout(const Duration(seconds: 5));
+        permissionKeys.addAll(
+          (permResult as List? ?? const [])
+              .whereType<Map>()
+              .map((row) => row['permission_key']?.toString() ?? '')
+              .where((p) => p.isNotEmpty),
+        );
+      }
+    } catch (_) {}
+
+    final enabledModules = <String>{};
+    try {
+      final modResult = await _supabase
+          .from('tenant_modules')
+          .select('module_key')
+          .eq('tenant_id', activation.tenantId)
+          .eq('enabled', true)
+          .timeout(const Duration(seconds: 5));
+      enabledModules.addAll(
+        (modResult as List? ?? const [])
+            .whereType<Map>()
+            .map((row) => row['module_key']?.toString() ?? '')
+            .where((m) => m.isNotEmpty),
+      );
+    } catch (_) {}
+
     return MobileSession(
       tenantId: activation.tenantId,
       businessName: activation.tenantName,
@@ -121,6 +170,9 @@ class MobileSessionService {
       canViewWarranty: clientContext['can_view_warranty'] == true,
       locations: locations,
       release: release,
+      roles: roles,
+      permissions: permissionKeys,
+      enabledModules: enabledModules,
     );
   }
 }

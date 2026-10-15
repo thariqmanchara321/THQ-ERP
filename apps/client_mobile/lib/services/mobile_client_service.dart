@@ -649,8 +649,484 @@ class MobileClientService {
     return _map(result);
   }
 
-  // --- Material Yard & Quarry ---
+  // --- Material Yard & Quarry Comprehensive Methods ---
+  Future<Map<String, dynamic>> materialYardDashboard(
+    MobileSession s, {
+    String? locationId,
+    DateTime? day,
+  }) async {
+    final result = await _supabase.rpc(
+      'aggregate_yard_dashboard_v621',
+      params: {
+        'p_tenant_id': s.tenantId,
+        'p_location_id': locationId ?? s.locationId,
+        'p_day': _date(day ?? DateTime.now()),
+      },
+    );
+    return _map(result);
+  }
+
+  Future<Map<String, dynamic>> materialYardContext(
+    MobileSession s, {
+    String? locationId,
+  }) async {
+    final result = await _supabase.rpc(
+      'aggregate_yard_context_v629',
+      params: {'p_tenant_id': s.tenantId},
+    );
+    final contextMap = _map(result);
+    try {
+      final costs = await materialYardAction(
+        s,
+        action: 'context',
+        locationId: locationId ?? s.locationId,
+      );
+      return {...contextMap, ...costs};
+    } catch (_) {
+      return contextMap;
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> materialYardStock(
+    MobileSession s, {
+    String? locationId,
+    String query = '',
+    int limit = 1000,
+  }) async => _rows(
+    await _supabase.rpc(
+      'aggregate_yard_stock_v628',
+      params: {
+        'p_tenant_id': s.tenantId,
+        'p_location_id': locationId ?? s.locationId,
+        'p_query': query.trim(),
+        'p_limit': limit,
+      },
+    ),
+  );
+
   Future<List<Map<String, dynamic>>> materialLoads(
+    MobileSession s, {
+    String? locationId,
+    String? status,
+    String? direction,
+    String? query,
+    int limit = 300,
+  }) async {
+    final rows = _rows(
+      await _supabase.rpc(
+        'aggregate_load_list_v629',
+        params: {
+          'p_tenant_id': s.tenantId,
+          'p_location_id': locationId ?? s.locationId,
+          'p_status': status,
+          'p_query': query?.trim().isEmpty == true ? null : query?.trim(),
+          'p_limit': limit,
+        },
+      ),
+    );
+    if (direction == null || direction.isEmpty) return rows;
+    return rows.where((r) => r['direction'] == direction).toList();
+  }
+
+  Future<Map<String, dynamic>> materialLoadDetail(
+    MobileSession s, {
+    required String loadId,
+    String? locationId,
+  }) => materialYardAction(
+    s,
+    action: 'detail',
+    locationId: locationId,
+    data: {'load_id': loadId},
+  );
+
+  Future<Map<String, dynamic>> confirmMaterialLoad(
+    MobileSession s, {
+    required String loadId,
+    String? locationId,
+  }) => materialYardAction(
+    s,
+    action: 'confirm',
+    locationId: locationId,
+    data: {'load_id': loadId},
+  );
+
+  Future<Map<String, dynamic>> deleteMaterialLoad(
+    MobileSession s, {
+    required String loadId,
+    String? locationId,
+  }) => materialYardAction(
+    s,
+    action: 'delete',
+    locationId: locationId,
+    data: {'load_id': loadId},
+  );
+
+  Future<Map<String, dynamic>> createMaterialLoad(
+    MobileSession s, {
+    required String direction,
+    required String variantId,
+    required double quantity,
+    String unitCode = 'CFT',
+    String measurementMethod = 'manual',
+    double? bodyLengthFt,
+    double? bodyWidthFt,
+    double? bodyHeightFt,
+    double? grossWeightKg,
+    double? tareWeightKg,
+    double? netWeightKg,
+    String? vehicleId,
+    String? driverId,
+    String? supplierId,
+    String? customerId,
+    String? sourceName,
+    String? destinationName,
+    String? sourceReference,
+    String freightMode = 'none',
+    double freightAmount = 0,
+    bool capacityOverride = false,
+    String? capacityOverrideReason,
+    String? notes,
+    List<Map<String, dynamic>> costs = const [],
+    Map<String, dynamic> delivery = const {},
+    String? requestId,
+    Map<String, dynamic>? rawDimensions,
+    String? dimensionUnit,
+    double? calculatedCft,
+    double? heapAdjustmentCft,
+    double? approvedBillableQty,
+    String? approvedBy,
+    String? measurementNotes,
+    String? locationId,
+  }) async {
+    final effectiveLocId = locationId ?? s.locationId;
+    final reqId = requestId ?? const Uuid().v4();
+    final data = {
+      'load': {
+        'p_tenant_id': s.tenantId,
+        'p_direction': direction,
+        'p_location_id': effectiveLocId,
+        'p_variant_id': variantId,
+        'p_quantity': quantity,
+        'p_unit_code': unitCode,
+        'p_measurement_method': measurementMethod,
+        'p_body_length_ft': bodyLengthFt,
+        'p_body_width_ft': bodyWidthFt,
+        'p_body_height_ft': bodyHeightFt,
+        'p_gross_weight_kg': grossWeightKg,
+        'p_tare_weight_kg': tareWeightKg,
+        'p_net_weight_kg': netWeightKg,
+        'p_vehicle_id': vehicleId,
+        'p_driver_id': driverId,
+        'p_supplier_id': supplierId,
+        'p_customer_id': customerId,
+        'p_source_name': sourceName,
+        'p_destination_name': destinationName,
+        'p_source_reference': sourceReference,
+        'p_freight_mode': freightMode,
+        'p_freight_amount': freightAmount,
+        'p_capacity_override': capacityOverride,
+        'p_capacity_override_reason': capacityOverrideReason,
+        'p_notes': notes,
+        'p_raw_dimensions': rawDimensions,
+        'p_dimension_unit': dimensionUnit,
+        'p_calculated_cft': calculatedCft,
+        'p_heap_adjustment_cft': heapAdjustmentCft,
+        'p_approved_billable_qty': approvedBillableQty,
+        'p_approved_by': approvedBy,
+        'p_measurement_notes': measurementNotes,
+      },
+      'costs': costs,
+      'delivery': delivery,
+      'request_id': reqId,
+    };
+    return materialYardAction(
+      s,
+      action: 'create',
+      locationId: effectiveLocId,
+      data: data,
+    );
+  }
+
+  Future<Map<String, dynamic>> editMaterialLoad(
+    MobileSession s, {
+    required String loadId,
+    required String direction,
+    required String variantId,
+    required double quantity,
+    String unitCode = 'CFT',
+    String measurementMethod = 'manual',
+    double? bodyLengthFt,
+    double? bodyWidthFt,
+    double? bodyHeightFt,
+    double? grossWeightKg,
+    double? tareWeightKg,
+    double? netWeightKg,
+    String? vehicleId,
+    String? driverId,
+    String? supplierId,
+    String? customerId,
+    String? sourceName,
+    String? destinationName,
+    String? sourceReference,
+    String freightMode = 'none',
+    double freightAmount = 0,
+    bool capacityOverride = false,
+    String? capacityOverrideReason,
+    String? notes,
+    List<Map<String, dynamic>> costs = const [],
+    Map<String, dynamic> delivery = const {},
+    Map<String, dynamic>? rawDimensions,
+    String? dimensionUnit,
+    double? calculatedCft,
+    double? heapAdjustmentCft,
+    double? approvedBillableQty,
+    String? approvedBy,
+    String? measurementNotes,
+    String? locationId,
+  }) async {
+    final effectiveLocId = locationId ?? s.locationId;
+    final data = {
+      'load': {
+        'p_tenant_id': s.tenantId,
+        'p_load_id': loadId,
+        'p_direction': direction,
+        'p_location_id': effectiveLocId,
+        'p_variant_id': variantId,
+        'p_quantity': quantity,
+        'p_unit_code': unitCode,
+        'p_measurement_method': measurementMethod,
+        'p_body_length_ft': bodyLengthFt,
+        'p_body_width_ft': bodyWidthFt,
+        'p_body_height_ft': bodyHeightFt,
+        'p_gross_weight_kg': grossWeightKg,
+        'p_tare_weight_kg': tareWeightKg,
+        'p_net_weight_kg': netWeightKg,
+        'p_vehicle_id': vehicleId,
+        'p_driver_id': driverId,
+        'p_supplier_id': supplierId,
+        'p_customer_id': customerId,
+        'p_source_name': sourceName,
+        'p_destination_name': destinationName,
+        'p_source_reference': sourceReference,
+        'p_freight_mode': freightMode,
+        'p_freight_amount': freightAmount,
+        'p_capacity_override': capacityOverride,
+        'p_capacity_override_reason': capacityOverrideReason,
+        'p_notes': notes,
+        'p_raw_dimensions': rawDimensions,
+        'p_dimension_unit': dimensionUnit,
+        'p_calculated_cft': calculatedCft,
+        'p_heap_adjustment_cft': heapAdjustmentCft,
+        'p_approved_billable_qty': approvedBillableQty,
+        'p_approved_by': approvedBy,
+        'p_measurement_notes': measurementNotes,
+      },
+      'costs': costs,
+      'delivery': delivery,
+      'load_id': loadId,
+    };
+    return materialYardAction(
+      s,
+      action: 'edit',
+      locationId: effectiveLocId,
+      data: data,
+    );
+  }
+
+  Future<Map<String, dynamic>> linkMaterialLoadPurchase(
+    MobileSession s, {
+    required String loadId,
+    required String supplierId,
+    required DateTime purchaseDate,
+    DateTime? dueDate,
+    required List<Map<String, dynamic>> items,
+    String? supplierInvoiceNumber,
+    double additionalCharges = 0,
+    double roundOff = 0,
+    double initialPayment = 0,
+    String paymentMethod = 'cash',
+    String? paymentReference,
+    String notes = '',
+    String? locationId,
+  }) async {
+    final result = await _supabase.rpc(
+      'aggregate_load_purchase_create_v629',
+      params: {
+        'p_load_id': loadId,
+        'p_tenant_id': s.tenantId,
+        'p_supplier_id': supplierId,
+        'p_supplier_invoice_number': supplierInvoiceNumber?.trim().isEmpty == true ? null : supplierInvoiceNumber?.trim(),
+        'p_purchase_date': _date(purchaseDate),
+        'p_due_date': dueDate == null ? null : _date(dueDate),
+        'p_items': items,
+        'p_additional_charges': additionalCharges,
+        'p_round_off': roundOff,
+        'p_initial_payment': initialPayment,
+        'p_payment_method': paymentMethod,
+        'p_payment_reference': paymentReference?.trim().isEmpty == true ? null : paymentReference?.trim(),
+        'p_notes': notes.trim(),
+        'p_location_id': locationId ?? s.locationId,
+        'p_device_id': s.deviceId,
+        'p_request_id': const Uuid().v4(),
+      },
+    );
+    return _map(result);
+  }
+
+  Future<Map<String, dynamic>> linkMaterialLoadSale(
+    MobileSession s, {
+    required String loadId,
+    required String customerId,
+    required DateTime saleDate,
+    DateTime? dueDate,
+    required List<Map<String, dynamic>> items,
+    List<Map<String, dynamic>> paymentAllocations = const [],
+    String notes = '',
+    String? locationId,
+    String supplyType = 'intra_state',
+    String placeOfSupplyCode = '32',
+    List<String> chargeSelections = const [],
+  }) async {
+    final result = await _supabase.rpc(
+      'aggregate_load_sale_create_v630',
+      params: {
+        'p_load_id': loadId,
+        'p_tenant_id': s.tenantId,
+        'p_customer_id': customerId,
+        'p_sale_date': _date(saleDate),
+        'p_due_date': dueDate == null ? null : _date(dueDate),
+        'p_items': items,
+        'p_payment_allocations': paymentAllocations,
+        'p_notes': notes.trim(),
+        'p_location_id': locationId ?? s.locationId,
+        'p_device_id': s.deviceId,
+        'p_request_id': const Uuid().v4(),
+        'p_supply_type': supplyType,
+        'p_place_of_supply_code': placeOfSupplyCode,
+        'p_charge_selections': chargeSelections,
+      },
+    );
+    return _map(result);
+  }
+
+  Future<List<Map<String, dynamic>>> logisticsDrivers(
+    MobileSession s, {
+    String? query,
+    int limit = 100,
+  }) async => _rows(
+    await _supabase.rpc(
+      'logistics_driver_list_v708',
+      params: {
+        'p_tenant_id': s.tenantId,
+        'p_query': query?.trim().isEmpty == true ? null : query?.trim(),
+        'p_limit': limit,
+      },
+    ),
+  );
+
+  Future<Map<String, dynamic>> saveLogisticsDriver(
+    MobileSession s, {
+    Map<String, dynamic>? driver,
+    String? fullName,
+    String? phone,
+    String? licenseNumber,
+  }) async {
+    final driverMap = driver ?? {
+      'full_name': fullName ?? '',
+      'phone': phone,
+      'license_number': licenseNumber,
+      'is_active': true,
+    };
+    return _map(
+      await _supabase.rpc(
+        'logistics_driver_save_v708',
+        params: {
+          'p_tenant_id': s.tenantId,
+          'p_driver': driverMap,
+        },
+      ),
+    );
+  }
+
+  Future<Map<String, dynamic>> createServiceVehicle(
+    MobileSession s, {
+    String? registrationNumber,
+    String? registration,
+    String vehicleType = 'Truck',
+    String? makeModel,
+    String? driverName,
+    String? driverPhone,
+    double? capacityCft,
+    double? nominalCapacityCft,
+    String? locationId,
+  }) async {
+    final reg = (registrationNumber ?? registration ?? '').trim().toUpperCase();
+    final cap = capacityCft ?? nominalCapacityCft;
+    final result = await _supabase.rpc(
+      'aggregate_vehicle_create_v621',
+      params: {
+        'p_tenant_id': s.tenantId,
+        'p_location_id': locationId ?? s.locationId,
+        'p_registration_number': reg,
+        'p_vehicle_type': vehicleType,
+        'p_make_model': makeModel,
+        'p_driver_name': driverName,
+        'p_driver_phone': driverPhone,
+        'p_capacity_cft': cap,
+      },
+    );
+    if (result is Map) {
+      return Map<String, dynamic>.from(result);
+    }
+    final idStr = result?.toString() ?? '';
+    return {'id': idStr, 'vehicle_id': idStr, 'registration_number': reg};
+  }
+
+  Future<Map<String, dynamic>> saveServiceVehicleProfile(
+    MobileSession s, {
+    required String vehicleId,
+    String ownershipType = 'owned',
+    String? ownerName,
+    String? ownerPhone,
+    double? bodyLengthFt,
+    double? bodyWidthFt,
+    double? bodyHeightFt,
+    double? bodyLengthIn,
+    double? bodyWidthIn,
+    double? bodyHeightIn,
+    double? nominalCapacityCft,
+    double? tareWeightKg,
+    double? maxPayloadKg,
+    double defaultFreight = 0,
+    String? notes,
+  }) async {
+    final effectiveLengthFt = bodyLengthFt ?? (bodyLengthIn != null ? bodyLengthIn / 12.0 : null);
+    final effectiveWidthFt = bodyWidthFt ?? (bodyWidthIn != null ? bodyWidthIn / 12.0 : null);
+    final effectiveHeightFt = bodyHeightFt ?? (bodyHeightIn != null ? bodyHeightIn / 12.0 : null);
+
+    return _map(
+      await _supabase.rpc(
+        'aggregate_vehicle_profile_save_v617',
+        params: {
+          'p_tenant_id': s.tenantId,
+          'p_vehicle_id': vehicleId,
+          'p_ownership_type': ownershipType,
+          'p_owner_name': ownerName,
+          'p_owner_phone': ownerPhone,
+          'p_body_length_ft': effectiveLengthFt,
+          'p_body_width_ft': effectiveWidthFt,
+          'p_body_height_ft': effectiveHeightFt,
+          'p_nominal_capacity_cft': nominalCapacityCft,
+          'p_tare_weight_kg': tareWeightKg,
+          'p_max_payload_kg': maxPayloadKg,
+          'p_default_freight': defaultFreight,
+          'p_notes': notes,
+        },
+      ),
+    );
+  }
+
+  Future<List<Map<String, dynamic>>> materialOrders(
     MobileSession s, {
     String? locationId,
     String? status,
@@ -658,13 +1134,107 @@ class MobileClientService {
     int limit = 300,
   }) async => _rows(
     await _supabase.rpc(
-      'aggregate_load_list_v629',
+      'aggregate_order_list_v618',
       params: {
         'p_tenant_id': s.tenantId,
         'p_location_id': locationId ?? s.locationId,
         'p_status': status,
         'p_query': query?.trim().isEmpty == true ? null : query?.trim(),
         'p_limit': limit,
+      },
+    ),
+  );
+
+  Future<Map<String, dynamic>> createMaterialOrder(
+    MobileSession s, {
+    required String customerId,
+    DateTime? requestedDate,
+    String? deliverySiteName,
+    String? deliveryAddress,
+    String? notes,
+    required List<Map<String, dynamic>> lines,
+    String? locationId,
+  }) async => _map(
+    await _supabase.rpc(
+      'aggregate_order_create_v618',
+      params: {
+        'p_tenant_id': s.tenantId,
+        'p_location_id': locationId ?? s.locationId,
+        'p_customer_id': customerId,
+        'p_requested_date': requestedDate == null ? null : _date(requestedDate),
+        'p_delivery_site_name': deliverySiteName,
+        'p_delivery_address': deliveryAddress,
+        'p_notes': notes,
+        'p_lines': lines,
+      },
+    ),
+  );
+
+  Future<List<Map<String, dynamic>>> materialFreightLoads(
+    MobileSession s, {
+    String? locationId,
+    String? query,
+    int limit = 300,
+  }) async => _rows(
+    await _supabase.rpc(
+      'aggregate_freight_list_v620',
+      params: {
+        'p_tenant_id': s.tenantId,
+        'p_location_id': locationId ?? s.locationId,
+        'p_query': query?.trim().isEmpty == true ? null : query?.trim(),
+        'p_limit': limit,
+      },
+    ),
+  );
+
+  Future<Map<String, dynamic>> configureMaterialFreight(
+    MobileSession s, {
+    required String loadId,
+    required String freightMode,
+    String? transporterSupplierId,
+    required double freightAmount,
+    String? note,
+  }) async => _map(
+    await _supabase.rpc(
+      'aggregate_freight_configure_v620',
+      params: {
+        'p_tenant_id': s.tenantId,
+        'p_load_id': loadId,
+        'p_freight_mode': freightMode,
+        'p_transporter_supplier_id': transporterSupplierId,
+        'p_freight_amount': freightAmount,
+        'p_note': note,
+      },
+    ),
+  );
+
+  Future<Map<String, dynamic>> settleMaterialFreight(
+    MobileSession s, {
+    required String loadId,
+    required String categoryId,
+    required DateTime settlementDate,
+    required double amount,
+    double taxAmount = 0,
+    double roundOff = 0,
+    required String paymentMethod,
+    String? referenceNumber,
+    String? note,
+  }) async => _map(
+    await _supabase.rpc(
+      'aggregate_freight_settle_v620',
+      params: {
+        'p_tenant_id': s.tenantId,
+        'p_load_id': loadId,
+        'p_category_id': categoryId,
+        'p_settlement_date': _date(settlementDate),
+        'p_amount': amount,
+        'p_tax_amount': taxAmount,
+        'p_round_off': roundOff,
+        'p_payment_method': paymentMethod,
+        'p_reference_number': referenceNumber,
+        'p_note': note,
+        'p_device_id': s.deviceId,
+        'p_request_id': const Uuid().v4(),
       },
     ),
   );

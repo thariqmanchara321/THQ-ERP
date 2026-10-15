@@ -164,6 +164,18 @@ class _MobileHomeScreenState extends State<MobileHomeScreen> {
     );
   }
 
+  void _openMaterialYard() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => MobileMaterialYardPage(
+          session: widget.session,
+          service: _service,
+          locationId: _locationId,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final pages = <Widget>[
@@ -201,6 +213,7 @@ class _MobileHomeScreenState extends State<MobileHomeScreen> {
           ),
         ),
         onTraceability: _openTraceability,
+        onMaterialYard: _openMaterialYard,
       ),
       MobileSalesWorkspace(
         session: widget.session,
@@ -440,6 +453,7 @@ class _OverviewTab extends StatelessWidget {
   final VoidCallback onApprovals;
   final VoidCallback onPurchases;
   final VoidCallback onTraceability;
+  final VoidCallback onMaterialYard;
 
   const _OverviewTab({
     required this.session,
@@ -457,6 +471,7 @@ class _OverviewTab extends StatelessWidget {
     required this.onApprovals,
     required this.onPurchases,
     required this.onTraceability,
+    required this.onMaterialYard,
   });
 
   @override
@@ -715,6 +730,23 @@ class _OverviewTab extends StatelessWidget {
                               onTap: onTraceability,
                             ),
                           ),
+                      ],
+                    ),
+                  ],
+                  if (session.canManageMaterialYard ||
+                      session.hasModule('material_yard') ||
+                      session.hasModule('aggregate_yard')) ...[
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: WorkspaceQuickAction(
+                            label: 'Material Yard',
+                            subtitle: 'Loads, fleet & quarry',
+                            icon: Icons.local_shipping_outlined,
+                            onTap: onMaterialYard,
+                          ),
+                        ),
                       ],
                     ),
                   ],

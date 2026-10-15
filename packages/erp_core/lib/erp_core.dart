@@ -14,3 +14,4 @@ export 'src/software_update_models.dart';
 export 'src/software_update_verifier.dart';
 export 'src/software_update_downloader.dart';
 export 'src/module_customization_models.dart';
+export 'src/material_measurement_engine.dart';

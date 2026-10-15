@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:thq_ui/thq_ui.dart';
 
 import '../../models/mobile_session.dart';
 import '../../services/mobile_client_service.dart';
-import '../../widgets/mobile_workspace_widgets.dart';
+import 'material_yard/material_yard_detail_sheet.dart';
+import 'material_yard/material_yard_load_sheet.dart';
+import 'material_yard/material_yard_more_views.dart';
+import 'material_yard/material_yard_types.dart';
 
 class MobileMaterialYardPage extends StatefulWidget {
   final MobileSession session;
@@ -24,56 +26,104 @@ class MobileMaterialYardPage extends StatefulWidget {
 class _MobileMaterialYardPageState extends State<MobileMaterialYardPage>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  final _searchCtrl = TextEditingController();
-  late Future<List<Map<String, dynamic>>> _loadsFuture;
-  late Future<List<Map<String, dynamic>>> _ratesFuture;
-  String _selectedStatus = 'all';
+  late String _currentLocationId;
+
+  // Search & Filter state
+  final _inwardSearchCtrl = TextEditingController();
+  final _outwardSearchCtrl = TextEditingController();
+  final _stockSearchCtrl = TextEditingController();
+
+  String _inwardStatusFilter = 'all';
+  String _outwardStatusFilter = 'all';
+
+  // Futures
+  late Future<Map<String, dynamic>> _dashboardFuture;
+  late Future<List<Map<String, dynamic>>> _inwardLoadsFuture;
+  late Future<List<Map<String, dynamic>>> _outwardLoadsFuture;
+  late Future<List<Map<String, dynamic>>> _stockFuture;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
-    _reload();
+    _tabController = TabController(length: 5, vsync: this);
+    _currentLocationId = widget.locationId ?? widget.session.locationId;
+    _reloadAll();
   }
 
   @override
   void dispose() {
     _tabController.dispose();
-    _searchCtrl.dispose();
+    _inwardSearchCtrl.dispose();
+    _outwardSearchCtrl.dispose();
+    _stockSearchCtrl.dispose();
     super.dispose();
   }
 
-  void _reload() {
-    _loadsFuture = widget.service.materialLoads(
+  void _reloadAll() {
+    _dashboardFuture = widget.service.materialYardDashboard(
       widget.session,
-      locationId: widget.locationId,
-      status: _selectedStatus == 'all' ? null : _selectedStatus,
+      locationId: _currentLocationId,
+      day: DateTime.now(),
     );
-    _ratesFuture = widget.service.materialDailyRates(
+    _inwardLoadsFuture = widget.service.materialLoads(
       widget.session,
-      locationId: widget.locationId,
+      locationId: _currentLocationId,
+      direction: 'inbound',
+      status: _inwardStatusFilter == 'all' ? null : _inwardStatusFilter,
+    );
+    _outwardLoadsFuture = widget.service.materialLoads(
+      widget.session,
+      locationId: _currentLocationId,
+      direction: 'outbound',
+      status: _outwardStatusFilter == 'all' ? null : _outwardStatusFilter,
+    );
+    _stockFuture = widget.service.materialYardStock(
+      widget.session,
+      locationId: _currentLocationId,
     );
   }
 
   Future<void> _refresh() async {
-    setState(_reload);
-    await Future.wait([_loadsFuture, _ratesFuture]);
+    setState(_reloadAll);
+    await Future.wait([
+      _dashboardFuture,
+      _inwardLoadsFuture,
+      _outwardLoadsFuture,
+      _stockFuture,
+    ]);
   }
 
-  void _createLoad() async {
+  void _openNewLoad({required String direction}) async {
     final created = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
-      builder: (ctx) => _CreateMaterialLoadSheet(
+      builder: (_) => MobileMaterialLoadSheet(
         session: widget.session,
         service: widget.service,
-        locationId: widget.locationId,
+        initialDirection: direction,
+        initialLocationId: _currentLocationId,
+        onSaved: _refresh,
       ),
     );
     if (created == true && mounted) {
       _refresh();
     }
+  }
+
+  void _openLoadDetail(String loadId) async {
+    await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (_) => MobileMaterialLoadDetailSheet(
+        session: widget.session,
+        service: widget.service,
+        loadId: loadId,
+        onChanged: _refresh,
+      ),
+    );
+    if (mounted) _refresh();
   }
 
   @override
@@ -90,38 +140,281 @@ class _MobileMaterialYardPageState extends State<MobileMaterialYardPage>
         ],
         bottom: TabBar(
           controller: _tabController,
+          isScrollable: true,
+          tabAlignment: TabAlignment.start,
           tabs: const [
-            Tab(icon: Icon(Icons.local_shipping_outlined), text: 'Load Register'),
-            Tab(icon: Icon(Icons.price_change_outlined), text: 'Daily Rates Board'),
+            Tab(icon: Icon(Icons.dashboard_outlined), text: 'Dashboard'),
+            Tab(icon: Icon(Icons.south_west_rounded), text: 'Inward'),
+            Tab(icon: Icon(Icons.north_east_rounded), text: 'Outward'),
+            Tab(icon: Icon(Icons.inventory_2_outlined), text: 'Stock'),
+            Tab(icon: Icon(Icons.more_horiz_rounded), text: 'More'),
           ],
         ),
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _createLoad,
-        icon: const Icon(Icons.add_road_rounded),
-        label: const Text('New Load'),
       ),
       body: TabBarView(
         controller: _tabController,
         children: [
-          _buildLoadsTab(),
-          _buildRatesTab(),
+          _buildDashboardTab(),
+          _buildInwardTab(),
+          _buildOutwardTab(),
+          _buildStockTab(),
+          _buildMoreTab(),
         ],
       ),
     );
   }
 
-  Widget _buildLoadsTab() {
+  // ==========================================================================
+  // TAB 1: DASHBOARD
+  // ==========================================================================
+  Widget _buildDashboardTab() {
+    final currency = widget.session.currency;
+
+    return RefreshIndicator(
+      onRefresh: _refresh,
+      child: FutureBuilder<Map<String, dynamic>>(
+        future: _dashboardFuture,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (snapshot.hasError) {
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.error_outline_rounded, size: 48, color: Theme.of(context).colorScheme.error),
+                    const SizedBox(height: 12),
+                    Text('Failed to load dashboard: ${snapshot.error}', textAlign: TextAlign.center),
+                    const SizedBox(height: 16),
+                    FilledButton(onPressed: _refresh, child: const Text('Retry')),
+                  ],
+                ),
+              ),
+            );
+          }
+
+          final db = snapshot.data ?? {};
+          final inLoads = db['today_inward_loads'] ?? db['today_in_loads'] ?? 0;
+          final inCft = db['today_inward_qty_cft'] ?? db['today_in_cft'] ?? 0;
+          final outLoads = db['today_outward_loads'] ?? db['today_out_loads'] ?? 0;
+          final outCft = db['today_outward_qty_cft'] ?? db['today_out_cft'] ?? 0;
+          final purchaseVal = db['today_purchase_value'] ?? 0;
+          final salesVal = db['today_sales_value'] ?? 0;
+          final stockAvailable = db['available_stock_cft'] ?? db['stock_available_cft'] ?? 0;
+          final stockOnHand = db['stock_on_hand_cft'] ?? stockAvailable;
+          final receivables = db['receivables'];
+          final payables = db['payables'];
+          final receivablesVisible = db['receivables_visible'] == true || widget.session.canViewReceivables;
+          final payablesVisible = db['payables_visible'] == true || widget.session.canViewPayables;
+          final openOrders = db['open_order_count'] ?? 0;
+          final pendingDeliveryCft = db['pending_delivery_cft'] ?? 0;
+          final recentLoads = (db['recent_loads'] as List? ?? const [])
+              .whereType<Map>()
+              .map((e) => Map<String, dynamic>.from(e))
+              .toList();
+
+          return ListView(
+            padding: const EdgeInsets.fromLTRB(14, 12, 14, 80),
+            children: [
+              // Prominent Action Buttons
+              Row(
+                children: [
+                  Expanded(
+                    child: FilledButton.icon(
+                      style: FilledButton.styleFrom(
+                        backgroundColor: const Color(0xFF00875A), // Green
+                        minimumSize: const Size.fromHeight(48),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      onPressed: () => _openNewLoad(direction: 'inbound'),
+                      icon: const Icon(Icons.south_west_rounded, size: 20),
+                      label: const Text('+ New Inward', style: TextStyle(fontWeight: FontWeight.bold)),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: FilledButton.icon(
+                      style: FilledButton.styleFrom(
+                        backgroundColor: const Color(0xFF635BFF), // Purple/Indigo
+                        minimumSize: const Size.fromHeight(48),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      onPressed: () => _openNewLoad(direction: 'outbound'),
+                      icon: const Icon(Icons.north_east_rounded, size: 20),
+                      label: const Text('+ New Outward', style: TextStyle(fontWeight: FontWeight.bold)),
+                    ),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 14),
+
+              // 8 Authoritative KPI Cards Grid
+              const Text('Today\'s Yard Operations', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+
+              GridView.count(
+                crossAxisCount: 2,
+                crossAxisSpacing: 8,
+                mainAxisSpacing: 8,
+                childAspectRatio: 1.55,
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                children: [
+                  _buildKpiCard(
+                    icon: Icons.south_west_rounded,
+                    iconColor: const Color(0xFF00875A),
+                    label: "Today's Inward",
+                    value: '$inLoads loads',
+                    subtext: '${MaterialYardFormat.cft(inCft)} received',
+                  ),
+                  _buildKpiCard(
+                    icon: Icons.north_east_rounded,
+                    iconColor: const Color(0xFF635BFF),
+                    label: "Today's Outward",
+                    value: '$outLoads loads',
+                    subtext: '${MaterialYardFormat.cft(outCft)} dispatched',
+                  ),
+                  _buildKpiCard(
+                    icon: Icons.shopping_bag_outlined,
+                    iconColor: const Color(0xFF0D9488),
+                    label: "Today's Purchase",
+                    value: MaterialYardFormat.money(purchaseVal, currency: currency),
+                    subtext: '$inLoads quarry bills',
+                  ),
+                  _buildKpiCard(
+                    icon: Icons.point_of_sale_outlined,
+                    iconColor: const Color(0xFF7C3AED),
+                    label: "Today's Sales",
+                    value: MaterialYardFormat.money(salesVal, currency: currency),
+                    subtext: '$outLoads sales loads',
+                  ),
+                  _buildKpiCard(
+                    icon: Icons.inventory_2_outlined,
+                    iconColor: const Color(0xFF0052CC),
+                    label: 'Available Bulk Stock',
+                    value: MaterialYardFormat.cft(stockAvailable),
+                    subtext: 'On-hand ${MaterialYardFormat.cft(stockOnHand)}',
+                  ),
+                  _buildKpiCard(
+                    icon: Icons.pending_actions_outlined,
+                    iconColor: const Color(0xFFEA580C),
+                    label: 'Pending Orders',
+                    value: '$openOrders orders',
+                    subtext: '${MaterialYardFormat.cft(pendingDeliveryCft)} remaining',
+                  ),
+                  _buildKpiCard(
+                    icon: Icons.account_balance_wallet_outlined,
+                    iconColor: const Color(0xFFD97706),
+                    label: 'Customer Receivables',
+                    value: receivablesVisible ? MaterialYardFormat.money(receivables ?? 0, currency: currency) : 'Restricted',
+                    subtext: receivablesVisible ? 'Ledger outstanding' : 'Finance permission',
+                  ),
+                  _buildKpiCard(
+                    icon: Icons.payments_outlined,
+                    iconColor: const Color(0xFFDC2626),
+                    label: 'Supplier Payables',
+                    value: payablesVisible ? MaterialYardFormat.money(payables ?? 0, currency: currency) : 'Restricted',
+                    subtext: payablesVisible ? 'Quarry outstanding' : 'Finance permission',
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 18),
+
+              // Recent Yard Activity
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('Recent Yard Activity', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+                  TextButton(
+                    onPressed: () => _tabController.animateTo(1),
+                    child: const Text('View All', style: TextStyle(fontSize: 12)),
+                  ),
+                ],
+              ),
+
+              if (recentLoads.isEmpty)
+                Card(
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    side: BorderSide(color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.5)),
+                  ),
+                  child: const Padding(
+                    padding: EdgeInsets.all(20),
+                    child: Center(child: Text('No loads recorded today yet.')),
+                  ),
+                )
+              else
+                ...recentLoads.take(6).map((item) {
+                  final loadId = item['load_id']?.toString() ?? item['id']?.toString() ?? '';
+                  final loadNum = item['load_number'] ?? 'LD-$loadId';
+                  final truck = item['vehicle_registration'] ?? item['vehicle_registration_snapshot'] ?? 'No Reg';
+                  final material = item['product_name'] ?? 'Aggregate';
+                  final qty = item['quantity'] ?? 0;
+                  final unit = item['unit_code'] ?? 'CFT';
+                  final status = item['status']?.toString().toLowerCase() ?? 'draft';
+                  final isIn = item['direction']?.toString().toLowerCase() == 'inbound';
+                  final statusColor = MaterialYardFormat.statusColor(status);
+
+                  return Card(
+                    elevation: 0,
+                    margin: const EdgeInsets.only(bottom: 8),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      side: BorderSide(color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.5)),
+                    ),
+                    child: ListTile(
+                      onTap: () => _openLoadDetail(loadId),
+                      leading: CircleAvatar(
+                        backgroundColor: (isIn ? Colors.teal : Colors.indigo).withValues(alpha: 0.12),
+                        child: Icon(
+                          isIn ? Icons.south_west_rounded : Icons.north_east_rounded,
+                          color: isIn ? Colors.teal : Colors.indigo,
+                          size: 18,
+                        ),
+                      ),
+                      title: Text('$truck • $material', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                      subtitle: Text('$loadNum • ${MaterialYardFormat.quantity(qty, unit)}'),
+                      trailing: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: statusColor.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          MaterialYardFormat.statusLabel(status),
+                          style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: statusColor),
+                        ),
+                      ),
+                    ),
+                  );
+                }),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  // ==========================================================================
+  // TAB 2: INWARD REGISTER
+  // ==========================================================================
+  Widget _buildInwardTab() {
     return Column(
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+          padding: const EdgeInsets.fromLTRB(14, 8, 14, 4),
           child: TextField(
-            controller: _searchCtrl,
+            controller: _inwardSearchCtrl,
             decoration: InputDecoration(
-              hintText: 'Search vehicle, customer, driver or material...',
+              hintText: 'Search truck, supplier, driver or material...',
               prefixIcon: const Icon(Icons.search_rounded),
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
               contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             ),
             onChanged: (_) => setState(() {}),
@@ -129,218 +422,359 @@ class _MobileMaterialYardPageState extends State<MobileMaterialYardPage>
         ),
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
           child: Row(
             children: [
-              _FilterChip(
-                label: 'All',
-                selected: _selectedStatus == 'all',
-                onSelected: () => setState(() {
-                  _selectedStatus = 'all';
-                  _reload();
-                }),
-              ),
+              _buildFilterChip('All', _inwardStatusFilter == 'all', () {
+                setState(() {
+                  _inwardStatusFilter = 'all';
+                  _reloadAll();
+                });
+              }),
               const SizedBox(width: 6),
-              _FilterChip(
-                label: 'Draft',
-                selected: _selectedStatus == 'draft',
-                onSelected: () => setState(() {
-                  _selectedStatus = 'draft';
-                  _reload();
-                }),
-              ),
+              _buildFilterChip('Draft', _inwardStatusFilter == 'draft', () {
+                setState(() {
+                  _inwardStatusFilter = 'draft';
+                  _reloadAll();
+                });
+              }),
               const SizedBox(width: 6),
-              _FilterChip(
-                label: 'Confirmed',
-                selected: _selectedStatus == 'confirmed',
-                onSelected: () => setState(() {
-                  _selectedStatus = 'confirmed';
-                  _reload();
-                }),
-              ),
+              _buildFilterChip('Confirmed', _inwardStatusFilter == 'confirmed', () {
+                setState(() {
+                  _inwardStatusFilter = 'confirmed';
+                  _reloadAll();
+                });
+              }),
               const SizedBox(width: 6),
-              _FilterChip(
-                label: 'Invoiced',
-                selected: _selectedStatus == 'invoiced',
-                onSelected: () => setState(() {
-                  _selectedStatus = 'invoiced';
-                  _reload();
-                }),
-              ),
+              _buildFilterChip('Invoiced', _inwardStatusFilter == 'invoiced', () {
+                setState(() {
+                  _inwardStatusFilter = 'invoiced';
+                  _reloadAll();
+                });
+              }),
             ],
           ),
         ),
         Expanded(
-          child: FutureBuilder<List<Map<String, dynamic>>>(
-            future: _loadsFuture,
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const WorkspaceLoadingList();
-              }
-              if (snapshot.hasError) {
-                return Center(
+          child: _buildLoadsList(
+            future: _inwardLoadsFuture,
+            searchQuery: _inwardSearchCtrl.text.trim().toLowerCase(),
+            emptyLabel: 'No inward quarry loads found.',
+            onNewLoad: () => _openNewLoad(direction: 'inbound'),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ==========================================================================
+  // TAB 3: OUTWARD REGISTER
+  // ==========================================================================
+  Widget _buildOutwardTab() {
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(14, 8, 14, 4),
+          child: TextField(
+            controller: _outwardSearchCtrl,
+            decoration: InputDecoration(
+              hintText: 'Search truck, customer, driver or material...',
+              prefixIcon: const Icon(Icons.search_rounded),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            ),
+            onChanged: (_) => setState(() {}),
+          ),
+        ),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+          child: Row(
+            children: [
+              _buildFilterChip('All', _outwardStatusFilter == 'all', () {
+                setState(() {
+                  _outwardStatusFilter = 'all';
+                  _reloadAll();
+                });
+              }),
+              const SizedBox(width: 6),
+              _buildFilterChip('Draft', _outwardStatusFilter == 'draft', () {
+                setState(() {
+                  _outwardStatusFilter = 'draft';
+                  _reloadAll();
+                });
+              }),
+              const SizedBox(width: 6),
+              _buildFilterChip('Confirmed', _outwardStatusFilter == 'confirmed', () {
+                setState(() {
+                  _outwardStatusFilter = 'confirmed';
+                  _reloadAll();
+                });
+              }),
+              const SizedBox(width: 6),
+              _buildFilterChip('Invoiced', _outwardStatusFilter == 'invoiced', () {
+                setState(() {
+                  _outwardStatusFilter = 'invoiced';
+                  _reloadAll();
+                });
+              }),
+            ],
+          ),
+        ),
+        Expanded(
+          child: _buildLoadsList(
+            future: _outwardLoadsFuture,
+            searchQuery: _outwardSearchCtrl.text.trim().toLowerCase(),
+            emptyLabel: 'No outward sales loads found.',
+            onNewLoad: () => _openNewLoad(direction: 'outbound'),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildLoadsList({
+    required Future<List<Map<String, dynamic>>> future,
+    required String searchQuery,
+    required String emptyLabel,
+    required VoidCallback onNewLoad,
+  }) {
+    return FutureBuilder<List<Map<String, dynamic>>>(
+      future: future,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (snapshot.hasError) {
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.error_outline_rounded, size: 40, color: Theme.of(context).colorScheme.error),
+                  const SizedBox(height: 10),
+                  Text('Error loading loads: ${snapshot.error}', textAlign: TextAlign.center),
+                  const SizedBox(height: 12),
+                  FilledButton(onPressed: _refresh, child: const Text('Retry')),
+                ],
+              ),
+            ),
+          );
+        }
+
+        final all = snapshot.data ?? [];
+        final filtered = all.where((row) {
+          if (searchQuery.isEmpty) return true;
+          final truck = (row['vehicle_registration'] ?? row['vehicle_registration_snapshot'] ?? '').toString().toLowerCase();
+          final driver = (row['driver_name'] ?? row['driver_name_snapshot'] ?? '').toString().toLowerCase();
+          final party = (row['customer_name'] ?? row['supplier_name'] ?? row['party_name'] ?? '').toString().toLowerCase();
+          final mat = (row['product_name'] ?? row['variant_name'] ?? '').toString().toLowerCase();
+          final loadNum = (row['load_number'] ?? '').toString().toLowerCase();
+          return truck.contains(searchQuery) ||
+              driver.contains(searchQuery) ||
+              party.contains(searchQuery) ||
+              mat.contains(searchQuery) ||
+              loadNum.contains(searchQuery);
+        }).toList();
+
+        if (filtered.isEmpty) {
+          return Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.local_shipping_outlined, size: 48, color: Theme.of(context).colorScheme.outline),
+                const SizedBox(height: 10),
+                Text(emptyLabel, style: const TextStyle(fontWeight: FontWeight.bold)),
+                const SizedBox(height: 12),
+                FilledButton.icon(
+                  onPressed: onNewLoad,
+                  icon: const Icon(Icons.add_rounded),
+                  label: const Text('Create New Load'),
+                ),
+              ],
+            ),
+          );
+        }
+
+        return RefreshIndicator(
+          onRefresh: _refresh,
+          child: ListView.separated(
+            padding: const EdgeInsets.fromLTRB(14, 6, 14, 80),
+            itemCount: filtered.length,
+            separatorBuilder: (context, index) => const SizedBox(height: 8),
+            itemBuilder: (context, i) {
+              final item = filtered[i];
+              final loadId = item['load_id']?.toString() ?? item['id']?.toString() ?? '';
+              final loadNum = item['load_number'] ?? 'LD-$loadId';
+              final truck = item['vehicle_registration'] ?? item['vehicle_registration_snapshot'] ?? 'No Truck Reg';
+              final driver = item['driver_name'] ?? item['driver_name_snapshot'] ?? '';
+              final material = item['product_name'] ?? item['variant_name'] ?? 'Aggregate';
+              final qty = item['quantity'] ?? 0;
+              final unit = item['unit_code'] ?? 'CFT';
+              final party = item['customer_name'] ?? item['supplier_name'] ?? item['party_name'] ?? 'Direct Party';
+              final status = (item['status'] ?? 'draft').toString().toLowerCase();
+              final statusColor = MaterialYardFormat.statusColor(status);
+              final invoiceNum = item['invoice_number'] ?? item['sale_number'] ?? item['purchase_number'];
+              final date = item['load_date']?.toString().split('T').first ?? '';
+
+              return Card(
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  side: BorderSide(color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.5)),
+                ),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(10),
+                  onTap: () => _openLoadDetail(loadId),
                   child: Padding(
-                    padding: const EdgeInsets.all(24),
+                    padding: const EdgeInsets.all(12),
                     child: Column(
-                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Icon(Icons.error_outline_rounded, size: 40, color: Theme.of(context).colorScheme.error),
-                        const SizedBox(height: 10),
-                        Text('Error loading material loads: ${snapshot.error}', textAlign: TextAlign.center),
-                        const SizedBox(height: 12),
-                        FilledButton(onPressed: _refresh, child: const Text('Retry')),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(truck, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: statusColor.withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                MaterialYardFormat.statusLabel(status),
+                                style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: statusColor),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Text('$material • ${MaterialYardFormat.quantity(qty, unit)}', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                        Text('Party: $party${driver.isNotEmpty ? " • Driver: $driver" : ""}', style: Theme.of(context).textTheme.bodySmall),
+                        const Divider(height: 14),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(loadNum, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Theme.of(context).colorScheme.outline)),
+                            if (invoiceNum != null)
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(color: Colors.green.shade50, borderRadius: BorderRadius.circular(4)),
+                                child: Text('Inv #$invoiceNum', style: TextStyle(fontSize: 11, color: Colors.green.shade800, fontWeight: FontWeight.bold)),
+                              )
+                            else if (date.isNotEmpty)
+                              Text(date, style: Theme.of(context).textTheme.bodySmall),
+                          ],
+                        ),
                       ],
                     ),
                   ),
-                );
+                ),
+              );
+            },
+          ),
+        );
+      },
+    );
+  }
+
+  // ==========================================================================
+  // TAB 4: STOCK & BATCHES
+  // ==========================================================================
+  Widget _buildStockTab() {
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(14, 8, 14, 4),
+          child: TextField(
+            controller: _stockSearchCtrl,
+            decoration: InputDecoration(
+              hintText: 'Search stock material...',
+              prefixIcon: const Icon(Icons.search),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            ),
+            onChanged: (_) => setState(() {}),
+          ),
+        ),
+        Expanded(
+          child: FutureBuilder<List<Map<String, dynamic>>>(
+            future: _stockFuture,
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              if (snapshot.hasError) {
+                return Center(child: Text('Error loading stock: ${snapshot.error}'));
               }
 
-              final allRows = snapshot.data ?? [];
-              final query = _searchCtrl.text.trim().toLowerCase();
-              final filtered = allRows.where((row) {
+              final allStock = snapshot.data ?? [];
+              final query = _stockSearchCtrl.text.trim().toLowerCase();
+              final filtered = allStock.where((s) {
                 if (query.isEmpty) return true;
-                final truck = (row['vehicle_registration'] ?? row['vehicle_id'] ?? '').toString().toLowerCase();
-                final driver = (row['driver_name'] ?? '').toString().toLowerCase();
-                final customer = (row['customer_name'] ?? row['party_name'] ?? '').toString().toLowerCase();
-                final material = (row['product_name'] ?? '').toString().toLowerCase();
-                final loadNum = (row['load_number'] ?? '').toString().toLowerCase();
-                return truck.contains(query) ||
-                    driver.contains(query) ||
-                    customer.contains(query) ||
-                    material.contains(query) ||
-                    loadNum.contains(query);
+                final name = (s['product_name'] ?? s['name'] ?? s['material_name'] ?? '').toString().toLowerCase();
+                final variant = (s['variant_name'] ?? s['quality_grade'] ?? '').toString().toLowerCase();
+                return name.contains(query) || variant.contains(query);
               }).toList();
 
               if (filtered.isEmpty) {
-                return Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.local_shipping_outlined, size: 48, color: Theme.of(context).colorScheme.outline),
-                      const SizedBox(height: 10),
-                      const Text('No material loads found', style: TextStyle(fontWeight: FontWeight.bold)),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Tap "New Load" to dispatch trucks from the quarry or yard.',
-                        style: Theme.of(context).textTheme.bodySmall,
-                      ),
-                    ],
-                  ),
-                );
+                return const Center(child: Text('No bulk stock inventory records found.'));
               }
 
               return RefreshIndicator(
                 onRefresh: _refresh,
                 child: ListView.separated(
-                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 80),
+                  padding: const EdgeInsets.fromLTRB(14, 6, 14, 80),
                   itemCount: filtered.length,
                   separatorBuilder: (context, index) => const SizedBox(height: 8),
                   itemBuilder: (context, i) {
                     final item = filtered[i];
-                    final loadNumber = item['load_number'] ?? 'LD-${item['id']}';
-                    final truck = item['vehicle_registration'] ?? 'No Truck Reg';
-                    final driver = item['driver_name'] ?? '';
-                    final material = item['product_name'] ?? 'Aggregate';
-                    final qty = item['quantity'] ?? item['net_weight'] ?? 0;
-                    final unit = item['unit_code'] ?? 'tons';
-                    final customer = item['customer_name'] ?? 'Direct Yard Cash';
-                    final status = (item['status'] ?? 'draft').toString().toLowerCase();
-                    final invoiceNum = item['invoice_number'] ?? item['sale_number'];
-                    final date = item['load_date']?.toString().split('T').first ?? '';
-
-                    Color statusColor;
-                    switch (status) {
-                      case 'invoiced':
-                        statusColor = Colors.green;
-                        break;
-                      case 'confirmed':
-                        statusColor = Colors.blue;
-                        break;
-                      default:
-                        statusColor = Colors.orange;
-                    }
+                    final name = item['product_name'] ?? item['name'] ?? item['material_name'] ?? 'Material';
+                    final variant = item['variant_name'] ?? item['quality_grade'] ?? '';
+                    final avail = item['stock_available_cft'] ?? item['available_quantity'] ?? item['available_qty'] ?? 0;
+                    final onHand = item['stock_on_hand_cft'] ?? item['on_hand_quantity'] ?? item['on_hand_qty'] ?? avail;
+                    final unit = item['unit_code'] ?? 'CFT';
 
                     return Card(
                       elevation: 0,
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(10),
                         side: BorderSide(color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.5)),
                       ),
                       child: Padding(
                         padding: const EdgeInsets.all(12),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                        child: Row(
                           children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Row(
-                                  children: [
-                                    const Icon(Icons.local_shipping_rounded, size: 18),
-                                    const SizedBox(width: 6),
-                                    Text(
-                                      '$truck',
-                                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                                    ),
-                                  ],
-                                ),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                                  decoration: BoxDecoration(
-                                    color: statusColor.withValues(alpha: 0.12),
-                                    borderRadius: BorderRadius.circular(6),
-                                    border: Border.all(color: statusColor.withValues(alpha: 0.3)),
-                                  ),
-                                  child: Text(
-                                    status.toUpperCase(),
-                                    style: TextStyle(
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.bold,
-                                      color: statusColor,
-                                    ),
-                                  ),
-                                ),
-                              ],
+                            CircleAvatar(
+                              backgroundColor: Colors.blue.withValues(alpha: 0.1),
+                              child: const Icon(Icons.inventory_2_outlined, color: Colors.blue),
                             ),
-                            const SizedBox(height: 6),
-                            Text(
-                              '$material • $qty $unit',
-                              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              'Customer: $customer${driver.isNotEmpty ? " • Driver: $driver" : ""}',
-                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                                  ),
-                            ),
-                            const Divider(height: 14),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(
-                                  loadNumber,
-                                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                        color: Theme.of(context).colorScheme.outline,
-                                      ),
-                                ),
-                                if (invoiceNum != null)
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                    decoration: BoxDecoration(
-                                      color: Colors.green.shade50,
-                                      borderRadius: BorderRadius.circular(4),
-                                    ),
-                                    child: Text(
-                                      'Inv: $invoiceNum',
-                                      style: TextStyle(fontSize: 11, color: Colors.green.shade800, fontWeight: FontWeight.bold),
-                                    ),
-                                  )
-                                else if (date.isNotEmpty)
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
                                   Text(
-                                    date,
+                                    '$name${variant.toString().isNotEmpty ? " • $variant" : ""}',
+                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    'On-hand: ${MaterialYardFormat.quantity(onHand, unit)}',
                                     style: Theme.of(context).textTheme.bodySmall,
                                   ),
+                                ],
+                              ),
+                            ),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                Text('Available', style: TextStyle(fontSize: 10, color: Theme.of(context).colorScheme.outline)),
+                                Text(
+                                  MaterialYardFormat.quantity(avail, unit),
+                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF0052CC)),
+                                ),
                               ],
                             ),
                           ],
@@ -357,418 +791,173 @@ class _MobileMaterialYardPageState extends State<MobileMaterialYardPage>
     );
   }
 
-  Widget _buildRatesTab() {
-    return FutureBuilder<List<Map<String, dynamic>>>(
-      future: _ratesFuture,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
-        if (snapshot.hasError) {
-          return Center(child: Text('Error loading rates: ${snapshot.error}'));
-        }
-
-        final rates = snapshot.data ?? [];
-        if (rates.isEmpty) {
-          return Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.price_change_outlined, size: 48, color: Theme.of(context).colorScheme.outline),
-                const SizedBox(height: 10),
-                const Text('No daily rates configured yet', style: TextStyle(fontWeight: FontWeight.bold)),
-                const SizedBox(height: 4),
-                const Text('Rates can be established per material/product for this yard.'),
-              ],
-            ),
-          );
-        }
-
-        return _DailyRatesEditor(
-          session: widget.session,
-          service: widget.service,
-          initialRates: rates,
-          locationId: widget.locationId ?? widget.session.locationId,
-          onSaved: _refresh,
-        );
-      },
-    );
-  }
-}
-
-class _DailyRatesEditor extends StatefulWidget {
-  final MobileSession session;
-  final MobileClientService service;
-  final List<Map<String, dynamic>> initialRates;
-  final String locationId;
-  final VoidCallback onSaved;
-
-  const _DailyRatesEditor({
-    required this.session,
-    required this.service,
-    required this.initialRates,
-    required this.locationId,
-    required this.onSaved,
-  });
-
-  @override
-  State<_DailyRatesEditor> createState() => _DailyRatesEditorState();
-}
-
-class _DailyRatesEditorState extends State<_DailyRatesEditor> {
-  final Map<String, TextEditingController> _controllers = {};
-  bool _saving = false;
-
-  @override
-  void initState() {
-    super.initState();
-    for (final rate in widget.initialRates) {
-      final key = (rate['variant_id'] ?? rate['product_id'] ?? rate['id']).toString();
-      final val = rate['base_rate'] ?? rate['rate'] ?? rate['unit_price'] ?? 0;
-      _controllers[key] = TextEditingController(text: val.toString());
-    }
-  }
-
-  @override
-  void dispose() {
-    for (final c in _controllers.values) {
-      c.dispose();
-    }
-    super.dispose();
-  }
-
-  Future<void> _save() async {
-    setState(() => _saving = true);
-    try {
-      final ratesToSave = widget.initialRates.map((r) {
-        final key = (r['variant_id'] ?? r['product_id'] ?? r['id']).toString();
-        final textVal = _controllers[key]?.text.trim() ?? '0';
-        final rateNum = double.tryParse(textVal) ?? 0.0;
-        return {
-          'variant_id': key,
-          'product_id': r['product_id'] ?? key,
-          'base_rate': rateNum,
-          'min_rate': r['min_rate'] ?? rateNum,
-        };
-      }).toList();
-
-      await widget.service.saveMaterialDailyRates(
-        widget.session,
-        locationId: widget.locationId,
-        date: DateTime.now(),
-        rates: ratesToSave,
-      );
-
-      if (!mounted) return;
-      setState(() => _saving = false);
-      ThqNotify.success(context, 'Rates Saved', message: 'Daily yard rates updated successfully.');
-      widget.onSaved();
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => _saving = false);
-      ThqNotify.error(context, 'Save Failed', message: '$e');
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final currency = widget.session.currency;
-
-    return Scaffold(
-      body: ListView.separated(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 90),
-        itemCount: widget.initialRates.length,
-        separatorBuilder: (context, index) => const SizedBox(height: 8),
-        itemBuilder: (context, i) {
-          final item = widget.initialRates[i];
-          final key = (item['variant_id'] ?? item['product_id'] ?? item['id']).toString();
-          final name = item['product_name'] ?? item['name'] ?? 'Material';
-          final unit = item['unit_code'] ?? 'ton';
-          final ctrl = _controllers[key];
-
-          return Card(
-            elevation: 0,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-              side: BorderSide(color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.5)),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                        const SizedBox(height: 2),
-                        Text(
-                          'Per $unit',
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: Theme.of(context).colorScheme.onSurfaceVariant,
-                              ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  SizedBox(
-                    width: 140,
-                    child: TextField(
-                      controller: ctrl,
-                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                      decoration: InputDecoration(
-                        prefixText: '$currency ',
-                        labelText: 'Rate',
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                      ),
-                    ),
-                  ),
-                ],
+  // ==========================================================================
+  // TAB 5: MORE SECTION
+  // ==========================================================================
+  Widget _buildMoreTab() {
+    return ListView(
+      padding: const EdgeInsets.all(14),
+      children: [
+        _buildMoreTile(
+          icon: Icons.price_change_outlined,
+          title: 'Daily Rate Board',
+          subtitle: 'View and update per-material buy and sell rates',
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => MobileDailyRatesBoard(
+                session: widget.session,
+                service: widget.service,
+                locationId: _currentLocationId,
               ),
             ),
-          );
-        },
-      ),
-      bottomSheet: SafeArea(
-        child: Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.surface,
-            boxShadow: [
-              BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, -3)),
-            ],
-          ),
-          child: FilledButton.icon(
-            onPressed: _saving ? null : _save,
-            icon: _saving
-                ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                : const Icon(Icons.save_rounded),
-            label: Text(_saving ? 'Updating Rates...' : 'Save Daily Rates'),
-            style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _CreateMaterialLoadSheet extends StatefulWidget {
-  final MobileSession session;
-  final MobileClientService service;
-  final String? locationId;
-
-  const _CreateMaterialLoadSheet({
-    required this.session,
-    required this.service,
-    this.locationId,
-  });
-
-  @override
-  State<_CreateMaterialLoadSheet> createState() =>
-      _CreateMaterialLoadSheetState();
-}
-
-class _CreateMaterialLoadSheetState extends State<_CreateMaterialLoadSheet> {
-  final _vehicleCtrl = TextEditingController();
-  final _driverCtrl = TextEditingController();
-  final _phoneCtrl = TextEditingController();
-  final _materialCtrl = TextEditingController(text: '20mm Aggregate');
-  final _qtyCtrl = TextEditingController(text: '10');
-  final _rateCtrl = TextEditingController();
-  final _customerCtrl = TextEditingController();
-  bool _saving = false;
-
-  @override
-  void dispose() {
-    _vehicleCtrl.dispose();
-    _driverCtrl.dispose();
-    _phoneCtrl.dispose();
-    _materialCtrl.dispose();
-    _qtyCtrl.dispose();
-    _rateCtrl.dispose();
-    _customerCtrl.dispose();
-    super.dispose();
-  }
-
-  Future<void> _confirmLoad() async {
-    if (_vehicleCtrl.text.trim().isEmpty) {
-      ThqNotify.error(context, 'Validation', message: 'Vehicle registration is required.');
-      return;
-    }
-
-    final qty = double.tryParse(_qtyCtrl.text.trim()) ?? 0;
-    if (qty <= 0) {
-      ThqNotify.error(context, 'Validation', message: 'Quantity must be positive.');
-      return;
-    }
-
-    setState(() => _saving = true);
-    try {
-      final locId = widget.locationId ?? widget.session.locationId;
-      await widget.service.materialYardAction(
-        widget.session,
-        action: 'create',
-        locationId: locId,
-        data: {
-          'vehicle_registration': _vehicleCtrl.text.trim().toUpperCase(),
-          'driver_name': _driverCtrl.text.trim(),
-          'driver_phone': _phoneCtrl.text.trim(),
-          'product_name': _materialCtrl.text.trim(),
-          'quantity': qty,
-          'rate': double.tryParse(_rateCtrl.text.trim()) ?? 0,
-          'customer_name': _customerCtrl.text.trim(),
-        },
-      );
-
-      if (!mounted) return;
-      setState(() => _saving = false);
-      ThqNotify.success(context, 'Load Recorded', message: 'Material load dispatched successfully.');
-      Navigator.pop(context, true);
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => _saving = false);
-      ThqNotify.error(context, 'Dispatch Failed', message: '$e');
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
-      child: Container(
-        constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.85),
-        padding: const EdgeInsets.all(16),
-        child: ListView(
-          children: [
-            Row(
-              children: [
-                const Icon(Icons.add_road_rounded),
-                const SizedBox(width: 8),
-                const Text('Dispatch Material Load', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-              ],
-            ),
-            const SizedBox(height: 14),
-            TextField(
-              controller: _vehicleCtrl,
-              textCapitalization: TextCapitalization.characters,
-              decoration: InputDecoration(
-                labelText: 'Vehicle Registration Number *',
-                hintText: 'e.g. KL-07-CD-5678',
-                prefixIcon: const Icon(Icons.local_shipping_outlined),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+        const SizedBox(height: 8),
+        _buildMoreTile(
+          icon: Icons.fire_truck_outlined,
+          title: 'Yard Trucks & Fleet Master',
+          subtitle: 'Register vehicles, nominal capacity and body dimensions',
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => MobileTrucksFleetView(
+                session: widget.session,
+                service: widget.service,
+                locationId: _currentLocationId,
               ),
             ),
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _driverCtrl,
-                    decoration: InputDecoration(
-                      labelText: 'Driver Name',
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: TextField(
-                    controller: _phoneCtrl,
-                    keyboardType: TextInputType.phone,
-                    decoration: InputDecoration(
-                      labelText: 'Driver Phone',
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            TextField(
-              controller: _materialCtrl,
-              decoration: InputDecoration(
-                labelText: 'Material / Product *',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-              ),
-            ),
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _qtyCtrl,
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                    decoration: InputDecoration(
-                      labelText: 'Quantity (Tons / M3) *',
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: TextField(
-                    controller: _rateCtrl,
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                    decoration: InputDecoration(
-                      labelText: 'Rate / Unit',
-                      prefixText: '${widget.session.currency} ',
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            TextField(
-              controller: _customerCtrl,
-              decoration: InputDecoration(
-                labelText: 'Customer / Buyer Name',
-                hintText: 'Direct cash or client account',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-              ),
-            ),
-            const SizedBox(height: 18),
-            FilledButton.icon(
-              onPressed: _saving ? null : _confirmLoad,
-              icon: _saving
-                  ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                  : const Icon(Icons.check_rounded),
-              label: Text(_saving ? 'Recording Dispatch...' : 'Confirm Load Dispatch'),
-              style: FilledButton.styleFrom(
-                minimumSize: const Size.fromHeight(48),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-            ),
-          ],
+          ),
         ),
+        const SizedBox(height: 8),
+        _buildMoreTile(
+          icon: Icons.badge_outlined,
+          title: 'Yard Driver Master',
+          subtitle: 'Register drivers, mobile numbers and licenses',
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => MobileDriverMasterView(
+                session: widget.session,
+                service: widget.service,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+        _buildMoreTile(
+          icon: Icons.assignment_outlined,
+          title: 'Customer Bulk Orders',
+          subtitle: 'Track advance aggregate commitments and balances',
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => MobileCustomerOrdersView(
+                session: widget.session,
+                service: widget.service,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+        _buildMoreTile(
+          icon: Icons.local_shipping_outlined,
+          title: 'Freight & Logistics Settlement',
+          subtitle: 'Review transporter freight allowances and settlements',
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => MobileFreightLogisticsView(
+                session: widget.session,
+                service: widget.service,
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMoreTile({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+  }) {
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(10),
+        side: BorderSide(color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.5)),
+      ),
+      child: ListTile(
+        onTap: onTap,
+        leading: CircleAvatar(
+          backgroundColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
+          child: Icon(icon, color: Theme.of(context).colorScheme.primary, size: 20),
+        ),
+        title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+        subtitle: Text(subtitle, style: Theme.of(context).textTheme.bodySmall),
+        trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 14),
       ),
     );
   }
-}
 
-class _FilterChip extends StatelessWidget {
-  final String label;
-  final bool selected;
-  final VoidCallback onSelected;
-
-  const _FilterChip({
-    required this.label,
-    required this.selected,
-    required this.onSelected,
-  });
-
-  @override
-  Widget build(BuildContext context) {
+  Widget _buildFilterChip(String label, bool selected, VoidCallback onSelected) {
     return FilterChip(
       label: Text(label),
       selected: selected,
       onSelected: (_) => onSelected(),
-      labelStyle: TextStyle(
-        fontSize: 12,
-        fontWeight: selected ? FontWeight.bold : FontWeight.normal,
-      ),
+      labelStyle: TextStyle(fontSize: 12, fontWeight: selected ? FontWeight.bold : FontWeight.normal),
       visualDensity: VisualDensity.compact,
+    );
+  }
+
+  Widget _buildKpiCard({
+    required IconData icon,
+    required Color iconColor,
+    required String label,
+    required String value,
+    required String subtext,
+  }) {
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(10),
+        side: BorderSide(color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.5)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(10),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Row(
+              children: [
+                Icon(icon, size: 16, color: iconColor),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    label,
+                    style: TextStyle(fontSize: 10, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+            Text(
+              value,
+              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+              overflow: TextOverflow.ellipsis,
+            ),
+            Text(
+              subtext,
+              style: TextStyle(fontSize: 10, color: Theme.of(context).colorScheme.outline),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
