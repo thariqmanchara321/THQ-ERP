@@ -33,8 +33,10 @@ class _MobileMaterialYardPageState extends State<MobileMaterialYardPage>
   final _outwardSearchCtrl = TextEditingController();
   final _stockSearchCtrl = TextEditingController();
 
-  String _inwardStatusFilter = 'all';
-  String _outwardStatusFilter = 'all';
+  String _inwardStatusFilter = 'needs_action';
+  String _outwardStatusFilter = 'needs_action';
+  Map<String, int> _inwardCounts = const {};
+  Map<String, int> _outwardCounts = const {};
 
   // Futures
   late Future<Map<String, dynamic>> _dashboardFuture;
@@ -65,6 +67,20 @@ class _MobileMaterialYardPageState extends State<MobileMaterialYardPage>
       locationId: _currentLocationId,
       day: DateTime.now(),
     );
+    widget.service.materialLoadCounts(
+      widget.session,
+      locationId: _currentLocationId,
+      direction: 'inbound',
+    ).then((counts) {
+      if (mounted) setState(() => _inwardCounts = counts);
+    });
+    widget.service.materialLoadCounts(
+      widget.session,
+      locationId: _currentLocationId,
+      direction: 'outbound',
+    ).then((counts) {
+      if (mounted) setState(() => _outwardCounts = counts);
+    });
     _inwardLoadsFuture = widget.service.materialLoads(
       widget.session,
       locationId: _currentLocationId,
@@ -425,33 +441,54 @@ class _MobileMaterialYardPageState extends State<MobileMaterialYardPage>
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
           child: Row(
             children: [
-              _buildFilterChip('All', _inwardStatusFilter == 'all', () {
+              _buildFilterChip('Needs Action', _inwardStatusFilter == 'needs_action', () {
                 setState(() {
-                  _inwardStatusFilter = 'all';
+                  _inwardStatusFilter = 'needs_action';
                   _reloadAll();
                 });
-              }),
+              }, count: _inwardCounts['needs_action'] ?? 0, activeColor: const Color(0xFF0052CC)),
+              const SizedBox(width: 6),
+              _buildFilterChip('Unbilled', _inwardStatusFilter == 'unbilled', () {
+                setState(() {
+                  _inwardStatusFilter = 'unbilled';
+                  _reloadAll();
+                });
+              }, count: _inwardCounts['unbilled'] ?? 0, activeColor: const Color(0xFF0052CC)),
+              const SizedBox(width: 6),
+              _buildFilterChip('Rate Pending', _inwardStatusFilter == 'rate_pending', () {
+                setState(() {
+                  _inwardStatusFilter = 'rate_pending';
+                  _reloadAll();
+                });
+              }, count: _inwardCounts['rate_pending'] ?? 0, activeColor: const Color(0xFFFF8B00)),
+              const SizedBox(width: 6),
+              _buildFilterChip('Billed', _inwardStatusFilter == 'billed', () {
+                setState(() {
+                  _inwardStatusFilter = 'billed';
+                  _reloadAll();
+                });
+              }, count: _inwardCounts['billed'] ?? 0, activeColor: const Color(0xFF00875A)),
               const SizedBox(width: 6),
               _buildFilterChip('Draft', _inwardStatusFilter == 'draft', () {
                 setState(() {
                   _inwardStatusFilter = 'draft';
                   _reloadAll();
                 });
-              }),
+              }, count: _inwardCounts['draft'] ?? 0),
               const SizedBox(width: 6),
-              _buildFilterChip('Confirmed', _inwardStatusFilter == 'confirmed', () {
+              _buildFilterChip('Cancelled', _inwardStatusFilter == 'cancelled', () {
                 setState(() {
-                  _inwardStatusFilter = 'confirmed';
+                  _inwardStatusFilter = 'cancelled';
                   _reloadAll();
                 });
-              }),
+              }, count: _inwardCounts['cancelled'] ?? 0, activeColor: const Color(0xFFDE350B)),
               const SizedBox(width: 6),
-              _buildFilterChip('Invoiced', _inwardStatusFilter == 'invoiced', () {
+              _buildFilterChip('All', _inwardStatusFilter == 'all', () {
                 setState(() {
-                  _inwardStatusFilter = 'invoiced';
+                  _inwardStatusFilter = 'all';
                   _reloadAll();
                 });
-              }),
+              }, count: _inwardCounts['all'] ?? 0),
             ],
           ),
         ),
@@ -491,33 +528,54 @@ class _MobileMaterialYardPageState extends State<MobileMaterialYardPage>
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
           child: Row(
             children: [
-              _buildFilterChip('All', _outwardStatusFilter == 'all', () {
+              _buildFilterChip('Needs Action', _outwardStatusFilter == 'needs_action', () {
                 setState(() {
-                  _outwardStatusFilter = 'all';
+                  _outwardStatusFilter = 'needs_action';
                   _reloadAll();
                 });
-              }),
+              }, count: _outwardCounts['needs_action'] ?? 0, activeColor: const Color(0xFF0052CC)),
+              const SizedBox(width: 6),
+              _buildFilterChip('Unbilled', _outwardStatusFilter == 'unbilled', () {
+                setState(() {
+                  _outwardStatusFilter = 'unbilled';
+                  _reloadAll();
+                });
+              }, count: _outwardCounts['unbilled'] ?? 0, activeColor: const Color(0xFF0052CC)),
+              const SizedBox(width: 6),
+              _buildFilterChip('Rate Pending', _outwardStatusFilter == 'rate_pending', () {
+                setState(() {
+                  _outwardStatusFilter = 'rate_pending';
+                  _reloadAll();
+                });
+              }, count: _outwardCounts['rate_pending'] ?? 0, activeColor: const Color(0xFFFF8B00)),
+              const SizedBox(width: 6),
+              _buildFilterChip('Billed', _outwardStatusFilter == 'billed', () {
+                setState(() {
+                  _outwardStatusFilter = 'billed';
+                  _reloadAll();
+                });
+              }, count: _outwardCounts['billed'] ?? 0, activeColor: const Color(0xFF00875A)),
               const SizedBox(width: 6),
               _buildFilterChip('Draft', _outwardStatusFilter == 'draft', () {
                 setState(() {
                   _outwardStatusFilter = 'draft';
                   _reloadAll();
                 });
-              }),
+              }, count: _outwardCounts['draft'] ?? 0),
               const SizedBox(width: 6),
-              _buildFilterChip('Confirmed', _outwardStatusFilter == 'confirmed', () {
+              _buildFilterChip('Cancelled', _outwardStatusFilter == 'cancelled', () {
                 setState(() {
-                  _outwardStatusFilter = 'confirmed';
+                  _outwardStatusFilter = 'cancelled';
                   _reloadAll();
                 });
-              }),
+              }, count: _outwardCounts['cancelled'] ?? 0, activeColor: const Color(0xFFDE350B)),
               const SizedBox(width: 6),
-              _buildFilterChip('Invoiced', _outwardStatusFilter == 'invoiced', () {
+              _buildFilterChip('All', _outwardStatusFilter == 'all', () {
                 setState(() {
-                  _outwardStatusFilter = 'invoiced';
+                  _outwardStatusFilter = 'all';
                   _reloadAll();
                 });
-              }),
+              }, count: _outwardCounts['all'] ?? 0),
             ],
           ),
         ),
@@ -607,64 +665,126 @@ class _MobileMaterialYardPageState extends State<MobileMaterialYardPage>
               final item = filtered[i];
               final loadId = item['load_id']?.toString() ?? item['id']?.toString() ?? '';
               final loadNum = item['load_number'] ?? 'LD-$loadId';
-              final truck = item['vehicle_registration'] ?? item['vehicle_registration_snapshot'] ?? 'No Truck Reg';
+              final truck = item['vehicle_registration'] ?? item['vehicle_registration_snapshot'] ?? 'No Truck';
               final driver = item['driver_name'] ?? item['driver_name_snapshot'] ?? '';
               final material = item['product_name'] ?? item['variant_name'] ?? 'Aggregate';
               final qty = item['quantity'] ?? 0;
               final unit = item['unit_code'] ?? 'CFT';
               final party = item['customer_name'] ?? item['supplier_name'] ?? item['party_name'] ?? 'Direct Party';
-              final status = (item['status'] ?? 'draft').toString().toLowerCase();
-              final statusColor = MaterialYardFormat.statusColor(status);
+              final derived = (item['workflow_status'] ?? item['status'] ?? 'draft').toString().toLowerCase();
+              final statusColor = MaterialYardFormat.workflowColor(derived);
               final invoiceNum = item['invoice_number'] ?? item['sale_number'] ?? item['purchase_number'];
               final date = item['load_date']?.toString().split('T').first ?? '';
 
+              final invGrandTotal = item['invoice_grand_total'] is num
+                  ? (item['invoice_grand_total'] as num).toDouble()
+                  : double.tryParse(item['invoice_grand_total']?.toString() ?? '');
+              final invAmount = item['invoice_amount'] is num
+                  ? (item['invoice_amount'] as num).toDouble()
+                  : double.tryParse(item['invoice_amount']?.toString() ?? '');
+              final authoritativeTotal = invGrandTotal ?? invAmount;
+              final isRatePending = item['is_rate_pending'] == true ||
+                  (item['invoice_rate'] == null && (item['status'] == 'completed' || derived == 'rate_pending'));
+
+              Widget amountWidget;
+              if (authoritativeTotal != null && authoritativeTotal > 0 && derived == 'billed') {
+                amountWidget = Text(
+                  MaterialYardFormat.money(authoritativeTotal),
+                  style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold, color: Color(0xFF00875A)),
+                );
+              } else if (isRatePending) {
+                amountWidget = Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFF8B00).withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: const Text('Amount Pending', style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.bold, color: Color(0xFFC06200))),
+                );
+              } else {
+                amountWidget = const SizedBox.shrink();
+              }
+
               return Card(
                 elevation: 0,
+                margin: EdgeInsets.zero,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  side: BorderSide(color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.5)),
+                  borderRadius: BorderRadius.circular(8),
+                  side: BorderSide(color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.6)),
                 ),
                 child: InkWell(
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(8),
                   onTap: () => _openLoadDetail(loadId),
                   child: Padding(
-                    padding: const EdgeInsets.all(12),
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        // Row 1 (Primary): Material • Party & Workflow Badge
                         Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Text(truck, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                            Expanded(
+                              child: Text(
+                                '$material • $party',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                              ),
+                            ),
+                            const SizedBox(width: 6),
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
                               decoration: BoxDecoration(
                                 color: statusColor.withValues(alpha: 0.12),
                                 borderRadius: BorderRadius.circular(4),
                               ),
                               child: Text(
-                                MaterialYardFormat.statusLabel(status),
-                                style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: statusColor),
+                                MaterialYardFormat.workflowLabel(derived),
+                                style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: statusColor),
                               ),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 4),
-                        Text('$material • ${MaterialYardFormat.quantity(qty, unit)}', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
-                        Text('Party: $party${driver.isNotEmpty ? " • Driver: $driver" : ""}', style: Theme.of(context).textTheme.bodySmall),
-                        const Divider(height: 14),
+                        const SizedBox(height: 2),
+                        // Row 2 (Primary Metric): Qty & Authoritative Amount
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Text(loadNum, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Theme.of(context).colorScheme.outline)),
-                            if (invoiceNum != null)
+                            Text(
+                              MaterialYardFormat.quantity(qty, unit),
+                              style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600),
+                            ),
+                            amountWidget,
+                          ],
+                        ),
+                        const SizedBox(height: 2),
+                        // Row 3 (Tertiary): Truck, Driver, Load # & Inv / Date
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                '$truck${driver.isNotEmpty ? " • $driver" : ""} • #$loadNum',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: Theme.of(context).textTheme.bodySmall?.copyWith(fontSize: 10.5),
+                              ),
+                            ),
+                            if (invoiceNum != null && invoiceNum.toString().isNotEmpty) ...[
+                              const SizedBox(width: 4),
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                decoration: BoxDecoration(color: Colors.green.shade50, borderRadius: BorderRadius.circular(4)),
-                                child: Text('Inv #$invoiceNum', style: TextStyle(fontSize: 11, color: Colors.green.shade800, fontWeight: FontWeight.bold)),
-                              )
-                            else if (date.isNotEmpty)
-                              Text(date, style: Theme.of(context).textTheme.bodySmall),
+                                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                                decoration: BoxDecoration(
+                                  color: Colors.green.shade50,
+                                  borderRadius: BorderRadius.circular(3),
+                                  border: Border.all(color: Colors.green.shade200, width: 0.6),
+                                ),
+                                child: Text(
+                                  '#$invoiceNum',
+                                  style: TextStyle(fontSize: 9.5, color: Colors.green.shade800, fontWeight: FontWeight.bold),
+                                ),
+                              ),
+                            ] else if (date.isNotEmpty)
+                              Text(date, style: Theme.of(context).textTheme.bodySmall?.copyWith(fontSize: 10)),
                           ],
                         ),
                       ],
@@ -903,12 +1023,44 @@ class _MobileMaterialYardPageState extends State<MobileMaterialYardPage>
     );
   }
 
-  Widget _buildFilterChip(String label, bool selected, VoidCallback onSelected) {
+  Widget _buildFilterChip(
+    String label,
+    bool selected,
+    VoidCallback onSelected, {
+    int? count,
+    Color? activeColor,
+  }) {
     return FilterChip(
-      label: Text(label),
+      label: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(label),
+          if (count != null) ...[
+            const SizedBox(width: 4),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0.5),
+              decoration: BoxDecoration(
+                color: selected
+                    ? Colors.white.withValues(alpha: 0.25)
+                    : (count > 0 ? (activeColor ?? Colors.blue).withValues(alpha: 0.12) : Colors.grey.withValues(alpha: 0.15)),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                '$count',
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                  color: selected ? Colors.white : (count > 0 ? (activeColor ?? Colors.blue) : Colors.grey),
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
       selected: selected,
       onSelected: (_) => onSelected(),
-      labelStyle: TextStyle(fontSize: 12, fontWeight: selected ? FontWeight.bold : FontWeight.normal),
+      labelStyle: TextStyle(fontSize: 11.5, fontWeight: selected ? FontWeight.bold : FontWeight.normal),
+      selectedColor: activeColor,
       visualDensity: VisualDensity.compact,
     );
   }

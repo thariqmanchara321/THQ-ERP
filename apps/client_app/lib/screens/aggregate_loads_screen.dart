@@ -44,9 +44,10 @@ class _AggregateLoadsScreenState extends State<AggregateLoadsScreen> {
 
   Map<String, dynamic> _context = const {};
   List<Map<String, dynamic>> _rows = const [];
+  Map<String, int> _counts = const {};
   bool _loading = true;
   String? _error;
-  String? _status;
+  String? _status = 'needs_action';
   String? _direction;
   bool _autoCreateOpened = false;
   bool _isTableView = false;
@@ -99,6 +100,50 @@ class _AggregateLoadsScreenState extends State<AggregateLoadsScreen> {
 
   void _locationChanged() => _reload(all: true);
 
+  // ==========================================
+  // DERIVED WORKFLOW STATUS HELPERS
+  // ==========================================
+  bool _isRatePending(Map<String, dynamic> row) {
+    if (row['is_rate_pending'] == true) return true;
+    final invRate = row['invoice_rate'] is num
+        ? (row['invoice_rate'] as num).toDouble()
+        : double.tryParse(row['invoice_rate']?.toString() ?? '');
+    return invRate == null || invRate <= 0;
+  }
+
+  bool _isBilled(Map<String, dynamic> row) {
+    if (row['workflow_status'] == 'billed') return true;
+    final status = row['status']?.toString();
+    if (status != 'completed') return false;
+
+    final isInbound = row['direction'] == 'inbound';
+    final hasDoc = _id(row[isInbound ? 'purchase_id' : 'sale_id']) != null;
+    if (!hasDoc) return false;
+
+    final invStatus = row['invoice_status']?.toString().toLowerCase();
+    if (invStatus != null && invStatus.isNotEmpty) {
+      return invStatus == 'posted';
+    }
+    final invNum = row['invoice_number']?.toString();
+    return invNum != null && invNum.isNotEmpty && invStatus != 'void' && invStatus != 'cancelled';
+  }
+
+  String _derivedWorkflowStatus(Map<String, dynamic> row) {
+    final status = row['status']?.toString();
+    if (status == 'cancelled') return 'cancelled';
+    if (status == 'draft') return 'draft';
+    if (_isBilled(row)) return 'billed';
+    if (status == 'completed' && _isRatePending(row)) return 'rate_pending';
+    if (status == 'completed') return 'unbilled';
+    return status ?? 'draft';
+  }
+
+  bool _isNeedsAction(Map<String, dynamic> row) {
+    final status = row['status']?.toString();
+    if (status == 'cancelled') return false;
+    return !_isBilled(row);
+  }
+
   Future<void> _reload({bool all = false}) async {
     if (mounted) {
       setState(() {
@@ -110,30 +155,38 @@ class _AggregateLoadsScreenState extends State<AggregateLoadsScreen> {
       if (all || _context.isEmpty) {
         _context = await _service.context(tenantId: widget.session.business.id);
       }
-      final rows = await _service.loads(
+
+      // Fetch authoritative counts across complete dataset
+      final countsFuture = _service.loadCounts(
         tenantId: widget.session.business.id,
         locationId: _locationId,
-        status: null,
-        query: _search.text.trim(),
+        direction: _direction,
       );
 
+      final rowsFuture = _service.loads(
+        tenantId: widget.session.business.id,
+        locationId: _locationId,
+        status: _status == 'all' ? null : _status,
+        query: _search.text.trim(),
+        direction: _direction,
+      );
+
+      final results = await Future.wait([countsFuture, rowsFuture]);
+      _counts = results[0] as Map<String, int>;
+      final rawRows = results[1] as List<Map<String, dynamic>>;
+
       _rows = switch (_status) {
-        'draft' =>
-          rows
-              .where((row) => _simpleStatus(row) == 'draft')
-              .toList(growable: false),
-        'completed' =>
-          rows
-              .where((row) => _simpleStatus(row) == 'confirmed')
-              .toList(growable: false),
-        'cancelled' =>
-          rows
-              .where((row) => _simpleStatus(row) == 'cancelled')
-              .toList(growable: false),
-        _ => rows,
+        'needs_action' => rawRows.where(_isNeedsAction).toList(growable: false),
+        'draft' => rawRows.where((r) => _derivedWorkflowStatus(r) == 'draft').toList(growable: false),
+        'unbilled' => rawRows.where((r) => r['status'] == 'completed' && !_isBilled(r)).toList(growable: false),
+        'rate_pending' => rawRows.where((r) => !_isBilled(r) && r['status'] != 'cancelled' && _isRatePending(r)).toList(growable: false),
+        'billed' => rawRows.where(_isBilled).toList(growable: false),
+        'cancelled' => rawRows.where((r) => r['status'] == 'cancelled').toList(growable: false),
+        _ => rawRows,
       };
-      if (_direction != null) {
-        _rows = _rows.where((row) => row['direction'] == _direction).toList();
+
+      if (_direction != null && _direction!.isNotEmpty && _direction != 'all') {
+        _rows = _rows.where((row) => row['direction'] == _direction).toList(growable: false);
       }
     } catch (error) {
       _error = error.toString();
@@ -904,6 +957,7 @@ class _AggregateLoadsScreenState extends State<AggregateLoadsScreen> {
       _canManage &&
       !_busyLoads.contains(_id(row['load_id'])) &&
       row['status'] != 'cancelled' &&
+      !_isBilled(row) &&
       _id(row['purchase_id']) == null &&
       _id(row['sale_id']) == null;
 
@@ -911,6 +965,7 @@ class _AggregateLoadsScreenState extends State<AggregateLoadsScreen> {
       _canManage &&
       !_busyLoads.contains(_id(row['load_id'])) &&
       row['status'] == 'completed' &&
+      !_isBilled(row) &&
       _id(row['purchase_id']) == null &&
       _id(row['sale_id']) == null;
 
@@ -1914,10 +1969,12 @@ class _AggregateLoadsScreenState extends State<AggregateLoadsScreen> {
   // ==========================================
   Widget _loadActions(Map<String, dynamic> row, {bool isCompact = false}) {
     final scheme = Theme.of(context).colorScheme;
+    final derived = _derivedWorkflowStatus(row);
     final canConfirm = _canConfirm(row);
     final canReopen = _canReopen(row);
     final canEdit = _canEdit(row);
     final canDelete = _canDelete(row);
+    final canBill = _canOpenBilling(row);
 
     return Wrap(
       alignment: WrapAlignment.end,
@@ -1925,14 +1982,38 @@ class _AggregateLoadsScreenState extends State<AggregateLoadsScreen> {
       spacing: 4,
       runSpacing: 4,
       children: [
-        if (canConfirm)
+        // Primary action based on workflow state
+        if (derived == 'draft' && canConfirm)
           FilledButton.tonal(
             style: FilledButton.styleFrom(
               visualDensity: VisualDensity.compact,
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             ),
             onPressed: () => _confirmLoad(row),
-            child: const Text('Confirm', style: TextStyle(fontSize: 11)),
+            child: const Text('Confirm Load', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
+          ),
+        if (derived == 'rate_pending' && canEdit)
+          FilledButton.tonal(
+            style: FilledButton.styleFrom(
+              visualDensity: VisualDensity.compact,
+              backgroundColor: const Color(0xFFFF8B00).withValues(alpha: 0.15),
+              foregroundColor: const Color(0xFFC06200),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            ),
+            onPressed: () => _editLoad(row),
+            child: const Text('Set Rate / Edit', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
+          )
+        else if (canBill)
+          FilledButton.tonal(
+            style: FilledButton.styleFrom(
+              visualDensity: VisualDensity.compact,
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            ),
+            onPressed: () => _openBilling(row),
+            child: Text(
+              _billingLabel(row),
+              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+            ),
           ),
         if (canReopen)
           OutlinedButton(
@@ -1943,15 +2024,6 @@ class _AggregateLoadsScreenState extends State<AggregateLoadsScreen> {
             onPressed: () => _reopenLoad(row),
             child: const Text('Reopen', style: TextStyle(fontSize: 11)),
           ),
-        if (_canOpenBilling(row))
-          FilledButton.tonal(
-            style: FilledButton.styleFrom(
-              visualDensity: VisualDensity.compact,
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            ),
-            onPressed: () => _openBilling(row),
-            child: Text(_billingLabel(row), style: const TextStyle(fontSize: 11)),
-          ),
         if (_hasTransport)
           OutlinedButton(
             style: OutlinedButton.styleFrom(
@@ -1961,7 +2033,7 @@ class _AggregateLoadsScreenState extends State<AggregateLoadsScreen> {
             onPressed: () => _openTransport(row),
             child: const Text('Trip', style: TextStyle(fontSize: 11)),
           ),
-        if (canEdit)
+        if (canEdit && derived != 'rate_pending')
           IconButton(
             visualDensity: VisualDensity.compact,
             padding: EdgeInsets.zero,
@@ -1992,9 +2064,6 @@ class _AggregateLoadsScreenState extends State<AggregateLoadsScreen> {
   }
 
   // ==========================================
-  // TABLE VIEW BUILDER
-  // ==========================================
-  // ==========================================
   // STATUS & DATE BADGE HELPERS
   // ==========================================
   String _formatLoadDate(Map<String, dynamic> row) {
@@ -2007,69 +2076,238 @@ class _AggregateLoadsScreenState extends State<AggregateLoadsScreen> {
     }
   }
 
-  Widget _buildFinancialBadge(Map<String, dynamic> row, ColorScheme scheme, {bool isTable = false}) {
-    final simpleStat = _simpleStatus(row);
-    if (simpleStat != 'confirmed') {
-      return const SizedBox.shrink();
-    }
+  Widget _buildLoadAmount(Map<String, dynamic> row, ColorScheme scheme, {bool isLarge = false}) {
+    final isBilled = _isBilled(row);
+    final isRatePending = _isRatePending(row);
+    final invGrandTotal = row['invoice_grand_total'] is num
+        ? (row['invoice_grand_total'] as num).toDouble()
+        : double.tryParse(row['invoice_grand_total']?.toString() ?? '');
+    final invAmount = row['invoice_amount'] is num
+        ? (row['invoice_amount'] as num).toDouble()
+        : double.tryParse(row['invoice_amount']?.toString() ?? '');
+    final authoritativeTotal = invGrandTotal ?? invAmount;
 
-    final hasPurchase = row['purchase_id'] != null;
-    final hasSale = row['sale_id'] != null;
-    final invNum = row['invoice_number']?.toString();
-
-    if (hasPurchase) {
-      return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
-        decoration: BoxDecoration(
-          color: const Color(0xFF00875A).withValues(alpha: 0.12),
-          borderRadius: BorderRadius.circular(4),
-          border: Border.all(color: const Color(0xFF00875A).withValues(alpha: 0.3), width: 0.8),
-        ),
-        child: Text(
-          invNum != null && invNum.isNotEmpty ? 'PURCHASE: $invNum' : 'PURCHASE POSTED',
-          style: const TextStyle(
-            fontSize: 8.5,
-            fontWeight: FontWeight.w700,
-            color: Color(0xFF00875A),
-          ),
-        ),
-      );
-    }
-
-    if (hasSale) {
-      return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
-        decoration: BoxDecoration(
-          color: scheme.primary.withValues(alpha: 0.12),
-          borderRadius: BorderRadius.circular(4),
-          border: Border.all(color: scheme.primary.withValues(alpha: 0.3), width: 0.8),
-        ),
-        child: Text(
-          invNum != null && invNum.isNotEmpty ? 'SALE: $invNum' : 'SALE POSTED',
-          style: TextStyle(
-            fontSize: 8.5,
-            fontWeight: FontWeight.w700,
-            color: scheme.primary,
-          ),
-        ),
-      );
-    }
-
-    // Unbilled / Invoice Pending (THQ Rule 4)
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFF8B00).withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(4),
-        border: Border.all(color: const Color(0xFFFF8B00).withValues(alpha: 0.5), width: 0.8),
-      ),
-      child: const Text(
-        'RATE PENDING',
+    if (isBilled && authoritativeTotal != null && authoritativeTotal > 0) {
+      return Text(
+        '₹ ${NumberFormat('#,##0.00').format(authoritativeTotal)}',
         style: TextStyle(
-          fontSize: 8.5,
+          fontSize: isLarge ? 13 : 11,
           fontWeight: FontWeight.w700,
-          color: Color(0xFFC06200),
+          color: const Color(0xFF00875A),
         ),
+      );
+    }
+
+    if (isRatePending) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+        decoration: BoxDecoration(
+          color: const Color(0xFFFF8B00).withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(4),
+          border: Border.all(color: const Color(0xFFFF8B00).withValues(alpha: 0.4), width: 0.8),
+        ),
+        child: const Text(
+          'Amount Pending',
+          style: TextStyle(
+            fontSize: 9.5,
+            fontWeight: FontWeight.w700,
+            color: Color(0xFFC06200),
+          ),
+        ),
+      );
+    }
+
+    final qty = row['approved_billable_qty'] is num
+        ? (row['approved_billable_qty'] as num).toDouble()
+        : (row['quantity'] is num ? (row['quantity'] as num).toDouble() : double.tryParse(row['quantity']?.toString() ?? '') ?? 0.0);
+    final invRate = row['invoice_rate'] is num
+        ? (row['invoice_rate'] as num).toDouble()
+        : double.tryParse(row['invoice_rate']?.toString() ?? '');
+
+    double? effectiveRate = invRate;
+    if (effectiveRate == null || effectiveRate <= 0) {
+      final isInbound = row['direction'] == 'inbound';
+      final del = row['delivery'] is Map ? row['delivery'] as Map : null;
+      final delRate = del != null ? (isInbound ? del['purchasing_price'] : del['selling_price']) : null;
+      effectiveRate = delRate is num ? delRate.toDouble() : double.tryParse(delRate?.toString() ?? '');
+    }
+
+    if (effectiveRate != null && effectiveRate > 0 && qty > 0) {
+      final estimated = qty * effectiveRate;
+      return Text(
+        '₹ ${NumberFormat('#,##0.00').format(estimated)} (Est)',
+        style: TextStyle(
+          fontSize: isLarge ? 12 : 10.5,
+          fontWeight: FontWeight.w600,
+          color: scheme.onSurfaceVariant,
+        ),
+      );
+    }
+
+    return const SizedBox.shrink();
+  }
+
+  Widget _buildWorkflowBadge(Map<String, dynamic> row, ColorScheme scheme, {bool isTable = false}) {
+    final derived = _derivedWorkflowStatus(row);
+    final invNum = row['invoice_number']?.toString();
+    final isInbound = row['direction'] == 'inbound';
+
+    switch (derived) {
+      case 'billed':
+        final label = invNum != null && invNum.isNotEmpty
+            ? '${isInbound ? 'PURCHASE' : 'SALE'}: $invNum'
+            : (isInbound ? 'PURCHASE POSTED' : 'SALE POSTED');
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+          decoration: BoxDecoration(
+            color: const Color(0xFF00875A).withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(4),
+            border: Border.all(color: const Color(0xFF00875A).withValues(alpha: 0.3), width: 0.8),
+          ),
+          child: Text(
+            label,
+            style: const TextStyle(
+              fontSize: 8.5,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF00875A),
+            ),
+          ),
+        );
+
+      case 'rate_pending':
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+          decoration: BoxDecoration(
+            color: const Color(0xFFFF8B00).withValues(alpha: 0.15),
+            borderRadius: BorderRadius.circular(4),
+            border: Border.all(color: const Color(0xFFFF8B00).withValues(alpha: 0.5), width: 0.8),
+          ),
+          child: const Text(
+            'RATE PENDING',
+            style: TextStyle(
+              fontSize: 8.5,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFFC06200),
+            ),
+          ),
+        );
+
+      case 'unbilled':
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+          decoration: BoxDecoration(
+            color: const Color(0xFF0052CC).withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(4),
+            border: Border.all(color: const Color(0xFF0052CC).withValues(alpha: 0.4), width: 0.8),
+          ),
+          child: const Text(
+            'UNBILLED',
+            style: TextStyle(
+              fontSize: 8.5,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF0052CC),
+            ),
+          ),
+        );
+
+      case 'draft':
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+          decoration: BoxDecoration(
+            color: scheme.outlineVariant.withValues(alpha: 0.4),
+            borderRadius: BorderRadius.circular(4),
+          ),
+          child: Text(
+            'DRAFT',
+            style: TextStyle(
+              fontSize: 8.5,
+              fontWeight: FontWeight.w700,
+              color: scheme.onSurfaceVariant,
+            ),
+          ),
+        );
+
+      case 'cancelled':
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+          decoration: BoxDecoration(
+            color: scheme.error.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(4),
+          ),
+          child: Text(
+            'CANCELLED',
+            style: TextStyle(
+              fontSize: 8.5,
+              fontWeight: FontWeight.w700,
+              color: scheme.error,
+            ),
+          ),
+        );
+
+      default:
+        return const SizedBox.shrink();
+    }
+  }
+
+  Widget _buildWorkflowFilterChip(String value, String label, int count, ColorScheme scheme) {
+    final isSelected = (_status ?? 'needs_action') == value;
+    final isNeedsAction = value == 'needs_action';
+    final isRatePending = value == 'rate_pending';
+    final isBilled = value == 'billed';
+
+    Color activeColor = scheme.primary;
+    if (isNeedsAction && count > 0) {
+      activeColor = const Color(0xFF0052CC);
+    } else if (isRatePending && count > 0) {
+      activeColor = const Color(0xFFC06200);
+    } else if (isBilled) {
+      activeColor = const Color(0xFF00875A);
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(right: 6),
+      child: FilterChip(
+        selected: isSelected,
+        visualDensity: VisualDensity.compact,
+        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+        label: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                color: isSelected ? scheme.onPrimary : scheme.onSurface,
+              ),
+            ),
+            const SizedBox(width: 4),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0.5),
+              decoration: BoxDecoration(
+                color: isSelected
+                    ? Colors.white.withValues(alpha: 0.25)
+                    : (count > 0 ? activeColor.withValues(alpha: 0.12) : scheme.surfaceContainerHighest),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                '$count',
+                style: TextStyle(
+                  fontSize: 9.5,
+                  fontWeight: FontWeight.w700,
+                  color: isSelected ? scheme.onPrimary : (count > 0 ? activeColor : scheme.outline),
+                ),
+              ),
+            ),
+          ],
+        ),
+        selectedColor: activeColor,
+        showCheckmark: false,
+        onSelected: (_) {
+          setState(() => _status = value);
+          _reload();
+        },
       ),
     );
   }
@@ -2088,12 +2326,12 @@ class _AggregateLoadsScreenState extends State<AggregateLoadsScreen> {
         ),
         child: Table(
           columnWidths: const {
-            0: FlexColumnWidth(1.3), // Load Number & Date
-            1: FlexColumnWidth(1.5), // Material & Grade + Rate
-            2: FlexColumnWidth(1.7), // Party / Route
-            3: FlexColumnWidth(1.2), // Truck / Driver
-            4: FlexColumnWidth(1.2), // Net / Billable Qty
-            5: FlexColumnWidth(1.3), // Status & Billing
+            0: FlexColumnWidth(1.1), // Load Number & Date
+            1: FlexColumnWidth(1.6), // Material & Party
+            2: FlexColumnWidth(1.1), // Quantity
+            3: FlexColumnWidth(1.3), // Total Amount & Rate
+            4: FlexColumnWidth(1.6), // Route, Truck & Driver
+            5: FlexColumnWidth(1.3), // Status & Workflow
             6: FlexColumnWidth(1.8), // Actions
           },
           defaultVerticalAlignment: TableCellVerticalAlignment.middle,
@@ -2110,15 +2348,7 @@ class _AggregateLoadsScreenState extends State<AggregateLoadsScreen> {
                 ),
                 Padding(
                   padding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                  child: Text('Material / Rate', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
-                ),
-                Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                  child: Text('Quarry / Customer Route', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
-                ),
-                Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                  child: Text('Truck & Driver', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
+                  child: Text('Material & Party', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
                 ),
                 Padding(
                   padding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
@@ -2126,7 +2356,15 @@ class _AggregateLoadsScreenState extends State<AggregateLoadsScreen> {
                 ),
                 Padding(
                   padding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                  child: Text('Status & Billing', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
+                  child: Text('Amount / Rate', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
+                ),
+                Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                  child: Text('Truck & Route', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
+                ),
+                Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                  child: Text('Workflow State', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
                 ),
                 Padding(
                   padding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
@@ -2147,7 +2385,7 @@ class _AggregateLoadsScreenState extends State<AggregateLoadsScreen> {
                       : scheme.primary;
               final dateText = _formatLoadDate(row);
 
-              // Resolve actual confirmed invoice rate or pre-negotiated quote (THQ Pricing Rules v713)
+              // Rate text
               final invRate = row['invoice_rate'] is num
                   ? (row['invoice_rate'] as num).toDouble()
                   : double.tryParse(row['invoice_rate']?.toString() ?? '');
@@ -2164,16 +2402,20 @@ class _AggregateLoadsScreenState extends State<AggregateLoadsScreen> {
                   matRateText = '₹ ${NumberFormat('#,##0.00').format(numDelRate)} (Est)';
                 } else {
                   isRatePending = true;
-                  matRateText = simpleStat == 'confirmed' ? 'Rate pending' : null;
+                  matRateText = 'Rate pending';
                 }
               }
+
+              final partyName = isInbound
+                  ? (row['supplier_name'] ?? row['source_name'] ?? 'Quarry / Supplier')
+                  : (row['customer_name'] ?? row['destination_name'] ?? 'Customer / Site');
 
               return TableRow(
                 decoration: BoxDecoration(
                   border: Border(bottom: BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.3))),
                 ),
                 children: [
-                  // Load # & Date
+                  // 0. Load # & Date
                   InkWell(
                     onTap: () => _showLoad(row),
                     child: Padding(
@@ -2215,7 +2457,7 @@ class _AggregateLoadsScreenState extends State<AggregateLoadsScreen> {
                       ),
                     ),
                   ),
-                  // Material & Rate
+                  // 1. Material & Party (Primary)
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                     child: Column(
@@ -2225,41 +2467,18 @@ class _AggregateLoadsScreenState extends State<AggregateLoadsScreen> {
                           '${row['product_name'] ?? ''}',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+                          style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700),
                         ),
-                        if (matRateText != null)
-                          Text(
-                            matRateText,
-                            style: TextStyle(
-                              fontSize: 9.5,
-                              fontWeight: isRatePending ? FontWeight.w600 : FontWeight.normal,
-                              color: isRatePending ? const Color(0xFFC06200) : scheme.onSurfaceVariant,
-                            ),
-                          ),
+                        Text(
+                          partyName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(fontSize: 10, color: scheme.onSurfaceVariant),
+                        ),
                       ],
                     ),
                   ),
-                  // Route
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                    child: Text(
-                      '${row['source_name'] ?? row['supplier_name'] ?? 'Quarry'} → ${row['destination_name'] ?? row['customer_name'] ?? 'Site'}',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontSize: 10.5, color: scheme.onSurfaceVariant),
-                    ),
-                  ),
-                  // Truck / Driver
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                    child: Text(
-                      '${row['vehicle_registration'] ?? 'No truck'}\n${row['driver_name'] ?? 'No driver'}',
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontSize: 10.5),
-                    ),
-                  ),
-                  // Quantity
+                  // 2. Quantity
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                     child: Column(
@@ -2278,7 +2497,46 @@ class _AggregateLoadsScreenState extends State<AggregateLoadsScreen> {
                       ],
                     ),
                   ),
-                  // Status & Billing
+                  // 3. Total Amount & Rate (Primary/Secondary)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildLoadAmount(row, scheme),
+                        Text(
+                          matRateText,
+                          style: TextStyle(
+                            fontSize: 9.5,
+                            fontWeight: isRatePending ? FontWeight.w600 : FontWeight.normal,
+                            color: isRatePending ? const Color(0xFFC06200) : scheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  // 4. Truck & Route (Secondary)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          '${row['vehicle_registration'] ?? 'No truck'}${row['driver_name'] != null ? ' • ${row['driver_name']}' : ''}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w500),
+                        ),
+                        Text(
+                          '${row['source_name'] ?? 'Quarry'} → ${row['destination_name'] ?? 'Site'}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(fontSize: 9.5, color: scheme.onSurfaceVariant),
+                        ),
+                      ],
+                    ),
+                  ),
+                  // 5. Workflow State (Badge)
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                     child: Column(
@@ -2301,14 +2559,12 @@ class _AggregateLoadsScreenState extends State<AggregateLoadsScreen> {
                             ),
                           ),
                         ),
-                        if (simpleStat == 'confirmed') ...[
-                          const SizedBox(height: 3),
-                          _buildFinancialBadge(row, scheme, isTable: true),
-                        ],
+                        const SizedBox(height: 3),
+                        _buildWorkflowBadge(row, scheme, isTable: true),
                       ],
                     ),
                   ),
-                  // Actions
+                  // 6. Actions
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
                     child: _loadActions(row, isCompact: true),
@@ -2337,8 +2593,8 @@ class _AggregateLoadsScreenState extends State<AggregateLoadsScreen> {
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: 2,
               crossAxisSpacing: 8,
-              mainAxisSpacing: 8,
-              mainAxisExtent: 140,
+              mainAxisSpacing: 6,
+              mainAxisExtent: 84,
             ),
             itemCount: count,
             itemBuilder: (context, index) => _buildLoadCard(_rows[index], scheme),
@@ -2348,8 +2604,11 @@ class _AggregateLoadsScreenState extends State<AggregateLoadsScreen> {
         return ListView.separated(
           padding: const EdgeInsets.fromLTRB(12, 6, 12, 90),
           itemCount: count,
-          separatorBuilder: (_, _) => const SizedBox(height: 6),
-          itemBuilder: (context, index) => _buildLoadCard(_rows[index], scheme),
+          separatorBuilder: (_, _) => const SizedBox(height: 5),
+          itemBuilder: (context, index) => SizedBox(
+            height: 84,
+            child: _buildLoadCard(_rows[index], scheme),
+          ),
         );
       },
     );
@@ -2357,24 +2616,16 @@ class _AggregateLoadsScreenState extends State<AggregateLoadsScreen> {
 
   Widget _buildLoadCard(Map<String, dynamic> row, ColorScheme scheme) {
     final calcCft = row['calculated_cft'];
-    final heapAdj = row['heap_adjustment_cft'];
     final billableQty = row['approved_billable_qty'];
     final slipRef = row['source_reference'];
     final isInbound = row['direction'] == 'inbound';
-    final simpleStat = _simpleStatus(row);
-    final statusColor = simpleStat == 'confirmed'
-        ? const Color(0xFF00875A)
-        : simpleStat == 'cancelled'
-            ? scheme.error
-            : scheme.primary;
     final dateText = _formatLoadDate(row);
 
-    // Resolve actual confirmed invoice rate or pre-negotiated quote (THQ Pricing Rules v713)
     final invRate = row['invoice_rate'] is num
         ? (row['invoice_rate'] as num).toDouble()
         : double.tryParse(row['invoice_rate']?.toString() ?? '');
 
-    String? matRateText;
+    String matRateText;
     if (invRate != null && invRate > 0) {
       matRateText = '₹ ${NumberFormat('#,##0.00').format(invRate)} / ${row['unit_code'] ?? 'CFT'}';
     } else {
@@ -2384,105 +2635,112 @@ class _AggregateLoadsScreenState extends State<AggregateLoadsScreen> {
       if (numDelRate != null && numDelRate > 0) {
         matRateText = '₹ ${NumberFormat('#,##0.00').format(numDelRate)} (Est)';
       } else {
-        matRateText = simpleStat == 'confirmed' ? 'Rate pending' : null;
+        matRateText = 'Rate pending';
       }
     }
 
+    final partyName = isInbound
+        ? (row['supplier_name'] ?? row['source_name'] ?? 'Quarry / Supplier')
+        : (row['customer_name'] ?? row['destination_name'] ?? 'Customer / Site');
+
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
         color: scheme.surface,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(6),
         border: Border.all(color: scheme.outlineVariant.withValues(alpha: 0.6)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
-        mainAxisSize: MainAxisSize.min,
         children: [
-          // CARD TOP ROW: Direction Icon, Load #, Operational Status Chip, Financial Status Badge
+          // ROW 1 (PRIMARY): Direction, Material, Party, Total Amount, Workflow Badge
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(3.5),
+                padding: const EdgeInsets.all(2.5),
                 decoration: BoxDecoration(
                   color: isInbound
                       ? const Color(0xFF00875A).withValues(alpha: 0.12)
                       : const Color(0xFF635BFF).withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(4),
+                  borderRadius: BorderRadius.circular(3),
                 ),
                 child: Icon(
                   isInbound ? Icons.south_west_rounded : Icons.north_east_rounded,
-                  size: 13,
+                  size: 11,
                   color: isInbound ? const Color(0xFF00875A) : const Color(0xFF635BFF),
                 ),
               ),
-              const SizedBox(width: 6),
+              const SizedBox(width: 5),
               Expanded(
-                child: InkWell(
-                  onTap: () => _showLoad(row),
-                  child: Text(
-                    '${row['load_number']} • ${row['product_name']}',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
-                  ),
+                child: Text(
+                  '${row['product_name'] ?? ''} • $partyName',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
                 ),
               ),
               const SizedBox(width: 6),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
-                decoration: BoxDecoration(
-                  color: statusColor.withValues(alpha: 0.10),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Text(
-                  simpleStat.toUpperCase(),
-                  style: TextStyle(
-                    fontSize: 9,
-                    fontWeight: FontWeight.w700,
-                    color: statusColor,
-                  ),
-                ),
-              ),
-              if (simpleStat == 'confirmed') ...[
-                const SizedBox(width: 4),
-                _buildFinancialBadge(row, scheme),
-              ],
+              _buildLoadAmount(row, scheme),
+              const SizedBox(width: 6),
+              _buildWorkflowBadge(row, scheme),
             ],
           ),
-          const SizedBox(height: 3),
-          // DATE, PARTY ROUTE & SLIP REF
-          Text(
-            '${dateText.isNotEmpty ? '$dateText  •  ' : ''}'
-            '${row['source_name'] ?? row['supplier_name'] ?? 'Quarry'} → ${row['destination_name'] ?? row['customer_name'] ?? 'Site'}'
-            '${slipRef == null || slipRef.toString().isEmpty ? '' : '  • Ref: $slipRef'}',
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(fontSize: 10.5, color: scheme.onSurfaceVariant),
-          ),
           const SizedBox(height: 2),
-          // METRICS, RATE & TRUCK ROW
+          // ROW 2 (SECONDARY): Qty + Unit, Rate, Truck, Driver, Route, Date
           Row(
             children: [
               Expanded(
                 child: Text(
                   '${MaterialMeasurementEngine.formatQuantity(row['quantity'], row['unit_code'] ?? 'CFT')}'
-                  '${calcCft != null && calcCft > 0 ? ' (Calc: ${MaterialMeasurementEngine.formatCft(calcCft)})' : ''}'
-                  '${heapAdj != null && heapAdj != 0 ? ' [H: ${MaterialMeasurementEngine.formatCft(heapAdj)}]' : ''}'
+                  '${calcCft != null && calcCft > 0 ? ' (${MaterialMeasurementEngine.formatCft(calcCft)})' : ''}'
                   '${billableQty != null && billableQty != row['quantity'] ? ' • Billable: ${MaterialMeasurementEngine.formatQuantity(billableQty, row['unit_code'] ?? 'CFT')}' : ''}'
-                  '${matRateText != null ? '  •  $matRateText' : ''}'
+                  '  •  $matRateText'
                   '  |  ${row['vehicle_registration'] ?? 'No truck'}'
-                  '  •  ${row['driver_name'] ?? 'No driver'}',
+                  '${row['driver_name'] != null ? ' • ${row['driver_name']}' : ''}'
+                  '  •  ${row['source_name'] ?? 'Quarry'} → ${row['destination_name'] ?? 'Site'}'
+                  '${dateText.isNotEmpty ? '  •  $dateText' : ''}',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w500),
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w500,
+                    color: scheme.onSurfaceVariant,
+                  ),
                 ),
               ),
             ],
           ),
           const Spacer(),
-          // ACTIONS ROW
-          _loadActions(row, isCompact: true),
+          // ROW 3 (TERTIARY & ACTIONS): Load Number (click to detail), Slip Ref, Actions
+          Row(
+            children: [
+              InkWell(
+                onTap: () => _showLoad(row),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      '#${row['load_number'] ?? ''}',
+                      style: TextStyle(
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w700,
+                        color: scheme.primary,
+                      ),
+                    ),
+                    if (slipRef != null && slipRef.toString().isNotEmpty) ...[
+                      const SizedBox(width: 4),
+                      Text(
+                        'Ref: $slipRef',
+                        style: TextStyle(fontSize: 9.5, color: scheme.onSurfaceVariant),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              const Spacer(),
+              _loadActions(row, isCompact: true),
+            ],
+          ),
         ],
       ),
     );
@@ -2560,23 +2818,32 @@ class _AggregateLoadsScreenState extends State<AggregateLoadsScreen> {
             padding: const EdgeInsets.fromLTRB(12, 6, 12, 4),
             child: SizedBox(
               width: double.infinity,
-              height: 34,
+              height: 32,
               child: SegmentedButton<String?>(
                 segments: [
                   ButtonSegment<String?>(
                     value: null,
-                    label: Text('All Loads (${_rows.length})', style: const TextStyle(fontSize: 11)),
-                    icon: const Icon(Icons.list_alt, size: 14),
+                    label: Text(
+                      'All Directions (${_counts['all'] ?? _rows.length})',
+                      style: const TextStyle(fontSize: 11),
+                    ),
+                    icon: const Icon(Icons.swap_vert_rounded, size: 14),
                   ),
-                  const ButtonSegment<String?>(
+                  ButtonSegment<String?>(
                     value: 'inbound',
-                    label: Text('Purchase / Inward Loads', style: TextStyle(fontSize: 11)),
-                    icon: Icon(Icons.south_west_rounded, size: 14),
+                    label: Text(
+                      'Purchase / Inward (${_counts['inbound'] ?? 0})',
+                      style: const TextStyle(fontSize: 11),
+                    ),
+                    icon: const Icon(Icons.south_west_rounded, size: 14),
                   ),
-                  const ButtonSegment<String?>(
+                  ButtonSegment<String?>(
                     value: 'outbound',
-                    label: Text('Sales / Outward Loads', style: TextStyle(fontSize: 11)),
-                    icon: Icon(Icons.north_east_rounded, size: 14),
+                    label: Text(
+                      'Sales / Outward (${_counts['outbound'] ?? 0})',
+                      style: const TextStyle(fontSize: 11),
+                    ),
+                    icon: const Icon(Icons.north_east_rounded, size: 14),
                   ),
                 ],
                 selected: {_direction},
@@ -2588,9 +2855,29 @@ class _AggregateLoadsScreenState extends State<AggregateLoadsScreen> {
             ),
           ),
 
-          // 2. SEARCH & STATUS FILTER TOOLBAR
+          // 2. DERIVED WORKFLOW FILTER CHIPS (OPERATIONAL QUEUE FIRST)
           Padding(
-            padding: const EdgeInsets.fromLTRB(12, 4, 12, 6),
+            padding: const EdgeInsets.fromLTRB(12, 2, 12, 4),
+            child: SizedBox(
+              height: 30,
+              child: ListView(
+                scrollDirection: Axis.horizontal,
+                children: [
+                  _buildWorkflowFilterChip('needs_action', 'Needs Action', _counts['needs_action'] ?? 0, scheme),
+                  _buildWorkflowFilterChip('unbilled', 'Unbilled', _counts['unbilled'] ?? 0, scheme),
+                  _buildWorkflowFilterChip('rate_pending', 'Rate Pending', _counts['rate_pending'] ?? 0, scheme),
+                  _buildWorkflowFilterChip('billed', 'Billed', _counts['billed'] ?? 0, scheme),
+                  _buildWorkflowFilterChip('draft', 'Draft', _counts['draft'] ?? 0, scheme),
+                  _buildWorkflowFilterChip('cancelled', 'Cancelled', _counts['cancelled'] ?? 0, scheme),
+                  _buildWorkflowFilterChip('all', 'All Loads', _counts['all'] ?? 0, scheme),
+                ],
+              ),
+            ),
+          ),
+
+          // 3. SEARCH & STATUS DROPDOWN TOOLBAR
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 2, 12, 6),
             child: Row(
               children: [
                 Expanded(
@@ -2614,7 +2901,7 @@ class _AggregateLoadsScreenState extends State<AggregateLoadsScreen> {
                 ),
                 const SizedBox(width: 8),
                 SizedBox(
-                  width: 150,
+                  width: 175,
                   height: 34,
                   child: DropdownButtonFormField<String?>(
                     initialValue: _status,
@@ -2622,23 +2909,38 @@ class _AggregateLoadsScreenState extends State<AggregateLoadsScreen> {
                     style: TextStyle(fontSize: 11.5, color: scheme.onSurface),
                     decoration: const InputDecoration(
                       contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                      labelText: 'Status',
+                      labelText: 'Status Queue',
                       labelStyle: TextStyle(fontSize: 11),
                       border: OutlineInputBorder(),
                     ),
-                    items: const [
+                    items: [
                       DropdownMenuItem<String?>(
-                        value: null,
-                        child: Text('All Statuses'),
+                        value: 'needs_action',
+                        child: Text('Needs Action (${_counts['needs_action'] ?? 0})'),
                       ),
-                      DropdownMenuItem(value: 'draft', child: Text('Draft')),
-                      DropdownMenuItem(
-                        value: 'completed',
-                        child: Text('Confirmed'),
+                      DropdownMenuItem<String?>(
+                        value: 'unbilled',
+                        child: Text('Unbilled (${_counts['unbilled'] ?? 0})'),
                       ),
-                      DropdownMenuItem(
+                      DropdownMenuItem<String?>(
+                        value: 'rate_pending',
+                        child: Text('Rate Pending (${_counts['rate_pending'] ?? 0})'),
+                      ),
+                      DropdownMenuItem<String?>(
+                        value: 'billed',
+                        child: Text('Billed (${_counts['billed'] ?? 0})'),
+                      ),
+                      DropdownMenuItem<String?>(
+                        value: 'draft',
+                        child: Text('Draft (${_counts['draft'] ?? 0})'),
+                      ),
+                      DropdownMenuItem<String?>(
                         value: 'cancelled',
-                        child: Text('Cancelled'),
+                        child: Text('Cancelled (${_counts['cancelled'] ?? 0})'),
+                      ),
+                      DropdownMenuItem<String?>(
+                        value: 'all',
+                        child: Text('All Loads (${_counts['all'] ?? 0})'),
                       ),
                     ],
                     onChanged: (value) {

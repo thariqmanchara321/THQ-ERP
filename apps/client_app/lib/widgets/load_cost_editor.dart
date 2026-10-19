@@ -398,128 +398,214 @@ class LoadEvidenceCard extends StatelessWidget {
     final billableQty = record['approved_billable_qty'];
     final varianceNotes = record['measurement_notes'];
 
+    final isInbound = record['direction'] == 'inbound';
+    final invNum = record['invoice_number']?.toString() ??
+        (record['purchase'] is Map ? record['purchase']['purchase_number']?.toString() : null) ??
+        (record['sale'] is Map ? record['sale']['sale_number']?.toString() : null);
+    final invRate = record['invoice_rate'] is num
+        ? (record['invoice_rate'] as num).toDouble()
+        : double.tryParse(record['invoice_rate']?.toString() ?? '');
+    final invAmount = record['invoice_amount'] is num
+        ? (record['invoice_amount'] as num).toDouble()
+        : double.tryParse(record['invoice_amount']?.toString() ?? '');
+    final invGrandTotal = record['invoice_grand_total'] is num
+        ? (record['invoice_grand_total'] as num).toDouble()
+        : double.tryParse(record['invoice_grand_total']?.toString() ?? '');
+    final isConfirmed = record['status'] == 'completed';
+    final isBilled = invNum != null && invNum.isNotEmpty;
+    final isRatePending = invRate == null || invRate <= 0;
+
+    String amountDisplay;
+    Color amountColor;
+    if (isBilled) {
+      final total = invGrandTotal ?? invAmount ?? 0.0;
+      amountDisplay = '₹ ${NumberFormat('#,##0.00').format(total)}';
+      amountColor = const Color(0xFF00875A);
+    } else if (isRatePending) {
+      amountDisplay = 'Amount Pending';
+      amountColor = const Color(0xFFC06200);
+    } else if (invAmount != null && invAmount > 0) {
+      amountDisplay = '₹ ${NumberFormat('#,##0.00').format(invAmount)} (Est)';
+      amountColor = scheme.onSurfaceVariant;
+    } else {
+      amountDisplay = 'Amount Pending';
+      amountColor = const Color(0xFFC06200);
+    }
+
+    final partyName = (record['source_name'] ?? record['supplier_name'] ?? record['destination_name'] ?? record['customer_name'] ?? '').toString();
+
     return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(8),
+        side: BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.6)),
+      ),
       child: Padding(
-        padding: const EdgeInsets.all(14),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
           children: [
+            // 1. PRIMARY: Direction + Material / Quality + Party + Total Amount
             Row(
               children: [
-                Text(
-                  'Load ${record['load_number'] ?? ''}',
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
+                Container(
+                  padding: const EdgeInsets.all(3.5),
+                  decoration: BoxDecoration(
+                    color: isInbound
+                        ? const Color(0xFF00875A).withValues(alpha: 0.12)
+                        : const Color(0xFF635BFF).withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Icon(
+                    isInbound ? Icons.south_west_rounded : Icons.north_east_rounded,
+                    size: 13,
+                    color: isInbound ? const Color(0xFF00875A) : const Color(0xFF635BFF),
                   ),
                 ),
-                const Spacer(),
-                if (record['direction'] != null)
-                  Chip(
-                    visualDensity: VisualDensity.compact,
-                    label: Text(
-                      record['direction'] == 'inbound'
-                          ? 'Inward / Quarry'
-                          : record['direction'] == 'outbound'
-                          ? 'Outward / Sales'
-                          : '${record['direction']}',
-                      style: const TextStyle(fontSize: 11),
-                    ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Row(
+                    children: [
+                      Flexible(
+                        child: Text(
+                          '${record['product_name'] ?? 'Aggregate Material'}'
+                          '${record['variant_name'] != null && record['variant_name'].toString().isNotEmpty ? ' (${record['variant_name']})' : ''}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+                        ),
+                      ),
+                      if (partyName.isNotEmpty) ...[
+                        const SizedBox(width: 6),
+                        Text(
+                          '•  $partyName',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12, color: scheme.onSurfaceVariant),
+                        ),
+                      ],
+                    ],
                   ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  amountDisplay,
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: amountColor,
+                  ),
+                ),
               ],
             ),
-            const SizedBox(height: 4),
-            Text(
-              'Material: ${record['product_name'] ?? 'Not specified'}'
-              '${record['variant_name'] != null && record['variant_name'].toString().isNotEmpty ? ' (${record['variant_name']})' : ''}',
-              style: const TextStyle(fontWeight: FontWeight.w600),
+            const SizedBox(height: 3),
+
+            // 2. SECONDARY: Quantity + Rate + Vehicle & Driver + Route
+            Wrap(
+              spacing: 8,
+              runSpacing: 2,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                Text(
+                  '${record['quantity'] ?? ''} ${record['unit_code'] ?? 'CFT'}'
+                  '${calcCft != null && calcCft > 0 ? ' (Calc: $calcCft CFT)' : ''}'
+                  '${heapAdj != null && heapAdj != 0 ? ' [H: $heapAdj CFT]' : ''}'
+                  '${billableQty != null && billableQty != record['quantity'] ? ' • Billable: $billableQty ${record['unit_code'] ?? ''}' : ''}',
+                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+                ),
+                if (invRate != null && invRate > 0)
+                  Text(
+                    '•  Rate: ₹${NumberFormat('#,##0.00').format(invRate)} / ${record['unit_code'] ?? 'CFT'}',
+                    style: TextStyle(fontSize: 10.5, color: scheme.onSurfaceVariant),
+                  )
+                else
+                  Text(
+                    '•  Rate pending',
+                    style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600, color: Color(0xFFC06200)),
+                  ),
+                Text(
+                  '|  ${record['vehicle_registration'] ?? record['vehicle_registration_snapshot'] ?? 'No vehicle'}'
+                  '${record['driver_name'] != null ? ' • ${record['driver_name']}' : ''}',
+                  style: TextStyle(fontSize: 10.5, color: scheme.onSurfaceVariant),
+                ),
+                Text(
+                  '•  ${record['source_name'] ?? ''} → ${record['destination_name'] ?? ''}',
+                  style: TextStyle(fontSize: 10.5, color: scheme.onSurfaceVariant),
+                ),
+              ],
             ),
-            Text(
-              'Quantity: ${record['quantity'] ?? ''} ${record['unit_code'] ?? ''}'
-              '${calcCft != null && calcCft > 0 ? ' • Calculated: $calcCft CFT' : ''}'
-              '${heapAdj != null && heapAdj != 0 ? ' • Heap: $heapAdj CFT' : ''}'
-              '${billableQty != null && billableQty != record['quantity'] ? ' • Billable: $billableQty ${record['unit_code'] ?? ''}' : ''}',
-            ),
-            if (varianceNotes != null &&
-                varianceNotes.toString().trim().isNotEmpty) ...[
-              const SizedBox(height: 4),
+
+            if (varianceNotes != null && varianceNotes.toString().trim().isNotEmpty) ...[
+              const SizedBox(height: 3),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
-                  color: scheme.tertiaryContainer.withValues(alpha: 0.4),
-                  borderRadius: BorderRadius.circular(6),
+                  color: scheme.tertiaryContainer.withValues(alpha: 0.35),
+                  borderRadius: BorderRadius.circular(4),
                 ),
                 child: Text(
-                  'Measurement Audit: $varianceNotes',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    fontStyle: FontStyle.italic,
-                  ),
+                  'Audit: $varianceNotes',
+                  style: theme.textTheme.bodySmall?.copyWith(fontSize: 10, fontStyle: FontStyle.italic),
                 ),
               ),
             ],
-            const SizedBox(height: 4),
-            Text(
-              'Vehicle: ${record['vehicle_registration'] ?? record['vehicle_registration_snapshot'] ?? 'Not assigned'} • Driver: ${record['driver_name'] ?? record['driver_name_snapshot'] ?? 'Not assigned'}',
-            ),
-            Text(
-              '${record['source_name'] ?? ''} → ${record['destination_name'] ?? ''} • ${record['location_name'] ?? ''}',
-            ),
-            Text(
-              'Load cost: ${StaffLoadService.number(record['cost_total']).toStringAsFixed(2)} • Customer charges: ${StaffLoadService.number(record['customer_charge_total']).toStringAsFixed(2)} before tax',
-            ),
-            Builder(
-              builder: (context) {
-                final invNum = record['invoice_number']?.toString() ??
-                    (record['purchase'] is Map ? record['purchase']['purchase_number']?.toString() : null) ??
-                    (record['sale'] is Map ? record['sale']['sale_number']?.toString() : null);
-                final invRate = record['invoice_rate'] is num
-                    ? (record['invoice_rate'] as num).toDouble()
-                    : double.tryParse(record['invoice_rate']?.toString() ?? '');
-                final invAmount = record['invoice_amount'] is num
-                    ? (record['invoice_amount'] as num).toDouble()
-                    : double.tryParse(record['invoice_amount']?.toString() ?? '');
-                final isConfirmed = record['status'] == 'completed';
 
-                if (invNum != null && invNum.isNotEmpty) {
-                  return Padding(
-                    padding: const EdgeInsets.only(top: 3),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.receipt_long_outlined, size: 14, color: Color(0xFF00875A)),
-                        const SizedBox(width: 4),
-                        Text(
-                          'Invoice: $invNum'
-                          '${invRate != null && invRate > 0 ? ' • Rate: ₹${NumberFormat('#,##0.00').format(invRate)} / ${record['unit_code'] ?? 'CFT'}' : ''}'
-                          '${invAmount != null && invAmount > 0 ? ' • Total: ₹${NumberFormat('#,##0.00').format(invAmount)}' : ''}',
-                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF00875A)),
-                        ),
-                      ],
+            const SizedBox(height: 4),
+
+            // 3. TERTIARY: Load # • Invoice Status Badge • Actions
+            Row(
+              children: [
+                Text(
+                  '#${record['load_number'] ?? ''}',
+                  style: TextStyle(
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w500,
+                    fontFamily: 'monospace',
+                    color: scheme.outline,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                if (isBilled)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF00875A).withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(4),
+                      border: Border.all(color: const Color(0xFF00875A).withValues(alpha: 0.3), width: 0.8),
                     ),
-                  );
-                } else if (isConfirmed) {
-                  return const Padding(
-                    padding: EdgeInsets.only(top: 3),
-                    child: Row(
-                      children: [
-                        Icon(Icons.pending_actions_outlined, size: 14, color: Color(0xFFC06200)),
-                        SizedBox(width: 4),
-                        Text(
-                          'Invoice: Not invoiced (Rate pending)',
-                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFFC06200)),
-                        ),
-                      ],
+                    child: Text(
+                      'INVOICE: $invNum',
+                      style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: Color(0xFF00875A)),
                     ),
-                  );
-                }
-                return const SizedBox.shrink();
-              },
-            ),
-            TextButton(
-              onPressed: () => RecordPreview.show(
-                context,
-                title: 'All saved load, cost, driver and delivery details',
-                record: record,
-              ),
-              child: const Text('Preview all saved details'),
+                  )
+                else if (isConfirmed)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFF8B00).withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(4),
+                      border: Border.all(color: const Color(0xFFFF8B00).withValues(alpha: 0.5), width: 0.8),
+                    ),
+                    child: Text(
+                      isRatePending ? 'UNBILLED (RATE PENDING)' : 'CONFIRMED UNBILLED',
+                      style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: Color(0xFFC06200)),
+                    ),
+                  ),
+                const Spacer(),
+                TextButton(
+                  style: TextButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  ),
+                  onPressed: () => RecordPreview.show(
+                    context,
+                    title: 'All saved load, cost, driver and delivery details',
+                    record: record,
+                  ),
+                  child: const Text('Preview saved details', style: TextStyle(fontSize: 11)),
+                ),
+              ],
             ),
           ],
         ),

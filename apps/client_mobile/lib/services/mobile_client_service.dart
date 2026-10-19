@@ -710,9 +710,9 @@ class MobileClientService {
     String? status,
     String? direction,
     String? query,
-    int limit = 300,
+    int limit = 500,
   }) async {
-    final rows = _rows(
+    return _rows(
       await _supabase.rpc(
         'aggregate_load_list_v629',
         params: {
@@ -721,11 +721,36 @@ class MobileClientService {
           'p_status': status,
           'p_query': query?.trim().isEmpty == true ? null : query?.trim(),
           'p_limit': limit,
+          'p_direction': direction,
         },
       ),
     );
-    if (direction == null || direction.isEmpty) return rows;
-    return rows.where((r) => r['direction'] == direction).toList();
+  }
+
+  Future<Map<String, int>> materialLoadCounts(
+    MobileSession s, {
+    String? locationId,
+    String? direction,
+  }) async {
+    try {
+      final res = await _supabase.rpc(
+        'aggregate_load_counts_v723',
+        params: {
+          'p_tenant_id': s.tenantId,
+          'p_location_id': locationId ?? s.locationId,
+          'p_direction': direction,
+        },
+      );
+      if (res is! Map) return const {};
+      return res.map(
+        (k, v) => MapEntry(
+          k.toString(),
+          v is num ? v.toInt() : int.tryParse('$v') ?? 0,
+        ),
+      );
+    } catch (_) {
+      return const {};
+    }
   }
 
   Future<Map<String, dynamic>> materialLoadDetail(

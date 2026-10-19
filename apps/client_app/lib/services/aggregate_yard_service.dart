@@ -107,7 +107,8 @@ class AggregateYardService {
     String? locationId,
     String? status,
     String? query,
-    int limit = 300,
+    int limit = 500,
+    String? direction,
   }) async {
     final result = await _db.rpc(
       'aggregate_load_list_v629',
@@ -117,12 +118,39 @@ class AggregateYardService {
         'p_status': status,
         'p_query': query,
         'p_limit': limit,
+        'p_direction': direction,
       },
     );
     return (result as List? ?? const [])
         .whereType<Map>()
         .map((row) => Map<String, dynamic>.from(row))
         .toList();
+  }
+
+  Future<Map<String, int>> loadCounts({
+    required String tenantId,
+    String? locationId,
+    String? direction,
+  }) async {
+    try {
+      final result = await _db.rpc(
+        'aggregate_load_counts_v723',
+        params: {
+          'p_tenant_id': tenantId,
+          'p_location_id': locationId,
+          'p_direction': direction,
+        },
+      );
+      if (result is! Map) return const {};
+      return result.map(
+        (k, v) => MapEntry(
+          k.toString(),
+          v is num ? v.toInt() : int.tryParse('$v') ?? 0,
+        ),
+      );
+    } catch (_) {
+      return const {};
+    }
   }
 
   Future<Map<String, dynamic>> freightContext({

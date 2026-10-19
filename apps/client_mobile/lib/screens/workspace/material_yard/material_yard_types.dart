@@ -35,9 +35,13 @@ class MaterialYardFormat {
     switch ((status ?? 'draft').toLowerCase()) {
       case 'invoiced':
       case 'completed':
+      case 'billed':
         return const Color(0xFF00875A); // Green
       case 'confirmed':
+      case 'unbilled':
         return const Color(0xFF0052CC); // Blue
+      case 'rate_pending':
+        return const Color(0xFFFF8B00); // Amber
       case 'cancelled':
         return const Color(0xFFDE350B); // Red
       case 'draft':
@@ -49,9 +53,52 @@ class MaterialYardFormat {
   static String statusLabel(String? status) {
     switch ((status ?? 'draft').toLowerCase()) {
       case 'invoiced':
-        return 'INVOICED';
+      case 'billed':
+        return 'BILLED';
       case 'confirmed':
         return 'CONFIRMED';
+      case 'unbilled':
+        return 'UNBILLED';
+      case 'rate_pending':
+        return 'RATE PENDING';
+      case 'cancelled':
+        return 'CANCELLED';
+      case 'draft':
+      default:
+        return 'DRAFT';
+    }
+  }
+
+  static Color workflowColor(String? status) {
+    switch ((status ?? '').toLowerCase()) {
+      case 'billed':
+      case 'invoiced':
+        return const Color(0xFF00875A);
+      case 'unbilled':
+      case 'confirmed':
+        return const Color(0xFF0052CC);
+      case 'rate_pending':
+        return const Color(0xFFFF8B00);
+      case 'needs_action':
+        return const Color(0xFF0052CC);
+      case 'cancelled':
+        return const Color(0xFFDE350B);
+      case 'draft':
+      default:
+        return const Color(0xFF6B778C);
+    }
+  }
+
+  static String workflowLabel(String? status) {
+    switch ((status ?? '').toLowerCase()) {
+      case 'billed':
+        return 'BILLED';
+      case 'unbilled':
+        return 'UNBILLED';
+      case 'rate_pending':
+        return 'RATE PENDING';
+      case 'needs_action':
+        return 'NEEDS ACTION';
       case 'cancelled':
         return 'CANCELLED';
       case 'draft':
