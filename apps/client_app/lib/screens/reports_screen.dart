@@ -14,6 +14,7 @@ import 'purchases_screen.dart';
 import 'sales_screen.dart';
 import 'returns_register_screen.dart';
 import 'reports_center_v500_screen.dart';
+import 'advanced_expense_report_screen.dart';
 
 class ReportsScreen extends StatefulWidget {
   final ClientSession session;
@@ -276,6 +277,22 @@ class _ReportsScreenState extends State<ReportsScreen> {
                       ),
                       icon: const Icon(Icons.badge_outlined),
                       label: const Text('Staff statements'),
+                    ),
+                  if (widget.session.hasModule('expenses') &&
+                      (widget.session.hasRole('owner') ||
+                          widget.session.hasPermission('expenses.view') ||
+                          widget.session.hasPermission('expenses.manage')))
+                    OutlinedButton.icon(
+                      onPressed: () => Navigator.push<void>(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => AdvancedExpenseReportScreen(
+                            session: widget.session,
+                          ),
+                        ),
+                      ),
+                      icon: const Icon(Icons.analytics_outlined),
+                      label: const Text('Expense Analysis'),
                     ),
                   OutlinedButton.icon(
                     onPressed: () => _pick(true),

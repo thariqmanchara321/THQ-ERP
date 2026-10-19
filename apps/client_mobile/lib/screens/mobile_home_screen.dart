@@ -18,6 +18,7 @@ import 'workspace/mobile_reports_center_page.dart';
 import 'workspace/mobile_staff_attendance_page.dart';
 import 'workspace/mobile_stock_transfers_page.dart';
 import 'workspace/mobile_tools_pages.dart';
+import 'workspace/mobile_expense_report_page.dart';
 
 class MobileHomeScreen extends StatefulWidget {
   final MobileSession session;
@@ -206,6 +207,15 @@ class _MobileHomeScreenState extends State<MobileHomeScreen> {
         onPurchases: () => Navigator.of(context).push(
           MaterialPageRoute(
             builder: (_) => MobilePurchasesPage(
+              session: widget.session,
+              service: _service,
+              locationId: _locationId,
+            ),
+          ),
+        ),
+        onExpenses: () => Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => MobileExpenseReportPage(
               session: widget.session,
               service: _service,
               locationId: _locationId,
@@ -452,6 +462,7 @@ class _OverviewTab extends StatelessWidget {
   final VoidCallback onMoney;
   final VoidCallback onApprovals;
   final VoidCallback onPurchases;
+  final VoidCallback? onExpenses;
   final VoidCallback onTraceability;
   final VoidCallback onMaterialYard;
 
@@ -470,6 +481,7 @@ class _OverviewTab extends StatelessWidget {
     required this.onMoney,
     required this.onApprovals,
     required this.onPurchases,
+    this.onExpenses,
     required this.onTraceability,
     required this.onMaterialYard,
   });
@@ -602,6 +614,7 @@ class _OverviewTab extends StatelessWidget {
                           label: 'Expenses',
                           value: workspaceMoney(session, data['expenses']),
                           icon: Icons.receipt_long_outlined,
+                          onTap: onExpenses,
                         ),
                       ),
                       const SizedBox(width: 8),
@@ -953,20 +966,21 @@ class _MoreTab extends StatelessWidget {
           ),
         ),
       ),
-      _MoreAction(
-        icon: Icons.post_add_rounded,
-        title: 'New purchase bill',
-        subtitle: 'Record supplier purchase and items',
-        onTap: () => Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (_) => MobilePurchaseCreatePage(
-              session: session,
-              service: service,
-              locationId: locationId,
+      if (session.showStandaloneNewPurchase)
+        _MoreAction(
+          icon: Icons.post_add_rounded,
+          title: 'New purchase bill',
+          subtitle: 'Record supplier purchase and items',
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => MobilePurchaseCreatePage(
+                session: session,
+                service: service,
+                locationId: locationId,
+              ),
             ),
           ),
         ),
-      ),
       _MoreAction(
         icon: Icons.swap_horiz_rounded,
         title: 'Stock transfers',

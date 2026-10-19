@@ -90,4 +90,4 @@ begin
   from public.transaction_story_events_v600 e where e.tenant_id=p_tenant_id and e.correlation_id=f.correlation_id and private.reports_scope_v631(p_tenant_id,e.location_id,null,'view');
   return jsonb_build_object('review_history',(select coalesce(jsonb_agg(jsonb_build_object('reviewed_at',a.created_at,'reviewer',u.username,'status',a.after_data->>'status','review_note',a.after_data->>'review_note','resolution_note',a.after_data->>'resolution_note') order by a.created_at),'[]') from public.business_audit_log a left join public.user_login_names u on u.user_id=a.user_id where a.tenant_id=p_tenant_id and a.entity_type='audit_finding' and a.entity_id=p_finding_id),'finding',to_jsonb(f),'sensitive_values_visible',v_sensitive,'transaction_story',v_events);
 end;
-$function$;
+$function$;;

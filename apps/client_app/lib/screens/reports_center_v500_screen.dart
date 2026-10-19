@@ -14,14 +14,21 @@ import '../services/report_file_builder.dart';
 import '../services/reports_center_service.dart';
 import '../widgets/record_preview.dart';
 import 'inventory_reports_screen.dart';
+import 'advanced_expense_report_screen.dart';
+import 'material_yard_crusher_report_screen.dart';
 
 class ReportsCenterV500Screen extends StatefulWidget {
   final ClientSession session;
   final ReportsCenterService? service;
+  final String? initialCategory;
+  final String? initialReportKey;
+
   const ReportsCenterV500Screen({
     super.key,
     required this.session,
     this.service,
+    this.initialCategory,
+    this.initialReportKey,
   });
   @override
   State<ReportsCenterV500Screen> createState() =>
@@ -78,9 +85,29 @@ class _ReportsCenterV500ScreenState extends State<ReportsCenterV500Screen> {
     try {
       final items = await _service.catalog(widget.session.business.id);
       if (!mounted || generation != _generation) return;
+      ReportDefinition? selectedDef;
+      String? initialCategory = widget.initialCategory;
+      if (widget.initialReportKey != null) {
+        final match = items.where((r) => r.key == widget.initialReportKey);
+        if (match.isNotEmpty) {
+          selectedDef = match.first;
+          initialCategory ??= selectedDef.category;
+        }
+      }
+      if (selectedDef == null && initialCategory != null) {
+        final match = items.where(
+          (r) => r.category.toLowerCase() == initialCategory!.toLowerCase(),
+        );
+        if (match.isNotEmpty) {
+          selectedDef = match.first;
+        }
+      }
+      selectedDef ??= items.isEmpty ? null : items.first;
+
       setState(() {
         _catalog = items;
-        _definition = items.isEmpty ? null : items.first;
+        _category = initialCategory;
+        _definition = selectedDef;
       });
       if (items.isEmpty) {
         setState(() {
@@ -539,6 +566,67 @@ class _ReportsCenterV500ScreenState extends State<ReportsCenterV500Screen> {
                           },
                   ),
                 ),
+              if ((_category == 'Inventory' || _category == null) &&
+                  canOpenInventoryReports(widget.session))
+                Padding(
+                  padding: const EdgeInsets.only(right: 6),
+                  child: ActionChip(
+                    avatar: const Icon(Icons.table_chart_outlined, size: 14),
+                    label: const Text(
+                      '15-Report Stock Matrix',
+                      style: TextStyle(fontSize: 11),
+                    ),
+                    visualDensity: VisualDensity.compact,
+                    onPressed: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) =>
+                            InventoryReportsScreen(session: widget.session),
+                      ),
+                    ),
+                  ),
+                ),
+              if ((_category == 'Accounting' || _category == null) &&
+                  widget.session.hasPermission('expenses.view'))
+                Padding(
+                  padding: const EdgeInsets.only(right: 6),
+                  child: ActionChip(
+                    avatar: const Icon(Icons.pie_chart_outline, size: 14),
+                    label: const Text(
+                      'Advanced Expense Report',
+                      style: TextStyle(fontSize: 11),
+                    ),
+                    visualDensity: VisualDensity.compact,
+                    onPressed: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) =>
+                            AdvancedExpenseReportScreen(session: widget.session),
+                      ),
+                    ),
+                  ),
+                ),
+              if ((_category == 'Material Yard' || _category == null) &&
+                  widget.session.hasModule('aggregate_yard'))
+                Padding(
+                  padding: const EdgeInsets.only(right: 6),
+                  child: ActionChip(
+                    avatar: const Icon(
+                      Icons.precision_manufacturing_outlined,
+                      size: 14,
+                    ),
+                    label: const Text(
+                      'Crusher Register',
+                      style: TextStyle(fontSize: 11),
+                    ),
+                    visualDensity: VisualDensity.compact,
+                    onPressed: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => MaterialYardCrusherReportScreen(
+                          session: widget.session,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
             ],
           ),
         ),
@@ -994,7 +1082,7 @@ class _ReportsCenterV500ScreenState extends State<ReportsCenterV500Screen> {
     appBar: AppBar(
       toolbarHeight: MediaQuery.textScalerOf(context).scale(16) + 28,
       title: const Text(
-        'Reports Center v5',
+        'Reports Workspace',
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
         style: TextStyle(fontSize: 16),
@@ -1007,13 +1095,36 @@ class _ReportsCenterV500ScreenState extends State<ReportsCenterV500Screen> {
         ),
         if (canOpenInventoryReports(widget.session))
           IconButton(
-            tooltip: 'Inventory Reports',
+            tooltip: 'Multi-Store Inventory Reports Matrix (15 Reports)',
             onPressed: () => Navigator.of(context).push(
               MaterialPageRoute(
                 builder: (_) => InventoryReportsScreen(session: widget.session),
               ),
             ),
-            icon: const Icon(Icons.analytics_outlined),
+            icon: const Icon(Icons.inventory_2_outlined),
+          ),
+        if (widget.session.hasPermission('expenses.view'))
+          IconButton(
+            tooltip: 'Advanced Expense Analysis',
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) =>
+                    AdvancedExpenseReportScreen(session: widget.session),
+              ),
+            ),
+            icon: const Icon(Icons.pie_chart_outline),
+          ),
+        if (widget.session.hasModule('aggregate_yard'))
+          IconButton(
+            tooltip: 'Crusher / Material Register',
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => MaterialYardCrusherReportScreen(
+                  session: widget.session,
+                ),
+              ),
+            ),
+            icon: const Icon(Icons.precision_manufacturing_outlined),
           ),
         if (_exporting)
           const Padding(

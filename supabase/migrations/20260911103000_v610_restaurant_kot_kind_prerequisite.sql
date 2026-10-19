@@ -17,4 +17,4 @@ begin
       check (kind in ('items', 'void', 'reprint'));
   end if;
 end
-$$;
+$$;;

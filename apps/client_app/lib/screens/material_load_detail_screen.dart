@@ -286,6 +286,35 @@ class _MaterialLoadDetailScreenState extends State<MaterialLoadDetailScreen> {
                           '${linked ? 'View' : 'Create'} ${outbound ? 'sale' : 'purchase'}',
                         ),
                       ),
+                    if (_manage && confirmed && !linked)
+                      OutlinedButton.icon(
+                        onPressed: () async {
+                          final confirm = await showDialog<bool>(
+                            context: context,
+                            builder: (ctx) => AlertDialog(
+                              title: const Text('Reopen Load for Editing?'),
+                              content: const Text(
+                                'Reopening returns this confirmed load to draft status, resets unpaid draft accruals, and preserves an audit trail. You can then edit all load details before re-confirming or billing.',
+                              ),
+                              actions: [
+                                TextButton(
+                                  onPressed: () => Navigator.pop(ctx, false),
+                                  child: const Text('Cancel'),
+                                ),
+                                FilledButton(
+                                  onPressed: () => Navigator.pop(ctx, true),
+                                  child: const Text('Reopen'),
+                                ),
+                              ],
+                            ),
+                          );
+                          if (confirm == true) {
+                            await _action('reopen', {'load_id': widget.loadId});
+                          }
+                        },
+                        icon: const Icon(Icons.lock_open_rounded),
+                        label: const Text('Reopen for editing'),
+                      ),
                     if (widget.session.hasModule('vehicle_logistics') ||
                         widget.session.hasModule('logistics_operations') ||
                         widget.session.hasModule('transport_service'))

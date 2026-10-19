@@ -1,16 +1,23 @@
--- THQ ERP v6.0
--- Non-GST businesses must not post GST tax on expenses.
-
 create or replace function public.expenses_create_v489(
-  p_tenant_id uuid, p_category_id uuid, p_expense_date date, p_payee text,
-  p_description text, p_amount numeric, p_tax_amount numeric, p_round_off numeric,
-  p_payment_method text, p_reference_number text, p_notes text,
-  p_location_id uuid, p_device_id uuid, p_request_id text
+  p_tenant_id uuid,
+  p_category_id uuid,
+  p_expense_date date,
+  p_payee text,
+  p_description text,
+  p_amount numeric,
+  p_tax_amount numeric,
+  p_round_off numeric,
+  p_payment_method text,
+  p_reference_number text,
+  p_notes text,
+  p_location_id uuid,
+  p_device_id uuid,
+  p_request_id text
 )
 returns jsonb
 language plpgsql
 security definer
-set search_path to 'public', 'private', 'pg_temp'
+set search_path to 'public','private','pg_temp'
 as $function$
 declare
   v jsonb;
@@ -27,7 +34,9 @@ begin
   if v_mode='non_gst' and abs(coalesce(p_tax_amount,0))>0.0001 then
     raise exception 'Non-GST businesses cannot post GST tax on an expense. Set tax amount to zero.';
   end if;
-  if coalesce(p_tax_amount,0)<0 then raise exception 'Tax cannot be negative'; end if;
+  if coalesce(p_tax_amount,0)<0 then
+    raise exception 'Tax cannot be negative';
+  end if;
   if abs(v_round)>0.999999 then raise exception 'Round off must be between -1.00 and 1.00'; end if;
   if v_final<=0 then raise exception 'Rounded expense total must be positive'; end if;
 
@@ -48,8 +57,7 @@ begin
   if abs(coalesce(v_old_round,0)-v_round)>0.000001 then
     update public.journal_entries
        set status='reversed'
-     where tenant_id=p_tenant_id and source_type='expense'
-       and source_id=v_id and status='posted';
+     where tenant_id=p_tenant_id and source_type='expense' and source_id=v_id and status='posted';
 
     update public.expenses
        set round_off=v_round,total_amount=v_final
@@ -58,8 +66,7 @@ begin
 
   select j.id into v_journal_id
   from public.journal_entries j
-  where j.tenant_id=p_tenant_id and j.source_type='expense'
-    and j.source_id=v_id and j.status='posted'
+  where j.tenant_id=p_tenant_id and j.source_type='expense' and j.source_id=v_id and j.status='posted'
   order by j.created_at limit 1;
 
   if v_journal_id is null then
@@ -68,8 +75,7 @@ begin
 
   if v_journal_id is null or not exists(
     select 1 from public.journal_entries j
-    where j.id=v_journal_id and j.tenant_id=p_tenant_id
-      and j.source_type='expense' and j.source_id=v_id and j.status='posted'
+    where j.id=v_journal_id and j.tenant_id=p_tenant_id and j.source_type='expense' and j.source_id=v_id and j.status='posted'
   ) then
     raise exception 'Expense accounting journal was not created; transaction rolled back';
   end if;
@@ -85,3 +91,6 @@ begin
   );
 end
 $function$;
+
+revoke all on function public.expenses_create_v489(uuid,uuid,date,text,text,numeric,numeric,numeric,text,text,text,uuid,uuid,text) from public,anon;
+grant execute on function public.expenses_create_v489(uuid,uuid,date,text,text,numeric,numeric,numeric,text,text,text,uuid,uuid,text) to authenticated,service_role;;

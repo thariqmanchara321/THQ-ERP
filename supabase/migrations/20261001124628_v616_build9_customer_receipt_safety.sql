@@ -1,3 +1,4 @@
+
 begin;
 
 alter table public.customer_receipts
@@ -397,12 +398,12 @@ insert into public.platform_app_releases(
 values
 (
   gen_random_uuid(),'client','windows','6.1.6',9,'stable',false,false,
-  'THQ ERP v6.1.6 Build 9 — Customer Receipt Safety & Small Balance Round-off. Prevents receive-payment amount overwrite, adds auditable receipt voiding, fixes serial-item dialog overflow, and allows explicit sub-1.00 Sales/Purchase residual closure to Rounding / Variance.',
+  'THQ ERP v6.1.6 Build 9 — Customer Receipt Safety. Prevents receive-payment amount overwrite, adds explicit receipt confirmation/voiding, and fixes serial-item dialog overflow. Customer receipt reversal preserves audit/accounting history.',
   null,now()
 ),
 (
   gen_random_uuid(),'pos','windows','6.1.6',9,'stable',false,false,
-  'THQ ERP v6.1.6 Build 9 — desktop release contract synchronization. Small-balance round-off backend authority is available; no POS transaction-writer change.',
+  'THQ ERP v6.1.6 Build 9 — desktop release contract synchronization. No POS transaction-writer change.',
   null,now()
 ),
 (
@@ -429,3 +430,4 @@ set schema_version=excluded.schema_version,
     notes=excluded.notes;
 
 commit;
+;

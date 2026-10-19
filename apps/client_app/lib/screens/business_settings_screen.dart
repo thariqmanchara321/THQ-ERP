@@ -318,7 +318,60 @@ class _BusinessSettingsScreenState extends State<BusinessSettingsScreen> {
                 ),
               ]),
               const SizedBox(height: 16),
-              _section('Sales & POS', [
+              _section('Sales & Purchases', [
+                SwitchListTile(
+                  title: const Text('Show standalone New Sale'),
+                  subtitle: const Text(
+                    'Display standalone New Sale button. Material Yard businesses can disable this to create sales exclusively from outward loads.',
+                  ),
+                  value: _value('sales.show_standalone_new', true),
+                  onChanged: !_canManage
+                      ? null
+                      : (v) => setState(
+                          () => _settings['sales.show_standalone_new'] = v,
+                        ),
+                ),
+                SwitchListTile(
+                  title: const Text('Show standalone New Purchase'),
+                  subtitle: const Text(
+                    'Display standalone New Purchase button. Material Yard businesses can disable this to create purchases exclusively from inward loads.',
+                  ),
+                  value: _value('purchases.show_standalone_new', true),
+                  onChanged: !_canManage
+                      ? null
+                      : (v) => setState(
+                          () => _settings['purchases.show_standalone_new'] = v,
+                        ),
+                ),
+                DropdownButtonFormField<String>(
+                  initialValue: _value('sales.preferred_entry', 'standard'),
+                  decoration: const InputDecoration(
+                    labelText: 'Preferred transaction entry',
+                    border: OutlineInputBorder(),
+                    helperText:
+                        'Controls primary navigation preference for sales and purchase workflows.',
+                  ),
+                  items: const [
+                    DropdownMenuItem(
+                      value: 'standard',
+                      child: Text('Standard (Sales / Purchases Register)'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'material_yard',
+                      child: Text('Material Yard (Load-Linked Billing)'),
+                    ),
+                  ],
+                  onChanged: !_canManage
+                      ? null
+                      : (v) {
+                          if (v != null) {
+                            setState(
+                              () => _settings['sales.preferred_entry'] = v,
+                            );
+                          }
+                        },
+                ),
+                const SizedBox(height: 12),
                 SwitchListTile(
                   title: const Text('Tax-inclusive selling prices'),
                   subtitle: const Text(

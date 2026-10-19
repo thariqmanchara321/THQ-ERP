@@ -549,6 +549,16 @@ class AggregateYardService {
     data: {'load_id': loadId},
   );
 
+  Future<Map<String, dynamic>> reopenLoad({
+    required String tenantId,
+    required String loadId,
+    String? reason,
+  }) => StaffLoadService().load(
+    tenantId: tenantId,
+    action: 'reopen',
+    data: {'load_id': loadId, 'reason': reason},
+  );
+
   Future<Map<String, dynamic>> editLoad({
     required String tenantId,
     required String loadId,
@@ -586,6 +596,7 @@ class AggregateYardService {
     double? approvedBillableQty,
     String? approvedBy,
     String? measurementNotes,
+    DateTime? loadDate,
   }) async {
     final result = await StaffLoadService().load(
       tenantId: tenantId,
@@ -626,6 +637,11 @@ class AggregateYardService {
           'p_approved_billable_qty': approvedBillableQty,
           'p_approved_by': approvedBy,
           'p_measurement_notes': measurementNotes,
+          'p_load_date': loadDate == null
+              ? null
+              : '${loadDate.year.toString().padLeft(4, '0')}-'
+                  '${loadDate.month.toString().padLeft(2, '0')}-'
+                  '${loadDate.day.toString().padLeft(2, '0')}',
         },
         'costs': costs,
         'delivery': delivery,

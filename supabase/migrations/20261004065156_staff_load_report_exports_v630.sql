@@ -17,3 +17,4 @@ begin
 end $$;
 revoke all on function public.reports_export_dataset_v630(uuid,date,date,uuid) from public,anon;
 grant execute on function public.reports_export_dataset_v630(uuid,date,date,uuid) to authenticated;
+;

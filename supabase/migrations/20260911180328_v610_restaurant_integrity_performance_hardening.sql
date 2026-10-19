@@ -125,4 +125,4 @@ create index if not exists idx_restaurant_kots_history
 
 create index if not exists idx_restaurant_tables_floor_layout
   on public.restaurant_tables(tenant_id, location_id, floor_name, sort_order, table_code)
-  where active=true;
+  where active=true;;

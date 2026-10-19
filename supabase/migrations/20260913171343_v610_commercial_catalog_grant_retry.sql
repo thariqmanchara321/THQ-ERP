@@ -1,0 +1,1 @@
+grant execute on function public.sales_charge_catalog_list_pos_v610(uuid,uuid,uuid,boolean) to authenticated,service_role; revoke execute on function public.sales_charge_catalog_list_pos_v610(uuid,uuid,uuid,boolean) from anon;;

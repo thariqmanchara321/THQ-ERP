@@ -661,3 +661,5 @@ begin
   return to_jsonb(f);
 end;
 $function$;
+
+;

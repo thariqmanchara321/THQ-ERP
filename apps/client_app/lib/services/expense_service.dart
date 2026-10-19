@@ -41,6 +41,149 @@ class ExpenseService {
         .toList();
   }
 
+  Future<ExpenseCategory> createCategory({
+    required String tenantId,
+    required String name,
+    String? description,
+  }) async {
+    final trimmedName = name.trim();
+    if (trimmedName.isEmpty) {
+      throw ArgumentError('Category name cannot be empty');
+    }
+    final result = await _supabase.rpc(
+      'expenses_category_create',
+      params: {
+        'p_tenant_id': tenantId,
+        'p_name': trimmedName,
+        'p_description': description?.trim(),
+      },
+    );
+    if (result is! Map) {
+      throw Exception('Unexpected category creation response.');
+    }
+    return ExpenseCategory.fromMap(Map<String, dynamic>.from(result));
+  }
+
+  Future<ExpenseCategory> updateCategory({
+    required String tenantId,
+    required String categoryId,
+    String? name,
+    bool? active,
+    String? description,
+  }) async {
+    final result = await _supabase.rpc(
+      'expenses_category_update',
+      params: {
+        'p_tenant_id': tenantId,
+        'p_category_id': categoryId,
+        'p_name': name?.trim(),
+        'p_active': active,
+        'p_description': description?.trim(),
+      },
+    );
+    if (result is! Map) {
+      throw Exception('Unexpected category update response.');
+    }
+    return ExpenseCategory.fromMap(Map<String, dynamic>.from(result));
+  }
+
+  Future<List<ExpenseCategory>> getManageCategories({
+    required String tenantId,
+  }) async {
+    try {
+      final result = await _supabase.rpc(
+        'expenses_categories_manage_list',
+        params: {'p_tenant_id': tenantId},
+      );
+      if (result is List) {
+        return result
+            .map(
+              (e) => ExpenseCategory.fromMap(
+                Map<String, dynamic>.from(e as Map),
+              ),
+            )
+            .toList();
+      }
+    } catch (_) {}
+    return getCategories(tenantId: tenantId);
+  }
+
+  Future<Map<String, dynamic>> getAdvancedReportDataset({
+    required String tenantId,
+    required DateTime from,
+    required DateTime to,
+    String? locationId,
+  }) async {
+    try {
+      final raw = await _supabase.rpc(
+        'expenses_advanced_report_dataset_v719',
+        params: {
+          'p_tenant_id': tenantId,
+          'p_from': _date(from),
+          'p_to': _date(to),
+          'p_location_id':
+              locationId ?? LocationScopeService.selectedLocationId.value,
+        },
+      );
+      if (raw is Map) return Map<String, dynamic>.from(raw);
+    } catch (_) {}
+
+    final summary = await getExpenseSummary(
+      tenantId: tenantId,
+      from: from,
+      to: to,
+    );
+    final periodDays = to.difference(from).inDays + 1;
+    final prevTo = from.subtract(const Duration(days: 1));
+    final prevFrom = prevTo.subtract(Duration(days: periodDays - 1));
+    final prevSummary = await getExpenseSummary(
+      tenantId: tenantId,
+      from: prevFrom,
+      to: prevTo,
+    );
+    final expenses = await getExpenses(
+      tenantId: tenantId,
+      from: from,
+      to: to,
+    );
+    return {
+      'tenant_id': tenantId,
+      'from': _date(from),
+      'to': _date(to),
+      'previous_from': _date(prevFrom),
+      'previous_to': _date(prevTo),
+      'location_id':
+          locationId ?? LocationScopeService.selectedLocationId.value,
+      'summary': summary,
+      'previous_summary': prevSummary,
+      'expenses': expenses
+          .map(
+            (e) => {
+              'expense_id': e.id,
+              'expense_number': e.number,
+              'display_number': e.number,
+              'category_id': e.categoryId,
+              'category_name': e.categoryName,
+              'expense_date': _date(e.expenseDate),
+              'payee': e.payee,
+              'description': e.description,
+              'amount': e.amount,
+              'tax_amount': e.taxAmount,
+              'round_off': e.totalAmount - e.amount - e.taxAmount,
+              'total_amount': e.totalAmount,
+              'payment_method': e.paymentMethod,
+              'reference_number': e.referenceNumber ?? '',
+              'notes': e.notes ?? '',
+              'status': e.status,
+              'created_at': e.createdAt?.toIso8601String(),
+            },
+          )
+          .toList(),
+      'yard_costs': const [],
+      'yard_module_enabled': false,
+    };
+  }
+
   Future<Map<String, dynamic>> createExpense({
     required String tenantId,
     required String categoryId,

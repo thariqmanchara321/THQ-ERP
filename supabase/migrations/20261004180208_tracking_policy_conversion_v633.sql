@@ -385,3 +385,4 @@ end $$;
 create index if not exists tracking_trace_sale_item_v633 on public.inventory_trace_events_v483(tenant_id,sale_item_id,event_type) where sale_item_id is not null;
 create index if not exists tracking_trace_purchase_item_v633 on public.inventory_trace_events_v483(tenant_id,purchase_item_id,event_type) where purchase_item_id is not null;
 commit;
+;

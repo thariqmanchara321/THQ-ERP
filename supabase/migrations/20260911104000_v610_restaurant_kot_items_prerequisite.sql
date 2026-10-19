@@ -22,4 +22,4 @@ create index if not exists idx_restaurant_kot_items_kot
   on public.restaurant_kot_items(tenant_id, kot_id, created_at);
 
 create index if not exists idx_restaurant_kot_items_order
-  on public.restaurant_kot_items(tenant_id, order_id, created_at);
+  on public.restaurant_kot_items(tenant_id, order_id, created_at);;

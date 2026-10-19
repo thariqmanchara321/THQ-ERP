@@ -13,6 +13,7 @@ import 'mobile_reports_center_page.dart';
 import 'mobile_staff_attendance_page.dart';
 import 'mobile_stock_transfers_page.dart';
 import 'mobile_tools_pages.dart';
+import 'mobile_expense_report_page.dart';
 
 class MobileModulesCatalogPage extends StatefulWidget {
   final MobileSession session;
@@ -121,6 +122,13 @@ class _MobileModulesCatalogPageState extends State<MobileModulesCatalogPage> {
         break;
       case 'purchase_create':
       case 'purchases_create':
+        if (!widget.session.showStandaloneNewPurchase) {
+          ThqNotify.info(
+            context,
+            'Standalone purchase creation is disabled for this workspace.',
+          );
+          break;
+        }
         Navigator.of(context).push(
           MaterialPageRoute(
             builder: (_) => MobilePurchaseCreatePage(
@@ -170,6 +178,7 @@ class _MobileModulesCatalogPageState extends State<MobileModulesCatalogPage> {
       case 'accounting':
       case 'accounts':
       case 'ledger':
+      case 'daily_accounts':
         Navigator.of(context).push(
           MaterialPageRoute(
             builder: (_) => MobileAccountingPage(
@@ -183,6 +192,8 @@ class _MobileModulesCatalogPageState extends State<MobileModulesCatalogPage> {
       case 'inventory_reports':
       case 'reports':
       case 'reports_center':
+      case 'sales_details':
+      case 'purchase_details':
         Navigator.of(context).push(
           MaterialPageRoute(
             builder: (_) => MobileReportsCenterPage(
@@ -253,6 +264,19 @@ class _MobileModulesCatalogPageState extends State<MobileModulesCatalogPage> {
           MaterialPageRoute(
             builder: (_) => VehicleLogisticsReportWorkspace(
               tenantId: widget.session.tenantId,
+              locationId: widget.locationId,
+            ),
+          ),
+        );
+        break;
+      case 'expenses':
+      case 'expense_analysis':
+      case 'advanced_expense_report':
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => MobileExpenseReportPage(
+              session: widget.session,
+              service: widget.service,
               locationId: widget.locationId,
             ),
           ),

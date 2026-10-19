@@ -7,7 +7,6 @@ import '../components/thq_notification_host.dart';
 import '../components/thq_status_badge.dart';
 import '../foundations/thq_tokens.dart';
 import '../status/thq_status.dart';
-import '../theme/thq_semantic_colors.dart';
 
 /// Predefined workspace configurations tailored for specific business roles.
 enum ThqWorkspacePreset {

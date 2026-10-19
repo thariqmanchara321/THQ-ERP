@@ -152,6 +152,47 @@ class _MobileMaterialLoadDetailSheetState
     }
   }
 
+  void _reopenLoad() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Reopen Confirmed Load?'),
+        content: const Text(
+          'Reopening will return this load to Draft status, reset unpaid draft accruals, and preserve an audit trail. You will then be able to edit or re-confirm it before final billing.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Reopen Load'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    setState(() => _operating = true);
+    try {
+      await widget.service.reopenMaterialLoad(widget.session, loadId: widget.loadId);
+      if (!mounted) return;
+      setState(() => _operating = false);
+      ThqNotify.success(
+        context,
+        'Load Reopened',
+        message: 'The load is now in draft state and fully editable.',
+      );
+      widget.onChanged();
+      _reload();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _operating = false);
+      ThqNotify.error(context, 'Reopen Failed', message: '$e');
+    }
+  }
+
   void _openBilling() async {
     final invoiced = await showModalBottomSheet<bool>(
       context: context,
@@ -534,6 +575,26 @@ class _MobileMaterialLoadDetailSheetState
                   ],
                 ),
               ] else if (isConfirmed && !isInvoiced) ...[
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: _operating ? null : _editDraft,
+                        icon: const Icon(Icons.edit_outlined, size: 16),
+                        label: const Text('Edit Load'),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: _operating ? null : _reopenLoad,
+                        icon: const Icon(Icons.lock_open_rounded, size: 16),
+                        label: const Text('Reopen'),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
                 FilledButton.icon(
                   onPressed: _operating ? null : _openBilling,
                   icon: const Icon(Icons.receipt_long_rounded),

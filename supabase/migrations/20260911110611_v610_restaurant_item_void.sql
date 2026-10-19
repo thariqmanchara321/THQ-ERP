@@ -261,4 +261,4 @@ revoke all on function public.restaurant_order_cancel_item_v610(
 
 grant execute on function public.restaurant_order_cancel_item_v610(
   uuid, uuid, uuid, uuid, numeric, text
-) to authenticated, service_role;
+) to authenticated, service_role;;

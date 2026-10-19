@@ -157,4 +157,4 @@ revoke all on function public.restaurant_order_transfer_table_v610(
 
 grant execute on function public.restaurant_order_transfer_table_v610(
   uuid, uuid, uuid, uuid, text
-) to authenticated, service_role;
+) to authenticated, service_role;;

@@ -18,3 +18,4 @@ begin
  result:=jsonb_set(result,'{items}',items);
  return result||jsonb_build_object('material_load',coalesce((select evidence from public.material_load_sale_snapshots_v630 where tenant_id=p_tenant_id and sale_id=p_sale_id),'{}'::jsonb));
 end $$;
+;

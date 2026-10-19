@@ -41,6 +41,7 @@ class PurchaseService {
     String? locationId,
     String? requestId,
     String? materialLoadId,
+    DateTime? loadUpdatedAt,
   }) async {
     final origin = await _originParams(tenantId, locationId: locationId);
     final payload = <String, dynamic>{
@@ -57,6 +58,7 @@ class PurchaseService {
       'location_id': origin['p_location_id'],
       'device_id': origin['p_device_id'],
       'material_load_id': ?materialLoadId,
+      if (loadUpdatedAt != null) 'load_updated_at': loadUpdatedAt.toIso8601String(),
     };
 
     final lease = await _requestIds.acquire(
@@ -104,6 +106,7 @@ class PurchaseService {
           'p_location_id': origin['p_location_id'],
           'p_device_id': origin['p_device_id'],
           'p_request_id': lease.requestId,
+          'p_load_updated_at': loadUpdatedAt?.toIso8601String(),
         },
       );
       if (result is! Map) throw StateError('Unexpected response from $rpc.');

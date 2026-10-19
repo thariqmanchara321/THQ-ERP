@@ -730,4 +730,3 @@ revoke all on function public.sales_invoice_context_v632(uuid,uuid,uuid,date,uui
 
 grant execute on function public.sales_invoice_context_v632(uuid,uuid,uuid,date,uuid) to authenticated,service_role;
 ;
-

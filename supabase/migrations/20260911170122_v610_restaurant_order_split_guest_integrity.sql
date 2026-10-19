@@ -96,4 +96,4 @@ grant execute on function public.restaurant_order_split_safe_v610(
 
 revoke execute on function public.restaurant_order_split_v610(
   uuid,uuid,uuid,uuid,jsonb,integer,text
-) from authenticated;
+) from authenticated;;

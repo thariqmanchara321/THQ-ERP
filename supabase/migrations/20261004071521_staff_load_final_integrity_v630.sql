@@ -501,3 +501,4 @@ end $$;
 revoke all on function private.aggregate_load_confirm_core_v630(uuid,uuid) from public,anon,authenticated;
 revoke all on function private.aggregate_load_sale_core_v630(uuid,uuid,uuid,date,date,jsonb,jsonb,text,uuid,uuid,text,text,text,jsonb) from public,anon,authenticated;
 
+;

@@ -60,6 +60,8 @@ class _ThqAccountingWorkspaceState extends State<ThqAccountingWorkspace> {
   final _scroll = ScrollController();
   final Map<String, ThqAccountingQuery> _saved = {};
   final List<ThqAccountingQuery> _trail = [];
+  final Set<String> _expandedJournals = {};
+  final Set<String> _collapsedStatementSections = {};
   ThqAccountingResult? _result;
   Timer? _debounce;
   int _generation = 0;
@@ -278,6 +280,7 @@ class _ThqAccountingWorkspaceState extends State<ThqAccountingWorkspace> {
                       select('Posting status', 'status', [
                         'posted',
                         'reversed',
+                        'draft',
                       ]),
                     if (_query.report == 'journal')
                       select('Journal balance', 'balance_status', [
@@ -287,6 +290,7 @@ class _ThqAccountingWorkspaceState extends State<ThqAccountingWorkspace> {
                     if (['sales', 'purchases'].contains(_query.report))
                       select('Payment status', 'payment_status', [
                         'Paid',
+                        'Partially Paid',
                         'Partial',
                         'Unpaid',
                       ]),
@@ -885,11 +889,7 @@ class _ThqAccountingWorkspaceState extends State<ThqAccountingWorkspace> {
     if (result.rows.isEmpty)
       return const Center(child: Text('No matching records.'));
     if (_query.report == 'journal')
-      return ListView.builder(
-        controller: _scroll,
-        itemCount: result.rows.length,
-        itemBuilder: (ctx, i) => _journal(result.rows[i]),
-      );
+      return _journalTable(result.rows, result.columns);
     if (['profit_loss', 'balance_sheet', 'cash_flow'].contains(_query.report))
       return _statement(result);
     return _table(result.rows, result.columns);
@@ -983,130 +983,482 @@ class _ThqAccountingWorkspaceState extends State<ThqAccountingWorkspace> {
       ),
     ),
   );
-  Widget _journal(Map<String, dynamic> r) {
+  Widget _journalStatusBadge(Map<String, dynamic> r) {
+    final status = (r['status'] ?? r['balance_status'] ?? '').toString();
+    final posting = (r['posting_status'] ?? '').toString().toLowerCase();
+    final balanced = r['balance_status'] == 'Balanced' || status == 'Balanced';
+    final colors = Theme.of(context).colorScheme;
+
+    String label;
+    Color bg;
+    Color fg;
+
+    if (status.toLowerCase() == 'reversed' || posting == 'reversed') {
+      label = 'Reversed';
+      bg = colors.surfaceContainerHighest;
+      fg = colors.onSurfaceVariant;
+    } else if (status.toLowerCase() == 'draft' || posting == 'draft') {
+      label = 'Draft';
+      bg = colors.tertiaryContainer;
+      fg = colors.onTertiaryContainer;
+    } else if (status == 'Unbalanced' || !balanced) {
+      label = 'Unbalanced';
+      bg = colors.errorContainer;
+      fg = colors.error;
+    } else {
+      label = 'Balanced';
+      bg = colors.primaryContainer.withValues(alpha: 0.6);
+      fg = colors.onPrimaryContainer;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Text(
+        label,
+        textAlign: TextAlign.center,
+        style: TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+          color: fg,
+        ),
+      ),
+    );
+  }
+
+  Widget _journalExpandedDetails(Map<String, dynamic> r, ColorScheme colors) {
     final lines = accountingMaps(r['lines']);
-    final balanced = r['balance_status'] == 'Balanced';
-    return Card(
-      margin: const EdgeInsets.only(bottom: 7),
-      child: ExpansionTile(
-        key: ValueKey(r['journal_id']),
-        maintainState: true,
-        title: Text(
-          '${r['reference']} · ${r['type']} · ${r['party']}',
-          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-        ),
-        subtitle: Text(
-          '${_day(r['date'])} · ${r['entry_number']} · ${r['status']} · ${r['balance_status']}',
-          style: TextStyle(
-            fontSize: 11,
-            color: balanced
-                ? Theme.of(context).colorScheme.onSurfaceVariant
-                : Theme.of(context).colorScheme.error,
-          ),
-        ),
-        trailing: Text(
-          _money(r['amount']),
-          style: const TextStyle(fontWeight: FontWeight.w600),
-        ),
+    final num totalDebit = lines.fold(0, (sum, l) => sum + (l['debit'] as num? ?? 0));
+    final num totalCredit = lines.fold(0, (sum, l) => sum + (l['credit'] as num? ?? 0));
+    final bool balanced = (totalDebit - totalCredit).abs() <= 0.005;
+
+    return Container(
+      margin: const EdgeInsets.only(top: 6, bottom: 6),
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: colors.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: colors.outlineVariant.withValues(alpha: 0.5)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14),
-            child: Column(
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+            decoration: BoxDecoration(
+              color: colors.surfaceContainerHighest.withValues(alpha: 0.5),
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: const Row(
               children: [
-                Row(
+                Expanded(flex: 5, child: Text('Account', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600))),
+                SizedBox(width: 90, child: Text('Debit', textAlign: TextAlign.right, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600))),
+                SizedBox(width: 90, child: Text('Credit', textAlign: TextAlign.right, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600))),
+                Expanded(flex: 4, child: Padding(padding: EdgeInsets.only(left: 12), child: Text('Narration', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600)))),
+              ],
+            ),
+          ),
+          const SizedBox(height: 2),
+          ...lines.map((l) {
+            final code = l['account_code']?.toString() ?? '';
+            final name = l['account_name']?.toString() ?? '';
+            final label = code.isNotEmpty ? '$code · $name' : name;
+            final narration = (l['description'] ?? r['description'] ?? '—').toString();
+            return InkWell(
+              onTap: l['account_id'] != null
+                  ? () => _section(
+                        'general_ledger',
+                        filters: {'account_id': l['account_id'].toString()},
+                        drill: true,
+                      )
+                  : null,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                child: Row(
                   children: [
-                    const Expanded(child: Text('Account')),
-                    const SizedBox(
-                      width: 100,
-                      child: Text('Debit', textAlign: TextAlign.right),
+                    Expanded(
+                      flex: 5,
+                      child: Text(
+                        label,
+                        style: TextStyle(
+                          fontSize: 11.5,
+                          color: l['account_id'] != null ? colors.primary : colors.onSurface,
+                          decoration: l['account_id'] != null ? TextDecoration.underline : null,
+                        ),
+                      ),
                     ),
-                    const SizedBox(
-                      width: 100,
-                      child: Text('Credit', textAlign: TextAlign.right),
+                    SizedBox(
+                      width: 90,
+                      child: Text(
+                        _money(l['debit']),
+                        textAlign: TextAlign.right,
+                        style: const TextStyle(fontSize: 11.5),
+                      ),
+                    ),
+                    SizedBox(
+                      width: 90,
+                      child: Text(
+                        _money(l['credit']),
+                        textAlign: TextAlign.right,
+                        style: const TextStyle(fontSize: 11.5),
+                      ),
+                    ),
+                    Expanded(
+                      flex: 4,
+                      child: Padding(
+                        padding: const EdgeInsets.only(left: 12),
+                        child: Text(
+                          narration,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(fontSize: 11, color: colors.onSurfaceVariant),
+                        ),
+                      ),
                     ),
                   ],
                 ),
-                ...lines.map(
-                  (l) => InkWell(
-                    onTap: () => _section(
-                      'general_ledger',
-                      filters: {'account_id': l['account_id'].toString()},
-                      drill: true,
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 5),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              '${l['account_code']} · ${l['account_name']}',
-                              style: const TextStyle(fontSize: 12),
-                            ),
-                          ),
-                          SizedBox(
-                            width: 100,
-                            child: Text(
-                              _money(l['debit']),
-                              textAlign: TextAlign.right,
-                            ),
-                          ),
-                          SizedBox(
-                            width: 100,
-                            child: Text(
-                              _money(l['credit']),
-                              textAlign: TextAlign.right,
-                            ),
-                          ),
-                        ],
+              ),
+            );
+          }),
+          const Divider(height: 12),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 6),
+            child: Row(
+              children: [
+                const Expanded(
+                  flex: 5,
+                  child: Text(
+                    'Total',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11.5),
+                  ),
+                ),
+                SizedBox(
+                  width: 90,
+                  child: Text(
+                    _money(totalDebit),
+                    textAlign: TextAlign.right,
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11.5),
+                  ),
+                ),
+                SizedBox(
+                  width: 90,
+                  child: Text(
+                    _money(totalCredit),
+                    textAlign: TextAlign.right,
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11.5),
+                  ),
+                ),
+                Expanded(
+                  flex: 4,
+                  child: Padding(
+                    padding: const EdgeInsets.only(left: 12),
+                    child: Text(
+                      balanced ? 'Balanced ✓ (DR = CR)' : '⚠️ Unbalanced (Diff: ${_money(totalDebit - totalCredit)})',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: balanced ? colors.primary : colors.error,
                       ),
                     ),
                   ),
                 ),
-                const Divider(),
-                Row(
-                  children: [
-                    const Expanded(
-                      child: Text(
-                        'Total',
-                        style: TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                    SizedBox(
-                      width: 100,
-                      child: Text(
-                        _money(r['debit']),
-                        textAlign: TextAlign.right,
-                      ),
-                    ),
-                    SizedBox(
-                      width: 100,
-                      child: Text(
-                        _money(r['credit']),
-                        textAlign: TextAlign.right,
-                      ),
-                    ),
-                  ],
-                ),
-                Wrap(
-                  children: [
-                    if (r['document_id'] != null)
-                      TextButton(
-                        onPressed: () => _openOriginal(r),
-                        child: const Text('Original document'),
-                      ),
-                    TextButton(
-                      onPressed: () => _details(r),
-                      child: const Text('Details / reversal links'),
-                    ),
-                  ],
-                ),
               ],
             ),
+          ),
+          const SizedBox(height: 6),
+          Wrap(
+            spacing: 12,
+            runSpacing: 4,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              if (r['created_at'] != null)
+                Text(
+                  'Posted: ${r['created_at']}',
+                  style: TextStyle(fontSize: 10.5, color: colors.onSurfaceVariant),
+                ),
+              if (r['location'] != null && r['location'].toString().isNotEmpty)
+                Text(
+                  'Store: ${r['location']}',
+                  style: TextStyle(fontSize: 10.5, color: colors.onSurfaceVariant),
+                ),
+              if (r['document_id'] != null)
+                TextButton.icon(
+                  onPressed: () => _openOriginal(r),
+                  icon: const Icon(Icons.description_outlined, size: 14),
+                  label: const Text('Original document', style: TextStyle(fontSize: 11)),
+                  style: TextButton.styleFrom(visualDensity: VisualDensity.compact),
+                ),
+              if (widget.openHistory != null)
+                TextButton.icon(
+                  onPressed: () async {
+                    try {
+                      await widget.openHistory!(r);
+                    } catch (e) {
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Could not load audit history: $e')),
+                        );
+                      }
+                    }
+                  },
+                  icon: const Icon(Icons.history, size: 14),
+                  label: const Text('Audit history', style: TextStyle(fontSize: 11)),
+                  style: TextButton.styleFrom(visualDensity: VisualDensity.compact),
+                ),
+              if (r['reversal_of'] != null)
+                TextButton(
+                  onPressed: () => _section(
+                    'journal',
+                    filters: {'journal_id': r['reversal_of'].toString()},
+                    drill: true,
+                    from: DateTime(1900),
+                  ),
+                  child: Text('Reversal of ${r['reversal_of']}', style: const TextStyle(fontSize: 11)),
+                ),
+              for (final rev in accountingMaps(r['reversals']))
+                TextButton(
+                  onPressed: () => _section(
+                    'journal',
+                    filters: {'journal_id': rev['journal_id'].toString()},
+                    drill: true,
+                    from: DateTime(1900),
+                  ),
+                  child: Text('Reversed by ${rev['reference']}', style: const TextStyle(fontSize: 11)),
+                ),
+              TextButton(
+                onPressed: () => _details(r),
+                child: const Text('All audit fields…', style: TextStyle(fontSize: 11)),
+              ),
+            ],
           ),
         ],
       ),
     );
   }
+
+  Widget _journalTable(
+    List<Map<String, dynamic>> rows,
+    List<ThqAccountingColumn> cols,
+  ) => LayoutBuilder(
+    builder: (ctx, box) {
+      final compact = box.maxWidth < 760;
+      final colors = Theme.of(ctx).colorScheme;
+
+      if (compact) {
+        return ListView.builder(
+          controller: _scroll,
+          itemCount: rows.length,
+          itemBuilder: (ctx, i) {
+            final r = rows[i];
+            final jid = (r['journal_id'] ?? r['id'] ?? r['entry_number'] ?? i).toString();
+            final expanded = _expandedJournals.contains(jid);
+            final entryNumber = r['entry_number']?.toString() ?? r['reference']?.toString() ?? '—';
+            final sourceRef = r['source_reference']?.toString() ?? r['reference']?.toString() ?? '—';
+            final type = (r['type'] ?? r['source_type'] ?? '').toString();
+            final party = (r['party'] ?? '').toString();
+            final debit = r['debit'] ?? r['amount'] ?? 0;
+            final credit = r['credit'] ?? r['amount'] ?? 0;
+
+            return Card(
+              margin: const EdgeInsets.only(bottom: 6),
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+                side: BorderSide(color: colors.outlineVariant.withValues(alpha: 0.6)),
+              ),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(8),
+                onTap: () {
+                  setState(() {
+                    if (expanded) {
+                      _expandedJournals.remove(jid);
+                    } else {
+                      _expandedJournals.add(jid);
+                    }
+                  });
+                },
+                child: Padding(
+                  padding: const EdgeInsets.all(9),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Row(
+                        children: [
+                          Text(entryNumber, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              '$sourceRef · $type${party.isNotEmpty ? ' · $party' : ''}',
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(fontSize: 11.5),
+                            ),
+                          ),
+                          _journalStatusBadge(r),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      Row(
+                        children: [
+                          Text(_day(r['date']), style: TextStyle(fontSize: 11, color: colors.onSurfaceVariant)),
+                          const Spacer(),
+                          Text('DR ${_money(debit)}', style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600)),
+                          const SizedBox(width: 10),
+                          Text('CR ${_money(credit)}', style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600)),
+                          const SizedBox(width: 6),
+                          Icon(expanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down, size: 18),
+                        ],
+                      ),
+                      if (expanded) _journalExpandedDetails(r, colors),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      }
+
+      final headers = [
+        {'key': 'date', 'label': 'Date', 'flex': 2, 'numeric': false},
+        {'key': 'entry_number', 'label': 'Journal No.', 'flex': 2, 'numeric': false},
+        {'key': 'reference', 'label': 'Source Reference', 'flex': 3, 'numeric': false},
+        {'key': 'source_type', 'label': 'Type', 'flex': 2, 'numeric': false},
+        {'key': 'debit', 'label': 'Debit', 'flex': 2, 'numeric': true},
+        {'key': 'credit', 'label': 'Credit', 'flex': 2, 'numeric': true},
+        {'key': 'status', 'label': 'Status', 'flex': 2, 'numeric': false},
+      ];
+
+      Widget headerWidget() => Container(
+        height: 34,
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        decoration: BoxDecoration(
+          color: colors.surfaceContainerHighest,
+          border: Border(bottom: BorderSide(color: colors.outlineVariant)),
+        ),
+        child: Row(
+          children: [
+            for (final h in headers)
+              Expanded(
+                flex: h['flex'] as int,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  child: InkWell(
+                    onTap: () {
+                      final k = h['key'] as String;
+                      _change(
+                        _query.copyWith(
+                          sortKey: k,
+                          descending: _query.sortKey == k ? !_query.descending : false,
+                          offset: 0,
+                        ),
+                      );
+                    },
+                    child: Tooltip(
+                      message: 'Sort by ${h['label']}',
+                      child: Text(
+                        '${h['label']}${_query.sortKey == h['key'] ? (_query.descending ? ' ↓' : ' ↑') : ''}',
+                        textAlign: (h['numeric'] as bool) ? TextAlign.right : TextAlign.left,
+                        style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            const SizedBox(width: 28),
+          ],
+        ),
+      );
+
+      return Column(
+        children: [
+          headerWidget(),
+          Expanded(
+            child: ListView.builder(
+              controller: _scroll,
+              itemCount: rows.length,
+              itemBuilder: (ctx, i) {
+                final r = rows[i];
+                final jid = (r['journal_id'] ?? r['id'] ?? r['entry_number'] ?? i).toString();
+                final expanded = _expandedJournals.contains(jid);
+                final entryNumber = r['entry_number']?.toString() ?? r['reference']?.toString() ?? '—';
+                final sourceRef = r['source_reference']?.toString() ?? r['reference']?.toString() ?? '—';
+                final type = (r['type'] ?? (r['source_type'] ?? '').toString().replaceAll('_', ' ')).toString();
+                final party = (r['party'] ?? '').toString();
+                final debit = r['debit'] ?? r['amount'] ?? 0;
+                final credit = r['credit'] ?? r['amount'] ?? 0;
+
+                return Container(
+                  decoration: BoxDecoration(
+                    border: Border(bottom: BorderSide(color: colors.outlineVariant.withValues(alpha: 0.5))),
+                  ),
+                  child: Column(
+                    children: [
+                      InkWell(
+                        onTap: () {
+                          setState(() {
+                            if (expanded) {
+                              _expandedJournals.remove(jid);
+                            } else {
+                              _expandedJournals.add(jid);
+                            }
+                          });
+                        },
+                        child: Container(
+                          height: 38,
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                          child: Row(
+                            children: [
+                              Expanded(flex: 2, child: Padding(padding: const EdgeInsets.symmetric(horizontal: 4), child: Text(_day(r['date']), style: const TextStyle(fontSize: 11.5)))),
+                              Expanded(flex: 2, child: Padding(padding: const EdgeInsets.symmetric(horizontal: 4), child: Text(entryNumber, style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600)))),
+                              Expanded(
+                                flex: 3,
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                                  child: Tooltip(
+                                    message: party.isNotEmpty ? '$sourceRef · $party' : sourceRef,
+                                    child: Text(
+                                      party.isNotEmpty ? '$sourceRef · $party' : sourceRef,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(fontSize: 11.5),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              Expanded(flex: 2, child: Padding(padding: const EdgeInsets.symmetric(horizontal: 4), child: Text(type, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11.5)))),
+                              Expanded(flex: 2, child: Padding(padding: const EdgeInsets.symmetric(horizontal: 4), child: Text(_money(debit), textAlign: TextAlign.right, style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600)))),
+                              Expanded(flex: 2, child: Padding(padding: const EdgeInsets.symmetric(horizontal: 4), child: Text(_money(credit), textAlign: TextAlign.right, style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600)))),
+                              Expanded(flex: 2, child: Padding(padding: const EdgeInsets.symmetric(horizontal: 4), child: Align(alignment: Alignment.centerLeft, child: _journalStatusBadge(r)))),
+                              SizedBox(
+                                width: 28,
+                                child: Icon(
+                                  expanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
+                                  size: 18,
+                                  color: colors.onSurfaceVariant,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      if (expanded)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 10),
+                          child: _journalExpandedDetails(r, colors),
+                        ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      );
+    },
+  );
 
   Future<void> _openOriginal(Map<String, dynamic> row) async {
     try {
@@ -1121,74 +1473,389 @@ class _ThqAccountingWorkspaceState extends State<ThqAccountingWorkspace> {
   }
 
   Widget _statement(ThqAccountingResult result) {
+    final colors = Theme.of(context).colorScheme;
     final groups = <String, List<Map<String, dynamic>>>{};
     for (final row in result.rows) {
       groups
           .putIfAbsent(row['group']?.toString() ?? 'Other', () => [])
           .add(row);
     }
-    Widget account(Map<String, dynamic> r) => ListTile(
-      dense: true,
-      title: Text(
-        r['account_name']?.toString() ?? r['reference']?.toString() ?? '',
-      ),
-      subtitle: Text(r['description']?.toString() ?? ''),
-      trailing: Text(_money(r['amount'])),
-      onTap: () => r['account_id'] != null && _query.report != 'cash_flow'
-          ? _section(
-              'general_ledger',
-              filters: {'account_id': r['account_id'].toString()},
-              drill: true,
-              from: _query.report == 'balance_sheet' ? DateTime(1900) : null,
-            )
-          : _details(r),
-    );
-    List<Widget> children(String group, List<Map<String, dynamic>> rows) {
-      if (_query.report != 'balance_sheet') return rows.map(account).toList();
-      final subs = <String, List<Map<String, dynamic>>>{};
-      for (final row in rows) {
-        subs
-            .putIfAbsent(row['subgroup']?.toString() ?? group, () => [])
-            .add(row);
-      }
-      return subs.entries
-          .map(
-            (e) => ExpansionTile(
-              title: Text(e.key),
-              subtitle: Text(
-                _money(
-                  accountingMap(
-                        result.data['subgroup_totals'],
-                      )['$group:${e.key}'] ??
-                      e.value.fold<num>(
-                        0,
-                        (n, r) => n + (r['amount'] as num? ?? 0),
-                      ),
+
+    num groupTotal(String g) =>
+        accountingMap(result.data['group_totals'])[g] as num? ??
+        groups[g]?.fold<num>(0, (s, r) => s + (r['amount'] as num? ?? 0)) ??
+        0;
+
+    final allSectionKeys = groups.keys.toList();
+    final allCollapsed = allSectionKeys.isNotEmpty &&
+        allSectionKeys.every((k) => _collapsedStatementSections.contains(k));
+
+    void toggleAll() {
+      setState(() {
+        if (allCollapsed) {
+          _collapsedStatementSections.clear();
+        } else {
+          _collapsedStatementSections.addAll(allSectionKeys);
+        }
+      });
+    }
+
+    Widget sectionHeader(String title, num amount, {bool isSubgroup = false}) {
+      final collapsed = _collapsedStatementSections.contains(title);
+      return InkWell(
+        onTap: () {
+          setState(() {
+            if (collapsed) {
+              _collapsedStatementSections.remove(title);
+            } else {
+              _collapsedStatementSections.add(title);
+            }
+          });
+        },
+        child: Container(
+          height: isSubgroup ? 32 : 36,
+          padding: EdgeInsets.only(left: isSubgroup ? 18 : 8, right: 12),
+          decoration: BoxDecoration(
+            color: isSubgroup
+                ? colors.surfaceContainerLow.withValues(alpha: 0.5)
+                : colors.surfaceContainerHighest.withValues(alpha: 0.5),
+            border: Border(bottom: BorderSide(color: colors.outlineVariant.withValues(alpha: 0.4))),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                collapsed ? Icons.chevron_right : Icons.expand_more,
+                size: isSubgroup ? 16 : 18,
+                color: colors.onSurfaceVariant,
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: isSubgroup ? 12 : 12.5,
+                    fontWeight: isSubgroup ? FontWeight.w600 : FontWeight.bold,
+                  ),
                 ),
               ),
-              children: e.value.map(account).toList(),
+              Text(
+                _money(amount),
+                style: TextStyle(
+                  fontSize: isSubgroup ? 12 : 12.5,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    Widget accountRow(Map<String, dynamic> r, {double indent = 28}) {
+      final name = r['account_name']?.toString() ?? r['reference']?.toString() ?? '';
+      final desc = r['description']?.toString() ?? '';
+      final amt = (r['amount'] as num? ?? 0);
+      final hasAccount = r['account_id'] != null && _query.report != 'cash_flow';
+
+      return InkWell(
+        onTap: () => hasAccount
+            ? _section(
+                'general_ledger',
+                filters: {'account_id': r['account_id'].toString()},
+                drill: true,
+                from: _query.report == 'balance_sheet' ? DateTime(1900) : null,
+              )
+            : _details(r),
+        child: Container(
+          height: 32,
+          padding: EdgeInsets.only(left: indent, right: 12),
+          decoration: BoxDecoration(
+            border: Border(bottom: BorderSide(color: colors.outlineVariant.withValues(alpha: 0.25))),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 11.5,
+                          color: hasAccount ? colors.primary : colors.onSurface,
+                        ),
+                      ),
+                    ),
+                    if (desc.isNotEmpty) ...[
+                      const SizedBox(width: 8),
+                      Flexible(
+                        child: Text(
+                          desc,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(fontSize: 10.5, color: colors.onSurfaceVariant),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              Text(
+                _money(amt),
+                style: const TextStyle(fontSize: 11.5),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    Widget subtotalRow(String title, num amount, {bool isPrimary = false, String? subtitle}) => Container(
+      height: 38,
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      decoration: BoxDecoration(
+        color: isPrimary
+            ? colors.primaryContainer.withValues(alpha: 0.45)
+            : colors.surfaceContainerHighest.withValues(alpha: 0.7),
+        border: Border(
+          top: BorderSide(color: isPrimary ? colors.primary : colors.outlineVariant, width: isPrimary ? 1.5 : 1),
+          bottom: BorderSide(color: isPrimary ? colors.primary : colors.outlineVariant, width: isPrimary ? 1.5 : 1),
+        ),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: isPrimary ? 13 : 12,
+                    fontWeight: FontWeight.w800,
+                    color: isPrimary ? colors.onPrimaryContainer : colors.onSurface,
+                  ),
+                ),
+                if (subtitle != null)
+                  Text(
+                    subtitle,
+                    style: TextStyle(fontSize: 10, color: colors.onSurfaceVariant),
+                  ),
+              ],
             ),
-          )
-          .toList();
+          ),
+          Text(
+            _money(amount),
+            style: TextStyle(
+              fontSize: isPrimary ? 14 : 12.5,
+              fontWeight: FontWeight.w800,
+              color: isPrimary ? colors.onPrimaryContainer : colors.onSurface,
+            ),
+          ),
+        ],
+      ),
+    );
+
+    List<Widget> items = [];
+
+    items.add(
+      Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: colors.surfaceContainerHighest,
+          border: Border(bottom: BorderSide(color: colors.outlineVariant)),
+        ),
+        child: Row(
+          children: [
+            Text(
+              thqAccountingSections[_query.report] ?? 'Financial Statement',
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+            ),
+            const Spacer(),
+            TextButton.icon(
+              onPressed: toggleAll,
+              icon: Icon(allCollapsed ? Icons.unfold_more : Icons.unfold_less, size: 16),
+              label: Text(allCollapsed ? 'Expand all' : 'Collapse all', style: const TextStyle(fontSize: 11.5)),
+              style: TextButton.styleFrom(visualDensity: VisualDensity.compact),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (_query.report == 'profit_loss') {
+      final revenue = groupTotal('Revenue');
+      final cogs = groupTotal('Cost of Goods Sold');
+      final grossProfit = revenue - cogs;
+      final expenses = groupTotal('Operating Expenses');
+      final other = groups.entries
+          .where((e) => !['Revenue', 'Cost of Goods Sold', 'Operating Expenses'].contains(e.key))
+          .fold<num>(0, (s, e) => s + e.value.fold<num>(0, (s2, r) => s2 + (r['amount'] as num? ?? 0)));
+      final netProfit = grossProfit - expenses + other;
+
+      items.add(sectionHeader('Revenue', revenue));
+      if (!_collapsedStatementSections.contains('Revenue')) {
+        for (final r in groups['Revenue'] ?? []) {
+          items.add(accountRow(r));
+        }
+      }
+
+      items.add(sectionHeader('Cost of Goods Sold', cogs));
+      if (!_collapsedStatementSections.contains('Cost of Goods Sold')) {
+        for (final r in groups['Cost of Goods Sold'] ?? []) {
+          items.add(accountRow(r));
+        }
+      }
+
+      items.add(subtotalRow('Gross Profit', grossProfit, subtitle: 'Revenue − Cost of Goods Sold'));
+
+      items.add(sectionHeader('Operating Expenses', expenses));
+      if (!_collapsedStatementSections.contains('Operating Expenses')) {
+        for (final r in groups['Operating Expenses'] ?? []) {
+          items.add(accountRow(r));
+        }
+      }
+
+      for (final e in groups.entries) {
+        if (!['Revenue', 'Cost of Goods Sold', 'Operating Expenses'].contains(e.key)) {
+          final amt = groupTotal(e.key);
+          items.add(sectionHeader(e.key, amt));
+          if (!_collapsedStatementSections.contains(e.key)) {
+            for (final r in e.value) {
+              items.add(accountRow(r));
+            }
+          }
+        }
+      }
+
+      items.add(subtotalRow(netProfit >= 0 ? 'Net Profit' : 'Net Loss', netProfit, isPrimary: true));
+
+    } else if (_query.report == 'balance_sheet') {
+      final assets = groupTotal('Assets');
+      final liabilities = groupTotal('Liabilities');
+      final equity = groups['Equity']?.fold<num>(0, (s, r) => s + (r['amount'] as num? ?? 0)) ?? groupTotal('Equity');
+      final totalLiabEquity = liabilities + equity;
+      final diff = assets - totalLiabEquity;
+      final balanced = diff.abs() <= 0.005;
+
+      items.add(sectionHeader('Assets', assets));
+      if (!_collapsedStatementSections.contains('Assets')) {
+        final assetRows = groups['Assets'] ?? [];
+        final subs = <String, List<Map<String, dynamic>>>{};
+        for (final r in assetRows) {
+          subs.putIfAbsent(r['subgroup']?.toString() ?? 'Assets', () => []).add(r);
+        }
+        for (final sub in subs.entries) {
+          final subTotal = accountingMap(result.data['subgroup_totals'])['Assets:${sub.key}'] as num? ??
+              sub.value.fold<num>(0, (n, r) => n + (r['amount'] as num? ?? 0));
+          if (subs.length > 1) {
+            items.add(sectionHeader(sub.key, subTotal, isSubgroup: true));
+            if (!_collapsedStatementSections.contains(sub.key)) {
+              for (final r in sub.value) {
+                items.add(accountRow(r, indent: 36));
+              }
+            }
+          } else {
+            for (final r in sub.value) {
+              items.add(accountRow(r));
+            }
+          }
+        }
+      }
+      items.add(subtotalRow('Total Assets', assets));
+
+      items.add(sectionHeader('Liabilities', liabilities));
+      if (!_collapsedStatementSections.contains('Liabilities')) {
+        for (final r in groups['Liabilities'] ?? []) {
+          items.add(accountRow(r));
+        }
+      }
+      items.add(subtotalRow('Total Liabilities', liabilities));
+
+      items.add(sectionHeader('Equity', equity));
+      if (!_collapsedStatementSections.contains('Equity')) {
+        for (final r in groups['Equity'] ?? []) {
+          items.add(accountRow(r));
+        }
+      }
+      items.add(subtotalRow('Total Equity', equity));
+
+      items.add(subtotalRow('Total Liabilities & Equity', totalLiabEquity));
+
+      items.add(
+        Container(
+          margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            color: balanced
+                ? colors.primaryContainer.withValues(alpha: 0.3)
+                : colors.errorContainer,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: balanced
+                  ? colors.primary.withValues(alpha: 0.5)
+                  : colors.error,
+            ),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                balanced ? Icons.check_circle_outline : Icons.warning_amber_rounded,
+                size: 20,
+                color: balanced ? colors.primary : colors.error,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      balanced
+                          ? 'Assets = Liabilities + Equity (${_money(assets)}) · Balanced ✓'
+                          : 'Unexplained Difference: ${_money(diff)}',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: balanced ? colors.onSurface : colors.error,
+                      ),
+                    ),
+                    if (!balanced)
+                      Text(
+                        'Total Assets ${_money(assets)} ≠ Total Liabilities & Equity ${_money(totalLiabEquity)}. Statement does not manufacture artificial balancing entries.',
+                        style: TextStyle(fontSize: 10.5, color: colors.onErrorContainer),
+                      ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+
+    } else {
+      for (final e in groups.entries) {
+        final total = groupTotal(e.key);
+        items.add(sectionHeader(e.key, total));
+        if (!_collapsedStatementSections.contains(e.key)) {
+          for (final r in e.value) {
+            items.add(accountRow(r));
+          }
+        }
+      }
+      final netMovement = groups.values.fold<num>(
+        0,
+        (sum, list) => sum + list.fold<num>(0, (s, r) => s + (r['amount'] as num? ?? 0)),
+      );
+      items.add(subtotalRow('Net Cash Movement', netMovement, isPrimary: true));
     }
 
     return ListView(
       controller: _scroll,
-      children: groups.entries
-          .map(
-            (e) => Card(
-              child: ExpansionTile(
-                title: Text(e.key),
-                subtitle: Text(
-                  _money(
-                    accountingMap(result.data['group_totals'])[e.key] ?? 0,
-                  ),
-                ),
-                children: children(e.key, e.value),
-              ),
-            ),
-          )
-          .toList(),
+      children: items,
     );
   }
 

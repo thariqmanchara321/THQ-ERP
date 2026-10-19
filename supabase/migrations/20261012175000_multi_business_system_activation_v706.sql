@@ -144,7 +144,7 @@ grant execute on function public.system_claim_activation_v47(text, text, text, t
 -- 4. Set the activation code for Counter 1 in Tenzo Traders to also accept 'B5B7FFFE44C1'
 --    so the user's active screen succeeds immediately without needing to re-copy a code.
 update public.business_devices
-set activation_hash = encode(digest('B5B7FFFE44C1', 'sha256'), 'hex'),
+set activation_hash = encode(extensions.digest('B5B7FFFE44C1', 'sha256'), 'hex'),
     activation_expires_at = now() + interval '7 days',
     status = 'pending',
     updated_at = now()

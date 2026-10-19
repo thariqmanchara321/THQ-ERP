@@ -87,13 +87,15 @@ class MobileSessionService {
         .toList();
 
     String logoUrl = '';
+    Map<String, dynamic> settingsMap = const <String, dynamic>{};
     try {
       final v2SettingsRaw = await _supabase.rpc(
         'tenant_settings_v2_get',
         params: {'p_tenant_id': activation.tenantId},
       );
       if (v2SettingsRaw is Map) {
-        logoUrl = v2SettingsRaw['business.logo_url']?.toString() ?? '';
+        settingsMap = Map<String, dynamic>.from(v2SettingsRaw);
+        logoUrl = settingsMap['business.logo_url']?.toString() ?? '';
       }
     } catch (_) {}
 
@@ -173,6 +175,7 @@ class MobileSessionService {
       roles: roles,
       permissions: permissionKeys,
       enabledModules: enabledModules,
+      settings: settingsMap,
     );
   }
 }

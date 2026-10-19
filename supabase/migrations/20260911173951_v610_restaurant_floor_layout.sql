@@ -181,4 +181,4 @@ revoke all on function public.restaurant_table_layout_batch_set_v610(
 
 grant execute on function public.restaurant_table_layout_batch_set_v610(
   uuid, uuid, uuid, jsonb
-) to authenticated, service_role;
+) to authenticated, service_role;;

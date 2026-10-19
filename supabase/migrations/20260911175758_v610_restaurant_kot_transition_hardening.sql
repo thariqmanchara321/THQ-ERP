@@ -177,4 +177,4 @@ revoke all on function public.restaurant_kot_status_set_v610(
 
 grant execute on function public.restaurant_kot_status_set_v610(
   uuid, uuid, uuid, text
-) to authenticated, service_role;
+) to authenticated, service_role;;

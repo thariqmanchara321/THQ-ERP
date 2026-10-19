@@ -31,12 +31,12 @@ import 'customers_screen.dart';
 import 'dashboard_screen.dart';
 import 'error_logs_screen.dart';
 import 'expenses_screen.dart';
+import 'advanced_expense_report_screen.dart';
 import 'global_search_screen.dart';
 import 'workshop_screen.dart';
 import 'industry_workspace_screen.dart';
 import 'inventory_products_screen.dart';
 import '../models/inventory_report.dart';
-import 'inventory_reports_screen.dart';
 import 'loan_screen.dart';
 import 'tracking_workspace_screen.dart';
 import 'invoice_designer_screen.dart';
@@ -111,10 +111,20 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
       'logistics_operations',
       'vehicle_logistics',
     };
+    final hasSales = _session.modules.any((m) => m.key == 'sales');
+    final hasPurchases = _session.modules.any((m) => m.key == 'purchases');
+    final hasReportsModule = _session.modules.any(
+      (m) => m.key == 'reports' || m.key == 'inventory_reports',
+    );
+
     final source = _session.modules
         .where(
           (module) =>
-              module.key != 'pos' && _isRoutableClientModule(module.key),
+              module.key != 'pos' &&
+              !(hasSales && module.key == 'sales_details') &&
+              !(hasPurchases && module.key == 'purchase_details') &&
+              (module.key != 'inventory_reports') &&
+              _isRoutableClientModule(module.key),
         )
         .toList(growable: false);
     final transport = source
@@ -156,16 +166,18 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
       );
     }
 
-    if (canOpenInventoryReports(_session) &&
-        !modules.any((module) => module.key == 'inventory_reports')) {
+    if ((hasReportsModule ||
+            (canOpenInventoryReports(_session) &&
+                _session.modules.any((m) => m.key == 'inventory'))) &&
+        !modules.any((module) => module.key == 'reports')) {
       modules.add(
         const ClientModule(
-          key: 'inventory_reports',
-          name: 'Inventory Reports',
+          key: 'reports',
+          name: 'Reports',
           description:
-              'Stock, valuation, movement, tracking and reconciliation',
+              'Business intelligence, operational analytics, inventory and sales',
           category: 'Reports',
-          sortOrder: 91,
+          sortOrder: 90,
         ),
       );
     }
@@ -1713,7 +1725,10 @@ class _ModulePage extends StatelessWidget {
         session: session,
       ),
       'inventory' => InventoryProductsScreen(session: session),
-      'inventory_reports' => InventoryReportsScreen(session: session),
+      'inventory_reports' => ReportsCenterV500Screen(
+        session: session,
+        initialCategory: 'Inventory',
+      ),
       'warranty' => TrackingWorkspaceScreen(session: session),
       'suppliers' => SuppliersScreen(session: session),
       'purchases' => PurchasesScreen(session: session, startInCreate: true),
@@ -1732,7 +1747,16 @@ class _ModulePage extends StatelessWidget {
         titleOverride: 'Sales Details',
       ),
       'expenses' => ExpensesScreen(session: session),
+      'expense_analysis' => AdvancedExpenseReportScreen(session: session),
+      'advanced_expense_report' =>
+          AdvancedExpenseReportScreen(session: session),
       'accounting' => AccountingScreen(session: session),
+      'daily_accounts' ||
+      'daily_accounts_report' =>
+          AccountingScreen(
+            session: session,
+            initialTab: AccountingWorkspaceTab.dailyAccounts,
+          ),
       'gst_compliance' => GstV520EntryScreen(session: session),
       'audit_center' => AuditIntelligenceScreen(session: session),
       'reports' => ReportsCenterV500Screen(session: session),

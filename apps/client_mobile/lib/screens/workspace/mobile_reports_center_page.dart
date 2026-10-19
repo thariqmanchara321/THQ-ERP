@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../models/mobile_session.dart';
 import '../../services/mobile_client_service.dart';
 import '../../widgets/mobile_workspace_widgets.dart';
+import 'mobile_expense_report_page.dart';
 
 class MobileReportsCenterPage extends StatefulWidget {
   final MobileSession session;
@@ -66,6 +67,19 @@ class _MobileReportsCenterPageState extends State<MobileReportsCenterPage> {
       appBar: AppBar(
         title: const Text('Reports & Intelligence'),
         actions: [
+          IconButton(
+            tooltip: 'Expense Analysis',
+            icon: const Icon(Icons.analytics_outlined),
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => MobileExpenseReportPage(
+                  session: widget.session,
+                  service: widget.service,
+                  locationId: widget.locationId,
+                ),
+              ),
+            ),
+          ),
           IconButton(
             tooltip: 'Refresh catalog',
             icon: const Icon(Icons.refresh_rounded),

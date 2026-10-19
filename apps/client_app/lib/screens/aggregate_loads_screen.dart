@@ -901,7 +901,18 @@ class _AggregateLoadsScreenState extends State<AggregateLoadsScreen> {
   }
 
   bool _canEdit(Map<String, dynamic> row) =>
-      _canConfirm(row) && !_hasProtectedLinks(row);
+      _canManage &&
+      !_busyLoads.contains(_id(row['load_id'])) &&
+      row['status'] != 'cancelled' &&
+      _id(row['purchase_id']) == null &&
+      _id(row['sale_id']) == null;
+
+  bool _canReopen(Map<String, dynamic> row) =>
+      _canManage &&
+      !_busyLoads.contains(_id(row['load_id'])) &&
+      row['status'] == 'completed' &&
+      _id(row['purchase_id']) == null &&
+      _id(row['sale_id']) == null;
 
   bool _canDelete(Map<String, dynamic> row) =>
       _canManage &&
@@ -910,7 +921,7 @@ class _AggregateLoadsScreenState extends State<AggregateLoadsScreen> {
       !_hasProtectedLinks(row);
 
   bool _canOpenBilling(Map<String, dynamic> row) {
-    if (row['status'] != 'completed' ||
+    if (row['status'] == 'cancelled' ||
         _busyLoads.contains(_id(row['load_id']))) {
       return false;
     }
@@ -936,6 +947,46 @@ class _AggregateLoadsScreenState extends State<AggregateLoadsScreen> {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
   }
 
+  Future<void> _reopenLoad(Map<String, dynamic> row) async {
+    final loadId = _id(row['load_id']);
+    if (loadId == null || !_canReopen(row)) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Reopen Confirmed Load?'),
+        content: Text(
+          'Reopening load ${row['load_number'] ?? ''} will revert its status back to draft, reset unpaid draft accruals, and preserve an audit trail. You can then edit or re-confirm it before final billing.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Reopen Load'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    setState(() => _busyLoads.add(loadId));
+    try {
+      await _service.reopenLoad(
+        tenantId: widget.session.business.id,
+        loadId: loadId,
+      );
+      _message('Load reopened for editing and reset to draft.');
+      await _reload();
+    } catch (error) {
+      _message(error.toString());
+    } finally {
+      if (mounted) setState(() => _busyLoads.remove(loadId));
+    }
+  }
+
   Future<void> _openBilling(Map<String, dynamic> row) async {
     final loadId = _id(row['load_id']);
     if (loadId == null || !_canOpenBilling(row)) return;
@@ -946,8 +997,8 @@ class _AggregateLoadsScreenState extends State<AggregateLoadsScreen> {
         loadId: loadId,
       );
       if (!mounted) return;
-      if (load['status'] != 'completed') {
-        throw StateError('Confirm the load before creating its invoice.');
+      if (load['status'] != 'completed' && load['status'] != 'draft') {
+        throw StateError('Only draft or confirmed loads can be billed.');
       }
       final outbound = load['direction'] == 'outbound';
       final documentId = _id(load[outbound ? 'sale_id' : 'purchase_id']);
@@ -981,6 +1032,7 @@ class _AggregateLoadsScreenState extends State<AggregateLoadsScreen> {
         final unitPrice = delRate is num
             ? delRate.toDouble()
             : double.tryParse(delRate?.toString() ?? '');
+        final loadUpdatedAt = DateTime.tryParse('${load['updated_at'] ?? load['created_at']}');
 
         final completed = await Navigator.of(context).push<bool>(
           MaterialPageRoute(
@@ -989,6 +1041,7 @@ class _AggregateLoadsScreenState extends State<AggregateLoadsScreen> {
                     session: widget.session,
                     locationId: locationId,
                     materialLoadId: loadId,
+                    loadUpdatedAt: loadUpdatedAt,
                     initialCustomerId: _id(load['customer_id']),
                     initialVariantId: _id(load['variant_id']),
                     initialQuantity: quantity,
@@ -1000,6 +1053,7 @@ class _AggregateLoadsScreenState extends State<AggregateLoadsScreen> {
                     session: widget.session,
                     locationId: locationId,
                     materialLoadId: loadId,
+                    loadUpdatedAt: loadUpdatedAt,
                     initialSupplierId: _id(load['supplier_id']),
                     initialVariantId: _id(load['variant_id']),
                     initialQuantity: quantity,
@@ -1276,6 +1330,15 @@ class _AggregateLoadsScreenState extends State<AggregateLoadsScreen> {
       var delivery = detail['delivery'] is Map
           ? Map<String, dynamic>.from(detail['delivery'] as Map)
           : <String, dynamic>{};
+      final initialDelRate = direction == 'outbound'
+          ? delivery['selling_price']
+          : delivery['purchasing_price'];
+      final rateCtrl = TextEditingController(
+        text: initialDelRate != null && initialDelRate.toString().isNotEmpty
+            ? initialDelRate.toString()
+            : '',
+      );
+      DateTime loadDate = DateTime.tryParse('${detail['load_date']}') ?? DateTime.now();
       var saving = false;
 
       try {
@@ -1422,6 +1485,43 @@ class _AggregateLoadsScreenState extends State<AggregateLoadsScreen> {
                                   measurementData = data;
                                   setLocalState(() {});
                                 },
+                              ),
+                              const SizedBox(height: 10),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: OutlinedButton.icon(
+                                      onPressed: saving
+                                          ? null
+                                          : () async {
+                                              final picked = await showDatePicker(
+                                                context: context,
+                                                initialDate: loadDate,
+                                                firstDate: DateTime(2020),
+                                                lastDate: DateTime(2100),
+                                              );
+                                              if (picked != null) {
+                                                setLocalState(() => loadDate = picked);
+                                              }
+                                            },
+                                      icon: const Icon(Icons.calendar_today, size: 16),
+                                      label: Text('Loading Date: ${StaffLoadService.date(loadDate)}'),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: TextField(
+                                      controller: rateCtrl,
+                                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                      decoration: InputDecoration(
+                                        labelText: direction == 'outbound'
+                                            ? 'Selling Rate / Unit (₹)'
+                                            : 'Purchase Rate / Unit (₹)',
+                                        isDense: true,
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
 
                               const SizedBox(height: 16),
@@ -1717,6 +1817,17 @@ class _AggregateLoadsScreenState extends State<AggregateLoadsScreen> {
                                         return;
                                       }
 
+                                      final enteredRate = _double(rateCtrl.text) ?? 0.0;
+                                      if (enteredRate > 0) {
+                                        if (direction == 'outbound') {
+                                          delivery['selling_price'] = enteredRate;
+                                          delivery['selling_total'] = enteredRate * measurementData.approvedBillableQty;
+                                        } else {
+                                          delivery['purchasing_price'] = enteredRate;
+                                          delivery['purchasing_total'] = enteredRate * measurementData.approvedBillableQty;
+                                        }
+                                      }
+
                                       setLocalState(() => saving = true);
                                       try {
                                         await _service.editLoad(
@@ -1725,6 +1836,7 @@ class _AggregateLoadsScreenState extends State<AggregateLoadsScreen> {
                                           direction: direction,
                                           locationId: locationId,
                                           variantId: productId!,
+                                          loadDate: loadDate,
                                           quantity: editedQuantity,
                                           unitCode: measurementData.unitCode,
                                           measurementMethod: measurementData.method,
@@ -1787,6 +1899,7 @@ class _AggregateLoadsScreenState extends State<AggregateLoadsScreen> {
         freight.dispose();
         overrideReason.dispose();
         notes.dispose();
+        rateCtrl.dispose();
       }
     } catch (error) {
       if (!mounted) return;
@@ -1802,6 +1915,7 @@ class _AggregateLoadsScreenState extends State<AggregateLoadsScreen> {
   Widget _loadActions(Map<String, dynamic> row, {bool isCompact = false}) {
     final scheme = Theme.of(context).colorScheme;
     final canConfirm = _canConfirm(row);
+    final canReopen = _canReopen(row);
     final canEdit = _canEdit(row);
     final canDelete = _canDelete(row);
 
@@ -1819,6 +1933,15 @@ class _AggregateLoadsScreenState extends State<AggregateLoadsScreen> {
             ),
             onPressed: () => _confirmLoad(row),
             child: const Text('Confirm', style: TextStyle(fontSize: 11)),
+          ),
+        if (canReopen)
+          OutlinedButton(
+            style: OutlinedButton.styleFrom(
+              visualDensity: VisualDensity.compact,
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            ),
+            onPressed: () => _reopenLoad(row),
+            child: const Text('Reopen', style: TextStyle(fontSize: 11)),
           ),
         if (_canOpenBilling(row))
           FilledButton.tonal(

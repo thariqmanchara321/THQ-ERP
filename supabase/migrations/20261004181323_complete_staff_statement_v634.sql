@@ -83,3 +83,4 @@ begin
 end $$;
 revoke all on function public.staff_statement_v634(uuid,uuid,date,date,uuid) from public,anon;
 grant execute on function public.staff_statement_v634(uuid,uuid,date,date,uuid) to authenticated;
+;

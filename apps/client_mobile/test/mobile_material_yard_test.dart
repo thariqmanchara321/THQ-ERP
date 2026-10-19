@@ -312,10 +312,10 @@ void main() {
         canViewAudit: true,
         canViewTraceability: true,
         canViewWarranty: true,
-        locations: const [
+        locations: [
           MobileLocation(id: 'loc-yard-1', name: 'Main Crushing Yard', code: 'YARD-01', accessLevel: 'full'),
         ],
-        release: const ThqMobileReleaseStatus.unknown(),
+        release: ThqMobileReleaseStatus.unknown(),
         roles: {'admin'},
         permissions: {'material_yard.manage', 'purchases.create', 'sales.create'},
         enabledModules: {'material_yard', 'purchases', 'sales'},

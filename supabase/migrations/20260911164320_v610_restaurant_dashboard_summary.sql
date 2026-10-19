@@ -246,4 +246,4 @@ end;
 $$;
 
 revoke all on function public.restaurant_operations_summary_v610(uuid,uuid,uuid) from public, anon;
-grant execute on function public.restaurant_operations_summary_v610(uuid,uuid,uuid) to authenticated, service_role;
+grant execute on function public.restaurant_operations_summary_v610(uuid,uuid,uuid) to authenticated, service_role;;

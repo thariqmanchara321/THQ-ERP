@@ -100,3 +100,4 @@ revoke all on function public.staff_workspace_v630(uuid,text,jsonb,uuid) from pu
 grant execute on function public.staff_workspace_v630(uuid,text,jsonb,uuid) to authenticated;
 revoke all on function public.reports_export_dataset_v630(uuid,date,date,uuid) from public,anon;
 grant execute on function public.reports_export_dataset_v630(uuid,date,date,uuid) to authenticated;
+;

@@ -26,6 +26,7 @@ class MobileMaterialBillingSheet extends StatefulWidget {
 
 class _MobileMaterialBillingSheetState extends State<MobileMaterialBillingSheet> {
   final _invoiceRefCtrl = TextEditingController();
+  final _quantityCtrl = TextEditingController();
   final _rateCtrl = TextEditingController();
   final _initialPaymentCtrl = TextEditingController(text: '0');
   final _paymentRefCtrl = TextEditingController();
@@ -57,11 +58,18 @@ class _MobileMaterialBillingSheetState extends State<MobileMaterialBillingSheet>
       }
     }
     _invoiceRefCtrl.text = widget.load['source_reference']?.toString() ?? '';
+    final initQty = _loadQuantity;
+    if (initQty > 0) {
+      _quantityCtrl.text = initQty.truncateToDouble() == initQty
+          ? initQty.toStringAsFixed(0)
+          : initQty.toStringAsFixed(2);
+    }
   }
 
   @override
   void dispose() {
     _invoiceRefCtrl.dispose();
+    _quantityCtrl.dispose();
     _rateCtrl.dispose();
     _initialPaymentCtrl.dispose();
     _paymentRefCtrl.dispose();
@@ -69,12 +77,18 @@ class _MobileMaterialBillingSheetState extends State<MobileMaterialBillingSheet>
     super.dispose();
   }
 
-  double get _quantity {
+  double get _loadQuantity {
     final billable = double.tryParse(widget.load['approved_billable_qty']?.toString() ?? '') ?? 0.0;
     if (billable > 0) return billable;
     final qty = double.tryParse(widget.load['quantity']?.toString() ?? '') ?? 0.0;
     if (qty > 0) return qty;
     return double.tryParse(widget.load['calculated_cft']?.toString() ?? '') ?? 0.0;
+  }
+
+  double get _quantity {
+    final parsed = double.tryParse(_quantityCtrl.text.trim());
+    if (parsed != null && parsed > 0) return parsed;
+    return _loadQuantity;
   }
 
   String get _unitCode => widget.load['unit_code']?.toString() ?? 'CFT';
@@ -84,6 +98,10 @@ class _MobileMaterialBillingSheetState extends State<MobileMaterialBillingSheet>
   double get _initialPayment => double.tryParse(_initialPaymentCtrl.text.trim()) ?? 0.0;
 
   Future<void> _postBilling() async {
+    if (_quantity <= 0) {
+      ThqNotify.error(context, 'Quantity Required', message: 'Enter a valid invoiced quantity.');
+      return;
+    }
     if (_rate <= 0) {
       ThqNotify.error(context, 'Rate Required', message: 'Enter a valid unit price / rate.');
       return;
@@ -98,6 +116,7 @@ class _MobileMaterialBillingSheetState extends State<MobileMaterialBillingSheet>
     setState(() => _submitting = true);
 
     try {
+      final loadUpdatedAt = DateTime.tryParse('${widget.load['updated_at'] ?? widget.load['created_at']}');
       if (isInward) {
         // Link to Purchase
         final supplierId = widget.load['supplier_id']?.toString();
@@ -127,6 +146,7 @@ class _MobileMaterialBillingSheetState extends State<MobileMaterialBillingSheet>
           paymentReference: _paymentRefCtrl.text.trim(),
           notes: _notesCtrl.text.trim(),
           locationId: widget.load['location_id']?.toString(),
+          loadUpdatedAt: loadUpdatedAt,
         );
 
         if (!mounted) return;
@@ -174,6 +194,7 @@ class _MobileMaterialBillingSheetState extends State<MobileMaterialBillingSheet>
           paymentAllocations: paymentAllocations,
           notes: _notesCtrl.text.trim(),
           locationId: widget.load['location_id']?.toString(),
+          loadUpdatedAt: loadUpdatedAt,
         );
 
         if (!mounted) return;
@@ -273,9 +294,22 @@ class _MobileMaterialBillingSheetState extends State<MobileMaterialBillingSheet>
               const SizedBox(height: 12),
             ],
 
-            // Pricing & Rate
+            // Quantity & Rate Inputs
             Row(
               children: [
+                Expanded(
+                  child: TextField(
+                    controller: _quantityCtrl,
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    decoration: InputDecoration(
+                      labelText: 'Invoiced Qty ($_unitCode) *',
+                      border: const OutlineInputBorder(),
+                      isDense: true,
+                    ),
+                    onChanged: (_) => setState(() {}),
+                  ),
+                ),
+                const SizedBox(width: 10),
                 Expanded(
                   child: TextField(
                     controller: _rateCtrl,
@@ -289,28 +323,41 @@ class _MobileMaterialBillingSheetState extends State<MobileMaterialBillingSheet>
                     onChanged: (_) => setState(() {}),
                   ),
                 ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: scheme.primary.withValues(alpha: 0.08),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: scheme.primary.withValues(alpha: 0.3)),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Total Amount', style: TextStyle(fontSize: 10, color: scheme.primary)),
-                        Text(
-                          MaterialYardFormat.money(_totalAmount, currency: currency),
-                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: scheme.primary),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
               ],
+            ),
+            if ((_quantity - _loadQuantity).abs() > 0.001) ...[
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Colors.amber.shade50,
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: Colors.amber.shade400),
+                ),
+                child: Text(
+                  '⚠️ Invoiced quantity ($_quantity $_unitCode) differs from load quantity ($_loadQuantity $_unitCode). Final invoice will post with the edited quantity; physical measurements remain historically traceable.',
+                  style: TextStyle(fontSize: 11, color: Colors.amber.shade900, fontWeight: FontWeight.w600),
+                ),
+              ),
+            ],
+            const SizedBox(height: 10),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: scheme.primary.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: scheme.primary.withValues(alpha: 0.3)),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text('Grand Invoiced Total', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: scheme.primary)),
+                  Text(
+                    MaterialYardFormat.money(_totalAmount, currency: currency),
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: scheme.primary),
+                  ),
+                ],
+              ),
             ),
 
             const SizedBox(height: 16),

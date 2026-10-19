@@ -1,15 +1,8 @@
--- THQ ERP v6.0
--- Customer outstanding correctness and activity timeline hardening.
-
-create or replace function public.customer_outstanding_v46(
-  p_tenant_id uuid,
-  p_customer_id uuid
-)
+create or replace function public.customer_outstanding_v46(p_tenant_id uuid,p_customer_id uuid)
 returns jsonb
 language plpgsql
-stable
-security definer
-set search_path to 'public', 'private', 'pg_temp'
+stable security definer
+set search_path to 'public','private','pg_temp'
 as $function$
 declare
   v_outstanding numeric:=0;
@@ -27,10 +20,7 @@ begin
   ) then
     raise exception 'Customer balance view permission required';
   end if;
-  if not exists(
-    select 1 from public.customers c
-    where c.tenant_id=p_tenant_id and c.id=p_customer_id
-  ) then
+  if not exists(select 1 from public.customers c where c.tenant_id=p_tenant_id and c.id=p_customer_id) then
     raise exception 'Customer not found';
   end if;
 
@@ -58,21 +48,18 @@ begin
     and s.customer_id=p_customer_id
     and coalesce(s.status,'') not in('void','cancelled');
 
-  return jsonb_build_object(
-    'customer_id',p_customer_id,
-    'outstanding',v_outstanding
-  );
+  return jsonb_build_object('customer_id',p_customer_id,'outstanding',v_outstanding);
 end
 $function$;
 
+revoke all on function public.customer_outstanding_v46(uuid,uuid) from public,anon;
+grant execute on function public.customer_outstanding_v46(uuid,uuid) to authenticated,service_role;
+
 create or replace function public.entity_activity_timeline_v4(
-  p_tenant_id uuid,
-  p_entity_type text,
-  p_entity_id uuid,
-  p_limit integer default 100
+  p_tenant_id uuid,p_entity_type text,p_entity_id uuid,p_limit integer default 100
 )
 returns table(
-  activity_time timestamp with time zone,
+  activity_time timestamptz,
   activity_type text,
   title text,
   description text,
@@ -83,12 +70,10 @@ returns table(
 )
 language plpgsql
 security definer
-set search_path to 'public', 'private', 'pg_temp'
+set search_path to 'public','private','pg_temp'
 as $function$
 begin
-  if not private.erp_user_has_tenant_access(p_tenant_id) then
-    raise exception 'Access denied';
-  end if;
+  if not private.erp_user_has_tenant_access(p_tenant_id) then raise exception 'Access denied'; end if;
 
   return query
   select * from (
@@ -100,19 +85,12 @@ begin
       coalesce(u.username::text,''::text),
       coalesce(l.location_code::text,''::text),
       coalesce(d.device_code::text,''::text),
-      coalesce(a.metadata,'{}'::jsonb)
-        || jsonb_build_object(
-          'before',a.before_data,
-          'after',a.after_data,
-          'reason',a.reason
-        )
+      coalesce(a.metadata,'{}'::jsonb) || jsonb_build_object('before',a.before_data,'after',a.after_data,'reason',a.reason)
     from public.business_audit_log a
     left join public.user_login_names u on u.user_id=a.user_id
     left join public.business_locations l on l.id=a.location_id
     left join public.business_devices d on d.id=a.device_id
-    where a.tenant_id=p_tenant_id
-      and a.entity_type=p_entity_type
-      and a.entity_id=p_entity_id
+    where a.tenant_id=p_tenant_id and a.entity_type=p_entity_type and a.entity_id=p_entity_id
 
     union all
 
@@ -127,15 +105,10 @@ begin
       coalesce(c.metadata,'{}'::jsonb)
     from public.transaction_corrections c
     left join public.user_login_names u on u.user_id=c.created_by
-    left join public.document_origins o
-      on o.tenant_id=c.tenant_id
-     and o.entity_type=c.entity_type
-     and o.entity_id=c.entity_id
+    left join public.document_origins o on o.tenant_id=c.tenant_id and o.entity_type=c.entity_type and o.entity_id=c.entity_id
     left join public.business_locations l on l.id=o.location_id
     left join public.business_devices d on d.id=o.device_id
-    where c.tenant_id=p_tenant_id
-      and c.entity_type=p_entity_type
-      and c.entity_id=p_entity_id
+    where c.tenant_id=p_tenant_id and c.entity_type=p_entity_type and c.entity_id=p_entity_id
 
     union all
 
@@ -147,30 +120,17 @@ begin
       coalesce(u.username::text,''::text),
       coalesce(l.location_code::text,''::text),
       coalesce(d.device_code::text,''::text),
-      jsonb_build_object(
-        'copy_number',p.copy_number,
-        'template_id',p.template_id,
-        'printer_profile_id',p.printer_profile_id
-      )
+      jsonb_build_object('copy_number',p.copy_number,'template_id',p.template_id,'printer_profile_id',p.printer_profile_id)
     from public.invoice_print_events p
     left join public.user_login_names u on u.user_id=p.created_by
     left join public.business_devices d on d.id=p.device_id
     left join public.business_locations l on l.id=d.location_id
-    where p.tenant_id=p_tenant_id
-      and p.entity_type=p_entity_type
-      and p.entity_id=p_entity_id
+    where p.tenant_id=p_tenant_id and p.entity_type=p_entity_type and p.entity_id=p_entity_id
   ) x
   order by activity_time desc
   limit greatest(1,least(coalesce(p_limit,100),500));
 end
 $function$;
 
-revoke execute on function public.customer_outstanding_v46(uuid,uuid)
-from public, anon;
-revoke execute on function public.entity_activity_timeline_v4(uuid,text,uuid,integer)
-from public, anon;
-
-grant execute on function public.customer_outstanding_v46(uuid,uuid)
-to authenticated, service_role;
-grant execute on function public.entity_activity_timeline_v4(uuid,text,uuid,integer)
-to authenticated, service_role;
+revoke all on function public.entity_activity_timeline_v4(uuid,text,uuid,integer) from public,anon;
+grant execute on function public.entity_activity_timeline_v4(uuid,text,uuid,integer) to authenticated,service_role;;

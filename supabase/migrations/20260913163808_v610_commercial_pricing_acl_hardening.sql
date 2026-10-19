@@ -1,0 +1,1 @@
+revoke all on public.sales_charge_catalog_v610 from anon,authenticated; revoke all on public.product_charge_rules_v610 from anon,authenticated; revoke all on public.sale_commercial_summary_v610 from anon,authenticated;;

@@ -23,3 +23,4 @@ begin
  end loop;
  execute format('create or replace function private.reports_definitions_v631() returns jsonb language sql immutable set search_path=pg_catalog as %L',format('select %L::jsonb',output::text));
 end $migration$;
+;
