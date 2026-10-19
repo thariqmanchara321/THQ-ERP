@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:erp_core/erp_core.dart';
 import 'package:thq_ui/thq_ui.dart';
 
+import 'package:uuid/uuid.dart';
+
 import '../../../models/mobile_session.dart';
 import '../../../services/mobile_client_service.dart';
 import 'material_yard_types.dart';
@@ -152,6 +154,16 @@ class _MobileMaterialLoadSheetState extends State<MobileMaterialLoadSheet> {
     final qty = double.tryParse(load['quantity']?.toString() ?? '') ?? 0.0;
     _manualQtyCtrl.text = qty > 0 ? qty.toString() : '';
 
+    final rawCosts = load['costs'] ?? load['expenses'];
+    if (rawCosts is List) {
+      _costs.clear();
+      for (final c in rawCosts) {
+        if (c is Map) {
+          _costs.add(Map<String, dynamic>.from(c));
+        }
+      }
+    }
+
     _recalculateMeasurements();
   }
 
@@ -246,11 +258,38 @@ class _MobileMaterialLoadSheetState extends State<MobileMaterialLoadSheet> {
           .map((e) => Map<String, dynamic>.from(e))
           .toList();
 
-  List<Map<String, dynamic>> get _costTypes =>
-      (_yardContext['cost_types'] as List? ?? const [])
+  List<Map<String, dynamic>> get _staff =>
+      (_yardContext['staff'] as List? ?? const [])
           .whereType<Map>()
           .map((e) => Map<String, dynamic>.from(e))
           .toList();
+
+  List<Map<String, dynamic>> get _billingServices =>
+      (_yardContext['billing_services'] as List? ?? const [])
+          .whereType<Map>()
+          .map((e) => Map<String, dynamic>.from(e))
+          .toList();
+
+  List<Map<String, dynamic>> get _expenseCategories {
+    final list = (_yardContext['expense_categories'] as List? ??
+            _yardContext['cost_types'] as List? ??
+            const [])
+        .whereType<Map>()
+        .map((e) => Map<String, dynamic>.from(e))
+        .toList();
+    if (list.isNotEmpty) return list;
+    return const [
+      {'id': 'diesel', 'name': 'Diesel'},
+      {'id': 'driver_wage', 'name': 'Driver Wages'},
+      {'id': 'vehicle_rent', 'name': 'Vehicle Rent'},
+      {'id': 'freight', 'name': 'Freight'},
+      {'id': 'loading', 'name': 'Loading Charges'},
+      {'id': 'unloading', 'name': 'Unloading Charges'},
+      {'id': 'repairs', 'name': 'Repairs & Maintenance'},
+      {'id': 'toll', 'name': 'Toll & Transit'},
+      {'id': 'other', 'name': 'Other Expense'},
+    ];
+  }
 
   void _applyDefaultRate() {
     if (_selectedVariantId == null || _rateCtrl.text.isNotEmpty) return;
@@ -486,86 +525,625 @@ class _MobileMaterialLoadSheetState extends State<MobileMaterialLoadSheet> {
     phoneCtrl.dispose();
   }
 
-  void _addExpense() async {
-    String? selectedType;
-    final descCtrl = TextEditingController();
-    final amountCtrl = TextEditingController();
-    final payeeCtrl = TextEditingController();
+  void _addExpense([int? editIndex]) async {
+    final old = editIndex != null && editIndex >= 0 && editIndex < _costs.length ? _costs[editIndex] : null;
+
+    // Resolve driver/staff linkage
+    Map<String, dynamic>? linkedStaff;
+    if (_selectedDriverId != null) {
+      for (final s in _staff) {
+        if ('${s['driver_id']}' == _selectedDriverId) {
+          linkedStaff = s;
+          break;
+        }
+      }
+    }
+
+    final isMonthly = linkedStaff?['wage_basis'] == 'monthly';
+
+    // State variables
+    String? selectedCatId = old?['category_id']?.toString() ??
+        (old?['cost_type_code'] ?? old?['cost_kind'] ?? (linkedStaff != null ? 'driver_wage' : 'diesel'));
+    String staffId = old?['staff_id']?.toString() ?? linkedStaff?['staff_id']?.toString() ?? '';
+    String staffMode = old?['staff_mode']?.toString() ?? (isMonthly ? 'salary_allocation' : 'extra_wage');
+    String paymentMethod = old?['payment_method']?.toString() ?? 'cash';
+    String billingVariantId = old?['billing_variant_id']?.toString() ?? '';
+
+    final initialQty = (old?['quantity'] as num?)?.toDouble() ?? 1.0;
+    final initialRate = isMonthly && old == null
+        ? 0.0
+        : ((old?['rate'] as num?)?.toDouble() ?? (old?['amount'] as num?)?.toDouble() ?? (linkedStaff?['base_rate'] as num?)?.toDouble() ?? 0.0);
+    final initialAmt = (old?['amount'] as num?)?.toDouble() ?? (initialQty * initialRate);
+    final initialPay = (old?['initial_payment'] as num?)?.toDouble() ?? (old?['payment_amount'] as num?)?.toDouble() ?? 0.0;
+    final initialBill = (old?['bill_amount'] as num?)?.toDouble() ?? 0.0;
+
+    String paymentStatus = initialPay >= initialAmt && initialAmt > 0
+        ? 'paid'
+        : (initialPay > 0 ? 'partially_paid' : 'not_paid');
+
+    final descCtrl = TextEditingController(text: old?['description']?.toString() ?? (linkedStaff != null ? 'Driver wage' : ''));
+    final payeeCtrl = TextEditingController(text: old?['payee']?.toString() ?? linkedStaff?['name']?.toString() ?? '');
+    final qtyCtrl = TextEditingController(text: initialQty > 0 ? (initialQty == initialQty.roundToDouble() ? initialQty.toInt().toString() : initialQty.toString()) : '1');
+    final rateCtrl = TextEditingController(text: initialRate > 0 ? (initialRate == initialRate.roundToDouble() ? initialRate.toInt().toString() : initialRate.toString()) : (initialAmt > 0 ? initialAmt.toString() : ''));
+    final billCtrl = TextEditingController(text: initialBill > 0 ? (initialBill == initialBill.roundToDouble() ? initialBill.toInt().toString() : initialBill.toString()) : '0');
+    final payCtrl = TextEditingController(text: initialPay > 0 ? (initialPay == initialPay.roundToDouble() ? initialPay.toInt().toString() : initialPay.toString()) : '0');
+    final payRefCtrl = TextEditingController(text: old?['payment_reference']?.toString() ?? '');
+    final receiptRefCtrl = TextEditingController(text: old?['receipt_reference']?.toString() ?? '');
+    final notesCtrl = TextEditingController(text: old?['notes']?.toString() ?? '');
+
+    bool chargeCustomer = initialBill > 0;
+    bool showMoreDetails = (old?['receipt_reference']?.toString().isNotEmpty ?? false) || (old?['notes']?.toString().isNotEmpty ?? false);
+    String? dialogError;
 
     await showDialog(
       context: context,
+      barrierDismissible: false,
       builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDlg) => AlertDialog(
-          title: const Text('Add Load Expense'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
+        builder: (ctx, setDlg) {
+          final theme = Theme.of(ctx);
+          final scheme = theme.colorScheme;
+          final categories = _expenseCategories;
+
+          final costQty = double.tryParse(qtyCtrl.text.trim()) ?? 1.0;
+          final costRate = double.tryParse(rateCtrl.text.trim()) ?? 0.0;
+          final totalCost = costQty * costRate;
+          final custCharge = chargeCustomer ? (double.tryParse(billCtrl.text.trim()) ?? 0.0) : 0.0;
+          final enteredPay = double.tryParse(payCtrl.text.trim()) ?? 0.0;
+          final payMade = paymentStatus == 'paid'
+              ? (enteredPay > 0 ? enteredPay : totalCost)
+              : (paymentStatus == 'not_paid' ? 0.0 : enteredPay);
+          final remainingPay = (totalCost - payMade).clamp(0.0, double.infinity);
+
+          return AlertDialog(
+            titlePadding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+            actionsPadding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
+            title: Row(
               children: [
-                DropdownButtonFormField<String>(
-                  initialValue: selectedType,
-                  decoration: const InputDecoration(labelText: 'Expense Category *'),
-                  items: _costTypes.map((ct) {
-                    return DropdownMenuItem<String>(
-                      value: ct['code']?.toString() ?? ct['id']?.toString(),
-                      child: Text(ct['name']?.toString() ?? ct['label']?.toString() ?? 'Charge'),
-                    );
-                  }).toList(),
-                  onChanged: (val) {
-                    setDlg(() {
-                      selectedType = val;
-                      final match = _costTypes.firstWhere(
-                        (ct) => (ct['code']?.toString() ?? ct['id']?.toString()) == val,
-                        orElse: () => const {},
-                      );
-                      if (descCtrl.text.isEmpty) {
-                        descCtrl.text = match['name']?.toString() ?? match['label']?.toString() ?? '';
-                      }
-                    });
-                  },
-                ),
-                const SizedBox(height: 10),
-                TextField(
-                  controller: descCtrl,
-                  decoration: const InputDecoration(labelText: 'Description *'),
-                ),
-                const SizedBox(height: 10),
-                TextField(
-                  controller: amountCtrl,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                  decoration: InputDecoration(
-                    labelText: 'Amount *',
-                    prefixText: '${widget.session.currency} ',
+                Icon(Icons.receipt_long_outlined, size: 20, color: scheme.primary),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    old == null ? 'Add Load Expense' : 'Edit Load Expense',
+                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                   ),
-                ),
-                const SizedBox(height: 10),
-                TextField(
-                  controller: payeeCtrl,
-                  decoration: const InputDecoration(labelText: 'Payee / Transporter'),
                 ),
               ],
             ),
+            content: SizedBox(
+              width: double.maxFinite,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (dialogError != null) ...[
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: scheme.errorContainer,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.error_outline, size: 16, color: scheme.onErrorContainer),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                dialogError!,
+                                style: TextStyle(color: scheme.onErrorContainer, fontSize: 11.5),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                    ],
+
+                    // Category dropdown with inline "+ Add Type"
+                    Row(
+                      children: [
+                        Expanded(
+                          child: DropdownButtonFormField<String>(
+                            value: categories.any((c) => '${c['id']}' == selectedCatId || '${c['code']}' == selectedCatId || '${c['name']}' == selectedCatId)
+                                ? selectedCatId
+                                : (categories.isNotEmpty ? '${categories.first['id'] ?? categories.first['code']}' : null),
+                            isExpanded: true,
+                            decoration: const InputDecoration(labelText: 'Expense Category *', isDense: true),
+                            items: categories.map((cat) {
+                              final val = '${cat['id'] ?? cat['code']}';
+                              final name = '${cat['name'] ?? cat['label'] ?? val}';
+                              return DropdownMenuItem<String>(
+                                value: val,
+                                child: Text(name, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 13)),
+                              );
+                            }).toList(),
+                            onChanged: (val) {
+                              setDlg(() {
+                                selectedCatId = val;
+                                final match = categories.firstWhere(
+                                  (c) => '${c['id'] ?? c['code']}' == val,
+                                  orElse: () => const {},
+                                );
+                                if (descCtrl.text.isEmpty && match.isNotEmpty) {
+                                  descCtrl.text = '${match['name'] ?? match['label'] ?? ''}';
+                                }
+                              });
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        OutlinedButton.icon(
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+                            visualDensity: VisualDensity.compact,
+                          ),
+                          onPressed: () => _showInlineCreateCategory(ctx, (created) {
+                            setDlg(() {
+                              selectedCatId = '${created['id']}';
+                              if (descCtrl.text.trim().isEmpty) {
+                                descCtrl.text = '${created['name']}';
+                              }
+                            });
+                          }),
+                          icon: const Icon(Icons.add_rounded, size: 16),
+                          label: const Text('+ Add', style: TextStyle(fontSize: 11)),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+
+                    // Description
+                    TextField(
+                      controller: descCtrl,
+                      decoration: const InputDecoration(labelText: 'Description *', isDense: true),
+                    ),
+                    const SizedBox(height: 10),
+
+                    // Quantity and Rate
+                    Row(
+                      children: [
+                        Expanded(
+                          flex: 2,
+                          child: TextField(
+                            controller: qtyCtrl,
+                            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                            decoration: const InputDecoration(labelText: 'Qty / Trips', isDense: true),
+                            onChanged: (_) => setDlg(() {}),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          flex: 3,
+                          child: TextField(
+                            controller: rateCtrl,
+                            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                            decoration: InputDecoration(
+                              labelText: 'Rate / Unit *',
+                              prefixText: '${widget.session.currency} ',
+                              isDense: true,
+                            ),
+                            onChanged: (_) => setDlg(() {}),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+
+                    // Payee / Staff
+                    TextField(
+                      controller: payeeCtrl,
+                      decoration: InputDecoration(
+                        labelText: 'Payee / Transporter / Driver *',
+                        isDense: true,
+                        helperText: linkedStaff != null ? 'Linked to driver staff: ${linkedStaff['name']}' : null,
+                      ),
+                    ),
+
+                    // Monthly staff wage treatment
+                    if (isMonthly) ...[
+                      const SizedBox(height: 8),
+                      Material(
+                        color: scheme.surfaceContainerHighest.withValues(alpha: 0.3),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(6),
+                          side: BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.5)),
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text('Monthly Staff Wage', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                              RadioListTile<String>(
+                                contentPadding: EdgeInsets.zero,
+                                dense: true,
+                                value: 'salary_allocation',
+                                groupValue: staffMode,
+                                title: const Text('Covered by monthly salary', style: TextStyle(fontSize: 11.5)),
+                                subtitle: const Text('Internal cost, no duplicate wage liability', style: TextStyle(fontSize: 10)),
+                                onChanged: (val) => setDlg(() {
+                                  staffMode = val!;
+                                  paymentStatus = 'not_paid';
+                                  payCtrl.text = '0';
+                                }),
+                              ),
+                              RadioListTile<String>(
+                                contentPadding: EdgeInsets.zero,
+                                dense: true,
+                                value: 'extra_wage',
+                                groupValue: staffMode,
+                                title: const Text('Extra incentive / overtime owed', style: TextStyle(fontSize: 11.5)),
+                                subtitle: const Text('Records extra payable wage on this load', style: TextStyle(fontSize: 10)),
+                                onChanged: (val) => setDlg(() => staffMode = val!),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 10),
+
+                    // Payment status
+                    const Text('Payment Settlement', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 4),
+                    SegmentedButton<String>(
+                      segments: const [
+                        ButtonSegment(value: 'not_paid', label: Text('Unpaid', style: TextStyle(fontSize: 11))),
+                        ButtonSegment(value: 'paid', label: Text('Paid', style: TextStyle(fontSize: 11))),
+                        ButtonSegment(value: 'partially_paid', label: Text('Partial', style: TextStyle(fontSize: 11))),
+                      ],
+                      selected: {paymentStatus},
+                      onSelectionChanged: (set) => setDlg(() {
+                        paymentStatus = set.first;
+                        if (paymentStatus == 'paid') {
+                          payCtrl.text = totalCost > 0 ? (totalCost == totalCost.roundToDouble() ? totalCost.toInt().toString() : totalCost.toStringAsFixed(2)) : '0';
+                        } else if (paymentStatus == 'not_paid') {
+                          payCtrl.text = '0';
+                        }
+                      }),
+                    ),
+                    const SizedBox(height: 8),
+
+                    // Payment details
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: payCtrl,
+                            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                            decoration: InputDecoration(
+                              labelText: 'Payment Made',
+                              prefixText: '${widget.session.currency} ',
+                              isDense: true,
+                              helperText: paymentStatus == 'not_paid'
+                                  ? 'Unpaid (₹${totalCost.toStringAsFixed(0)} payable)'
+                                  : 'Due: ₹${remainingPay.toStringAsFixed(0)}',
+                            ),
+                            onChanged: (val) {
+                              final amt = double.tryParse(val.trim()) ?? 0.0;
+                              setDlg(() {
+                                if (amt <= 0) {
+                                  paymentStatus = 'not_paid';
+                                } else if (amt >= totalCost && totalCost > 0) {
+                                  paymentStatus = 'paid';
+                                } else {
+                                  paymentStatus = 'partially_paid';
+                                }
+                              });
+                            },
+                          ),
+                        ),
+                        if (paymentStatus != 'not_paid' || (double.tryParse(payCtrl.text.trim()) ?? 0.0) > 0) ...[
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: DropdownButtonFormField<String>(
+                              value: paymentMethod,
+                              decoration: const InputDecoration(labelText: 'Method', isDense: true),
+                              items: const [
+                                DropdownMenuItem(value: 'cash', child: Text('Cash', style: TextStyle(fontSize: 12))),
+                                DropdownMenuItem(value: 'bank', child: Text('Bank', style: TextStyle(fontSize: 12))),
+                                DropdownMenuItem(value: 'upi', child: Text('UPI', style: TextStyle(fontSize: 12))),
+                                DropdownMenuItem(value: 'card', child: Text('Card', style: TextStyle(fontSize: 12))),
+                                DropdownMenuItem(value: 'cheque', child: Text('Cheque', style: TextStyle(fontSize: 12))),
+                              ],
+                              onChanged: (val) => setDlg(() => paymentMethod = val ?? 'cash'),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+
+                    // Customer invoice charge (outbound only)
+                    if (_direction == 'outbound') ...[
+                      const SizedBox(height: 10),
+                      SwitchListTile(
+                        contentPadding: EdgeInsets.zero,
+                        dense: true,
+                        title: const Text('Charge to Customer Invoice', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                        subtitle: const Text('Add as line item on sales invoice', style: TextStyle(fontSize: 10)),
+                        value: chargeCustomer,
+                        onChanged: (val) => setDlg(() {
+                          chargeCustomer = val;
+                          if (val && (double.tryParse(billCtrl.text.trim()) ?? 0) <= 0) {
+                            billCtrl.text = totalCost > 0 ? (totalCost == totalCost.roundToDouble() ? totalCost.toInt().toString() : totalCost.toStringAsFixed(2)) : '0';
+                          }
+                        }),
+                      ),
+                      if (chargeCustomer) ...[
+                        Row(
+                          children: [
+                            Expanded(
+                              child: TextField(
+                                controller: billCtrl,
+                                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                decoration: InputDecoration(
+                                  labelText: 'Customer Charge *',
+                                  prefixText: '${widget.session.currency} ',
+                                  isDense: true,
+                                ),
+                                onChanged: (_) => setDlg(() {}),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: DropdownButtonFormField<String>(
+                                value: billingVariantId.isEmpty ? null : billingVariantId,
+                                isExpanded: true,
+                                decoration: const InputDecoration(labelText: 'Service Tax *', isDense: true),
+                                items: [
+                                  const DropdownMenuItem(value: '', child: Text('Select service', style: TextStyle(fontSize: 12))),
+                                  for (final s in _billingServices)
+                                    DropdownMenuItem(
+                                      value: '${s['variant_id']}',
+                                      child: Text(
+                                        '${s['name']} (${s['gst_rate'] ?? 0}%)',
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(fontSize: 12),
+                                      ),
+                                    ),
+                                ],
+                                onChanged: (val) => setDlg(() => billingVariantId = val ?? ''),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ],
+
+                    // Expandable Reference & Notes
+                    const SizedBox(height: 6),
+                    InkWell(
+                      onTap: () => setDlg(() => showMoreDetails = !showMoreDetails),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        child: Row(
+                          children: [
+                            Icon(showMoreDetails ? Icons.expand_less : Icons.expand_more, size: 18, color: scheme.primary),
+                            const SizedBox(width: 4),
+                            Text(
+                              showMoreDetails ? 'Hide References' : 'Add Receipt / Notes',
+                              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: scheme.primary),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    if (showMoreDetails) ...[
+                      const SizedBox(height: 6),
+                      TextField(
+                        controller: receiptRefCtrl,
+                        decoration: const InputDecoration(labelText: 'Receipt / Voucher #', isDense: true),
+                      ),
+                      const SizedBox(height: 8),
+                      if (paymentMethod != 'cash') ...[
+                        TextField(
+                          controller: payRefCtrl,
+                          decoration: const InputDecoration(labelText: 'Payment Reference / UTR', isDense: true),
+                        ),
+                        const SizedBox(height: 8),
+                      ],
+                      TextField(
+                        controller: notesCtrl,
+                        maxLines: 2,
+                        decoration: const InputDecoration(labelText: 'Internal Notes', isDense: true),
+                      ),
+                    ],
+
+                    // Live Summary Box
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: scheme.surfaceContainerHighest.withValues(alpha: 0.3),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('Total: ₹${totalCost.toStringAsFixed(0)}', style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold)),
+                              if (chargeCustomer)
+                                Text('Bill: ₹${custCharge.toStringAsFixed(0)}', style: const TextStyle(fontSize: 10.5, color: Color(0xFF635BFF))),
+                            ],
+                          ),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Text('Paid: ₹${payMade.toStringAsFixed(0)}', style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: Color(0xFF00875A))),
+                              if (remainingPay > 0 && staffMode != 'salary_allocation')
+                                Text('Due: ₹${remainingPay.toStringAsFixed(0)}', style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold, color: Color(0xFFC06200))),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+              FilledButton(
+                onPressed: () {
+                  final freshQty = double.tryParse(qtyCtrl.text.trim()) ?? 1.0;
+                  final freshRate = double.tryParse(rateCtrl.text.trim()) ?? 0.0;
+                  final freshAmt = freshQty * freshRate;
+                  final freshCustCharge = chargeCustomer ? (double.tryParse(billCtrl.text.trim()) ?? 0.0) : 0.0;
+                  final freshEnteredPay = double.tryParse(payCtrl.text.trim()) ?? 0.0;
+                  final freshPayMade = paymentStatus == 'paid'
+                      ? (freshEnteredPay > 0 ? freshEnteredPay : freshAmt)
+                      : (paymentStatus == 'not_paid' ? 0.0 : freshEnteredPay);
+
+                  if (freshAmt <= 0) {
+                    setDlg(() => dialogError = 'Enter a positive quantity and rate.');
+                    return;
+                  }
+                  if (descCtrl.text.trim().isEmpty) {
+                    setDlg(() => dialogError = 'Description is required.');
+                    return;
+                  }
+                  if (payeeCtrl.text.trim().isEmpty && staffId.isEmpty) {
+                    setDlg(() => dialogError = 'Enter the payee name.');
+                    return;
+                  }
+                  if (staffMode == 'salary_allocation' && (staffId.isEmpty || freshPayMade > 0 || freshEnteredPay > 0)) {
+                    setDlg(() => dialogError = 'Salary allocation cannot have a separate load payment.');
+                    return;
+                  }
+                  if (_direction == 'outbound' && chargeCustomer && freshCustCharge > 0 && billingVariantId.isEmpty) {
+                    setDlg(() => dialogError = 'Select a service tax classification for customer billing.');
+                    return;
+                  }
+                  if (freshPayMade > 0 && paymentMethod != 'cash' && payRefCtrl.text.trim().isEmpty) {
+                    setDlg(() => dialogError = 'Enter payment reference for non-cash payment.');
+                    return;
+                  }
+
+                  final catMatch = categories.firstWhere(
+                    (c) => '${c['id'] ?? c['code']}' == selectedCatId,
+                    orElse: () => const {'id': 'other', 'name': 'Other'},
+                  );
+
+                  final costRow = <String, dynamic>{
+                    'id': old?['id'] ?? const Uuid().v4(),
+                    'cost_kind': selectedCatId ?? 'other',
+                    'category_id': catMatch['id']?.toString() ?? selectedCatId,
+                    'category_name': catMatch['name']?.toString() ?? 'Other',
+                    'description': descCtrl.text.trim(),
+                    'staff_id': staffId,
+                    'payee': payeeCtrl.text.trim(),
+                    'staff_mode': staffMode,
+                    'quantity': freshQty,
+                    'rate': freshRate,
+                    'amount': freshAmt,
+                    'bill_amount': (_direction != 'outbound' || !chargeCustomer) ? 0.0 : freshCustCharge,
+                    'billing_variant_id': chargeCustomer ? billingVariantId : '',
+                    'initial_payment': freshPayMade,
+                    'payment_method': paymentMethod,
+                    'payment_reference': payRefCtrl.text.trim(),
+                    'receipt_reference': receiptRefCtrl.text.trim(),
+                    'notes': notesCtrl.text.trim(),
+                  };
+
+                  setState(() {
+                    if (editIndex != null && editIndex >= 0 && editIndex < _costs.length) {
+                      _costs[editIndex] = costRow;
+                    } else {
+                      _costs.add(costRow);
+                    }
+                  });
+                  Navigator.pop(ctx);
+                },
+                child: Text(old == null ? 'Add Expense' : 'Save'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Future<void> _showInlineCreateCategory(
+    BuildContext parentCtx,
+    ValueChanged<Map<String, dynamic>> onCreated,
+  ) async {
+    final nameCtrl = TextEditingController();
+    final descCtrl = TextEditingController();
+    String? err;
+    bool saving = false;
+
+    await showDialog(
+      context: parentCtx,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setM) => AlertDialog(
+          title: const Text('New Expense Type', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (err != null) ...[
+                Text(err!, style: const TextStyle(color: Colors.red, fontSize: 11)),
+                const SizedBox(height: 8),
+              ],
+              TextField(
+                controller: nameCtrl,
+                autofocus: true,
+                decoration: const InputDecoration(labelText: 'Expense Type Name *', isDense: true),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: descCtrl,
+                decoration: const InputDecoration(labelText: 'Description (optional)', isDense: true),
+              ),
+            ],
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+            TextButton(
+              onPressed: saving ? null : () => Navigator.pop(ctx),
+              child: const Text('Cancel'),
+            ),
             FilledButton(
-              onPressed: () {
-                final amt = double.tryParse(amountCtrl.text.trim()) ?? 0.0;
-                if (amt <= 0 || descCtrl.text.trim().isEmpty) {
-                  ThqNotify.error(ctx, 'Required', message: 'Enter a valid description and amount.');
-                  return;
-                }
-                setState(() {
-                  _costs.add({
-                    'cost_type_code': selectedType ?? 'other',
-                    'description': descCtrl.text.trim(),
-                    'amount': amt,
-                    'payee': payeeCtrl.text.trim(),
-                    'billing_service': 'internal',
-                  });
-                });
-                Navigator.pop(ctx);
-              },
-              child: const Text('Add Expense'),
+              onPressed: saving
+                  ? null
+                  : () async {
+                      final name = nameCtrl.text.trim();
+                      if (name.isEmpty) {
+                        setM(() => err = 'Please enter a name.');
+                        return;
+                      }
+                      setM(() {
+                        saving = true;
+                        err = null;
+                      });
+                      try {
+                        final created = await widget.service.createExpenseCategory(
+                          widget.session,
+                          name: name,
+                          description: descCtrl.text.trim(),
+                        );
+                        // Add to local yardContext
+                        final existing = List<Map<String, dynamic>>.from(
+                          (_yardContext['expense_categories'] as List? ?? const []).map((e) => Map<String, dynamic>.from(e as Map)),
+                        );
+                        existing.removeWhere((c) => '${c['name']}'.toLowerCase() == name.toLowerCase());
+                        existing.add(created);
+                        _yardContext['expense_categories'] = existing;
+
+                        onCreated(created);
+                        if (ctx.mounted) Navigator.pop(ctx);
+                      } catch (e) {
+                        if (ctx.mounted) {
+                          setM(() {
+                            saving = false;
+                            err = e.toString().replaceFirst('Exception: ', '');
+                          });
+                        }
+                      }
+                    },
+              child: Text(saving ? 'Saving…' : 'Create'),
             ),
           ],
         ),
@@ -1418,6 +1996,11 @@ class _MobileMaterialLoadSheetState extends State<MobileMaterialLoadSheet> {
               ..._costs.asMap().entries.map((entry) {
                 final idx = entry.key;
                 final c = entry.value;
+                final amt = (c['amount'] as num?)?.toDouble() ?? 0.0;
+                final pay = (c['initial_payment'] as num?)?.toDouble() ?? 0.0;
+                final bill = (c['bill_amount'] as num?)?.toDouble() ?? 0.0;
+                final isSalary = c['staff_mode'] == 'salary_allocation';
+
                 return Card(
                   elevation: 0,
                   margin: const EdgeInsets.only(bottom: 6),
@@ -1427,8 +2010,81 @@ class _MobileMaterialLoadSheetState extends State<MobileMaterialLoadSheet> {
                   ),
                   child: ListTile(
                     dense: true,
-                    title: Text('${c['description']} • ${MaterialYardFormat.money(c['amount'], currency: currency)}'),
-                    subtitle: Text('Payee: ${c['payee'].toString().isEmpty ? "Self" : c['payee']}'),
+                    onTap: () => _addExpense(idx),
+                    title: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            '${c['category_name'] ?? c['cost_kind'] ?? 'Expense'}: ${c['description']}',
+                            style: const TextStyle(fontWeight: FontWeight.w600),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        Text(
+                          MaterialYardFormat.money(amt, currency: currency),
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                      ],
+                    ),
+                    subtitle: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const SizedBox(height: 2),
+                        Text('Payee: ${c['payee']?.toString().isEmpty ?? true ? "Self" : c['payee']}'),
+                        const SizedBox(height: 4),
+                        Wrap(
+                          spacing: 6,
+                          runSpacing: 4,
+                          children: [
+                            if (isSalary)
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: scheme.surfaceContainerHighest,
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: const Text('Salary Allocation', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600)),
+                              )
+                            else if (pay >= amt && amt > 0)
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFE3FCEF),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: const Text('Paid', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF006644))),
+                              )
+                            else if (pay > 0)
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFFFF0B3),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Text('Partial (Paid ₹${pay.toStringAsFixed(0)})', style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF172B4D))),
+                              )
+                            else
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFFFEBE6),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Text('Unpaid (Due ₹${amt.toStringAsFixed(0)})', style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFFDE350B))),
+                              ),
+                            if (bill > 0)
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFEAE6FF),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Text('Billed: ₹${bill.toStringAsFixed(0)}', style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF403294))),
+                              ),
+                          ],
+                        ),
+                      ],
+                    ),
                     trailing: IconButton(
                       icon: const Icon(Icons.delete_outline_rounded, size: 18),
                       onPressed: () => setState(() => _costs.removeAt(idx)),

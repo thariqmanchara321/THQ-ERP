@@ -687,6 +687,26 @@ class MobileClientService {
     }
   }
 
+  Future<Map<String, dynamic>> createExpenseCategory(
+    MobileSession s, {
+    required String name,
+    String? description,
+  }) async {
+    final trimmedName = name.trim();
+    if (trimmedName.isEmpty) {
+      throw ArgumentError('Category name cannot be empty');
+    }
+    final result = await _supabase.rpc(
+      'expenses_category_create',
+      params: {
+        'p_tenant_id': s.tenantId,
+        'p_name': trimmedName,
+        'p_description': description?.trim(),
+      },
+    );
+    return _map(result);
+  }
+
   Future<List<Map<String, dynamic>>> materialYardStock(
     MobileSession s, {
     String? locationId,
