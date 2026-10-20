@@ -32,6 +32,7 @@ class _DailyDetailedAccountsViewState extends State<DailyDetailedAccountsView> {
   late DateTime _to;
   bool _loading = false;
   bool _exporting = false;
+  bool _showOnlyActive = true;
   String? _error;
   Map<String, dynamic>? _data;
 
@@ -40,7 +41,7 @@ class _DailyDetailedAccountsViewState extends State<DailyDetailedAccountsView> {
     super.initState();
     final now = DateTime.now();
     _from = DateTime(now.year, now.month, now.day);
-    _to = DateTime(now.year, now.month, now.day, 23, 59, 59);
+    _to = DateTime(now.year, now.month, now.day);
     _fetch();
   }
 
@@ -95,10 +96,10 @@ class _DailyDetailedAccountsViewState extends State<DailyDetailedAccountsView> {
     setState(() {
       if (isFrom) {
         _from = DateTime(picked.year, picked.month, picked.day);
-        if (_from.isAfter(_to)) _to = DateTime(picked.year, picked.month, picked.day, 23, 59, 59);
+        if (_from.isAfter(_to)) _to = _from;
       } else {
-        _to = DateTime(picked.year, picked.month, picked.day, 23, 59, 59);
-        if (_to.isBefore(_from)) _from = DateTime(picked.year, picked.month, picked.day);
+        _to = DateTime(picked.year, picked.month, picked.day);
+        if (_to.isBefore(_from)) _from = _to;
       }
     });
     _fetch();
@@ -109,14 +110,14 @@ class _DailyDetailedAccountsViewState extends State<DailyDetailedAccountsView> {
     setState(() {
       if (preset == 'today') {
         _from = DateTime(now.year, now.month, now.day);
-        _to = DateTime(now.year, now.month, now.day, 23, 59, 59);
+        _to = DateTime(now.year, now.month, now.day);
       } else if (preset == 'yesterday') {
         final y = now.subtract(const Duration(days: 1));
         _from = DateTime(y.year, y.month, y.day);
-        _to = DateTime(y.year, y.month, y.day, 23, 59, 59);
+        _to = DateTime(y.year, y.month, y.day);
       } else if (preset == 'this_month') {
         _from = DateTime(now.year, now.month, 1);
-        _to = DateTime(now.year, now.month, now.day, 23, 59, 59);
+        _to = DateTime(now.year, now.month, now.day);
       }
     });
     _fetch();
@@ -262,24 +263,53 @@ class _DailyDetailedAccountsViewState extends State<DailyDetailedAccountsView> {
               const Spacer(),
               PopupMenuButton<String>(
                 enabled: _data != null && !_exporting,
-                tooltip: 'Export report',
+                tooltip: 'Export report (Excel / PDF / Print)',
                 onSelected: _export,
                 itemBuilder: (_) => const [
-                  PopupMenuItem(value: 'xlsx', child: Text('Excel (.xlsx)')),
-                  PopupMenuItem(value: 'pdf', child: Text('PDF Report')),
-                  PopupMenuItem(value: 'print', child: Text('Print Report')),
+                  PopupMenuItem(
+                    value: 'xlsx',
+                    child: Row(
+                      children: [
+                        Icon(Icons.table_chart_outlined, size: 16),
+                        SizedBox(width: 8),
+                        Text('Excel (.xlsx)'),
+                      ],
+                    ),
+                  ),
+                  PopupMenuItem(
+                    value: 'pdf',
+                    child: Row(
+                      children: [
+                        Icon(Icons.picture_as_pdf_outlined, size: 16),
+                        SizedBox(width: 8),
+                        Text('PDF Report'),
+                      ],
+                    ),
+                  ),
+                  PopupMenuItem(
+                    value: 'print',
+                    child: Row(
+                      children: [
+                        Icon(Icons.print_outlined, size: 16),
+                        SizedBox(width: 8),
+                        Text('Print Report'),
+                      ],
+                    ),
+                  ),
                 ],
-                child: FilledButton.icon(
-                  onPressed: null,
-                  icon: _exporting
-                      ? const SizedBox(
-                          width: 14,
-                          height: 14,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.download, size: 16),
-                  label: const Text('Export'),
-                  style: FilledButton.styleFrom(visualDensity: VisualDensity.compact),
+                child: IgnorePointer(
+                  child: FilledButton.icon(
+                    onPressed: (_data != null && !_exporting) ? () {} : null,
+                    icon: _exporting
+                        ? const SizedBox(
+                            width: 14,
+                            height: 14,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.download, size: 16),
+                    label: const Text('Export'),
+                    style: FilledButton.styleFrom(visualDensity: VisualDensity.compact),
+                  ),
                 ),
               ),
             ],
@@ -394,6 +424,34 @@ class _DailyDetailedAccountsViewState extends State<DailyDetailedAccountsView> {
                       Text(
                         statement,
                         style: TextStyle(fontSize: 12, color: scheme.onSurface),
+                      ),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 6,
+                        children: [
+                          _buildIntegrityChip(
+                            label: 'Double-Entry (Debits = Credits)',
+                            passed: (d['integrity_checks'] as Map?)?['double_entry_balanced'] != false,
+                            scheme: scheme,
+                          ),
+                          _buildIntegrityChip(
+                            label: 'Cash Ledger Reconciled',
+                            passed: (d['integrity_checks'] as Map?)?['cash_ledger_reconciled'] != false,
+                            scheme: scheme,
+                          ),
+                          _buildIntegrityChip(
+                            label: 'Cash Drawer Solvency',
+                            passed: (cash['closing'] as num? ?? 0) >= 0,
+                            warning: (cash['closing'] as num? ?? 0) < 0,
+                            scheme: scheme,
+                          ),
+                          _buildIntegrityChip(
+                            label: 'Period Integrity',
+                            passed: status == 'Passed',
+                            scheme: scheme,
+                          ),
+                        ],
                       ),
                     ],
                   ),
@@ -532,96 +590,199 @@ class _DailyDetailedAccountsViewState extends State<DailyDetailedAccountsView> {
           ],
 
           // Day Journals Register Table
-          Container(
-            decoration: BoxDecoration(
-              color: scheme.surface,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: scheme.outlineVariant),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.receipt_long_outlined, size: 18),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Day Journals (${journals.length} entries)',
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                      ),
-                      const Spacer(),
-                      const Text(
-                        'Double-click or tap to drill down into transaction story',
-                        style: TextStyle(fontSize: 11, fontStyle: FontStyle.italic),
-                      ),
-                    ],
-                  ),
-                ),
-                const Divider(height: 1),
-                if (journals.isEmpty)
-                  const Padding(
-                    padding: EdgeInsets.all(24),
-                    child: Center(child: Text('No journal entries posted in this date range.')),
-                  )
-                else
-                  SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: DataTable(
-                      headingRowHeight: 34,
-                      dataRowMinHeight: 32,
-                      dataRowMaxHeight: 36,
-                      columnSpacing: 18,
-                      columns: const [
-                        DataColumn(label: Text('Date')),
-                        DataColumn(label: Text('Entry #')),
-                        DataColumn(label: Text('Source Type')),
-                        DataColumn(label: Text('Reference')),
-                        DataColumn(label: Text('Description')),
-                        DataColumn(label: Text('Debits', textAlign: TextAlign.right), numeric: true),
-                        DataColumn(label: Text('Credits', textAlign: TextAlign.right), numeric: true),
-                        DataColumn(label: Text('Status')),
+          () {
+            final reversedCount = journals
+                .where((j) => (j['status']?.toString().toLowerCase() ?? '') == 'reversed')
+                .length;
+            final displayJournals = _showOnlyActive
+                ? journals
+                    .where((j) => (j['status']?.toString().toLowerCase() ?? '') != 'reversed')
+                    .toList()
+                : journals;
+
+            return Container(
+              decoration: BoxDecoration(
+                color: scheme.surface,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: scheme.outlineVariant),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.receipt_long_outlined, size: 18),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Day Journals (${displayJournals.length}${_showOnlyActive && reversedCount > 0 ? ' of ${journals.length}' : ''} entries)',
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                        ),
+                        if (reversedCount > 0) ...[
+                          const SizedBox(width: 12),
+                          FilterChip(
+                            selected: !_showOnlyActive,
+                            onSelected: (val) => setState(() => _showOnlyActive = !val),
+                            avatar: Icon(
+                              !_showOnlyActive ? Icons.visibility : Icons.filter_alt_outlined,
+                              size: 14,
+                            ),
+                            label: Text(
+                              !_showOnlyActive
+                                  ? 'Showing All ($reversedCount reversed audit rows included)'
+                                  : 'Active Only ($reversedCount superseded entries hidden)',
+                              style: const TextStyle(fontSize: 11),
+                            ),
+                            visualDensity: VisualDensity.compact,
+                          ),
+                        ],
+                        const Spacer(),
+                        const Text(
+                          'Tap row to drill down into transaction story',
+                          style: TextStyle(fontSize: 11, fontStyle: FontStyle.italic),
+                        ),
                       ],
-                      rows: journals.map((j) {
-                        final isBalanced = j['is_balanced'] == true;
-                        return DataRow(
-                          onSelectChanged: (_) => _openJournalStory(j),
-                          cells: [
-                            DataCell(Text(j['entry_date']?.toString() ?? '—', style: const TextStyle(fontSize: 11.5))),
-                            DataCell(Text(j['entry_number']?.toString() ?? '—', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11.5))),
-                            DataCell(Text(j['source_type']?.toString() ?? '—', style: const TextStyle(fontSize: 11.5))),
-                            DataCell(Text(j['reference']?.toString() ?? '—', style: const TextStyle(fontSize: 11.5))),
-                            DataCell(Text(j['description']?.toString() ?? '—', style: const TextStyle(fontSize: 11.5))),
-                            DataCell(Text(_m(j['debit_total'] as num?), style: const TextStyle(fontSize: 11.5))),
-                            DataCell(Text(_m(j['credit_total'] as num?), style: const TextStyle(fontSize: 11.5))),
-                            DataCell(
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-                                decoration: BoxDecoration(
-                                  color: isBalanced
-                                      ? Colors.green.withValues(alpha: 0.15)
-                                      : Colors.red.withValues(alpha: 0.15),
-                                  borderRadius: BorderRadius.circular(4),
+                    ),
+                  ),
+                  const Divider(height: 1),
+                  if (displayJournals.isEmpty)
+                    Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Center(
+                        child: Text(
+                          _showOnlyActive && reversedCount > 0
+                              ? 'All $reversedCount journal entries in this range were superseded/reversed. Toggle "Active Only" above to view audit history.'
+                              : 'No journal entries posted in this date range.',
+                        ),
+                      ),
+                    )
+                  else
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: DataTable(
+                        headingRowHeight: 34,
+                        dataRowMinHeight: 34,
+                        dataRowMaxHeight: 40,
+                        columnSpacing: 18,
+                        columns: const [
+                          DataColumn(label: Text('Date')),
+                          DataColumn(label: Text('Transaction / Description')),
+                          DataColumn(label: Text('Party / Payee')),
+                          DataColumn(label: Text('Financial Effect')),
+                          DataColumn(label: Text('Debit', textAlign: TextAlign.right), numeric: true),
+                          DataColumn(label: Text('Credit', textAlign: TextAlign.right), numeric: true),
+                          DataColumn(label: Text('Posting Status')),
+                          DataColumn(label: Text('Double-Entry')),
+                          DataColumn(label: Text('Entry #')),
+                        ],
+                        rows: displayJournals.map((j) {
+                          final isBalanced = j['is_balanced'] == true;
+                          final statusStr = (j['status']?.toString() ?? 'posted').toLowerCase();
+                          final isReversed = statusStr == 'reversed';
+                          final partyName = j['party_name']?.toString() ?? '';
+                          final effect = j['financial_effect']?.toString() ?? 'Adjustment';
+                          return DataRow(
+                            onSelectChanged: (_) => _openJournalStory(j),
+                            cells: [
+                              DataCell(Text(
+                                j['entry_date']?.toString() ?? '—',
+                                style: TextStyle(
+                                  fontSize: 11.5,
+                                  decoration: isReversed ? TextDecoration.lineThrough : null,
+                                  color: isReversed ? scheme.outline : null,
                                 ),
-                                child: Text(
-                                  isBalanced ? 'Balanced' : 'Unbalanced',
-                                  style: TextStyle(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.bold,
-                                    color: isBalanced ? Colors.green.shade800 : Colors.red.shade800,
+                              )),
+                              DataCell(
+                                ConstrainedBox(
+                                  constraints: const BoxConstraints(maxWidth: 220),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Text(
+                                        j['description']?.toString().isNotEmpty == true
+                                            ? j['description'].toString()
+                                            : (j['reference']?.toString() ?? '—'),
+                                        style: TextStyle(
+                                          fontSize: 11.5,
+                                          fontWeight: FontWeight.w600,
+                                          decoration: isReversed ? TextDecoration.lineThrough : null,
+                                          color: isReversed ? scheme.outline : scheme.onSurface,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                      if (j['reference'] != null &&
+                                          j['reference'].toString() != j['description'].toString())
+                                        Text(
+                                          'Ref: ${j['reference']}',
+                                          style: TextStyle(fontSize: 10, color: scheme.outline),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                    ],
                                   ),
                                 ),
                               ),
-                            ),
-                          ],
-                        );
-                      }).toList(),
+                              DataCell(
+                                ConstrainedBox(
+                                  constraints: const BoxConstraints(maxWidth: 150),
+                                  child: Text(
+                                    partyName.isNotEmpty ? partyName : '—',
+                                    style: TextStyle(
+                                      fontSize: 11.5,
+                                      fontWeight: FontWeight.w500,
+                                      decoration: isReversed ? TextDecoration.lineThrough : null,
+                                      color: isReversed ? scheme.outline : scheme.onSurface,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ),
+                              DataCell(_buildFinancialEffectBadge(effect)),
+                              DataCell(Text(
+                                _m(j['debit_total'] as num?),
+                                style: TextStyle(
+                                  fontSize: 11.5,
+                                  decoration: isReversed ? TextDecoration.lineThrough : null,
+                                  color: isReversed ? scheme.outline : null,
+                                ),
+                              )),
+                              DataCell(Text(
+                                _m(j['credit_total'] as num?),
+                                style: TextStyle(
+                                  fontSize: 11.5,
+                                  decoration: isReversed ? TextDecoration.lineThrough : null,
+                                  color: isReversed ? scheme.outline : null,
+                                ),
+                              )),
+                              DataCell(_buildPostingStatusBadge(statusStr)),
+                              DataCell(_buildDoubleEntryBadge(isBalanced)),
+                              DataCell(
+                                InkWell(
+                                  onTap: () => _openJournalStory(j),
+                                  child: Text(
+                                    j['entry_number']?.toString() ?? '—',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: scheme.primary,
+                                      decoration: TextDecoration.underline,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          );
+                        }).toList(),
+                      ),
                     ),
-                  ),
-              ],
-            ),
-          ),
+                ],
+              ),
+            );
+          }(),
         ],
       ),
     );
@@ -749,6 +910,178 @@ class _DailyDetailedAccountsViewState extends State<DailyDetailedAccountsView> {
           const SizedBox(height: 2),
           Text(value, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
           Text(sub, style: TextStyle(fontSize: 9.5, color: scheme.outline), maxLines: 1),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildIntegrityChip({
+    required String label,
+    required bool passed,
+    bool warning = false,
+    required ColorScheme scheme,
+  }) {
+    final color = passed
+        ? (warning ? Colors.amber.shade800 : Colors.green.shade700)
+        : scheme.error;
+    final bg = passed
+        ? (warning ? Colors.amber.withValues(alpha: 0.15) : Colors.green.withValues(alpha: 0.12))
+        : scheme.errorContainer.withValues(alpha: 0.3);
+    final icon = passed
+        ? (warning ? Icons.warning_amber_rounded : Icons.check_circle_outline)
+        : Icons.highlight_off;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withValues(alpha: 0.4)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12, color: color),
+          const SizedBox(width: 5),
+          Text(
+            label,
+            style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600, color: color),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFinancialEffectBadge(String effect) {
+    Color bg;
+    Color fg;
+    IconData icon;
+    switch (effect) {
+      case 'Cash Inflow':
+        bg = Colors.green.withValues(alpha: 0.15);
+        fg = Colors.green.shade800;
+        icon = Icons.arrow_downward;
+        break;
+      case 'Cash Outflow':
+        bg = Colors.orange.withValues(alpha: 0.15);
+        fg = Colors.deepOrange.shade800;
+        icon = Icons.arrow_upward;
+        break;
+      case 'Bank Inflow':
+        bg = Colors.teal.withValues(alpha: 0.15);
+        fg = Colors.teal.shade800;
+        icon = Icons.account_balance;
+        break;
+      case 'Bank Outflow':
+        bg = Colors.indigo.withValues(alpha: 0.15);
+        fg = Colors.indigo.shade800;
+        icon = Icons.account_balance_wallet;
+        break;
+      case 'Receivable':
+        bg = Colors.blue.withValues(alpha: 0.15);
+        fg = Colors.blue.shade800;
+        icon = Icons.receipt_long;
+        break;
+      case 'Payable':
+        bg = Colors.purple.withValues(alpha: 0.15);
+        fg = Colors.purple.shade800;
+        icon = Icons.shopping_bag_outlined;
+        break;
+      case 'Cash/Bank Transfer':
+        bg = Colors.cyan.withValues(alpha: 0.15);
+        fg = Colors.cyan.shade900;
+        icon = Icons.sync_alt;
+        break;
+      default:
+        bg = Colors.grey.withValues(alpha: 0.15);
+        fg = Colors.grey.shade800;
+        icon = Icons.article_outlined;
+    }
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 10, color: fg),
+          const SizedBox(width: 4),
+          Text(
+            effect,
+            style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: fg),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPostingStatusBadge(String status) {
+    Color bg;
+    Color fg;
+    String label;
+    if (status == 'posted') {
+      bg = Colors.green.withValues(alpha: 0.15);
+      fg = Colors.green.shade800;
+      label = 'POSTED';
+    } else if (status == 'reversed') {
+      bg = Colors.amber.withValues(alpha: 0.2);
+      fg = Colors.amber.shade900;
+      label = 'REVERSED';
+    } else if (status == 'void') {
+      bg = Colors.grey.withValues(alpha: 0.2);
+      fg = Colors.grey.shade800;
+      label = 'VOID';
+    } else {
+      bg = Colors.blueGrey.withValues(alpha: 0.15);
+      fg = Colors.blueGrey.shade800;
+      label = status.toUpperCase();
+    }
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 10,
+          fontWeight: FontWeight.bold,
+          color: fg,
+          decoration: status == 'reversed' ? TextDecoration.lineThrough : null,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDoubleEntryBadge(bool isBalanced) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: isBalanced
+            ? Colors.green.withValues(alpha: 0.15)
+            : Colors.red.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            isBalanced ? Icons.check_circle : Icons.error_outline,
+            size: 10,
+            color: isBalanced ? Colors.green.shade800 : Colors.red.shade800,
+          ),
+          const SizedBox(width: 4),
+          Text(
+            isBalanced ? 'Balanced' : 'Unbalanced',
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.bold,
+              color: isBalanced ? Colors.green.shade800 : Colors.red.shade800,
+            ),
+          ),
         ],
       ),
     );

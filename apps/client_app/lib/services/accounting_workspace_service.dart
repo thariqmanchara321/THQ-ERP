@@ -1,4 +1,5 @@
 import 'package:flutter/services.dart';
+import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:thq_ui/thq_ui.dart';
 import 'package:excel/excel.dart';
@@ -28,13 +29,15 @@ class AccountingWorkspaceService {
     String? locationId,
   }) async {
     final effectiveLocation = locationId ?? this.locationId;
+    final fromDateStr = DateFormat('yyyy-MM-dd').format(from);
+    final toDateStr = DateFormat('yyyy-MM-dd').format(to);
     try {
       final response = await Supabase.instance.client.rpc(
         'daily_detailed_accounts_v720',
         params: {
           'p_tenant_id': tenantId,
-          'p_from': from.toIso8601String(),
-          'p_to': to.toIso8601String(),
+          'p_from': fromDateStr,
+          'p_to': toDateStr,
           if (effectiveLocation != null && effectiveLocation.isNotEmpty)
             'p_location_id': effectiveLocation,
         },

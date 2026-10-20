@@ -156,23 +156,29 @@ class DailyAccountsExportService {
     // 4. Day Journals Sheet
     final journalsSheet = excel['Day Journals'];
     journalsSheet.appendRow([
-      TextCellValue('Entry Number'),
       TextCellValue('Date'),
-      TextCellValue('Source'),
-      TextCellValue('Reference / Description'),
+      TextCellValue('Description'),
+      TextCellValue('Party / Payee'),
+      TextCellValue('Financial Effect'),
       TextCellValue('Debit ($currencyCode)'),
       TextCellValue('Credit ($currencyCode)'),
-      TextCellValue('Balanced?'),
+      TextCellValue('Posting Status'),
+      TextCellValue('Double-Entry Balance'),
+      TextCellValue('Entry Number'),
+      TextCellValue('Source Reference'),
     ]);
     for (final j in journals) {
       journalsSheet.appendRow([
-        TextCellValue(j['entry_number']?.toString() ?? ''),
         TextCellValue(j['entry_date']?.toString() ?? ''),
-        TextCellValue(j['source_type']?.toString() ?? ''),
-        TextCellValue('${j['reference'] ?? ''} ${j['description'] ?? ''}'.trim()),
+        TextCellValue(j['description']?.toString() ?? ''),
+        TextCellValue(j['party_name']?.toString() ?? ''),
+        TextCellValue(j['financial_effect']?.toString() ?? ''),
         DoubleCellValue((j['debit_total'] as num? ?? 0).toDouble()),
         DoubleCellValue((j['credit_total'] as num? ?? 0).toDouble()),
-        TextCellValue(j['is_balanced'] == true ? 'Yes' : 'No'),
+        TextCellValue((j['status']?.toString() ?? 'posted').toUpperCase()),
+        TextCellValue(j['is_balanced'] == true ? 'Balanced' : 'Unbalanced'),
+        TextCellValue(j['entry_number']?.toString() ?? ''),
+        TextCellValue(j['reference']?.toString() ?? ''),
       ]);
     }
 
@@ -419,10 +425,10 @@ class DailyAccountsExportService {
               ],
               [
                 'Operating Expenses Paid',
-                '—',
+                '-',
                 _m(payments['operating_expenses'] as num? ?? 0, currencyCode),
-                '—',
-                '—',
+                '-',
+                '-',
                 _m(payments['operating_expenses'] as num? ?? 0, currencyCode),
               ],
             ],
@@ -448,29 +454,31 @@ class DailyAccountsExportService {
             ),
             pw.SizedBox(height: 4),
             pw.TableHelper.fromTextArray(
-              headers: ['Entry No.', 'Date', 'Source', 'Reference / Notes', 'Debit', 'Credit', 'Status'],
+              headers: ['Date', 'Description / Reference', 'Party', 'Effect', 'Debit', 'Credit', 'Posting Status', 'Balance'],
               data: journals
-                  .take(40)
+                  .take(60)
                   .map(
                     (j) => [
-                      j['entry_number']?.toString() ?? '',
                       j['entry_date']?.toString() ?? '',
-                      j['source_type']?.toString().toUpperCase() ?? '',
-                      j['description']?.toString() ?? j['reference']?.toString() ?? '',
+                      '${j['description'] ?? ''}${j['reference'] != null ? ' (${j['reference']})' : ''}'.trim(),
+                      (j['party_name']?.toString().isNotEmpty == true) ? j['party_name'].toString() : '-',
+                      j['financial_effect']?.toString() ?? 'Adjustment',
                       _m(j['debit_total'] as num? ?? 0, currencyCode),
                       _m(j['credit_total'] as num? ?? 0, currencyCode),
+                      (j['status']?.toString() ?? 'posted').toUpperCase(),
                       j['is_balanced'] == true ? 'Balanced' : 'Unbalanced',
                     ],
                   )
                   .toList(),
-              headerStyle: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold, color: PdfColors.white),
+              headerStyle: pw.TextStyle(fontSize: 7.5, fontWeight: pw.FontWeight.bold, color: PdfColors.white),
               headerDecoration: const pw.BoxDecoration(color: PdfColors.blueGrey600),
-              cellStyle: const pw.TextStyle(fontSize: 7),
+              cellStyle: const pw.TextStyle(fontSize: 6.5),
               cellAlignment: pw.Alignment.centerLeft,
               cellAlignments: {
                 4: pw.Alignment.centerRight,
                 5: pw.Alignment.centerRight,
                 6: pw.Alignment.center,
+                7: pw.Alignment.center,
               },
             ),
           ],
