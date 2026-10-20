@@ -11,6 +11,8 @@ import '../services/location_scope_service.dart';
 import 'purchase_detail_screen.dart';
 import 'sale_detail_screen.dart';
 
+enum DailyIntegrityStatus { passed, failed, warning, unableToVerify }
+
 class DailyDetailedAccountsView extends StatefulWidget {
   final ClientSession session;
 
@@ -137,6 +139,7 @@ class _DailyDetailedAccountsViewState extends State<DailyDetailedAccountsView> {
           to: _to,
           locationLabel: locLabel,
           data: _data!,
+          activeOnly: _showOnlyActive,
         );
       } else if (format == 'pdf') {
         await _exportService.savePdf(
@@ -146,6 +149,7 @@ class _DailyDetailedAccountsViewState extends State<DailyDetailedAccountsView> {
           to: _to,
           locationLabel: locLabel,
           data: _data!,
+          activeOnly: _showOnlyActive,
         );
       } else if (format == 'print') {
         await _exportService.printReport(
@@ -155,6 +159,7 @@ class _DailyDetailedAccountsViewState extends State<DailyDetailedAccountsView> {
           to: _to,
           locationLabel: locLabel,
           data: _data!,
+          activeOnly: _showOnlyActive,
         );
       }
       if (mounted) {
@@ -261,45 +266,19 @@ class _DailyDetailedAccountsViewState extends State<DailyDetailedAccountsView> {
                 style: FilledButton.styleFrom(visualDensity: VisualDensity.compact),
               ),
               const Spacer(),
-              PopupMenuButton<String>(
-                enabled: _data != null && !_exporting,
-                tooltip: 'Export report (Excel / PDF / Print)',
-                onSelected: _export,
-                itemBuilder: (_) => const [
-                  PopupMenuItem(
-                    value: 'xlsx',
-                    child: Row(
-                      children: [
-                        Icon(Icons.table_chart_outlined, size: 16),
-                        SizedBox(width: 8),
-                        Text('Excel (.xlsx)'),
-                      ],
-                    ),
-                  ),
-                  PopupMenuItem(
-                    value: 'pdf',
-                    child: Row(
-                      children: [
-                        Icon(Icons.picture_as_pdf_outlined, size: 16),
-                        SizedBox(width: 8),
-                        Text('PDF Report'),
-                      ],
-                    ),
-                  ),
-                  PopupMenuItem(
-                    value: 'print',
-                    child: Row(
-                      children: [
-                        Icon(Icons.print_outlined, size: 16),
-                        SizedBox(width: 8),
-                        Text('Print Report'),
-                      ],
-                    ),
-                  ),
-                ],
-                child: IgnorePointer(
-                  child: FilledButton.icon(
-                    onPressed: (_data != null && !_exporting) ? () {} : null,
+              MenuAnchor(
+                builder: (context, controller, child) {
+                  final canExport = _data != null && !_exporting;
+                  return FilledButton.icon(
+                    onPressed: canExport
+                        ? () {
+                            if (controller.isOpen) {
+                              controller.close();
+                            } else {
+                              controller.open();
+                            }
+                          }
+                        : null,
                     icon: _exporting
                         ? const SizedBox(
                             width: 14,
@@ -309,8 +288,25 @@ class _DailyDetailedAccountsViewState extends State<DailyDetailedAccountsView> {
                         : const Icon(Icons.download, size: 16),
                     label: const Text('Export'),
                     style: FilledButton.styleFrom(visualDensity: VisualDensity.compact),
+                  );
+                },
+                menuChildren: [
+                  MenuItemButton(
+                    leadingIcon: const Icon(Icons.table_chart_outlined, size: 16),
+                    onPressed: () => _export('xlsx'),
+                    child: const Text('Export Excel (.xlsx)'),
                   ),
-                ),
+                  MenuItemButton(
+                    leadingIcon: const Icon(Icons.picture_as_pdf_outlined, size: 16),
+                    onPressed: () => _export('pdf'),
+                    child: const Text('Export PDF'),
+                  ),
+                  MenuItemButton(
+                    leadingIcon: const Icon(Icons.print_outlined, size: 16),
+                    onPressed: () => _export('print'),
+                    child: const Text('Print Report'),
+                  ),
+                ],
               ),
             ],
           ),
@@ -431,24 +427,43 @@ class _DailyDetailedAccountsViewState extends State<DailyDetailedAccountsView> {
                         runSpacing: 6,
                         children: [
                           _buildIntegrityChip(
-                            label: 'Double-Entry (Debits = Credits)',
-                            passed: (d['integrity_checks'] as Map?)?['double_entry_balanced'] != false,
+                            label: 'Double-Entry',
+                            status: (d['integrity_checks'] as Map?)?['double_entry_balanced'] != false
+                                ? DailyIntegrityStatus.passed
+                                : DailyIntegrityStatus.failed,
                             scheme: scheme,
                           ),
                           _buildIntegrityChip(
-                            label: 'Cash Ledger Reconciled',
-                            passed: (d['integrity_checks'] as Map?)?['cash_ledger_reconciled'] != false,
+                            label: 'Cash Ledger Math',
+                            status: (d['integrity_checks'] as Map?)?['cash_ledger_reconciled'] != false
+                                ? DailyIntegrityStatus.passed
+                                : DailyIntegrityStatus.failed,
                             scheme: scheme,
                           ),
                           _buildIntegrityChip(
-                            label: 'Cash Drawer Solvency',
-                            passed: (cash['closing'] as num? ?? 0) >= 0,
-                            warning: (cash['closing'] as num? ?? 0) < 0,
+                            label: 'System Book Cash',
+                            status: (cash['closing'] as num? ?? 0) >= 0
+                                ? DailyIntegrityStatus.passed
+                                : DailyIntegrityStatus.warning,
+                            detail: (cash['closing'] as num? ?? 0) >= 0
+                                ? 'Solvent'
+                                : 'Deficit (${_m(cash['closing'] as num? ?? 0)})',
+                            scheme: scheme,
+                          ),
+                          _buildIntegrityChip(
+                            label: 'Physical Cash Drawer',
+                            status: DailyIntegrityStatus.unableToVerify,
+                            detail: 'Uncounted (No Session)',
                             scheme: scheme,
                           ),
                           _buildIntegrityChip(
                             label: 'Period Integrity',
-                            passed: status == 'Passed',
+                            status: status == 'Passed'
+                                ? DailyIntegrityStatus.passed
+                                : DailyIntegrityStatus.failed,
+                            detail: status == 'Passed'
+                                ? 'Passed'
+                                : '${exceptions.length} Flagged',
                             scheme: scheme,
                           ),
                         ],
@@ -917,19 +932,41 @@ class _DailyDetailedAccountsViewState extends State<DailyDetailedAccountsView> {
 
   Widget _buildIntegrityChip({
     required String label,
-    required bool passed,
-    bool warning = false,
+    required DailyIntegrityStatus status,
+    String? detail,
     required ColorScheme scheme,
   }) {
-    final color = passed
-        ? (warning ? Colors.amber.shade800 : Colors.green.shade700)
-        : scheme.error;
-    final bg = passed
-        ? (warning ? Colors.amber.withValues(alpha: 0.15) : Colors.green.withValues(alpha: 0.12))
-        : scheme.errorContainer.withValues(alpha: 0.3);
-    final icon = passed
-        ? (warning ? Icons.warning_amber_rounded : Icons.check_circle_outline)
-        : Icons.highlight_off;
+    Color color;
+    Color bg;
+    IconData icon;
+    String statusText;
+
+    switch (status) {
+      case DailyIntegrityStatus.passed:
+        color = Colors.green.shade700;
+        bg = Colors.green.withValues(alpha: 0.12);
+        icon = Icons.check_circle_outline;
+        statusText = detail ?? 'Passed';
+        break;
+      case DailyIntegrityStatus.failed:
+        color = scheme.error;
+        bg = scheme.errorContainer.withValues(alpha: 0.3);
+        icon = Icons.highlight_off;
+        statusText = detail ?? 'Failed';
+        break;
+      case DailyIntegrityStatus.warning:
+        color = Colors.amber.shade900;
+        bg = Colors.amber.withValues(alpha: 0.15);
+        icon = Icons.warning_amber_rounded;
+        statusText = detail ?? 'Warning';
+        break;
+      case DailyIntegrityStatus.unableToVerify:
+        color = Colors.blueGrey.shade700;
+        bg = Colors.blueGrey.withValues(alpha: 0.12);
+        icon = Icons.help_outline;
+        statusText = detail ?? 'Unable to Verify';
+        break;
+    }
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
@@ -944,8 +981,12 @@ class _DailyDetailedAccountsViewState extends State<DailyDetailedAccountsView> {
           Icon(icon, size: 12, color: color),
           const SizedBox(width: 5),
           Text(
-            label,
-            style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600, color: color),
+            '$label: ',
+            style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w500, color: scheme.onSurface),
+          ),
+          Text(
+            statusText,
+            style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold, color: color),
           ),
         ],
       ),

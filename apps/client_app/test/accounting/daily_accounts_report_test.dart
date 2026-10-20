@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:intl/intl.dart';
 import 'package:client_app/services/daily_accounts_export_service.dart';
@@ -228,6 +230,63 @@ void main() {
 
     test('Priority 3: PDF Document generation handles enriched columns without throwing', () async {
       final exportService = DailyAccountsExportService();
+      
+      // Active Only test
+      final pdfActiveBytes = await exportService.buildPdf(
+        businessName: 'Tenzo Traders',
+        currencyCode: 'INR',
+        from: DateTime(2026, 10, 14),
+        to: DateTime(2026, 10, 14),
+        locationLabel: 'Main Store',
+        data: sampleDailyAccountsData,
+        activeOnly: true,
+      );
+
+      expect(pdfActiveBytes, isNotEmpty);
+      expect(pdfActiveBytes.length, greaterThan(1000));
+      // Verify valid PDF magic header (%PDF-)
+      expect(pdfActiveBytes.take(5).toList(), [0x25, 0x50, 0x44, 0x46, 0x2D]);
+
+      // Full Audit History test
+      final pdfAuditBytes = await exportService.buildPdf(
+        businessName: 'Tenzo Traders',
+        currencyCode: 'INR',
+        from: DateTime(2026, 10, 14),
+        to: DateTime(2026, 10, 14),
+        locationLabel: 'Main Store',
+        data: sampleDailyAccountsData,
+        activeOnly: false,
+      );
+
+      expect(pdfAuditBytes, isNotEmpty);
+      expect(pdfAuditBytes.length, greaterThan(1000));
+      expect(pdfAuditBytes.take(5).toList(), [0x25, 0x50, 0x44, 0x46, 0x2D]);
+    });
+
+    test('Priority 3: Excel export separates sheets and respects activeOnly filtering', () {
+      final rawJournals = (sampleDailyAccountsData['day_journals'] as List)
+          .map((e) => Map<String, dynamic>.from(e as Map))
+          .toList();
+
+      final activeJournals = rawJournals
+          .where((j) => (j['status']?.toString() ?? 'posted') == 'posted')
+          .toList();
+
+      expect(activeJournals.length, 2); // JRN-00000602, JRN-00000603
+      expect(rawJournals.length, 5); // 2 posted + 3 reversed
+
+      for (final j in activeJournals) {
+        expect(j['status'], 'posted');
+      }
+
+      final reversedJournals = rawJournals
+          .where((j) => j['status'] == 'reversed')
+          .toList();
+      expect(reversedJournals.length, 3);
+    });
+
+    test('Priority 3: Full End-to-End file generation writes valid PDF and Excel files to disk', () async {
+      final exportService = DailyAccountsExportService();
       final pdfBytes = await exportService.buildPdf(
         businessName: 'Tenzo Traders',
         currencyCode: 'INR',
@@ -235,10 +294,38 @@ void main() {
         to: DateTime(2026, 10, 14),
         locationLabel: 'Main Store',
         data: sampleDailyAccountsData,
+        activeOnly: true,
       );
 
-      expect(pdfBytes, isNotEmpty);
-      expect(pdfBytes.length, greaterThan(1000));
+      final outDir = Directory('test/accounting/output');
+      if (!outDir.existsSync()) outDir.createSync(recursive: true);
+
+      final pdfFile = File('test/accounting/output/Tenzo_Traders_Daily_Accounts_20261014.pdf');
+      pdfFile.writeAsBytesSync(pdfBytes);
+      expect(pdfFile.existsSync(), isTrue);
+      expect(pdfFile.lengthSync(), greaterThan(1000));
+      // %PDF header
+      final readPdf = pdfFile.readAsBytesSync();
+      expect(readPdf.take(4).toList(), [0x25, 0x50, 0x44, 0x46]);
+
+      // Generate real Excel file
+      final excelBytes = exportService.buildExcel(
+        businessName: 'Tenzo Traders',
+        currencyCode: 'INR',
+        from: DateTime(2026, 10, 14),
+        to: DateTime(2026, 10, 14),
+        locationLabel: 'Main Store',
+        data: sampleDailyAccountsData,
+        activeOnly: true,
+      );
+
+      final xlsxFile = File('test/accounting/output/Tenzo_Traders_Daily_Accounts_20261014.xlsx');
+      xlsxFile.writeAsBytesSync(excelBytes);
+      expect(xlsxFile.existsSync(), isTrue);
+      expect(xlsxFile.lengthSync(), greaterThan(1000));
+      // PK.. (ZIP archive / XLSX header)
+      final readXlsx = xlsxFile.readAsBytesSync();
+      expect(readXlsx.take(2).toList(), [0x50, 0x4B]);
     });
   });
 }

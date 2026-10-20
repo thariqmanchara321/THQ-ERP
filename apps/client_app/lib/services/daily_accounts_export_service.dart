@@ -11,18 +11,29 @@ class DailyAccountsExportService {
   final DateFormat _dateFormat = DateFormat('dd-MM-yyyy');
   final DateFormat _timeFormat = DateFormat('dd-MM-yyyy HH:mm');
 
+  String _safe(String value) => value
+      .replaceAll(RegExp(r'[^A-Za-z0-9_-]+'), '_')
+      .replaceAll(RegExp(r'_+'), '_')
+      .replaceAll(RegExp(r'^_|_$'), '');
+
+  String _pdfCurrency(String code) {
+    if (code == '₹' || code == 'INR') return 'INR';
+    return code;
+  }
+
   String _m(num value, String currency) {
     return '$currency ${value.toStringAsFixed(2)}';
   }
 
-  Future<void> saveExcel({
+  Uint8List buildExcel({
     required String businessName,
     required String currencyCode,
     required DateTime from,
     required DateTime to,
     String? locationLabel,
     required Map<String, dynamic> data,
-  }) async {
+    bool activeOnly = true,
+  }) {
     final excel = Excel.createExcel();
     final defaultSheet = excel.getDefaultSheet();
     if (defaultSheet != null && defaultSheet != 'Closing Statement') {
@@ -37,21 +48,27 @@ class DailyAccountsExportService {
     final payments = Map<String, dynamic>.from(data['payments'] as Map? ?? {});
     final receivables = Map<String, dynamic>.from(data['receivables'] as Map? ?? {});
     final payables = Map<String, dynamic>.from(data['payables'] as Map? ?? {});
-    final journals = (data['day_journals'] as List? ?? const [])
+    final rawJournals = (data['day_journals'] as List? ?? const [])
         .map((e) => Map<String, dynamic>.from(e as Map))
         .toList();
+    final journals = activeOnly
+        ? rawJournals.where((j) => (j['status']?.toString() ?? 'posted') == 'posted').toList()
+        : rawJournals;
     final exceptions = (data['exceptions'] as List? ?? const [])
         .map((e) => Map<String, dynamic>.from(e as Map))
         .toList();
 
     // 1. Closing Statement Sheet
     final statementSheet = excel['Closing Statement'];
-    statementSheet.appendRow([TextCellValue('THQ ERP — DAILY DETAILED ACCOUNTS REPORT')]);
+    statementSheet.appendRow([TextCellValue('THQ ERP - DAILY DETAILED ACCOUNTS REPORT')]);
     statementSheet.appendRow([TextCellValue('Business: $businessName')]);
     statementSheet.appendRow([
       TextCellValue('Period: ${_dateFormat.format(from)} to ${_dateFormat.format(to)}'),
     ]);
     statementSheet.appendRow([TextCellValue('Store / Location: ${locationLabel ?? 'All Stores'}')]);
+    statementSheet.appendRow([
+      TextCellValue('Journal Scope: ${activeOnly ? 'Active Only (Excludes Reversed)' : 'Full Audit History (Includes Reversed)'}'),
+    ]);
     statementSheet.appendRow([TextCellValue('Generated At: ${_timeFormat.format(DateTime.now())}')]);
     statementSheet.appendRow([
       TextCellValue('Reconciliation Status: ${data['reconciliation_status'] ?? 'Passed'}'),
@@ -200,12 +217,33 @@ class DailyAccountsExportService {
     }
 
     final bytes = excel.encode();
-    if (bytes != null) {
+    return Uint8List.fromList(bytes ?? const []);
+  }
+
+  Future<void> saveExcel({
+    required String businessName,
+    required String currencyCode,
+    required DateTime from,
+    required DateTime to,
+    String? locationLabel,
+    required Map<String, dynamic> data,
+    bool activeOnly = true,
+  }) async {
+    final bytes = buildExcel(
+      businessName: businessName,
+      currencyCode: currencyCode,
+      from: from,
+      to: to,
+      locationLabel: locationLabel,
+      data: data,
+      activeOnly: activeOnly,
+    );
+    if (bytes.isNotEmpty) {
       final filename =
-          'THQ_Daily_Accounts_${_dateFormat.format(from)}_${_dateFormat.format(to)}';
+          '${_safe(businessName)}_Daily_Accounts_${_dateFormat.format(from)}_${_dateFormat.format(to)}';
       await FileSaver.instance.saveFile(
         name: filename,
-        bytes: Uint8List.fromList(bytes),
+        bytes: bytes,
         fileExtension: 'xlsx',
         mimeType: MimeType.microsoftExcel,
       );
@@ -219,9 +257,11 @@ class DailyAccountsExportService {
     required DateTime to,
     String? locationLabel,
     required Map<String, dynamic> data,
+    bool activeOnly = true,
   }) async {
     final pdf = pw.Document();
 
+    final safeCurrency = _pdfCurrency(currencyCode);
     final cash = Map<String, dynamic>.from(data['cash'] as Map? ?? {});
     final bank = Map<String, dynamic>.from(data['bank'] as Map? ?? {});
     final sales = Map<String, dynamic>.from(data['sales'] as Map? ?? {});
@@ -230,9 +270,12 @@ class DailyAccountsExportService {
     final payments = Map<String, dynamic>.from(data['payments'] as Map? ?? {});
     final receivables = Map<String, dynamic>.from(data['receivables'] as Map? ?? {});
     final payables = Map<String, dynamic>.from(data['payables'] as Map? ?? {});
-    final journals = (data['day_journals'] as List? ?? const [])
+    final rawJournals = (data['day_journals'] as List? ?? const [])
         .map((e) => Map<String, dynamic>.from(e as Map))
         .toList();
+    final journals = activeOnly
+        ? rawJournals.where((j) => (j['status']?.toString() ?? 'posted') == 'posted').toList()
+        : rawJournals;
 
     pdf.addPage(
       pw.MultiPage(
@@ -264,7 +307,7 @@ class DailyAccountsExportService {
                     ),
                   ),
                   pw.Text(
-                    'Store: ${locationLabel ?? 'All Stores'}',
+                    'Store: ${locationLabel ?? 'All Stores'} | Scope: ${activeOnly ? 'Active Only' : 'Audit History'}',
                     style: const pw.TextStyle(fontSize: 8.5, color: PdfColors.grey700),
                   ),
                 ],
@@ -318,32 +361,32 @@ class DailyAccountsExportService {
               pw.Expanded(
                 child: _pdfBox(
                   'Opening Cash',
-                  _m(cash['opening'] as num? ?? 0, currencyCode),
-                  'Closing: ${_m(cash['closing'] as num? ?? 0, currencyCode)}',
+                  _m(cash['opening'] as num? ?? 0, safeCurrency),
+                  'Closing: ${_m(cash['closing'] as num? ?? 0, safeCurrency)}',
                 ),
               ),
               pw.SizedBox(width: 8),
               pw.Expanded(
                 child: _pdfBox(
                   'Opening Bank',
-                  _m(bank['opening'] as num? ?? 0, currencyCode),
-                  'Closing: ${_m(bank['closing'] as num? ?? 0, currencyCode)}',
+                  _m(bank['opening'] as num? ?? 0, safeCurrency),
+                  'Closing: ${_m(bank['closing'] as num? ?? 0, safeCurrency)}',
                 ),
               ),
               pw.SizedBox(width: 8),
               pw.Expanded(
                 child: _pdfBox(
                   'Sales (${sales['count'] ?? 0})',
-                  _m(sales['total'] as num? ?? 0, currencyCode),
-                  'Cash: ${_m(sales['cash'] as num? ?? 0, currencyCode)}',
+                  _m(sales['total'] as num? ?? 0, safeCurrency),
+                  'Cash: ${_m(sales['cash'] as num? ?? 0, safeCurrency)}',
                 ),
               ),
               pw.SizedBox(width: 8),
               pw.Expanded(
                 child: _pdfBox(
                   'Purchases (${purchases['count'] ?? 0})',
-                  _m(purchases['total'] as num? ?? 0, currencyCode),
-                  'Cash: ${_m(purchases['cash'] as num? ?? 0, currencyCode)}',
+                  _m(purchases['total'] as num? ?? 0, safeCurrency),
+                  'Cash: ${_m(purchases['cash'] as num? ?? 0, safeCurrency)}',
                 ),
               ),
             ],
@@ -361,27 +404,27 @@ class DailyAccountsExportService {
             data: [
               [
                 'Cash in Hand & Drawers',
-                _m(cash['opening'] as num? ?? 0, currencyCode),
-                _m(cash['received'] as num? ?? 0, currencyCode),
-                _m(cash['paid'] as num? ?? 0, currencyCode),
-                _m(cash['closing'] as num? ?? 0, currencyCode),
-                _m(cash['net_movement'] as num? ?? 0, currencyCode),
+                _m(cash['opening'] as num? ?? 0, safeCurrency),
+                _m(cash['received'] as num? ?? 0, safeCurrency),
+                _m(cash['paid'] as num? ?? 0, safeCurrency),
+                _m(cash['closing'] as num? ?? 0, safeCurrency),
+                _m(cash['net_movement'] as num? ?? 0, safeCurrency),
               ],
               [
                 'Bank, UPI & Online Accounts',
-                _m(bank['opening'] as num? ?? 0, currencyCode),
-                _m(bank['received'] as num? ?? 0, currencyCode),
-                _m(bank['paid'] as num? ?? 0, currencyCode),
-                _m(bank['closing'] as num? ?? 0, currencyCode),
-                _m(bank['net_movement'] as num? ?? 0, currencyCode),
+                _m(bank['opening'] as num? ?? 0, safeCurrency),
+                _m(bank['received'] as num? ?? 0, safeCurrency),
+                _m(bank['paid'] as num? ?? 0, safeCurrency),
+                _m(bank['closing'] as num? ?? 0, safeCurrency),
+                _m(bank['net_movement'] as num? ?? 0, safeCurrency),
               ],
               [
                 'Total Available Liquid Funds',
-                _m((cash['opening'] as num? ?? 0) + (bank['opening'] as num? ?? 0), currencyCode),
-                _m((cash['received'] as num? ?? 0) + (bank['received'] as num? ?? 0), currencyCode),
-                _m((cash['paid'] as num? ?? 0) + (bank['paid'] as num? ?? 0), currencyCode),
-                _m((cash['closing'] as num? ?? 0) + (bank['closing'] as num? ?? 0), currencyCode),
-                _m((cash['net_movement'] as num? ?? 0) + (bank['net_movement'] as num? ?? 0), currencyCode),
+                _m((cash['opening'] as num? ?? 0) + (bank['opening'] as num? ?? 0), safeCurrency),
+                _m((cash['received'] as num? ?? 0) + (bank['received'] as num? ?? 0), safeCurrency),
+                _m((cash['paid'] as num? ?? 0) + (bank['paid'] as num? ?? 0), safeCurrency),
+                _m((cash['closing'] as num? ?? 0) + (bank['closing'] as num? ?? 0), safeCurrency),
+                _m((cash['net_movement'] as num? ?? 0) + (bank['net_movement'] as num? ?? 0), safeCurrency),
               ],
             ],
             headerStyle: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold, color: PdfColors.white),
@@ -409,27 +452,27 @@ class DailyAccountsExportService {
             data: [
               [
                 'Customer Receivables (AR)',
-                _m(receivables['opening'] as num? ?? 0, currencyCode),
-                _m(sales['credit'] as num? ?? 0, currencyCode),
-                _m(receipts['customer_receipts'] as num? ?? 0, currencyCode),
-                _m(receivables['closing'] as num? ?? 0, currencyCode),
-                _m(receivables['net_movement'] as num? ?? 0, currencyCode),
+                _m(receivables['opening'] as num? ?? 0, safeCurrency),
+                _m(sales['credit'] as num? ?? 0, safeCurrency),
+                _m(receipts['customer_receipts'] as num? ?? 0, safeCurrency),
+                _m(receivables['closing'] as num? ?? 0, safeCurrency),
+                _m(receivables['net_movement'] as num? ?? 0, safeCurrency),
               ],
               [
                 'Supplier Payables (AP)',
-                _m(payables['opening'] as num? ?? 0, currencyCode),
-                _m(purchases['credit'] as num? ?? 0, currencyCode),
-                _m(payments['supplier_payments'] as num? ?? 0, currencyCode),
-                _m(payables['closing'] as num? ?? 0, currencyCode),
-                _m(payables['net_movement'] as num? ?? 0, currencyCode),
+                _m(payables['opening'] as num? ?? 0, safeCurrency),
+                _m(purchases['credit'] as num? ?? 0, safeCurrency),
+                _m(payments['supplier_payments'] as num? ?? 0, safeCurrency),
+                _m(payables['closing'] as num? ?? 0, safeCurrency),
+                _m(payables['net_movement'] as num? ?? 0, safeCurrency),
               ],
               [
                 'Operating Expenses Paid',
                 '-',
-                _m(payments['operating_expenses'] as num? ?? 0, currencyCode),
+                _m(payments['operating_expenses'] as num? ?? 0, safeCurrency),
                 '-',
                 '-',
-                _m(payments['operating_expenses'] as num? ?? 0, currencyCode),
+                _m(payments['operating_expenses'] as num? ?? 0, safeCurrency),
               ],
             ],
             headerStyle: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold, color: PdfColors.white),
@@ -449,22 +492,21 @@ class DailyAccountsExportService {
           // Day Journals preview
           if (journals.isNotEmpty) ...[
             pw.Text(
-              'DAY-WISE JOURNAL POSTINGS (${journals.length} ENTRIES)',
+              'DAY-WISE JOURNAL POSTINGS (${journals.length} ENTRIES - ${activeOnly ? 'ACTIVE ONLY' : 'FULL AUDIT HISTORY'})',
               style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold, color: PdfColors.blueGrey900),
             ),
             pw.SizedBox(height: 4),
             pw.TableHelper.fromTextArray(
               headers: ['Date', 'Description / Reference', 'Party', 'Effect', 'Debit', 'Credit', 'Posting Status', 'Balance'],
               data: journals
-                  .take(60)
                   .map(
                     (j) => [
                       j['entry_date']?.toString() ?? '',
                       '${j['description'] ?? ''}${j['reference'] != null ? ' (${j['reference']})' : ''}'.trim(),
                       (j['party_name']?.toString().isNotEmpty == true) ? j['party_name'].toString() : '-',
                       j['financial_effect']?.toString() ?? 'Adjustment',
-                      _m(j['debit_total'] as num? ?? 0, currencyCode),
-                      _m(j['credit_total'] as num? ?? 0, currencyCode),
+                      _m(j['debit_total'] as num? ?? 0, safeCurrency),
+                      _m(j['credit_total'] as num? ?? 0, safeCurrency),
                       (j['status']?.toString() ?? 'posted').toUpperCase(),
                       j['is_balanced'] == true ? 'Balanced' : 'Unbalanced',
                     ],
@@ -496,6 +538,7 @@ class DailyAccountsExportService {
     required DateTime to,
     String? locationLabel,
     required Map<String, dynamic> data,
+    bool activeOnly = true,
   }) async {
     final bytes = await buildPdf(
       businessName: businessName,
@@ -504,9 +547,10 @@ class DailyAccountsExportService {
       to: to,
       locationLabel: locationLabel,
       data: data,
+      activeOnly: activeOnly,
     );
     final filename =
-        'THQ_Daily_Accounts_${_dateFormat.format(from)}_${_dateFormat.format(to)}';
+        '${_safe(businessName)}_Daily_Accounts_${_dateFormat.format(from)}_${_dateFormat.format(to)}';
     await FileSaver.instance.saveFile(
       name: filename,
       bytes: bytes,
@@ -522,6 +566,7 @@ class DailyAccountsExportService {
     required DateTime to,
     String? locationLabel,
     required Map<String, dynamic> data,
+    bool activeOnly = true,
   }) async {
     final bytes = await buildPdf(
       businessName: businessName,
@@ -530,9 +575,10 @@ class DailyAccountsExportService {
       to: to,
       locationLabel: locationLabel,
       data: data,
+      activeOnly: activeOnly,
     );
     final filename =
-        'THQ_Daily_Accounts_${_dateFormat.format(from)}_${_dateFormat.format(to)}';
+        '${_safe(businessName)}_Daily_Accounts_${_dateFormat.format(from)}_${_dateFormat.format(to)}';
     await Printing.layoutPdf(name: filename, onLayout: (_) async => bytes);
   }
 
