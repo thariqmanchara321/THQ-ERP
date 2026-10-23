@@ -100,7 +100,7 @@ void main() {
       expect(find.text('Add Load Expense'), findsOneWidget);
       expect(find.widgetWithText(OutlinedButton, 'Add'), findsOneWidget);
       expect(find.text('Payment Status & Settlement'), findsOneWidget);
-      expect(find.text('Not Paid Yet'), findsOneWidget);
+      expect(find.text('Unpaid'), findsOneWidget);
       expect(find.text('Paid'), findsOneWidget);
       expect(find.text('Partially Paid'), findsOneWidget);
     });
@@ -116,23 +116,23 @@ void main() {
       await tester.pumpAndSettle();
 
       // Enter external payee
-      await tester.enterText(_fieldByLabel('External Payee / Supplier Name *'), 'Shree Transport');
+      await tester.enterText(_fieldByLabel('External Payee *'), 'Shree Transport');
       // Enter description
       await tester.enterText(_fieldByLabel('Expense / invoice description'), 'Freight for site delivery');
       // Enter quantity & rate (2 trips @ 750 = 1500)
-      await tester.tap(find.text('Calculate by Trips'));
+      await tester.tap(find.text('Per Trip'));
       await tester.pumpAndSettle();
 
-      await tester.enterText(_fieldByLabel('Units / Trips *'), '2');
-      await tester.enterText(_fieldByLabel('Cost per unit (editable)'), '750');
+      await tester.enterText(_fieldByLabel('Trips *'), '2');
+      await tester.enterText(_fieldByLabel('Rate per trip *'), '750');
 
-      // Select "Not Paid Yet"
-      await tester.ensureVisible(find.text('Not Paid Yet'));
-      await tester.tap(find.text('Not Paid Yet'));
+      // Select "Unpaid"
+      await tester.ensureVisible(find.text('Unpaid'));
+      await tester.tap(find.text('Unpaid'));
       await tester.pumpAndSettle();
 
-      await tester.ensureVisible(find.text('Save'));
-      await tester.tap(find.text('Save'));
+      await tester.ensureVisible(find.widgetWithText(FilledButton, 'Save Expense'));
+      await tester.tap(find.widgetWithText(FilledButton, 'Save Expense'));
       await tester.pumpAndSettle();
 
       expect(saved, isNotNull);
@@ -156,17 +156,17 @@ void main() {
       await tester.tap(find.text('Add expense'));
       await tester.pumpAndSettle();
 
-      await tester.enterText(_fieldByLabel('External Payee / Supplier Name *'), 'HP Fuel Station');
+      await tester.enterText(_fieldByLabel('External Payee *'), 'HP Fuel Station');
       await tester.enterText(_fieldByLabel('Expense / invoice description'), 'Diesel 50 Litres');
-      await tester.enterText(_fieldByLabel('Cost per unit (editable)'), '4500');
+      await tester.enterText(_fieldByLabel('Expense Amount *'), '4500');
 
       // Select "Paid"
       await tester.ensureVisible(find.text('Paid'));
       await tester.tap(find.text('Paid'));
       await tester.pumpAndSettle();
 
-      await tester.ensureVisible(find.text('Save'));
-      await tester.tap(find.text('Save'));
+      await tester.ensureVisible(find.widgetWithText(FilledButton, 'Save Expense'));
+      await tester.tap(find.widgetWithText(FilledButton, 'Save Expense'));
       await tester.pumpAndSettle();
 
       expect(saved, isNotNull);
@@ -187,23 +187,23 @@ void main() {
       await tester.tap(find.text('Add expense'));
       await tester.pumpAndSettle();
 
-      await tester.enterText(_fieldByLabel('External Payee / Supplier Name *'), 'JCB Earthmovers');
+      await tester.enterText(_fieldByLabel('External Payee *'), 'JCB Earthmovers');
       await tester.enterText(_fieldByLabel('Expense / invoice description'), 'Loading excavator rent');
-      await tester.enterText(_fieldByLabel('Cost per unit (editable)'), '5000');
+      await tester.enterText(_fieldByLabel('Expense Amount *'), '5000');
 
       // Select "Partially Paid" and enter 2000
       await tester.ensureVisible(find.text('Partially Paid'));
       await tester.tap(find.text('Partially Paid'));
       await tester.pumpAndSettle();
 
-      await tester.ensureVisible(_fieldByLabel('Pay on load confirmation'));
-      await tester.enterText(_fieldByLabel('Pay on load confirmation'), '2000');
+      await tester.ensureVisible(_fieldByLabel('Amount Paid *'));
+      await tester.enterText(_fieldByLabel('Amount Paid *'), '2000');
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('Due: INR 3000.00'), findsOneWidget);
+      expect(find.text('Due: INR 3000.00'), findsOneWidget);
 
-      await tester.ensureVisible(find.text('Save'));
-      await tester.tap(find.text('Save'));
+      await tester.ensureVisible(find.widgetWithText(FilledButton, 'Save Expense'));
+      await tester.tap(find.widgetWithText(FilledButton, 'Save Expense'));
       await tester.pumpAndSettle();
 
       expect(saved, isNotNull);
@@ -227,22 +227,29 @@ void main() {
       expect(find.text('Already covered by salary'), findsOneWidget);
       expect(find.text('Extra payment owed to staff'), findsOneWidget);
 
-      await tester.enterText(_fieldByLabel('Cost per unit (editable)'), '800');
+      await tester.enterText(_fieldByLabel('Expense Amount *'), '800');
       // Attempt to pay 200 on salary allocation
-      await tester.ensureVisible(_fieldByLabel('Pay on load confirmation'));
-      await tester.enterText(_fieldByLabel('Pay on load confirmation'), '200');
+      await tester.ensureVisible(find.text('Partially Paid'));
+      await tester.tap(find.text('Partially Paid'));
+      await tester.pumpAndSettle();
 
-      await tester.ensureVisible(find.text('Save'));
-      await tester.tap(find.text('Save'));
+      await tester.ensureVisible(_fieldByLabel('Amount Paid *'));
+      await tester.enterText(_fieldByLabel('Amount Paid *'), '200');
+
+      await tester.ensureVisible(find.widgetWithText(FilledButton, 'Save Expense'));
+      await tester.tap(find.widgetWithText(FilledButton, 'Save Expense'));
       await tester.pumpAndSettle();
 
       expect(saved, isNull);
       expect(find.textContaining('Salary allocation requires monthly staff and no separate payment'), findsOneWidget);
 
-      // Reset payment to 0 and save
-      await tester.enterText(_fieldByLabel('Pay on load confirmation'), '0');
-      await tester.ensureVisible(find.text('Save'));
-      await tester.tap(find.text('Save'));
+      // Reset payment to 0 and save by tapping Unpaid
+      await tester.ensureVisible(find.text('Unpaid'));
+      await tester.tap(find.text('Unpaid'));
+      await tester.pumpAndSettle();
+
+      await tester.ensureVisible(find.widgetWithText(FilledButton, 'Save Expense'));
+      await tester.tap(find.widgetWithText(FilledButton, 'Save Expense'));
       await tester.pumpAndSettle();
 
       expect(saved, isNotNull);
@@ -269,13 +276,13 @@ void main() {
       await tester.tap(find.text('Extra payment owed to staff'));
       await tester.pumpAndSettle();
 
-      await tester.enterText(_fieldByLabel('Cost per unit (editable)'), '500');
+      await tester.enterText(_fieldByLabel('Expense Amount *'), '500');
       await tester.ensureVisible(find.text('Paid'));
       await tester.tap(find.text('Paid'));
       await tester.pumpAndSettle();
 
-      await tester.ensureVisible(find.text('Save'));
-      await tester.tap(find.text('Save'));
+      await tester.ensureVisible(find.widgetWithText(FilledButton, 'Save Expense'));
+      await tester.tap(find.widgetWithText(FilledButton, 'Save Expense'));
       await tester.pumpAndSettle();
 
       expect(saved, isNotNull);
@@ -297,31 +304,36 @@ void main() {
       await tester.tap(find.text('Add expense'));
       await tester.pumpAndSettle();
 
-      await tester.enterText(_fieldByLabel('External Payee / Supplier Name *'), 'FastTrack Logistics');
+      await tester.enterText(_fieldByLabel('External Payee *'), 'FastTrack Logistics');
       await tester.enterText(_fieldByLabel('Expense / invoice description'), 'Site delivery');
-      await tester.enterText(_fieldByLabel('Cost per unit (editable)'), '1200');
+      await tester.enterText(_fieldByLabel('Expense Amount *'), '1200');
+
+      // Enable Charge Customer toggle
+      await tester.ensureVisible(find.text('Charge Customer'));
+      await tester.tap(find.text('Charge Customer'));
+      await tester.pumpAndSettle();
 
       // Enter customer charge 1500 (margin 300) without selecting service
       await tester.ensureVisible(_fieldByLabel('Amount charged to customer before GST'));
       await tester.enterText(_fieldByLabel('Amount charged to customer before GST'), '1500');
 
-      await tester.ensureVisible(find.text('Save'));
-      await tester.tap(find.text('Save'));
+      await tester.ensureVisible(find.widgetWithText(FilledButton, 'Save Expense'));
+      await tester.tap(find.widgetWithText(FilledButton, 'Save Expense'));
       await tester.pumpAndSettle();
 
       // Error shown: service tax classification required
       expect(saved, isNull);
       expect(find.textContaining('Select or create the service'), findsOneWidget);
 
-      // Select service
-      await tester.ensureVisible(find.text('Select charge service'));
-      await tester.tap(find.text('Select charge service'));
+      // Select service from dropdown
+      await tester.ensureVisible(find.byType(DropdownButtonFormField<String>).last);
+      await tester.tap(find.byType(DropdownButtonFormField<String>).last);
       await tester.pumpAndSettle();
       await tester.tap(find.textContaining('Transport & Delivery Charge').last);
       await tester.pumpAndSettle();
 
-      await tester.ensureVisible(find.text('Save'));
-      await tester.tap(find.text('Save'));
+      await tester.ensureVisible(find.widgetWithText(FilledButton, 'Save Expense'));
+      await tester.tap(find.widgetWithText(FilledButton, 'Save Expense'));
       await tester.pumpAndSettle();
 
       expect(saved, isNotNull);
@@ -367,13 +379,13 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Edit Load Expense'), findsOneWidget);
-      expect(tester.widget<TextFormField>(_fieldByLabel('Cost per unit (editable)')).controller!.text, '2200');
-      expect(tester.widget<TextFormField>(_fieldByLabel('Pay on load confirmation')).controller!.text, '1000');
+      expect(tester.widget<TextFormField>(_fieldByLabel('Expense Amount *')).controller!.text, '2200');
+      expect(tester.widget<TextFormField>(_fieldByLabel('Amount Paid *')).controller!.text, '1000');
 
       // Update rate to 2500
-      await tester.enterText(_fieldByLabel('Cost per unit (editable)'), '2500');
-      await tester.ensureVisible(find.text('Save'));
-      await tester.tap(find.text('Save'));
+      await tester.enterText(_fieldByLabel('Expense Amount *'), '2500');
+      await tester.ensureVisible(find.widgetWithText(FilledButton, 'Save Expense'));
+      await tester.tap(find.widgetWithText(FilledButton, 'Save Expense'));
       await tester.pumpAndSettle();
 
       expect(saved, isNotNull);

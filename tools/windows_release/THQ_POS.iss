@@ -12,14 +12,15 @@
 #endif
 
 [Setup]
-AppId={{16779573-A282-46C5-A098-3419C1D8BFD6}}
+AppId={{16779573-A282-46C5-A098-3419C1D8BFD6}
 AppName=THQ POS
 AppVersion={#AppVersion}
 AppVerName=THQ POS {#AppVersion} (Build {#BuildNumber})
 AppPublisher=THQ
-DefaultDirName={autopf}\THQ ERP\POS
+DefaultDirName={autopf}\THQ\POS
 DefaultGroupName=THQ ERP
 DisableProgramGroupPage=yes
+DirExistsWarning=no
 PrivilegesRequired=admin
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible

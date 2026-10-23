@@ -1,3 +1,4 @@
+// ignore_for_file: deprecated_member_use
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
@@ -244,704 +245,27 @@ class _LoadCostEditorState extends State<LoadCostEditor> {
   }
 
   Future<void> _edit([int? index]) async {
-    Map<String, dynamic>? driver;
-    for (final s in _staff) {
-      if (s['driver_id'] == widget.driverId && widget.driverId != null) {
-        driver = s;
-        break;
-      }
-    }
     final old = index == null ? null : widget.costs[index];
-    final salary = driver?['wage_basis'] == 'monthly';
-
-    // Initial values
-    final initialId = old?['id'] ?? const Uuid().v4();
-    var selectedCatId = old?['category_id']?.toString() ??
-        (old?['cost_kind'] != null && old!['cost_kind'] != 'other' ? old['cost_kind'] : (driver != null ? 'driver_wage' : 'diesel'));
-    var costKind = old?['cost_kind']?.toString() ?? (driver != null ? 'driver_wage' : 'diesel');
-    var staffId = old?['staff_id']?.toString() ?? driver?['staff_id']?.toString() ?? '';
-    var staffMode = old?['staff_mode']?.toString() ?? (salary ? 'salary_allocation' : 'extra_wage');
-    var paymentMethod = old?['payment_method']?.toString() ?? 'cash';
-    var billingVariantId = old?['billing_variant_id']?.toString() ?? '';
-
-    // Calculation mode: units * rate
-    final initialQty = StaffLoadService.number(old?['quantity'] ?? 1);
-    final initialRate = salary ? 0.0 : StaffLoadService.number(old?['rate'] ?? driver?['base_rate'] ?? 0);
-    final initialAmt = StaffLoadService.number(old?['amount'] ?? (initialQty * initialRate));
-    final initialBill = StaffLoadService.number(old?['bill_amount'] ?? 0);
-    final initialPay = StaffLoadService.number(old?['initial_payment'] ?? 0);
-
-    var calcByTrips = initialQty > 1;
-    var chargeCustomer = initialBill > 0;
-    var paymentStatus = initialPay >= initialAmt && initialAmt > 0
-        ? 'paid'
-        : (initialPay > 0 ? 'partially_paid' : 'not_paid');
-
-    final descCtrl = TextEditingController(text: old?['description']?.toString() ?? (driver != null ? 'Driver wage' : ''));
-    final payeeCtrl = TextEditingController(text: old?['payee']?.toString() ?? driver?['name']?.toString() ?? '');
-    final qtyCtrl = TextEditingController(text: initialQty > 0 ? (initialQty == initialQty.roundToDouble() ? initialQty.toInt().toString() : initialQty.toString()) : '1');
-    final rateCtrl = TextEditingController(text: initialRate > 0 ? (initialRate == initialRate.roundToDouble() ? initialRate.toInt().toString() : initialRate.toString()) : (initialAmt > 0 ? initialAmt.toString() : ''));
-    final billCtrl = TextEditingController(text: initialBill > 0 ? (initialBill == initialBill.roundToDouble() ? initialBill.toInt().toString() : initialBill.toString()) : '0');
-    final payCtrl = TextEditingController(text: initialPay > 0 ? (initialPay == initialPay.roundToDouble() ? initialPay.toInt().toString() : initialPay.toString()) : '0');
-    final payRefCtrl = TextEditingController(text: old?['payment_reference']?.toString() ?? '');
-    final receiptRefCtrl = TextEditingController(text: old?['receipt_reference']?.toString() ?? '');
-    final notesCtrl = TextEditingController(text: old?['notes']?.toString() ?? '');
-
-    var showMoreDetails = (old?['receipt_reference'] != null && old!['receipt_reference'].toString().isNotEmpty) ||
-        (old?['notes'] != null && old!['notes'].toString().isNotEmpty);
-
-    String? dialogError;
-
-    final categories = [...?_dynamicCategories];
-
-    final result = await showDialog<Map<String, dynamic>>(
+    final result = await showAddLoadExpenseDialog(
       context: context,
-      barrierDismissible: false,
-      builder: (dlgContext) => StatefulBuilder(
-        builder: (ctx, setDlg) {
-          final theme = Theme.of(ctx);
-          final scheme = theme.colorScheme;
-
-          // Compute current financial numbers
-          final double currentQty = calcByTrips ? (double.tryParse(qtyCtrl.text.trim()) ?? 1.0) : 1.0;
-          final double currentRate = double.tryParse(rateCtrl.text.trim()) ?? 0.0;
-          final double totalCost = currentQty * currentRate;
-          final double customerChargeAmt = double.tryParse(billCtrl.text.trim()) ?? 0.0;
-          final double enteredPayment = double.tryParse(payCtrl.text.trim()) ?? 0.0;
-          final double paymentMade = paymentStatus == 'paid'
-              ? (enteredPayment > 0 ? enteredPayment : totalCost)
-              : enteredPayment;
-          final double remainingPay = (totalCost - paymentMade).clamp(0.0, double.infinity);
-
-          return Dialog(
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 580, maxHeight: 720),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // HEADER
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    decoration: BoxDecoration(
-                      color: scheme.surfaceContainerHighest.withValues(alpha: 0.4),
-                      borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-                      border: Border(bottom: BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.6))),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(Icons.receipt_long_outlined, size: 20, color: scheme.primary),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            old == null ? 'Add Load Expense' : 'Edit Load Expense',
-                            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
-                          ),
-                        ),
-                        IconButton(
-                          visualDensity: VisualDensity.compact,
-                          icon: const Icon(Icons.close, size: 20),
-                          onPressed: () => Navigator.pop(ctx),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  // SCROLLABLE FORM BODY
-                  Flexible(
-                    child: SingleChildScrollView(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          if (dialogError != null) ...[
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                              decoration: BoxDecoration(
-                                color: scheme.errorContainer,
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              child: Row(
-                                children: [
-                                  Icon(Icons.error_outline, size: 16, color: scheme.onErrorContainer),
-                                  const SizedBox(width: 8),
-                                  Expanded(
-                                    child: Text(
-                                      dialogError!,
-                                      style: TextStyle(color: scheme.onErrorContainer, fontSize: 12, fontWeight: FontWeight.w500),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(height: 12),
-                          ],
-
-                          // A. WHAT IS THE EXPENSE?
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Expanded(
-                                child: DropdownButtonFormField<String>(
-                                  value: categories.any((c) => c.id == selectedCatId || c.name == selectedCatId)
-                                      ? selectedCatId
-                                      : (categories.isNotEmpty ? categories.first.id : null),
-                                  isExpanded: true,
-                                  decoration: const InputDecoration(
-                                    labelText: 'Expense Type *',
-                                    isDense: true,
-                                  ),
-                                  items: categories.map((cat) {
-                                    return DropdownMenuItem<String>(
-                                      value: cat.id,
-                                      child: Text(cat.name, overflow: TextOverflow.ellipsis),
-                                    );
-                                  }).toList(),
-                                  onChanged: (val) {
-                                    setDlg(() {
-                                      selectedCatId = val ?? 'other';
-                                      final match = categories.firstWhere(
-                                        (c) => c.id == val,
-                                        orElse: () => ExpenseCategory(id: 'other', name: 'Other', active: true),
-                                      );
-                                      costKind = match.id;
-                                      if (descCtrl.text.trim().isEmpty) {
-                                        descCtrl.text = match.name;
-                                      }
-                                    });
-                                  },
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Padding(
-                                padding: const EdgeInsets.only(top: 4),
-                                child: OutlinedButton.icon(
-                                  style: OutlinedButton.styleFrom(
-                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-                                  ),
-                                  onPressed: () => _addNewExpenseType(setDlg, (newCat) {
-                                    setDlg(() {
-                                      categories.insert(0, newCat);
-                                      selectedCatId = newCat.id;
-                                      costKind = newCat.id;
-                                      if (descCtrl.text.trim().isEmpty) {
-                                        descCtrl.text = newCat.name;
-                                      }
-                                    });
-                                  }),
-                                  icon: const Icon(Icons.add, size: 16),
-                                  label: const Text('Add', style: TextStyle(fontSize: 12)),
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 10),
-
-                          TextFormField(
-                            controller: descCtrl,
-                            decoration: const InputDecoration(
-                              labelText: 'Expense / invoice description',
-                              hintText: 'e.g. Diesel fuel for transit or driver wage',
-                              isDense: true,
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-
-                          // B. HOW MUCH?
-                          Row(
-                            children: [
-                              Expanded(
-                                child: TextFormField(
-                                  controller: rateCtrl,
-                                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                                  decoration: InputDecoration(
-                                    labelText: 'Cost per unit (editable)',
-                                    prefixText: '${widget.session.currencyCode} ',
-                                    isDense: true,
-                                    helperText: calcByTrips ? 'Rate per unit/trip' : 'Total expense cost amount',
-                                  ),
-                                  onChanged: (_) => setDlg(() {}),
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              FilterChip(
-                                label: const Text('Calculate by Trips', style: TextStyle(fontSize: 11)),
-                                selected: calcByTrips,
-                                onSelected: (val) => setDlg(() => calcByTrips = val),
-                              ),
-                            ],
-                          ),
-
-                          if (calcByTrips) ...[
-                            const SizedBox(height: 8),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: TextFormField(
-                                    controller: qtyCtrl,
-                                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                                    decoration: const InputDecoration(
-                                      labelText: 'Units / Trips *',
-                                      isDense: true,
-                                    ),
-                                    onChanged: (_) => setDlg(() {}),
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                                    decoration: BoxDecoration(
-                                      color: scheme.surfaceContainerHighest.withValues(alpha: 0.35),
-                                      borderRadius: BorderRadius.circular(6),
-                                    ),
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text('Computed Total', style: TextStyle(fontSize: 10, color: scheme.onSurfaceVariant)),
-                                        const SizedBox(height: 2),
-                                        Text(_money(totalCost), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                          const SizedBox(height: 12),
-
-                          // C. WHO SHOULD RECEIVE THE MONEY? (PAID TO)
-                          Row(
-                            children: [
-                              Expanded(
-                                child: DropdownButtonFormField<String>(
-                                  value: staffId,
-                                  isExpanded: true,
-                                  decoration: const InputDecoration(
-                                    labelText: 'Paid To / Payee Type',
-                                    isDense: true,
-                                  ),
-                                  items: [
-                                    const DropdownMenuItem(value: '', child: Text('External Payee / Supplier')),
-                                    for (final s in _staff)
-                                      DropdownMenuItem(
-                                        value: '${s['staff_id']}',
-                                        child: Text(
-                                          '${s['name']} • ${s['wage_basis']} ${_money(s['base_rate'])}',
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      ),
-                                  ],
-                                  onChanged: (val) => setDlg(() {
-                                    staffId = val ?? '';
-                                    if (staffId.isNotEmpty) {
-                                      final selected = _staff.firstWhere((s) => '${s['staff_id']}' == staffId, orElse: () => const {});
-                                      payeeCtrl.text = selected['name']?.toString() ?? '';
-                                      if (selected['wage_basis'] == 'monthly') {
-                                        staffMode = 'salary_allocation';
-                                      } else {
-                                        staffMode = 'extra_wage';
-                                        if (rateCtrl.text.isEmpty || rateCtrl.text == '0') {
-                                          rateCtrl.text = (selected['base_rate'] ?? '').toString();
-                                        }
-                                      }
-                                      if (costKind != 'driver_wage' && costKind != 'staff_wage') {
-                                        costKind = 'driver_wage';
-                                      }
-                                    }
-                                  }),
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 8),
-
-                          if (staffId.isEmpty)
-                            TextFormField(
-                              controller: payeeCtrl,
-                              decoration: const InputDecoration(
-                                labelText: 'External Payee / Supplier Name *',
-                                hintText: 'e.g. Bharat Petroleum, City Crane Services',
-                                isDense: true,
-                              ),
-                            )
-                          else if (_staff.any((s) => '${s['staff_id']}' == staffId && s['wage_basis'] == 'monthly')) ...[
-                            Material(
-                              color: scheme.surfaceContainerHighest.withValues(alpha: 0.3),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(6),
-                                side: BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.5)),
-                              ),
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    const Text('Monthly Staff Wage Treatment', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
-                                    const SizedBox(height: 4),
-                                    RadioListTile<String>(
-                                      contentPadding: EdgeInsets.zero,
-                                      dense: true,
-                                      value: 'salary_allocation',
-                                      groupValue: staffMode,
-                                      title: const Text('Already covered by salary', style: TextStyle(fontSize: 12)),
-                                      subtitle: const Text('Track load cost without duplicate wage payment/liability', style: TextStyle(fontSize: 10)),
-                                      onChanged: (val) => setDlg(() {
-                                        staffMode = val!;
-                                        paymentStatus = 'not_paid';
-                                      }),
-                                    ),
-                                    RadioListTile<String>(
-                                      contentPadding: EdgeInsets.zero,
-                                      dense: true,
-                                      value: 'extra_wage',
-                                      groupValue: staffMode,
-                                      title: const Text('Extra payment owed to staff', style: TextStyle(fontSize: 12)),
-                                      subtitle: const Text('Record separate trip incentive or overtime payable', style: TextStyle(fontSize: 10)),
-                                      onChanged: (val) => setDlg(() => staffMode = val!),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ],
-                          const SizedBox(height: 12),
-
-                          // D. HAS IT BEEN PAID? (PAYMENT STATUS)
-                          Text('Payment Status & Settlement', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: scheme.onSurfaceVariant)),
-                          const SizedBox(height: 6),
-                          SegmentedButton<String>(
-                            segments: const [
-                              ButtonSegment(value: 'not_paid', label: Text('Not Paid Yet', style: TextStyle(fontSize: 11.5))),
-                              ButtonSegment(value: 'paid', label: Text('Paid', style: TextStyle(fontSize: 11.5))),
-                              ButtonSegment(value: 'partially_paid', label: Text('Partially Paid', style: TextStyle(fontSize: 11.5))),
-                            ],
-                            selected: {paymentStatus},
-                            onSelectionChanged: (set) => setDlg(() {
-                              paymentStatus = set.first;
-                              if (paymentStatus == 'paid') {
-                                final liveQty = calcByTrips ? (double.tryParse(qtyCtrl.text.trim()) ?? 1.0) : 1.0;
-                                final liveRate = double.tryParse(rateCtrl.text.trim()) ?? 0.0;
-                                final liveCost = liveQty * liveRate;
-                                payCtrl.text = liveCost > 0 ? (liveCost == liveCost.roundToDouble() ? liveCost.toInt().toString() : liveCost.toStringAsFixed(2)) : '0';
-                              } else if (paymentStatus == 'not_paid') {
-                                payCtrl.text = '0';
-                              }
-                            }),
-                          ),
-                          const SizedBox(height: 8),
-
-                          // Payment fields
-                          Row(
-                            children: [
-                              Expanded(
-                                child: TextFormField(
-                                  controller: payCtrl,
-                                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                                  decoration: InputDecoration(
-                                    labelText: 'Pay on load confirmation',
-                                    prefixText: '${widget.session.currencyCode} ',
-                                    isDense: true,
-                                    helperText: paymentStatus == 'not_paid'
-                                        ? 'Unpaid (0 leaves this as a payable)'
-                                        : 'Paid: ${_money(paymentMade)} • Due: ${_money(remainingPay)}',
-                                  ),
-                                  onChanged: (val) {
-                                    final amt = double.tryParse(val.trim()) ?? 0.0;
-                                    setDlg(() {
-                                      if (amt <= 0) {
-                                        paymentStatus = 'not_paid';
-                                      } else if (amt >= totalCost && totalCost > 0) {
-                                        paymentStatus = 'paid';
-                                      } else {
-                                        paymentStatus = 'partially_paid';
-                                      }
-                                    });
-                                  },
-                                ),
-                              ),
-                              if (paymentStatus != 'not_paid' || (double.tryParse(payCtrl.text.trim()) ?? 0.0) > 0) ...[
-                                const SizedBox(width: 10),
-                                Expanded(
-                                  child: DropdownButtonFormField<String>(
-                                    value: paymentMethod,
-                                    decoration: const InputDecoration(labelText: 'Payment Method', isDense: true),
-                                    items: const [
-                                      DropdownMenuItem(value: 'cash', child: Text('Cash')),
-                                      DropdownMenuItem(value: 'bank', child: Text('Bank')),
-                                      DropdownMenuItem(value: 'upi', child: Text('UPI')),
-                                      DropdownMenuItem(value: 'card', child: Text('Card')),
-                                      DropdownMenuItem(value: 'cheque', child: Text('Cheque')),
-                                    ],
-                                    onChanged: (val) => setDlg(() => paymentMethod = val ?? 'cash'),
-                                  ),
-                                ),
-                              ],
-                            ],
-                          ),
-                          if ((paymentStatus != 'not_paid' || (double.tryParse(payCtrl.text.trim()) ?? 0.0) > 0) && paymentMethod != 'cash') ...[
-                            const SizedBox(height: 8),
-                            TextFormField(
-                              controller: payRefCtrl,
-                              decoration: const InputDecoration(labelText: 'Payment Ref *', isDense: true),
-                            ),
-                          ],
-                          const SizedBox(height: 12),
-
-                          // E. CHARGE THIS TO THE CUSTOMER?
-                          if (widget.direction == 'outbound' && !widget.internalOnly) ...[
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                              decoration: BoxDecoration(
-                                color: scheme.surfaceContainerHighest.withValues(alpha: 0.25),
-                                borderRadius: BorderRadius.circular(8),
-                                border: Border.all(color: scheme.outlineVariant.withValues(alpha: 0.4)),
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    children: [
-                                      Icon(Icons.person_outline, size: 16, color: scheme.primary),
-                                      const SizedBox(width: 6),
-                                      const Text('Customer Invoice Charge', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600)),
-                                      const Spacer(),
-                                      Text(
-                                        customerChargeAmt > 0 ? 'Billing Customer' : 'Internal Only',
-                                        style: TextStyle(
-                                          fontSize: 10.5,
-                                          fontWeight: FontWeight.w600,
-                                          color: customerChargeAmt > 0 ? const Color(0xFF00875A) : scheme.onSurfaceVariant,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Row(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Expanded(
-                                        child: TextFormField(
-                                          controller: billCtrl,
-                                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                                          decoration: InputDecoration(
-                                            labelText: 'Amount charged to customer before GST',
-                                            prefixText: '${widget.session.currencyCode} ',
-                                            isDense: true,
-                                            helperText: customerChargeAmt > totalCost
-                                                ? '+ ${_money(customerChargeAmt - totalCost)} margin'
-                                                : (customerChargeAmt > 0 && customerChargeAmt < totalCost ? '- ${_money(totalCost - customerChargeAmt)} discount' : 'Zero keeps this as internal cost'),
-                                          ),
-                                          onChanged: (val) {
-                                            final b = double.tryParse(val.trim()) ?? 0.0;
-                                            setDlg(() => chargeCustomer = b > 0);
-                                          },
-                                        ),
-                                      ),
-                                      const SizedBox(width: 10),
-                                      Expanded(
-                                        child: DropdownButtonFormField<String>(
-                                          value: billingVariantId.isEmpty ? '' : billingVariantId,
-                                          isExpanded: true,
-                                          decoration: const InputDecoration(
-                                            labelText: 'Invoice service / tax classification',
-                                            isDense: true,
-                                          ),
-                                          items: [
-                                            const DropdownMenuItem(value: '', child: Text('Select charge service')),
-                                            for (final s in _billing)
-                                              DropdownMenuItem(
-                                                value: '${s['variant_id']}',
-                                                child: Text(
-                                                  '${s['name']} • GST ${s['gst_rate'] ?? s['tax_rate'] ?? 0}%',
-                                                  overflow: TextOverflow.ellipsis,
-                                                ),
-                                              ),
-                                          ],
-                                          onChanged: (val) => setDlg(() => billingVariantId = val ?? ''),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                          ],
-
-                          // F. MORE DETAILS (COLLAPSIBLE)
-                          InkWell(
-                            onTap: () => setDlg(() => showMoreDetails = !showMoreDetails),
-                            borderRadius: BorderRadius.circular(4),
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 4),
-                              child: Row(
-                                children: [
-                                  Icon(showMoreDetails ? Icons.expand_less : Icons.expand_more, size: 18, color: scheme.primary),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    showMoreDetails ? 'Less Details' : 'More Details (Receipt, References, Notes)',
-                                    style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: scheme.primary),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                          if (showMoreDetails) ...[
-                            const SizedBox(height: 8),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: TextFormField(
-                                    controller: receiptRefCtrl,
-                                    decoration: const InputDecoration(labelText: 'Bill / receipt reference', isDense: true),
-                                  ),
-                                ),
-                                const SizedBox(width: 10),
-                                Expanded(
-                                  child: TextFormField(
-                                    controller: payRefCtrl,
-                                    decoration: const InputDecoration(labelText: 'Payment reference', isDense: true),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 8),
-                            TextFormField(
-                              controller: notesCtrl,
-                              maxLines: 2,
-                              decoration: const InputDecoration(labelText: 'Internal Notes', isDense: true),
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-                  ),
-
-                  // STICKY BOTTOM SUMMARY BAR
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                    decoration: BoxDecoration(
-                      color: scheme.surface,
-                      borderRadius: const BorderRadius.vertical(bottom: Radius.circular(12)),
-                      border: Border(top: BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.6))),
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Wrap(
-                          spacing: 12,
-                          runSpacing: 4,
-                          children: [
-                            Text(
-                              'Expense Cost: ${_money(totalCost)}',
-                              style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700),
-                            ),
-                            if (chargeCustomer)
-                              Text(
-                                'Customer Charge: ${_money(customerChargeAmt)}',
-                                style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: Color(0xFF635BFF)),
-                              ),
-                            Text(
-                              'Payment Made: ${_money(paymentMade)}',
-                              style: TextStyle(
-                                fontSize: 11.5,
-                                fontWeight: FontWeight.w600,
-                                color: paymentMade > 0 ? const Color(0xFF00875A) : scheme.onSurfaceVariant,
-                              ),
-                            ),
-                            if (remainingPay > 0 && staffMode != 'salary_allocation')
-                              Text(
-                                'Remaining to Pay: ${_money(remainingPay)}',
-                                style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: Color(0xFFC06200)),
-                              ),
-                          ],
-                        ),
-                        const SizedBox(height: 10),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.end,
-                          children: [
-                            TextButton(
-                              onPressed: () => Navigator.pop(ctx),
-                              child: const Text('Cancel'),
-                            ),
-                            const SizedBox(width: 8),
-                            FilledButton(
-                              onPressed: () {
-                                final costQty = calcByTrips ? (double.tryParse(qtyCtrl.text.trim()) ?? 1.0) : 1.0;
-                                final costRate = double.tryParse(rateCtrl.text.trim()) ?? 0.0;
-                                final costAmount = costQty * costRate;
-                                final custCharge = double.tryParse(billCtrl.text.trim()) ?? 0.0;
-                                final enteredPay = double.tryParse(payCtrl.text.trim()) ?? 0.0;
-                                final payMade = paymentStatus == 'paid'
-                                    ? (enteredPay > 0 ? enteredPay : costAmount)
-                                    : enteredPay;
-
-                                if (costAmount <= 0) {
-                                  setDlg(() => dialogError = 'Enter a positive expense quantity and rate.');
-                                  return;
-                                }
-                                if (staffId.isEmpty && payeeCtrl.text.trim().isEmpty) {
-                                  setDlg(() => dialogError = 'Enter the external payee name.');
-                                  return;
-                                }
-                                if (staffId.isNotEmpty && !['driver_wage', 'staff_wage'].contains(costKind) && !costKind.contains('wage')) {
-                                  setDlg(() => dialogError = 'Linked staff require a driver or staff wage expense type.');
-                                  return;
-                                }
-                                if (staffMode == 'salary_allocation' && (staffId.isEmpty || payMade > 0 || enteredPay > 0)) {
-                                  setDlg(() => dialogError = 'Salary allocation requires monthly staff and no separate payment on this load.');
-                                  return;
-                                }
-                                if (widget.direction == 'outbound' && !widget.internalOnly && custCharge > 0 && billingVariantId.isEmpty) {
-                                  setDlg(() => dialogError = 'Select or create the service used to invoice this charge.');
-                                  return;
-                                }
-                                if (payMade > costAmount) {
-                                  setDlg(() => dialogError = 'Payment cannot exceed this expense.');
-                                  return;
-                                }
-                                if (payMade > 0 && paymentMethod != 'cash' && payRefCtrl.text.trim().isEmpty) {
-                                  setDlg(() => dialogError = 'Enter the payment reference.');
-                                  return;
-                                }
-
-                                final savedMap = <String, dynamic>{
-                                  'id': initialId,
-                                  'cost_kind': costKind,
-                                  'category_id': selectedCatId,
-                                  'category_name': categories.firstWhere((c) => c.id == selectedCatId, orElse: () => ExpenseCategory(id: 'other', name: 'Other', active: true)).name,
-                                  'description': descCtrl.text.trim(),
-                                  'staff_id': staffId,
-                                  'payee': payeeCtrl.text.trim(),
-                                  'staff_mode': staffMode,
-                                  'quantity': costQty,
-                                  'rate': costRate,
-                                  'amount': costAmount,
-                                  'bill_amount': (widget.internalOnly || widget.direction != 'outbound') ? 0.0 : custCharge,
-                                  'billing_variant_id': custCharge > 0 ? billingVariantId : '',
-                                  'initial_payment': payMade,
-                                  'payment_method': paymentMethod,
-                                  'payment_reference': payRefCtrl.text.trim(),
-                                  'receipt_reference': receiptRefCtrl.text.trim(),
-                                  'notes': notesCtrl.text.trim(),
-                                };
-
-                                Navigator.pop(ctx, savedMap);
-                              },
-                              child: const Text('Save'),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
-      ),
+      session: widget.session,
+      locationId: widget.locationId,
+      direction: widget.direction,
+      driverId: widget.driverId,
+      contextData: widget.contextData,
+      staff: _staff,
+      billingServices: _billing,
+      internalOnly: widget.internalOnly,
+      initialCost: old,
+      existingCosts: widget.costs,
+      categories: _dynamicCategories,
+      onAddNewCategory: () async {
+        ExpenseCategory? created;
+        await _addNewExpenseType((fn) => setState(fn), (newCat) {
+          created = newCat;
+        });
+        return created;
+      },
     );
 
     if (result != null) {
@@ -956,61 +280,1276 @@ class _LoadCostEditorState extends State<LoadCostEditor> {
   }
 
   @override
-  Widget build(BuildContext context) => Card(
-    child: Padding(
-      padding: const EdgeInsets.all(12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text(
-            'Load expenses & customer charges',
-            style: Theme.of(context).textTheme.titleMedium,
-          ),
-          const Text(
-            'Record driver wages, rent, fuel and other costs here. Costs and any payments post together when you confirm the load. Customer charges are added to its invoice using the selected service tax classification.',
-          ),
-          for (var i = 0; i < widget.costs.length; i++)
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              title: Text(
-                '${widget.costs[i]['description']} • ${_money(widget.costs[i]['amount'])}',
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final totalCost = widget.costs.fold<double>(
+      0,
+      (sum, c) => sum + StaffLoadService.number(c['amount']),
+    );
+    final totalCustomerCharges = widget.costs.fold<double>(
+      0,
+      (sum, c) => sum + StaffLoadService.number(c['bill_amount']),
+    );
+    final totalPaid = widget.costs.fold<double>(
+      0,
+      (sum, c) => sum + StaffLoadService.number(c['initial_payment']),
+    );
+    final totalDue = (totalCost - totalPaid).clamp(0.0, double.infinity);
+
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(10),
+        side: BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.6)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.receipt_long_outlined, size: 18, color: scheme.primary),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Load expenses & customer charges',
+                    style: theme.textTheme.titleMedium?.copyWith(fontSize: 14, fontWeight: FontWeight.w700),
+                  ),
+                ),
+                OutlinedButton.icon(
+                  onPressed: () => _edit(),
+                  icon: const Icon(Icons.add, size: 16),
+                  label: const Text('Add expense', style: TextStyle(fontSize: 12)),
+                  style: OutlinedButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Record driver wages, rent, fuel and other costs. Costs and payments post together upon load confirmation.',
+              style: TextStyle(fontSize: 11.5, color: scheme.onSurfaceVariant),
+            ),
+            const SizedBox(height: 10),
+            if (widget.costs.isEmpty)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                decoration: BoxDecoration(
+                  color: scheme.surfaceContainerHighest.withValues(alpha: 0.25),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: scheme.outlineVariant.withValues(alpha: 0.4)),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.info_outline, size: 16, color: scheme.onSurfaceVariant),
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Text(
+                        'No expenses added yet. Tap "Add expense" to record load costs.',
+                        style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant),
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            else
+              for (var i = 0; i < widget.costs.length; i++) ...[
+                InkWell(
+                  onTap: () => _edit(i),
+                  borderRadius: BorderRadius.circular(8),
+                  child: Container(
+                    margin: const EdgeInsets.only(bottom: 6),
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: scheme.surface,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: scheme.outlineVariant.withValues(alpha: 0.5)),
+                    ),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: scheme.primaryContainer.withValues(alpha: 0.4),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Icon(
+                          widget.costs[i]['cost_kind'] == 'diesel'
+                              ? Icons.local_gas_station_outlined
+                              : (widget.costs[i]['cost_kind']?.toString().contains('wage') == true
+                                  ? Icons.badge_outlined
+                                  : Icons.receipt_outlined),
+                          size: 16,
+                          color: scheme.primary,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    '${widget.costs[i]['description'] ?? 'Expense'}',
+                                    style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                Text(
+                                  _money(widget.costs[i]['amount']),
+                                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 2),
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 2,
+                              crossAxisAlignment: WrapCrossAlignment.center,
+                              children: [
+                                Text(
+                                  'Payee: ${widget.costs[i]['payee'] ?? '—'}',
+                                  style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant),
+                                ),
+                                if (widget.costs[i]['staff_mode'] == 'salary_allocation')
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                                    decoration: BoxDecoration(
+                                      color: scheme.surfaceContainerHighest,
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: const Text('Salaried', style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.w600)),
+                                  ),
+                                if (StaffLoadService.number(widget.costs[i]['initial_payment']) > 0)
+                                  Text(
+                                    'Paid: ${_money(widget.costs[i]['initial_payment'])}',
+                                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF00875A)),
+                                  )
+                                else if (widget.costs[i]['staff_mode'] != 'salary_allocation')
+                                  Text(
+                                    'Due: ${_money(widget.costs[i]['amount'])}',
+                                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFFC06200)),
+                                  ),
+                                if (StaffLoadService.number(widget.costs[i]['bill_amount']) > 0)
+                                  Text(
+                                    'Bill: ${_money(widget.costs[i]['bill_amount'])}',
+                                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF635BFF)),
+                                  ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      IconButton(
+                        visualDensity: VisualDensity.compact,
+                        icon: const Icon(Icons.edit_outlined, size: 16),
+                        tooltip: 'Edit expense',
+                        onPressed: () => _edit(i),
+                      ),
+                      IconButton(
+                        visualDensity: VisualDensity.compact,
+                        icon: const Icon(Icons.remove_circle_outline, size: 16),
+                        tooltip: 'Remove expense',
+                        onPressed: () {
+                          final next = [...widget.costs]..removeAt(i);
+                          widget.onChanged(next);
+                        },
+                      ),
+                    ],
+                  ),
+                ),
               ),
-              subtitle: Text(
-                '${widget.costs[i]['payee'] ?? ''} • ${widget.costs[i]['staff_mode'] == 'salary_allocation' ? 'Monthly salary allocation' : 'Additional cost'} • Bill customer ${_money(widget.costs[i]['bill_amount'])}',
+            ],
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              decoration: BoxDecoration(
+                color: scheme.surfaceContainerHighest.withValues(alpha: 0.3),
+                borderRadius: BorderRadius.circular(6),
               ),
-              onTap: () => _edit(i),
-              trailing: IconButton(
-                tooltip: 'Remove draft expense',
-                icon: const Icon(Icons.remove_circle_outline),
-                onPressed: () {
-                  final next = [...widget.costs]..removeAt(i);
-                  widget.onChanged(next);
-                },
+              child: Wrap(
+                spacing: 12,
+                runSpacing: 4,
+                children: [
+                  Text(
+                    'Total Cost: ${_money(totalCost)}',
+                    style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700),
+                  ),
+                  if (totalPaid > 0)
+                    Text(
+                      'Paid: ${_money(totalPaid)}',
+                      style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: Color(0xFF00875A)),
+                    ),
+                  if (totalDue > 0)
+                    Text(
+                      'Outstanding: ${_money(totalDue)}',
+                      style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: Color(0xFFC06200)),
+                    ),
+                  if (totalCustomerCharges > 0)
+                    Text(
+                      'Customer Charges: ${_money(totalCustomerCharges)}',
+                      style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: Color(0xFF635BFF)),
+                    ),
+                ],
               ),
             ),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              OutlinedButton.icon(
-                onPressed: () => _edit(),
-                icon: const Icon(Icons.add),
-                label: const Text('Add expense'),
-              ),
-              if (widget.direction == 'outbound' &&
-                  !widget.internalOnly &&
-                  widget.contextData['can_create_billing_service'] == true)
-                TextButton(
+            if (widget.direction == 'outbound' &&
+                !widget.internalOnly &&
+                widget.contextData['can_create_billing_service'] == true) ...[
+              const SizedBox(height: 6),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
                   onPressed: _newService,
-                  child: const Text('Create invoice charge service'),
+                  icon: const Icon(Icons.add_circle_outline, size: 14),
+                  label: const Text('Create invoice charge service', style: TextStyle(fontSize: 11)),
                 ),
+              ),
             ],
-          ),
-          Text(
-            'Total cost ${_money(widget.costs.fold<double>(0, (sum, c) => sum + StaffLoadService.number(c['amount'])))} • Customer charges ${_money(widget.costs.fold<double>(0, (sum, c) => sum + StaffLoadService.number(c['bill_amount'])))} before tax',
-          ),
-        ],
+          ],
+        ),
       ),
+    );
+  }
+}
+
+/// Standalone, compact, operator-friendly dialog for Adding/Editing Load Expenses.
+/// Conforms to THQ ERP Phase 2-9 specifications:
+/// - Single External Payee field with autocomplete history and direct typing
+/// - Total Amount vs Per Trip calculation toggle
+/// - Unpaid / Paid / Partially Paid settlement tracking
+/// - Optional Customer Invoice Charges
+/// - Strict accounting integration with zero duplicate journals or broken overlays
+Future<Map<String, dynamic>?> showAddLoadExpenseDialog({
+  required BuildContext context,
+  required ClientSession session,
+  required String locationId,
+  required String direction,
+  String? driverId,
+  required Map<String, dynamic> contextData,
+  List<Map<String, dynamic>>? staff,
+  List<Map<String, dynamic>>? billingServices,
+  bool internalOnly = false,
+  Map<String, dynamic>? initialCost,
+  List<Map<String, dynamic>> existingCosts = const [],
+  List<ExpenseCategory>? categories,
+  Future<ExpenseCategory?> Function()? onAddNewCategory,
+}) async {
+  final staffRows = staff ??
+      StaffLoadService.rows(contextData['staff'])
+          .where((s) => s['location_id'] == null || s['location_id'] == locationId)
+          .toList();
+
+  Map<String, dynamic>? driver;
+  for (final s in staffRows) {
+    if (s['driver_id'] == driverId && driverId != null) {
+      driver = s;
+      break;
+    }
+  }
+  final salary = driver?['wage_basis'] == 'monthly';
+
+  final List<ExpenseCategory> availableCategories = categories != null && categories.isNotEmpty
+      ? [...categories]
+      : () {
+          final raw = contextData['expense_categories'];
+          if (raw is List && raw.isNotEmpty) {
+            return raw
+                .whereType<Map>()
+                .map((e) => ExpenseCategory.fromMap(Map<String, dynamic>.from(e)))
+                .toList();
+          }
+          return _LoadCostEditorState.defaultKinds.entries
+              .map((e) => ExpenseCategory(id: e.key, name: e.value, active: true))
+              .toList();
+        }();
+
+  final activeBillingServices = billingServices ??
+      StaffLoadService.rows(contextData['billing_services']);
+
+  final old = initialCost;
+  final initialId = old?['id'] ?? const Uuid().v4();
+  var selectedCatId = old?['category_id']?.toString() ??
+      (old?['cost_kind'] != null && old!['cost_kind'] != 'other'
+          ? old['cost_kind']
+          : (driver != null ? 'driver_wage' : 'diesel'));
+  var costKind = old?['cost_kind']?.toString() ?? (driver != null ? 'driver_wage' : 'diesel');
+  var staffId = old?['staff_id']?.toString() ?? driver?['staff_id']?.toString() ?? '';
+  var staffMode = old?['staff_mode']?.toString() ?? (salary ? 'salary_allocation' : 'extra_wage');
+  var paymentMethod = old?['payment_method']?.toString() ?? 'cash';
+  var billingVariantId = old?['billing_variant_id']?.toString() ?? '';
+
+  final initialQty = StaffLoadService.number(old?['quantity'] ?? 1);
+  final initialRate = salary ? 0.0 : StaffLoadService.number(old?['rate'] ?? driver?['base_rate'] ?? 0);
+  final initialAmt = StaffLoadService.number(old?['amount'] ?? (initialQty * initialRate));
+  final initialBill = StaffLoadService.number(old?['bill_amount'] ?? 0);
+  final initialPay = StaffLoadService.number(old?['initial_payment'] ?? 0);
+
+  var calcByTrips = (old != null && initialQty > 1) || (old == null && driver != null && driver['wage_basis'] == 'per_trip');
+  var chargeCustomer = initialBill > 0;
+  var paymentStatus = initialPay >= initialAmt && initialAmt > 0
+      ? 'paid'
+      : (initialPay > 0 ? 'partially_paid' : 'unpaid');
+
+  final descCtrl = TextEditingController(
+    text: old?['description']?.toString() ?? (driver != null ? 'Driver wage' : ''),
+  );
+  final payeeCtrl = TextEditingController(
+    text: old?['payee']?.toString() ?? driver?['name']?.toString() ?? '',
+  );
+  final qtyCtrl = TextEditingController(
+    text: initialQty > 0
+        ? (initialQty == initialQty.roundToDouble() ? initialQty.toInt().toString() : initialQty.toString())
+        : '1',
+  );
+  final rateCtrl = TextEditingController(
+    text: calcByTrips
+        ? (initialRate > 0 ? (initialRate == initialRate.roundToDouble() ? initialRate.toInt().toString() : initialRate.toString()) : '')
+        : (initialAmt > 0 ? (initialAmt == initialAmt.roundToDouble() ? initialAmt.toInt().toString() : initialAmt.toString()) : (initialRate > 0 ? initialRate.toString() : '')),
+  );
+  final billCtrl = TextEditingController(
+    text: initialBill > 0
+        ? (initialBill == initialBill.roundToDouble() ? initialBill.toInt().toString() : initialBill.toString())
+        : '0',
+  );
+  final payCtrl = TextEditingController(
+    text: initialPay > 0
+        ? (initialPay == initialPay.roundToDouble() ? initialPay.toInt().toString() : initialPay.toString())
+        : '0',
+  );
+  final payRefCtrl = TextEditingController(text: old?['payment_reference']?.toString() ?? '');
+  final receiptRefCtrl = TextEditingController(text: old?['receipt_reference']?.toString() ?? '');
+  final notesCtrl = TextEditingController(text: old?['notes']?.toString() ?? '');
+
+  var showMoreDetails = (old?['receipt_reference'] != null && old!['receipt_reference'].toString().isNotEmpty) ||
+      (old?['notes'] != null && old!['notes'].toString().isNotEmpty);
+
+  String? dialogError;
+
+  // Build autocomplete suggestions for External Payee
+  final Set<String> knownPayees = {};
+  for (final c in existingCosts) {
+    final p = c['payee']?.toString().trim();
+    if (p != null && p.isNotEmpty) knownPayees.add(p);
+  }
+  for (final s in staffRows) {
+    final n = s['name']?.toString().trim();
+    if (n != null && n.isNotEmpty) knownPayees.add(n);
+  }
+  final rawSuppliers = contextData['suppliers'];
+  if (rawSuppliers is List) {
+    for (final sup in rawSuppliers) {
+      if (sup is Map && sup['name'] != null) {
+        final n = sup['name'].toString().trim();
+        if (n.isNotEmpty) knownPayees.add(n);
+      }
+    }
+  }
+  final rawPayees = contextData['payees'] ?? contextData['recent_payees'];
+  if (rawPayees is List) {
+    for (final rp in rawPayees) {
+      if (rp is String && rp.trim().isNotEmpty) {
+        knownPayees.add(rp.trim());
+      } else if (rp is Map && rp['name'] != null) {
+        final n = rp['name'].toString().trim();
+        if (n.isNotEmpty) knownPayees.add(n);
+      }
+    }
+  }
+
+  String money(dynamic val) =>
+      '${session.currencyCode} ${StaffLoadService.number(val).toStringAsFixed(2)}';
+
+  return showDialog<Map<String, dynamic>>(
+    context: context,
+    barrierDismissible: false,
+    builder: (dlgContext) => StatefulBuilder(
+      builder: (ctx, setDlg) {
+        final theme = Theme.of(ctx);
+        final scheme = theme.colorScheme;
+
+        final double currentQty = calcByTrips ? (double.tryParse(qtyCtrl.text.trim()) ?? 1.0) : 1.0;
+        final double currentRate = double.tryParse(rateCtrl.text.trim()) ?? 0.0;
+        final double totalCost = currentQty * currentRate;
+        final double customerChargeAmt = double.tryParse(billCtrl.text.trim()) ?? 0.0;
+        final double enteredPayment = double.tryParse(payCtrl.text.trim()) ?? 0.0;
+        final double paymentMade = paymentStatus == 'paid'
+            ? (enteredPayment > 0 ? enteredPayment : totalCost)
+            : (paymentStatus == 'unpaid' ? 0.0 : enteredPayment);
+        final double remainingPay = (totalCost - paymentMade).clamp(0.0, double.infinity);
+
+        return Dialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          clipBehavior: Clip.antiAlias,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 520, maxHeight: 620),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // HEADER
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: scheme.surfaceContainerHighest.withValues(alpha: 0.35),
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+                    border: Border(bottom: BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.5))),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.receipt_long_outlined, size: 20, color: scheme.primary),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          old == null ? 'Add Load Expense' : 'Edit Load Expense',
+                          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
+                        ),
+                      ),
+                      IconButton(
+                        visualDensity: VisualDensity.compact,
+                        icon: const Icon(Icons.close, size: 20),
+                        tooltip: 'Close',
+                        onPressed: () => Navigator.pop(ctx),
+                      ),
+                    ],
+                  ),
+                ),
+
+                // SCROLLABLE FORM BODY
+                Flexible(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (dialogError != null) ...[
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: scheme.errorContainer,
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(Icons.error_outline, size: 16, color: scheme.onErrorContainer),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    dialogError!,
+                                    style: TextStyle(color: scheme.onErrorContainer, fontSize: 12, fontWeight: FontWeight.w500),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                        ],
+
+                        // 1. EXPENSE TYPE
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              child: DropdownButtonFormField<String>(
+                                value: availableCategories.any((c) => c.id == selectedCatId || c.name == selectedCatId)
+                                    ? selectedCatId
+                                    : (availableCategories.isNotEmpty ? availableCategories.first.id : null),
+                                isExpanded: true,
+                                decoration: const InputDecoration(
+                                  labelText: 'Expense Type *',
+                                  isDense: true,
+                                ),
+                                items: availableCategories.map((cat) {
+                                  return DropdownMenuItem<String>(
+                                    value: cat.id,
+                                    child: Text(cat.name, overflow: TextOverflow.ellipsis),
+                                  );
+                                }).toList(),
+                                onChanged: (val) {
+                                  setDlg(() {
+                                    selectedCatId = val ?? 'other';
+                                    final match = availableCategories.firstWhere(
+                                      (c) => c.id == val,
+                                      orElse: () => ExpenseCategory(id: 'other', name: 'Other', active: true),
+                                    );
+                                    costKind = match.id;
+                                    if (descCtrl.text.trim().isEmpty) {
+                                      descCtrl.text = match.name;
+                                    }
+                                  });
+                                },
+                              ),
+                            ),
+                            if (onAddNewCategory != null) ...[
+                              const SizedBox(width: 8),
+                              Padding(
+                                padding: const EdgeInsets.only(top: 4),
+                                child: OutlinedButton.icon(
+                                  style: OutlinedButton.styleFrom(
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                                  ),
+                                  onPressed: () async {
+                                    final newCat = await onAddNewCategory();
+                                    if (newCat != null) {
+                                      setDlg(() {
+                                        availableCategories.insert(0, newCat);
+                                        selectedCatId = newCat.id;
+                                        costKind = newCat.id;
+                                        if (descCtrl.text.trim().isEmpty) {
+                                          descCtrl.text = newCat.name;
+                                        }
+                                      });
+                                    }
+                                  },
+                                  icon: const Icon(Icons.add, size: 16),
+                                  label: const Text('Add', style: TextStyle(fontSize: 12)),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+
+                        TextFormField(
+                          controller: descCtrl,
+                          decoration: const InputDecoration(
+                            labelText: 'Expense / invoice description',
+                            hintText: 'e.g. Diesel fuel, Driver wage, Quarry freight',
+                            isDense: true,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+
+                        // 2. EXTERNAL PAYEE ONLY (Phase 3)
+                        RawAutocomplete<String>(
+                          initialValue: TextEditingValue(text: payeeCtrl.text),
+                          optionsBuilder: (TextEditingValue textEditingValue) {
+                            if (textEditingValue.text.trim().isEmpty) {
+                              return knownPayees.take(6);
+                            }
+                            final q = textEditingValue.text.trim().toLowerCase();
+                            return knownPayees.where((name) => name.toLowerCase().contains(q)).take(8);
+                          },
+                          onSelected: (String selection) {
+                            payeeCtrl.text = selection;
+                            final matchedStaff = staffRows.where(
+                              (s) => s['name']?.toString().toLowerCase() == selection.toLowerCase(),
+                            ).firstOrNull;
+                            setDlg(() {
+                              if (matchedStaff != null) {
+                                staffId = '${matchedStaff['staff_id']}';
+                                if (matchedStaff['wage_basis'] == 'monthly') {
+                                  staffMode = 'salary_allocation';
+                                } else {
+                                  staffMode = 'extra_wage';
+                                  if (rateCtrl.text.isEmpty || rateCtrl.text == '0') {
+                                    rateCtrl.text = (matchedStaff['base_rate'] ?? '').toString();
+                                  }
+                                }
+                                if (!costKind.contains('wage')) {
+                                  costKind = 'driver_wage';
+                                }
+                              } else {
+                                staffId = '';
+                                staffMode = 'extra_wage';
+                              }
+                            });
+                          },
+                          optionsViewBuilder: (context, onSelected, options) {
+                            return Align(
+                              alignment: Alignment.topLeft,
+                              child: Material(
+                                elevation: 4,
+                                borderRadius: BorderRadius.circular(8),
+                                color: scheme.surfaceContainerHighest,
+                                child: ConstrainedBox(
+                                  constraints: const BoxConstraints(maxWidth: 360, maxHeight: 180),
+                                  child: ListView.separated(
+                                    shrinkWrap: true,
+                                    padding: const EdgeInsets.symmetric(vertical: 4),
+                                    itemCount: options.length,
+                                    separatorBuilder: (context, index) => Divider(height: 1, color: scheme.outlineVariant.withValues(alpha: 0.3)),
+                                    itemBuilder: (context, index) {
+                                      final option = options.elementAt(index);
+                                      return ListTile(
+                                        dense: true,
+                                        visualDensity: VisualDensity.compact,
+                                        leading: Icon(Icons.history, size: 16, color: scheme.primary),
+                                        title: Text(option, style: const TextStyle(fontSize: 12.5)),
+                                        onTap: () => onSelected(option),
+                                      );
+                                    },
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
+                          fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
+                            if (controller.text != payeeCtrl.text && focusNode.hasFocus) {
+                              payeeCtrl.text = controller.text;
+                            }
+                            return TextFormField(
+                              controller: controller,
+                              focusNode: focusNode,
+                              decoration: const InputDecoration(
+                                labelText: 'External Payee *',
+                                hintText: 'Search or enter external payee',
+                                isDense: true,
+                                prefixIcon: Icon(Icons.person_outline, size: 18),
+                              ),
+                              onChanged: (val) {
+                                payeeCtrl.text = val;
+                                final matchedStaff = staffRows.where(
+                                  (s) => s['name']?.toString().toLowerCase() == val.trim().toLowerCase(),
+                                ).firstOrNull;
+                                setDlg(() {
+                                  if (matchedStaff != null) {
+                                    staffId = '${matchedStaff['staff_id']}';
+                                    if (matchedStaff['wage_basis'] == 'monthly') {
+                                      staffMode = 'salary_allocation';
+                                    } else {
+                                      staffMode = 'extra_wage';
+                                    }
+                                  } else {
+                                    staffId = '';
+                                    staffMode = 'extra_wage';
+                                  }
+                                });
+                              },
+                              onFieldSubmitted: (val) {
+                                payeeCtrl.text = val;
+                                onFieldSubmitted();
+                              },
+                            );
+                          },
+                        ),
+
+                        if (staffId.isNotEmpty && staffRows.any((s) => '${s['staff_id']}' == staffId && s['wage_basis'] == 'monthly')) ...[
+                          const SizedBox(height: 6),
+                          Material(
+                            color: scheme.surfaceContainerHighest.withValues(alpha: 0.3),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(6),
+                              side: BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.5)),
+                            ),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text('Monthly Staff Wage Treatment', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
+                                  const SizedBox(height: 4),
+                                  RadioListTile<String>(
+                                    contentPadding: EdgeInsets.zero,
+                                    dense: true,
+                                    value: 'salary_allocation',
+                                    groupValue: staffMode,
+                                    title: const Text('Already covered by salary', style: TextStyle(fontSize: 12)),
+                                    subtitle: const Text('Track load cost without duplicate wage payment/liability', style: TextStyle(fontSize: 10)),
+                                    onChanged: (val) => setDlg(() {
+                                      staffMode = val!;
+                                      paymentStatus = 'unpaid';
+                                    }),
+                                  ),
+                                  RadioListTile<String>(
+                                    contentPadding: EdgeInsets.zero,
+                                    dense: true,
+                                    value: 'extra_wage',
+                                    groupValue: staffMode,
+                                    title: const Text('Extra payment owed to staff', style: TextStyle(fontSize: 12)),
+                                    subtitle: const Text('Record separate trip incentive or overtime payable', style: TextStyle(fontSize: 10)),
+                                    onChanged: (val) => setDlg(() => staffMode = val!),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                        const SizedBox(height: 12),
+
+                        // 3. CALCULATION METHOD & AMOUNT (Phase 5)
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                'Calculation Method',
+                                style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: scheme.onSurfaceVariant),
+                              ),
+                            ),
+                            SegmentedButton<String>(
+                              showSelectedIcon: false,
+                              style: SegmentedButton.styleFrom(
+                                visualDensity: VisualDensity.compact,
+                                padding: const EdgeInsets.symmetric(horizontal: 6),
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              ),
+                              segments: const [
+                                ButtonSegment(
+                                  value: 'total',
+                                  label: Text('Total Amount', style: TextStyle(fontSize: 11)),
+                                ),
+                                ButtonSegment(
+                                  value: 'per_trip',
+                                  label: Text('Per Trip', style: TextStyle(fontSize: 11)),
+                                ),
+                              ],
+                              selected: {calcByTrips ? 'per_trip' : 'total'},
+                              onSelectionChanged: (set) => setDlg(() {
+                                calcByTrips = set.first == 'per_trip';
+                                if (!calcByTrips) {
+                                  qtyCtrl.text = '1';
+                                } else {
+                                  if (qtyCtrl.text.isEmpty || qtyCtrl.text == '0') {
+                                    qtyCtrl.text = '1';
+                                  }
+                                }
+                              }),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+
+                        if (!calcByTrips)
+                          TextFormField(
+                            controller: rateCtrl,
+                            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                            decoration: InputDecoration(
+                              labelText: 'Expense Amount *',
+                              prefixText: '${session.currencyCode} ',
+                              isDense: true,
+                              helperText: 'Total expense cost amount',
+                            ),
+                            onChanged: (_) => setDlg(() {}),
+                          )
+                        else ...[
+                          Row(
+                            children: [
+                              Expanded(
+                                child: TextFormField(
+                                  controller: rateCtrl,
+                                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                  decoration: InputDecoration(
+                                    labelText: 'Rate per trip *',
+                                    prefixText: '${session.currencyCode} ',
+                                    isDense: true,
+                                    helperText: 'Rate per trip',
+                                  ),
+                                  onChanged: (_) => setDlg(() {}),
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: TextFormField(
+                                  controller: qtyCtrl,
+                                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                  decoration: const InputDecoration(
+                                    labelText: 'Trips *',
+                                    isDense: true,
+                                    helperText: 'Number of trips',
+                                  ),
+                                  onChanged: (_) => setDlg(() {}),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Computed Total: ${money(totalCost)}',
+                            style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: scheme.primary),
+                          ),
+                        ],
+                        const SizedBox(height: 12),
+
+                        // 4. PAYMENT STATUS & SETTLEMENT (Phase 6)
+                        Text(
+                          'Payment Status & Settlement',
+                          style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: scheme.onSurfaceVariant),
+                        ),
+                        const SizedBox(height: 6),
+                        SegmentedButton<String>(
+                          showSelectedIcon: false,
+                          style: const ButtonStyle(
+                            visualDensity: VisualDensity.compact,
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
+                          segments: const [
+                            ButtonSegment(
+                              value: 'unpaid',
+                              label: Text('Unpaid', style: TextStyle(fontSize: 11.5)),
+                            ),
+                            ButtonSegment(
+                              value: 'paid',
+                              label: Text('Paid', style: TextStyle(fontSize: 11.5)),
+                            ),
+                            ButtonSegment(
+                              value: 'partially_paid',
+                              label: Text('Partially Paid', style: TextStyle(fontSize: 11.5)),
+                            ),
+                          ],
+                          selected: {
+                            paymentStatus == 'unpaid' || paymentStatus == 'not_paid'
+                                ? 'unpaid'
+                                : (paymentStatus == 'paid' ? 'paid' : 'partially_paid')
+                          },
+                          onSelectionChanged: (set) => setDlg(() {
+                            paymentStatus = set.first;
+                            if (paymentStatus == 'paid') {
+                              payCtrl.text = totalCost > 0
+                                  ? (totalCost == totalCost.roundToDouble()
+                                      ? totalCost.toInt().toString()
+                                      : totalCost.toStringAsFixed(2))
+                                  : '0';
+                            } else if (paymentStatus == 'unpaid') {
+                              payCtrl.text = '0';
+                            } else {
+                              if (payCtrl.text == '0' || (double.tryParse(payCtrl.text.trim()) ?? 0.0) >= totalCost) {
+                                payCtrl.text = '';
+                              }
+                            }
+                          }),
+                        ),
+                        const SizedBox(height: 8),
+
+                        if (paymentStatus == 'unpaid' || paymentStatus == 'not_paid')
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: scheme.surfaceContainerHighest.withValues(alpha: 0.25),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(Icons.info_outline, size: 15, color: scheme.onSurfaceVariant),
+                                const SizedBox(width: 6),
+                                Expanded(
+                                  child: Text(
+                                    'Unpaid: Full ${money(totalCost)} will be recorded as payable owed to payee on confirmation.',
+                                    style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          )
+                        else if (paymentStatus == 'paid') ...[
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF00875A).withValues(alpha: 0.1),
+                                    borderRadius: BorderRadius.circular(6),
+                                    border: Border.all(color: const Color(0xFF00875A).withValues(alpha: 0.3)),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      const Icon(Icons.check_circle_outline, size: 16, color: Color(0xFF00875A)),
+                                      const SizedBox(width: 6),
+                                      Expanded(
+                                        child: Text(
+                                          'Full Payment: ${money(totalCost)}',
+                                          style: const TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w600,
+                                            color: Color(0xFF00875A),
+                                          ),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: DropdownButtonFormField<String>(
+                                  value: paymentMethod,
+                                  decoration: const InputDecoration(labelText: 'Payment Method', isDense: true),
+                                  items: const [
+                                    DropdownMenuItem(value: 'cash', child: Text('Cash')),
+                                    DropdownMenuItem(value: 'bank', child: Text('Bank')),
+                                    DropdownMenuItem(value: 'upi', child: Text('UPI')),
+                                    DropdownMenuItem(value: 'card', child: Text('Card')),
+                                    DropdownMenuItem(value: 'cheque', child: Text('Cheque')),
+                                  ],
+                                  onChanged: (val) => setDlg(() => paymentMethod = val ?? 'cash'),
+                                ),
+                              ),
+                            ],
+                          ),
+                          if (paymentMethod != 'cash') ...[
+                            const SizedBox(height: 8),
+                            TextFormField(
+                              controller: payRefCtrl,
+                              decoration: const InputDecoration(
+                                labelText: 'Payment Reference *',
+                                hintText: 'UTR / Cheque # / Txn ID',
+                                isDense: true,
+                              ),
+                            ),
+                          ],
+                        ] else ...[
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(
+                                child: TextFormField(
+                                  controller: payCtrl,
+                                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                  decoration: InputDecoration(
+                                    labelText: 'Amount Paid *',
+                                    prefixText: '${session.currencyCode} ',
+                                    isDense: true,
+                                    helperText: 'Paid: ${money(paymentMade)} • Due: ${money(remainingPay)}',
+                                  ),
+                                  onChanged: (val) {
+                                    final amt = double.tryParse(val.trim()) ?? 0.0;
+                                    setDlg(() {
+                                      if (amt <= 0) {
+                                        paymentStatus = 'unpaid';
+                                      } else if (amt >= totalCost && totalCost > 0) {
+                                        paymentStatus = 'paid';
+                                      } else {
+                                        paymentStatus = 'partially_paid';
+                                      }
+                                    });
+                                  },
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: DropdownButtonFormField<String>(
+                                  value: paymentMethod,
+                                  decoration: const InputDecoration(labelText: 'Payment Method', isDense: true),
+                                  items: const [
+                                    DropdownMenuItem(value: 'cash', child: Text('Cash')),
+                                    DropdownMenuItem(value: 'bank', child: Text('Bank')),
+                                    DropdownMenuItem(value: 'upi', child: Text('UPI')),
+                                    DropdownMenuItem(value: 'card', child: Text('Card')),
+                                    DropdownMenuItem(value: 'cheque', child: Text('Cheque')),
+                                  ],
+                                  onChanged: (val) => setDlg(() => paymentMethod = val ?? 'cash'),
+                                ),
+                              ),
+                            ],
+                          ),
+                          if (paymentMethod != 'cash') ...[
+                            const SizedBox(height: 8),
+                            TextFormField(
+                              controller: payRefCtrl,
+                              decoration: const InputDecoration(
+                                labelText: 'Payment Reference *',
+                                hintText: 'UTR / Cheque # / Txn ID',
+                                isDense: true,
+                              ),
+                            ),
+                          ],
+                        ],
+                        const SizedBox(height: 12),
+
+                        // 5. OPTIONAL CUSTOMER INVOICE CHARGE (Phase 7)
+                        if (direction == 'outbound' && !internalOnly) ...[
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: scheme.surfaceContainerHighest.withValues(alpha: 0.2),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: scheme.outlineVariant.withValues(alpha: 0.4)),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                InkWell(
+                                  onTap: () => setDlg(() {
+                                    chargeCustomer = !chargeCustomer;
+                                    if (!chargeCustomer) {
+                                      billCtrl.text = '0';
+                                      billingVariantId = '';
+                                    } else {
+                                      if (billCtrl.text.isEmpty || billCtrl.text == '0') {
+                                        billCtrl.text = totalCost > 0
+                                            ? (totalCost == totalCost.roundToDouble()
+                                                ? totalCost.toInt().toString()
+                                                : totalCost.toStringAsFixed(2))
+                                            : '';
+                                      }
+                                    }
+                                  }),
+                                  child: Row(
+                                    children: [
+                                      Checkbox(
+                                        value: chargeCustomer,
+                                        visualDensity: VisualDensity.compact,
+                                        onChanged: (val) => setDlg(() {
+                                          chargeCustomer = val ?? false;
+                                          if (!chargeCustomer) {
+                                            billCtrl.text = '0';
+                                            billingVariantId = '';
+                                          } else {
+                                            if (billCtrl.text.isEmpty || billCtrl.text == '0') {
+                                              billCtrl.text = totalCost > 0
+                                                  ? (totalCost == totalCost.roundToDouble()
+                                                      ? totalCost.toInt().toString()
+                                                      : totalCost.toStringAsFixed(2))
+                                                  : '';
+                                            }
+                                          }
+                                        }),
+                                      ),
+                                      const Text(
+                                        'Charge Customer',
+                                        style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600),
+                                      ),
+                                      const Spacer(),
+                                      Text(
+                                        chargeCustomer ? 'Billing Customer' : 'Internal Only',
+                                        style: TextStyle(
+                                          fontSize: 10.5,
+                                          fontWeight: FontWeight.w600,
+                                          color: chargeCustomer ? const Color(0xFF635BFF) : scheme.onSurfaceVariant,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                if (chargeCustomer) ...[
+                                  const SizedBox(height: 8),
+                                  Row(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Expanded(
+                                        child: TextFormField(
+                                          controller: billCtrl,
+                                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                          decoration: InputDecoration(
+                                            labelText: 'Amount charged to customer before GST',
+                                            prefixText: '${session.currencyCode} ',
+                                            isDense: true,
+                                            helperText: customerChargeAmt > totalCost
+                                                ? '+ ${money(customerChargeAmt - totalCost)} margin'
+                                                : (customerChargeAmt > 0 && customerChargeAmt < totalCost
+                                                    ? '- ${money(totalCost - customerChargeAmt)} discount'
+                                                    : 'Amount billed to customer before tax'),
+                                          ),
+                                          onChanged: (val) => setDlg(() {}),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 10),
+                                      Expanded(
+                                        child: DropdownButtonFormField<String>(
+                                          value: billingVariantId.isEmpty ? null : billingVariantId,
+                                          isExpanded: true,
+                                          decoration: const InputDecoration(
+                                            labelText: 'Invoice service / tax classification',
+                                            isDense: true,
+                                          ),
+                                          items: [
+                                            for (final s in activeBillingServices)
+                                              DropdownMenuItem(
+                                                value: '${s['variant_id']}',
+                                                child: Text(
+                                                  '${s['name']} • GST ${s['gst_rate'] ?? s['tax_rate'] ?? 0}%',
+                                                  overflow: TextOverflow.ellipsis,
+                                                ),
+                                              ),
+                                          ],
+                                          onChanged: (val) => setDlg(() => billingVariantId = val ?? ''),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                        ],
+
+                        // 6. MORE DETAILS (COLLAPSIBLE)
+                        InkWell(
+                          onTap: () => setDlg(() => showMoreDetails = !showMoreDetails),
+                          borderRadius: BorderRadius.circular(4),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 4),
+                            child: Row(
+                              children: [
+                                Icon(showMoreDetails ? Icons.expand_less : Icons.expand_more, size: 18, color: scheme.primary),
+                                const SizedBox(width: 4),
+                                Expanded(
+                                  child: Text(
+                                    showMoreDetails ? 'Less Details' : 'More Details (Receipt, References, Notes)',
+                                    style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: scheme.primary),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        if (showMoreDetails) ...[
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: TextFormField(
+                                  controller: receiptRefCtrl,
+                                  decoration: const InputDecoration(labelText: 'Bill / receipt reference', isDense: true),
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: TextFormField(
+                                  controller: payRefCtrl,
+                                  decoration: const InputDecoration(labelText: 'Payment reference', isDense: true),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          TextFormField(
+                            controller: notesCtrl,
+                            maxLines: 2,
+                            decoration: const InputDecoration(labelText: 'Internal Notes', isDense: true),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+
+                // STICKY BOTTOM SUMMARY BAR
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: scheme.surface,
+                    borderRadius: const BorderRadius.vertical(bottom: Radius.circular(12)),
+                    border: Border(top: BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.5))),
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Wrap(
+                        spacing: 12,
+                        runSpacing: 4,
+                        children: [
+                          Text(
+                            'Expense: ${money(totalCost)}',
+                            style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700),
+                          ),
+                          if (chargeCustomer && customerChargeAmt > 0)
+                            Text(
+                              'Customer Charge: ${money(customerChargeAmt)}',
+                              style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: Color(0xFF635BFF)),
+                            ),
+                          Text(
+                            'Paid: ${money(paymentMade)}',
+                            style: TextStyle(
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w600,
+                              color: paymentMade > 0 ? const Color(0xFF00875A) : scheme.onSurfaceVariant,
+                            ),
+                          ),
+                          if (remainingPay > 0 && staffMode != 'salary_allocation')
+                            Text(
+                              'Due: ${money(remainingPay)}',
+                              style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, color: Color(0xFFC06200)),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(ctx),
+                            child: const Text('Cancel'),
+                          ),
+                          const SizedBox(width: 8),
+                          FilledButton(
+                            key: const ValueKey('save_expense_button'),
+                            onPressed: () {
+                              final costQty = calcByTrips ? (double.tryParse(qtyCtrl.text.trim()) ?? 1.0) : 1.0;
+                              final costRate = double.tryParse(rateCtrl.text.trim()) ?? 0.0;
+                              final costAmount = costQty * costRate;
+                              final custCharge = chargeCustomer ? (double.tryParse(billCtrl.text.trim()) ?? 0.0) : 0.0;
+                              final enteredPay = double.tryParse(payCtrl.text.trim()) ?? 0.0;
+                              final payMade = paymentStatus == 'paid'
+                                  ? (enteredPay > 0 ? enteredPay : costAmount)
+                                  : (paymentStatus == 'unpaid' ? 0.0 : enteredPay);
+
+                              if (costAmount <= 0) {
+                                setDlg(() => dialogError = 'Enter a positive expense amount.');
+                                return;
+                              }
+                              if (payeeCtrl.text.trim().isEmpty) {
+                                setDlg(() => dialogError = 'Enter the external payee name.');
+                                return;
+                              }
+                              if (staffId.isNotEmpty && !['driver_wage', 'staff_wage'].contains(costKind) && !costKind.contains('wage')) {
+                                setDlg(() => dialogError = 'Linked staff require a driver or staff wage expense type.');
+                                return;
+                              }
+                              if (staffMode == 'salary_allocation' && (staffId.isEmpty || payMade > 0 || enteredPay > 0)) {
+                                setDlg(() => dialogError = 'Salary allocation requires monthly staff and no separate payment on this load.');
+                                return;
+                              }
+                              if (direction == 'outbound' && !internalOnly && chargeCustomer && custCharge > 0 && billingVariantId.isEmpty) {
+                                setDlg(() => dialogError = 'Select or create the service used to invoice this charge.');
+                                return;
+                              }
+                              if (payMade > costAmount) {
+                                setDlg(() => dialogError = 'Payment cannot exceed this expense.');
+                                return;
+                              }
+                              if (payMade > 0 && paymentMethod != 'cash' && payRefCtrl.text.trim().isEmpty) {
+                                setDlg(() => dialogError = 'Enter the payment reference.');
+                                return;
+                              }
+
+                              final savedMap = <String, dynamic>{
+                                'id': initialId,
+                                'cost_kind': costKind,
+                                'category_id': selectedCatId,
+                                'category_name': availableCategories.firstWhere((c) => c.id == selectedCatId, orElse: () => ExpenseCategory(id: 'other', name: 'Other', active: true)).name,
+                                'description': descCtrl.text.trim().isNotEmpty
+                                    ? descCtrl.text.trim()
+                                    : availableCategories.firstWhere((c) => c.id == selectedCatId, orElse: () => ExpenseCategory(id: 'other', name: 'Other', active: true)).name,
+                                'staff_id': staffId,
+                                'payee': payeeCtrl.text.trim(),
+                                'staff_mode': staffMode,
+                                'quantity': costQty,
+                                'rate': costRate,
+                                'amount': costAmount,
+                                'bill_amount': (internalOnly || direction != 'outbound' || !chargeCustomer) ? 0.0 : custCharge,
+                                'billing_variant_id': (chargeCustomer && custCharge > 0) ? billingVariantId : '',
+                                'initial_payment': payMade,
+                                'payment_method': paymentMethod,
+                                'payment_reference': payRefCtrl.text.trim(),
+                                'receipt_reference': receiptRefCtrl.text.trim(),
+                                'notes': notesCtrl.text.trim(),
+                              };
+
+                              Navigator.pop(ctx, savedMap);
+                            },
+                            child: const Text('Save Expense'),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     ),
   );
 }

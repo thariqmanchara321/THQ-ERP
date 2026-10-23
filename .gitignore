@@ -36,3 +36,5 @@ key.properties
 *.dart.before_**.bak
 .thq_patch_backup/
 .thq_patch_backups/
+scratch/
+apps/client_app/test/accounting/output/

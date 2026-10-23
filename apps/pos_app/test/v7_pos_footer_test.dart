@@ -1,3 +1,4 @@
+import 'package:erp_core/erp_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pos_app/models/client_session.dart';
@@ -97,7 +98,10 @@ void main() {
           find.descendant(of: footer, matching: find.byIcon(Icons.refresh)),
           findsNothing,
         );
-        expect(find.text('v8.1.0 · Build 16'), findsOneWidget);
+        expect(
+          find.text('v${ThqReleaseContract.appVersion} · Build ${ThqReleaseContract.buildNumber}'),
+          findsOneWidget,
+        );
         final shellState = tester.state(find.byType(PosHomeScreen));
         final nextMode = initialMode == ThqAppearance.v7
             ? ThqAppearance.classic

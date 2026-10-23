@@ -1,4 +1,3 @@
-import 'package:thq_ui/thq_ui.dart';
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
 
@@ -136,85 +135,36 @@ class _MaterialLoadDetailScreenState extends State<MaterialLoadDetailScreen> {
         locationId: location,
       );
       if (!mounted) return;
-      var costs = <Map<String, dynamic>>[];
-      final requestId = const Uuid().v4();
-      var saving = false;
-      String? error;
+      final existingCosts = StaffLoadService.rows(_record['costs']);
       final linked =
           _record['sale_id'] != null || _record['purchase_id'] != null;
-      final success = await showThqDialog<bool>(
+
+      final savedCost = await showAddLoadExpenseDialog(
         context: context,
-        barrierDismissible: false,
-        builder: (ctx) => StatefulBuilder(
-          builder: (context, local) => AlertDialog(
-            title: Text(linked ? 'Add internal expense' : 'Add load expense'),
-            content: SizedBox(
-              width: 760,
-              child: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    LoadCostEditor(
-                      session: widget.session,
-                      locationId: location,
-                      direction: '${_record['direction']}',
-                      driverId: _record['driver_id']?.toString(),
-                      contextData: configuration,
-                      costs: costs,
-                      internalOnly: linked,
-                      onChanged: (v) => local(() => costs = v),
-                    ),
-                    if (error != null)
-                      Text(
-                        error!,
-                        style: TextStyle(
-                          color: Theme.of(context).colorScheme.error,
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: saving ? null : () => Navigator.pop(ctx, false),
-                child: const Text('Cancel'),
-              ),
-              FilledButton(
-                onPressed: saving || costs.isEmpty
-                    ? null
-                    : () async {
-                        local(() {
-                          saving = true;
-                          error = null;
-                        });
-                        try {
-                          await _service.load(
-                            tenantId: _tenant,
-                            action: 'add_cost',
-                            data: {
-                              'load_id': widget.loadId,
-                              'costs': costs,
-                              'request_id': requestId,
-                            },
-                          );
-                          if (ctx.mounted) Navigator.pop(ctx, true);
-                        } catch (e) {
-                          if (ctx.mounted) {
-                            local(() {
-                              saving = false;
-                              error = e.toString();
-                            });
-                          }
-                        }
-                      },
-                child: Text(saving ? 'Saving…' : 'Save expenses'),
-              ),
-            ],
-          ),
-        ),
+        session: widget.session,
+        locationId: location,
+        direction: '${_record['direction']}',
+        driverId: _record['driver_id']?.toString(),
+        contextData: configuration,
+        internalOnly: linked,
+        existingCosts: existingCosts,
       );
-      if (success == true) await _reload();
+
+      if (savedCost != null) {
+        final requestId = const Uuid().v4();
+        await _service.load(
+          tenantId: _tenant,
+          action: 'add_cost',
+          data: {
+            'load_id': widget.loadId,
+            'costs': [savedCost],
+            'request_id': requestId,
+          },
+        );
+        if (mounted) {
+          await _reload();
+        }
+      }
     } catch (e) {
       if (mounted) setState(() => _error = e.toString());
     }

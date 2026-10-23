@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/platform_models.dart';
@@ -300,6 +302,10 @@ class PlatformConfigService {
     String? publisherSignature,
     String? minSupportedVersion,
     int rolloutPercentage = 100,
+    String targetType = 'all',
+    List<String>? targetTenantIds,
+    List<String>? targetStoreIds,
+    List<String>? targetDeviceIds,
   }) async {
     await _supabase.rpc(
       'platform_app_release_save_v820',
@@ -320,8 +326,55 @@ class PlatformConfigService {
         'p_publisher_signature': publisherSignature,
         'p_min_supported_version': minSupportedVersion,
         'p_rollout_percentage': rolloutPercentage,
+        'p_target_type': targetType,
+        'p_target_tenant_ids': targetTenantIds,
+        'p_target_store_ids': targetStoreIds,
+        'p_target_device_ids': targetDeviceIds,
       },
     );
+  }
+
+  Future<Map<String, dynamic>> previewReleaseTargets({
+    required String appKey,
+    String platform = 'windows',
+    String channel = 'stable',
+    String targetType = 'all',
+    List<String>? targetTenantIds,
+    List<String>? targetStoreIds,
+    List<String>? targetDeviceIds,
+  }) async {
+    final result = await _supabase.rpc(
+      'platform_release_preview_targets_v820',
+      params: {
+        'p_app_key': appKey,
+        'p_platform': platform,
+        'p_channel': channel,
+        'p_target_type': targetType,
+        'p_target_tenant_ids': targetTenantIds,
+        'p_target_store_ids': targetStoreIds,
+        'p_target_device_ids': targetDeviceIds,
+      },
+    );
+    return result is Map ? Map<String, dynamic>.from(result) : <String, dynamic>{};
+  }
+
+  Future<Map<String, dynamic>> getTargetingCatalog() async {
+    final result = await _supabase.rpc('platform_targeting_catalog_v820');
+    return result is Map ? Map<String, dynamic>.from(result) : <String, dynamic>{};
+  }
+
+  Future<String> uploadReleaseArtifact({
+    required String fileName,
+    required List<int> bytes,
+    String contentType = 'application/octet-stream',
+  }) async {
+    final path = 'installers/$fileName';
+    await _supabase.storage.from('thq-releases').uploadBinary(
+      path,
+      Uint8List.fromList(bytes),
+      fileOptions: FileOptions(contentType: contentType, upsert: true),
+    );
+    return _supabase.storage.from('thq-releases').getPublicUrl(path);
   }
 
   Future<void> setAppReleaseStatus(String id, String status) async {
@@ -332,6 +385,28 @@ class PlatformConfigService {
         'p_status': status,
       },
     );
+  }
+
+  Future<Map<String, dynamic>> checkAppReleaseDiscovery({
+    required String appKey,
+    required String platform,
+    required String channel,
+    required String currentVersion,
+    required int currentBuild,
+    String? deviceId,
+  }) async {
+    final result = await _supabase.rpc(
+      'app_release_check_v820',
+      params: {
+        'p_app_key': appKey,
+        'p_platform': platform,
+        'p_channel': channel,
+        'p_current_version': currentVersion,
+        'p_current_build': currentBuild,
+        'p_device_id': deviceId,
+      },
+    );
+    return result is Map ? Map<String, dynamic>.from(result) : <String, dynamic>{};
   }
 
   Future<List<Map<String, dynamic>>> getAppUpdateLogs({

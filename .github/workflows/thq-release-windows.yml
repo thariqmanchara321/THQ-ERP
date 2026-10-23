@@ -1,0 +1,268 @@
+name: THQ ERP Windows Release Delivery
+
+on:
+  workflow_dispatch:
+    inputs:
+      app:
+        description: 'Target Application'
+        required: true
+        type: choice
+        default: 'client'
+        options:
+          - 'client'
+          - 'pos'
+          - 'both'
+      bump_type:
+        description: 'Version Bump Type'
+        required: true
+        type: choice
+        default: 'auto_build'
+        options:
+          - 'auto_build'
+          - 'patch'
+          - 'minor'
+          - 'major'
+      channel:
+        description: 'Release Channel'
+        required: true
+        type: choice
+        default: 'internal_test'
+        options:
+          - 'internal_test'
+          - 'pilot'
+          - 'production'
+      target_device:
+        description: 'Target Device (leave empty for broad distribution, default is internal test PC)'
+        required: false
+        type: string
+        default: 'CLIENT-BC8AEE'
+      release_notes:
+        description: 'Release Notes (optional, auto-generated if empty)'
+        required: false
+        type: string
+        default: ''
+      runner:
+        description: 'Target Runner'
+        required: true
+        type: choice
+        default: 'windows-latest'
+        options:
+          - 'windows-latest'
+          - 'self-hosted'
+
+  push:
+    tags:
+      - 'v*.*.*'
+
+# Prevent parallel releases from assigning duplicate build numbers
+concurrency:
+  group: thq-windows-release-lock
+  cancel-in-progress: false
+
+jobs:
+  release-windows:
+    name: Build & Publish Windows Release
+    runs-on: ${{ github.event.inputs.runner || 'windows-latest' }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Flutter SDK
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Install Inno Setup 7 (if on hosted runner)
+        shell: powershell
+        run: |
+          $iscc = Get-Command ISCC.exe -ErrorAction SilentlyContinue
+          if (-not $iscc) {
+            Write-Host "Installing Inno Setup via Chocolatey..." -ForegroundColor Cyan
+            choco install innosetup -y --no-progress
+            $innoPath = "${env:ProgramFiles(x86)}\Inno Setup 6"
+            if (Test-Path $innoPath) {
+              Write-Host "Adding $innoPath to GITHUB_PATH"
+              Add-Content $env:GITHUB_PATH "$innoPath"
+            }
+            $inno7Path = "$env:ProgramFiles\Inno Setup 7"
+            if (Test-Path $inno7Path) {
+              Write-Host "Adding $inno7Path to GITHUB_PATH"
+              Add-Content $env:GITHUB_PATH "$inno7Path"
+            }
+          } else {
+            Write-Host "Inno Setup already installed: $($iscc.Source)"
+          }
+
+      - name: Verify Windows Build Environment
+        shell: powershell
+        run: |
+          Write-Host "Checking Windows development environment..."
+          flutter doctor -v
+
+      - name: Resolve Flutter Dependencies
+        shell: powershell
+        run: |
+          $app = "${{ github.event.inputs.app }}"
+          if ([string]::IsNullOrWhiteSpace($app)) { $app = "client" }
+          Write-Host "Resolving core dependencies..."
+          Push-Location packages/erp_core; flutter pub get; Pop-Location
+          Push-Location packages/thq_ui; flutter pub get; Pop-Location
+          if ($app -eq "pos" -or $app -eq "both") {
+            Push-Location apps/pos_app; flutter pub get; Pop-Location
+          }
+          if ($app -eq "client" -or $app -eq "both") {
+            Push-Location apps/client_app; flutter pub get; Pop-Location
+          }
+
+      - name: Centralized Version & Build Allocation
+        id: versioning
+        shell: powershell
+        run: |
+          $app = "${{ github.event.inputs.app }}"
+          if ([string]::IsNullOrWhiteSpace($app)) { $app = "client" }
+          $bump = "${{ github.event.inputs.bump_type }}"
+          if ([string]::IsNullOrWhiteSpace($bump)) { $bump = "auto_build" }
+
+          Write-Host "Allocating atomic version/build for App: $app, Bump: $bump"
+          python tools/release/manage_version.py --app $app --bump-type $bump
+
+      - name: Run Application Tests
+        shell: powershell
+        run: |
+          $app = "${{ github.event.inputs.app }}"
+          if ([string]::IsNullOrWhiteSpace($app)) { $app = "client" }
+          Push-Location packages/erp_core; flutter test; Pop-Location
+          if ($app -eq "pos" -or $app -eq "both") {
+            Push-Location apps/pos_app; flutter test; Pop-Location
+          }
+          if ($app -eq "client" -or $app -eq "both") {
+            Push-Location apps/client_app; flutter test; Pop-Location
+          }
+
+      - name: Compile Windows Release & Inno Setup
+        id: build_release
+        shell: powershell
+        run: |
+          $app = "${{ github.event.inputs.app }}"
+          if ([string]::IsNullOrWhiteSpace($app)) { $app = "client" }
+          
+          Write-Host "Building Windows Release and Installer for $app..." -ForegroundColor Cyan
+          powershell -ExecutionPolicy Bypass -File tools/windows_release/BUILD_THQ_WINDOWS_RELEASE.ps1 `
+            -ProjectRoot $env:GITHUB_WORKSPACE `
+            -TargetApp $app `
+            -Format installer `
+            -SkipVcRedist
+
+      - name: Code Signing (Authenticode)
+        id: signing
+        shell: powershell
+        env:
+          CERT_BASE64: ${{ secrets.THQ_WINDOWS_SIGN_PFX_BASE64 }}
+          CERT_PASSWORD: ${{ secrets.THQ_WINDOWS_SIGN_PASSWORD }}
+          TIMESTAMP_URL: ${{ secrets.THQ_WINDOWS_TIMESTAMP_URL || 'http://timestamp.digicert.com' }}
+        run: |
+          if (-not [string]::IsNullOrWhiteSpace($env:CERT_BASE64)) {
+            Write-Host "Authenticode certificate provided. Signing installer..." -ForegroundColor Green
+            $certPath = Join-Path $env:TEMP "thq_release_sign.pfx"
+            try {
+              [System.IO.File]::WriteAllBytes($certPath, [System.Convert]::FromBase64String($env:CERT_BASE64))
+              
+              $installers = Get-ChildItem -Path "$env:GITHUB_WORKSPACE\build\windows_release" -Filter "*.exe" -Recurse
+              foreach ($inst in $installers) {
+                Write-Host "Signing $($inst.FullName)..."
+                powershell -ExecutionPolicy Bypass -File tools/windows_release/SIGN_WINDOWS_FILE.ps1 `
+                  -FilePath $inst.FullName `
+                  -CertificatePath $certPath `
+                  -Password $env:CERT_PASSWORD `
+                  -TimestampUrl $env:TIMESTAMP_URL
+                
+                $sig = Get-AuthenticodeSignature -FilePath $inst.FullName
+                Write-Host "Signature Status: $($sig.Status) | Signer: $($sig.SignerCertificate.Subject)"
+                if ($sig.Status -ne "Valid") {
+                  throw "Signature verification failed for $($inst.Name)"
+                }
+              }
+            } finally {
+              if (Test-Path $certPath) {
+                Remove-Item -Force $certPath
+                Write-Host "Cleaned up temporary signing certificate."
+              }
+            }
+          } else {
+            Write-Host "No THQ_WINDOWS_SIGN_PFX_BASE64 secret provided. Skipping Authenticode signing for internal test candidate." -ForegroundColor Yellow
+          }
+
+      - name: Publish to Supabase Private Storage & Registry
+        id: publish
+        shell: powershell
+        env:
+          SUPABASE_URL: ${{ vars.SUPABASE_URL || 'https://yguzrxcdvyimjrfvtcvp.supabase.co' }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          $channel = "${{ github.event.inputs.channel }}"
+          if ([string]::IsNullOrWhiteSpace($channel)) { $channel = "internal_test" }
+          
+          # Default to internal test PC to guarantee no accidental broadcast to production
+          $targetDevice = "${{ github.event.inputs.target_device }}"
+          if ([string]::IsNullOrWhiteSpace($targetDevice)) { $targetDevice = "CLIENT-BC8AEE" }
+          
+          $releaseNotes = "${{ github.event.inputs.release_notes }}"
+          
+          $manifest = "$env:GITHUB_WORKSPACE\build\windows_release\release_manifest.json"
+          if (-not (Test-Path $manifest)) {
+            throw "release_manifest.json not found at $manifest"
+          }
+
+          $args = @(
+            "tools/release/publish_release.py",
+            "--manifest", $manifest,
+            "--channel", $channel,
+            "--target-device", $targetDevice
+          )
+
+          if (-not [string]::IsNullOrWhiteSpace($releaseNotes)) {
+            $args += @("--release-notes", $releaseNotes)
+          }
+
+          Write-Host "Executing publish_release.py $($args -join ' ')..."
+          python @args
+
+      - name: Retain Immutable Artifacts & Provenance
+        uses: actions/upload-artifact@v4
+        with:
+          name: thq-windows-release-${{ github.sha }}
+          path: |
+            build/windows_release/*.exe
+            build/windows_release/release_manifest.json
+          retention-days: 90
+
+      - name: Tag Release in Git (Optional)
+        shell: powershell
+        run: |
+          try {
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            $v = "${{ steps.versioning.outputs.version }}"
+            $b = "${{ steps.versioning.outputs.build_number }}"
+            if (-not [string]::IsNullOrWhiteSpace($v) -and -not [string]::IsNullOrWhiteSpace($b)) {
+              git add apps/*/pubspec.yaml tools/windows_release/*.iss packages/erp_core/lib/src/release_contract.dart
+              $status = git status --porcelain
+              if (-not [string]::IsNullOrWhiteSpace($status)) {
+                git commit -m "chore(release): bump version to $v+$b [skip ci]"
+                git tag "v$v+$b" -f
+                git push origin HEAD --tags
+                Write-Host "Successfully tagged release as v$v+$b" -ForegroundColor Green
+              }
+            }
+          } catch {
+            Write-Warning "Could not push git tag: $_. This is non-fatal; release is recorded in Supabase."
+          }

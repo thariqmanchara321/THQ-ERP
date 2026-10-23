@@ -4,13 +4,46 @@ library;
 enum UpdateStatus {
   idle,
   checking,
+  upToDate,
   available,
   downloading,
+  paused,
+  downloaded,
   verifying,
   readyToInstall,
+  waitingForSafeShutdown,
   installing,
-  error,
-  upToDate,
+  restarting,
+  verifyingNewVersion,
+  succeeded,
+  failed,
+  recovered,
+  error;
+
+  bool get isBusy =>
+      this == UpdateStatus.checking ||
+      this == UpdateStatus.downloading ||
+      this == UpdateStatus.verifying ||
+      this == UpdateStatus.waitingForSafeShutdown ||
+      this == UpdateStatus.installing ||
+      this == UpdateStatus.restarting ||
+      this == UpdateStatus.verifyingNewVersion;
+
+  bool get isDownloaded =>
+      this == UpdateStatus.downloaded ||
+      this == UpdateStatus.readyToInstall ||
+      this == UpdateStatus.waitingForSafeShutdown ||
+      this == UpdateStatus.installing;
+
+  bool get canInstall =>
+      this == UpdateStatus.readyToInstall || this == UpdateStatus.downloaded;
+
+  bool get isTerminal =>
+      this == UpdateStatus.succeeded ||
+      this == UpdateStatus.failed ||
+      this == UpdateStatus.recovered ||
+      this == UpdateStatus.upToDate ||
+      this == UpdateStatus.error;
 }
 
 class AppReleaseInfo {
@@ -133,4 +166,123 @@ int compareSemver(String v1, String v2) {
     if (n1 < n2) return -1;
   }
   return 0;
+}
+
+/// Persistent record of an in-flight or completed update operation.
+class UpdateSessionState {
+  final String attemptId;
+  final String appKey;
+  final String fromVersion;
+  final int fromBuild;
+  final String targetVersion;
+  final int targetBuild;
+  final String installerPath;
+  final String appExePath;
+  final String
+  status; // 'launching_installer', 'backed_up', 'installing', 'installed', 'rolling_back', 'recovered', 'recovery_failed', 'verified'
+  final int? installerExitCode;
+  final String? errorMessage;
+  final String? backupDirectory;
+  final String? recoveryAction;
+  final String? tenantId;
+  final String? deviceId;
+  final DateTime startedAt;
+  final DateTime? completedAt;
+
+  const UpdateSessionState({
+    required this.attemptId,
+    required this.appKey,
+    required this.fromVersion,
+    required this.fromBuild,
+    required this.targetVersion,
+    required this.targetBuild,
+    required this.installerPath,
+    required this.appExePath,
+    required this.status,
+    this.installerExitCode,
+    this.errorMessage,
+    this.backupDirectory,
+    this.recoveryAction,
+    this.tenantId,
+    this.deviceId,
+    required this.startedAt,
+    this.completedAt,
+  });
+
+  Map<String, dynamic> toJson() => {
+    'attempt_id': attemptId,
+    'app_key': appKey,
+    'from_version': fromVersion,
+    'from_build': fromBuild,
+    'target_version': targetVersion,
+    'target_build': targetBuild,
+    'installer_path': installerPath,
+    'app_exe_path': appExePath,
+    'status': status,
+    'installer_exit_code': installerExitCode,
+    'error_message': errorMessage,
+    'backup_directory': backupDirectory,
+    'recovery_action': recoveryAction,
+    'tenant_id': tenantId,
+    'device_id': deviceId,
+    'started_at': startedAt.toIso8601String(),
+    'completed_at': completedAt?.toIso8601String(),
+  };
+
+  factory UpdateSessionState.fromJson(Map<String, dynamic> json) {
+    return UpdateSessionState(
+      attemptId: json['attempt_id']?.toString() ?? '',
+      appKey: json['app_key']?.toString() ?? 'client',
+      fromVersion: json['from_version']?.toString() ?? '',
+      fromBuild: (json['from_build'] as num?)?.toInt() ?? 0,
+      targetVersion: json['target_version']?.toString() ?? '',
+      targetBuild: (json['target_build'] as num?)?.toInt() ?? 0,
+      installerPath: json['installer_path']?.toString() ?? '',
+      appExePath: json['app_exe_path']?.toString() ?? '',
+      status: json['status']?.toString() ?? 'unknown',
+      installerExitCode: (json['installer_exit_code'] as num?)?.toInt(),
+      errorMessage: json['error_message']?.toString(),
+      backupDirectory: json['backup_directory']?.toString(),
+      recoveryAction: json['recovery_action']?.toString(),
+      tenantId: json['tenant_id']?.toString(),
+      deviceId: json['device_id']?.toString(),
+      startedAt:
+          DateTime.tryParse(json['started_at']?.toString() ?? '') ??
+          DateTime.now(),
+      completedAt: json['completed_at'] != null
+          ? DateTime.tryParse(json['completed_at'].toString())
+          : null,
+    );
+  }
+
+  UpdateSessionState copyWith({
+    String? status,
+    int? installerExitCode,
+    String? errorMessage,
+    String? backupDirectory,
+    String? recoveryAction,
+    String? tenantId,
+    String? deviceId,
+    DateTime? completedAt,
+  }) {
+    return UpdateSessionState(
+      attemptId: attemptId,
+      appKey: appKey,
+      fromVersion: fromVersion,
+      fromBuild: fromBuild,
+      targetVersion: targetVersion,
+      targetBuild: targetBuild,
+      installerPath: installerPath,
+      appExePath: appExePath,
+      status: status ?? this.status,
+      installerExitCode: installerExitCode ?? this.installerExitCode,
+      errorMessage: errorMessage ?? this.errorMessage,
+      backupDirectory: backupDirectory ?? this.backupDirectory,
+      recoveryAction: recoveryAction ?? this.recoveryAction,
+      tenantId: tenantId ?? this.tenantId,
+      deviceId: deviceId ?? this.deviceId,
+      startedAt: startedAt,
+      completedAt: completedAt ?? this.completedAt,
+    );
+  }
 }

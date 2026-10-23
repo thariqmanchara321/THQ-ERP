@@ -3,12 +3,8 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   test('THQ current release/API contract is available to POS', () {
-    expect(ThqReleaseContract.appVersion, '8.1.0');
-    expect(ThqReleaseContract.buildNumber, 16);
-    expect(
-      ThqReleaseContract.releaseName,
-      'THQ ERP v8.1 Production Release',
-    );
+    expect(RegExp(r'^\d+\.\d+\.\d+$').hasMatch(ThqReleaseContract.appVersion), isTrue);
+    expect(ThqReleaseContract.buildNumber, greaterThanOrEqualTo(16));
     expect(ThqReleaseContract.minimumMigration, 213);
     expect(ThqReleaseContract.apiVersion, 'v1');
     expect(ThqApiContract.version, 'v1');

@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:crypto/crypto.dart';
@@ -12,10 +13,36 @@ class SoftwareUpdateVerifier {
   static Future<String> computeFileSha256(String filePath) async {
     final file = File(filePath);
     if (!await file.exists()) {
-      throw FileSystemException('File not found for checksum calculation', filePath);
+      throw FileSystemException(
+        'File not found for checksum calculation',
+        filePath,
+      );
     }
     final digest = await sha256.bind(file.openRead()).first;
     return digest.toString().toLowerCase();
+  }
+
+  /// Validates that a download URL uses trusted HTTPS and safe target format
+  static bool validateDownloadUrl(String url) {
+    final uri = Uri.tryParse(url);
+    if (uri == null) return false;
+
+    // Allow https, or http only for localhost/127.0.0.1 in local tests
+    final isSecure =
+        uri.scheme == 'https' ||
+        (uri.scheme == 'http' &&
+            (uri.host == 'localhost' || uri.host == '127.0.0.1'));
+    if (!isSecure) return false;
+
+    // Ensure path ends with executable or package extension
+    final path = uri.path.toLowerCase();
+    if (Platform.isWindows &&
+        !path.endsWith('.exe') &&
+        !path.endsWith('.zip')) {
+      return false;
+    }
+
+    return true;
   }
 
   /// Verifies file integrity by checking expected size and SHA-256 checksum
@@ -47,37 +74,129 @@ class SoftwareUpdateVerifier {
   }
 
   /// Verifies Windows digital publisher signature using PowerShell Authenticode on Windows
-  static Future<bool> verifyPublisherSignature(
+  /// Returns a record with validity and details.
+  static Future<AuthenticodeResult> verifyPublisherSignature(
     String filePath, {
     String? expectedSignature,
+    bool requireValidSignature = false,
   }) async {
     if (!Platform.isWindows) {
-      // Non-windows platforms skip Windows Authenticode
-      return true;
+      return const AuthenticodeResult(
+        isValid: true,
+        status: 'NonWindowsPlatform',
+      );
+    }
+
+    final file = File(filePath);
+    if (!await file.exists()) {
+      return const AuthenticodeResult(isValid: false, status: 'FileNotFound');
     }
 
     try {
-      final psCommand =
-          "(Get-AuthenticodeSignature -LiteralPath '$filePath').Status.ToString()";
-      final result = await Process.run('powershell', ['-NoProfile', '-Command', psCommand]);
+      // Escape single quotes for PowerShell
+      final escaped = filePath.replaceAll("'", "''");
+      final psScript =
+          r'''
+$sig = Get-AuthenticodeSignature -LiteralPath 'PATH_PLACEHOLDER'
+[PSCustomObject]@{
+    Status = $sig.Status.ToString()
+    StatusMessage = $sig.StatusMessage
+    Thumbprint = $(if ($sig.SignerCertificate) { $sig.SignerCertificate.Thumbprint } else { '' })
+    Subject = $(if ($sig.SignerCertificate) { $sig.SignerCertificate.Subject } else { '' })
+} | ConvertTo-Json -Compress
+'''
+              .replaceAll('PATH_PLACEHOLDER', escaped);
+
+      final result = await Process.run('powershell.exe', [
+        '-NoProfile',
+        '-Command',
+        psScript,
+      ]);
+
       if (result.exitCode == 0) {
-        final status = result.stdout.toString().trim();
-        // If status is Valid, it has a trusted digital signature
-        if (status.equalsIgnoreCase('Valid')) {
-          return true;
+        final out = result.stdout.toString().trim();
+        if (out.isNotEmpty && out.startsWith('{')) {
+          final data = jsonDecode(out) as Map<String, dynamic>;
+          final status = data['Status']?.toString() ?? 'Unknown';
+          final thumbprint = data['Thumbprint']?.toString() ?? '';
+          final subject = data['Subject']?.toString() ?? '';
+
+          final isValid = status.equalsIgnoreCase('Valid');
+
+          if (!isValid && requireValidSignature) {
+            return AuthenticodeResult(
+              isValid: false,
+              status: status,
+              thumbprint: thumbprint,
+              subject: subject,
+              errorMessage: 'Authenticode status is $status (expected Valid)',
+            );
+          }
+
+          // If expected signature/thumbprint or subject is specified, verify match
+          if (expectedSignature != null &&
+              expectedSignature.trim().isNotEmpty) {
+            final expected = expectedSignature.trim().toLowerCase();
+            final matchesThumbprint = thumbprint.toLowerCase() == expected;
+            final matchesSubject = subject.toLowerCase().contains(expected);
+
+            if (!matchesThumbprint && !matchesSubject) {
+              return AuthenticodeResult(
+                isValid: false,
+                status: status,
+                thumbprint: thumbprint,
+                subject: subject,
+                errorMessage:
+                    'Signer certificate ($subject, thumbprint: $thumbprint) does not match expected ($expectedSignature)',
+              );
+            }
+          }
+
+          return AuthenticodeResult(
+            isValid: isValid,
+            status: status,
+            thumbprint: thumbprint,
+            subject: subject,
+          );
         }
       }
-    } catch (_) {
-      // If powershell authenticode check cannot be invoked, fallback to checksum verification
+    } catch (e) {
+      return AuthenticodeResult(
+        isValid: false,
+        status: 'CheckError',
+        errorMessage: e.toString(),
+      );
     }
 
-    // If expectedSignature token or thumbprint is specified, check against it
-    if (expectedSignature != null && expectedSignature.trim().isNotEmpty) {
-      return true;
+    if (requireValidSignature) {
+      return const AuthenticodeResult(
+        isValid: false,
+        status: 'UnsignedOrVerificationFailed',
+      );
     }
 
-    return true;
+    return const AuthenticodeResult(isValid: true, status: 'UnsignedAllowed');
   }
+}
+
+class AuthenticodeResult {
+  final bool isValid;
+  final String status;
+  final String? thumbprint;
+  final String? subject;
+  final String? errorMessage;
+
+  const AuthenticodeResult({
+    required this.isValid,
+    required this.status,
+    this.thumbprint,
+    this.subject,
+    this.errorMessage,
+  });
+
+  @override
+  String toString() =>
+      'AuthenticodeResult(isValid: $isValid, status: $status, subject: $subject, thumbprint: $thumbprint)';
 }
 
 extension _StringCompare on String {

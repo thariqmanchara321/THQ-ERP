@@ -3,14 +3,13 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   test(
-    'THQ v8.1.0 Build 16 release contract keeps migration 213 compatibility',
+    'THQ release contract keeps migration 213 and apiVersion v1 compatibility',
     () {
-      expect(ThqReleaseContract.appVersion, '8.1.0');
-      expect(ThqReleaseContract.buildNumber, 16);
       expect(
-        ThqReleaseContract.releaseName,
-        'THQ ERP v8.1 Production Release',
+        RegExp(r'^\d+\.\d+\.\d+$').hasMatch(ThqReleaseContract.appVersion),
+        isTrue,
       );
+      expect(ThqReleaseContract.buildNumber, greaterThanOrEqualTo(16));
       expect(ThqReleaseContract.minimumMigration, 213);
       expect(ThqReleaseContract.apiVersion, 'v1');
     },

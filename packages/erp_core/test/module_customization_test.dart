@@ -5,7 +5,10 @@ void main() {
   group('ThqAppScope Canonical Resolution Tests', () {
     test('resolves standard keys and logical names correctly', () {
       expect(ThqAppScope.fromString('client'), ThqAppScope.businessDesktop);
-      expect(ThqAppScope.fromString('business_desktop'), ThqAppScope.businessDesktop);
+      expect(
+        ThqAppScope.fromString('business_desktop'),
+        ThqAppScope.businessDesktop,
+      );
       expect(ThqAppScope.canonicalKey('business_desktop'), 'client');
 
       expect(ThqAppScope.fromString('pos'), ThqAppScope.posDesktop);
@@ -24,11 +27,17 @@ void main() {
       expect(ThqAppScope.canonicalKey('admin'), 'admin');
     });
 
-    test('handles unknown and null values with safe fallback to businessDesktop', () {
-      expect(ThqAppScope.fromString(null), ThqAppScope.businessDesktop);
-      expect(ThqAppScope.fromString('unknown_scope'), ThqAppScope.businessDesktop);
-      expect(ThqAppScope.canonicalKey('unknown'), 'client');
-    });
+    test(
+      'handles unknown and null values with safe fallback to businessDesktop',
+      () {
+        expect(ThqAppScope.fromString(null), ThqAppScope.businessDesktop);
+        expect(
+          ThqAppScope.fromString('unknown_scope'),
+          ThqAppScope.businessDesktop,
+        );
+        expect(ThqAppScope.canonicalKey('unknown'), 'client');
+      },
+    );
   });
 
   group('ThqModuleDefinition Tests', () {

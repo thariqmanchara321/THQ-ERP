@@ -40,10 +40,16 @@ class SoftwareUpdateDownloader {
 
     IOSink? sink;
     try {
+      if (!SoftwareUpdateVerifier.validateDownloadUrl(downloadUrl)) {
+        throw ArgumentError(
+          'Untrusted or invalid download URL scheme/destination: $downloadUrl',
+        );
+      }
+
       final uri = Uri.parse(downloadUrl);
       final request = await client.getUrl(uri);
       request.headers.set(HttpHeaders.userAgentHeader, 'THQ-ERP-Updater/1.0');
-      
+
       final response = await request.close();
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw HttpException(
@@ -52,8 +58,8 @@ class SoftwareUpdateDownloader {
         );
       }
 
-      final contentLength = response.contentLength > 0 
-          ? response.contentLength 
+      final contentLength = response.contentLength > 0
+          ? response.contentLength
           : (expectedSizeBytes ?? -1);
 
       sink = tempFile.openWrite();
@@ -77,9 +83,11 @@ class SoftwareUpdateDownloader {
           final fraction = contentLength > 0
               ? (receivedBytes / contentLength).clamp(0.0, 1.0)
               : 0.0;
-          
+
           final elapsedSec = stopwatch.elapsedMilliseconds / 1000.0;
-          final speedBytesPerSec = elapsedSec > 0 ? (receivedBytes / elapsedSec) : 0.0;
+          final speedBytesPerSec = elapsedSec > 0
+              ? (receivedBytes / elapsedSec)
+              : 0.0;
           final speedMb = (speedBytesPerSec / (1024 * 1024)).toStringAsFixed(1);
 
           onProgress(
@@ -103,7 +111,9 @@ class SoftwareUpdateDownloader {
 
       // 1. Verify size
       final actualSize = await tempFile.length();
-      if (expectedSizeBytes != null && expectedSizeBytes > 0 && actualSize != expectedSizeBytes) {
+      if (expectedSizeBytes != null &&
+          expectedSizeBytes > 0 &&
+          actualSize != expectedSizeBytes) {
         throw UpdateIntegrityException(
           'Downloaded package size mismatch: expected $expectedSizeBytes bytes, got $actualSize bytes.',
         );
@@ -111,7 +121,9 @@ class SoftwareUpdateDownloader {
 
       // 2. Verify SHA-256
       if (expectedSha256 != null && expectedSha256.trim().isNotEmpty) {
-        final actualSha256 = await SoftwareUpdateVerifier.computeFileSha256(tempFile.path);
+        final actualSha256 = await SoftwareUpdateVerifier.computeFileSha256(
+          tempFile.path,
+        );
         if (actualSha256.toLowerCase() != expectedSha256.trim().toLowerCase()) {
           throw UpdateIntegrityException(
             'Checksum verification failed. The update package may be corrupted or modified.',
@@ -126,15 +138,19 @@ class SoftwareUpdateDownloader {
       await tempFile.rename(destinationPath);
 
       // 4. Verify publisher signature on Windows if configured
-      if (Platform.isWindows && expectedPublisherSignature != null && expectedPublisherSignature.trim().isNotEmpty) {
-        final validSig = await SoftwareUpdateVerifier.verifyPublisherSignature(
-          destinationPath,
-          expectedSignature: expectedPublisherSignature,
-        );
-        if (!validSig) {
+      if (Platform.isWindows &&
+          expectedPublisherSignature != null &&
+          expectedPublisherSignature.trim().isNotEmpty) {
+        final authResult =
+            await SoftwareUpdateVerifier.verifyPublisherSignature(
+              destinationPath,
+              expectedSignature: expectedPublisherSignature,
+              requireValidSignature: true,
+            );
+        if (!authResult.isValid) {
           await destFile.delete();
           throw UpdateIntegrityException(
-            'Publisher signature verification failed for this update.',
+            'Publisher signature verification failed: ${authResult.errorMessage ?? authResult.status}',
           );
         }
       }
@@ -162,12 +178,17 @@ class SoftwareUpdateDownloader {
     bool silent = false,
   }) async {
     if (!Platform.isWindows) {
-      throw UnsupportedError('Installer execution is currently only supported on Windows.');
+      throw UnsupportedError(
+        'Installer execution is currently only supported on Windows.',
+      );
     }
 
     final file = File(installerPath);
     if (!await file.exists()) {
-      throw FileSystemException('Installer executable does not exist', installerPath);
+      throw FileSystemException(
+        'Installer executable does not exist',
+        installerPath,
+      );
     }
 
     final args = <String>[];
@@ -187,11 +208,7 @@ class SoftwareUpdateDownloader {
       ]);
     }
 
-    return Process.start(
-      installerPath,
-      args,
-      mode: ProcessStartMode.detached,
-    );
+    return Process.start(installerPath, args, mode: ProcessStartMode.detached);
   }
 }
 

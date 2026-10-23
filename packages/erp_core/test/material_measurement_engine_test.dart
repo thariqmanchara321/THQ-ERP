@@ -22,17 +22,20 @@ void main() {
       expect(cft, closeTo(240.0, 0.0001));
     });
 
-    test('calculateFromFeetAndInches: 10ft 0in x 6ft 0in x 4ft 0in = 240.0 CFT', () {
-      final cft = MaterialMeasurementEngine.calculateFromFeetAndInches(
-        lengthFt: 10.0,
-        lengthIn: 0.0,
-        widthFt: 6.0,
-        widthIn: 0.0,
-        heightFt: 4.0,
-        heightIn: 0.0,
-      );
-      expect(cft, closeTo(240.0, 0.0001));
-    });
+    test(
+      'calculateFromFeetAndInches: 10ft 0in x 6ft 0in x 4ft 0in = 240.0 CFT',
+      () {
+        final cft = MaterialMeasurementEngine.calculateFromFeetAndInches(
+          lengthFt: 10.0,
+          lengthIn: 0.0,
+          widthFt: 6.0,
+          widthIn: 0.0,
+          heightFt: 4.0,
+          heightIn: 0.0,
+        );
+        expect(cft, closeTo(240.0, 0.0001));
+      },
+    );
 
     test('calculateFromMetres: 2m x 1.5m x 1m = 105.944 CFT', () {
       final cft = MaterialMeasurementEngine.calculateFromMetres(
@@ -68,27 +71,34 @@ void main() {
       expect(resMinus.physicalStockQuantity, closeTo(220.0, 0.0001));
     });
 
-    test('validateTruckCapacity returns warning when exceeding nominal capacity without override', () {
-      final warning = MaterialMeasurementEngine.validateTruckCapacity(
-        loadQtyCft: 250.0,
-        nominalCapacityCft: 200.0,
-        allowOverride: false,
-      );
-      expect(warning, isNotNull);
-      expect(warning, contains('exceeds truck capacity'));
+    test(
+      'validateTruckCapacity returns warning when exceeding nominal capacity without override',
+      () {
+        final warning = MaterialMeasurementEngine.validateTruckCapacity(
+          loadQtyCft: 250.0,
+          nominalCapacityCft: 200.0,
+          allowOverride: false,
+        );
+        expect(warning, isNotNull);
+        expect(warning, contains('exceeds truck capacity'));
 
-      final validWithOverride = MaterialMeasurementEngine.validateTruckCapacity(
-        loadQtyCft: 250.0,
-        nominalCapacityCft: 200.0,
-        allowOverride: true,
-        overrideReason: 'Approved by Site Supervisor',
-      );
-      expect(validWithOverride, isNull);
-    });
+        final validWithOverride =
+            MaterialMeasurementEngine.validateTruckCapacity(
+              loadQtyCft: 250.0,
+              nominalCapacityCft: 200.0,
+              allowOverride: true,
+              overrideReason: 'Approved by Site Supervisor',
+            );
+        expect(validWithOverride, isNull);
+      },
+    );
 
     test('Formatters output consistent CFT and units', () {
       expect(MaterialMeasurementEngine.formatCft(150.0), '150.00 CFT');
-      expect(MaterialMeasurementEngine.formatQuantity(25.5, 'TON'), '25.50 TON');
+      expect(
+        MaterialMeasurementEngine.formatQuantity(25.5, 'TON'),
+        '25.50 TON',
+      );
     });
   });
 }

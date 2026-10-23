@@ -155,7 +155,8 @@ class MaterialMeasurementEngine {
     required double widthIn,
     required double heightIn,
   }) {
-    if (!lengthIn.isFinite || !widthIn.isFinite || !heightIn.isFinite) return 0.0;
+    if (!lengthIn.isFinite || !widthIn.isFinite || !heightIn.isFinite)
+      return 0.0;
     if (lengthIn <= 0 || widthIn <= 0 || heightIn <= 0) return 0.0;
     if (lengthIn > maxPhysicalDimensionInches ||
         widthIn > maxPhysicalDimensionInches ||
@@ -172,7 +173,8 @@ class MaterialMeasurementEngine {
     required double widthFt,
     required double heightFt,
   }) {
-    if (!lengthFt.isFinite || !widthFt.isFinite || !heightFt.isFinite) return 0.0;
+    if (!lengthFt.isFinite || !widthFt.isFinite || !heightFt.isFinite)
+      return 0.0;
     if (lengthFt <= 0 || widthFt <= 0 || heightFt <= 0) return 0.0;
     if (lengthFt > (maxPhysicalDimensionInches / 12) ||
         widthFt > (maxPhysicalDimensionInches / 12) ||
@@ -201,7 +203,8 @@ class MaterialMeasurementEngine {
     required double widthCm,
     required double heightCm,
   }) {
-    if (!lengthCm.isFinite || !widthCm.isFinite || !heightCm.isFinite) return 0.0;
+    if (!lengthCm.isFinite || !widthCm.isFinite || !heightCm.isFinite)
+      return 0.0;
     if (lengthCm <= 0 || widthCm <= 0 || heightCm <= 0) return 0.0;
     return (lengthCm * widthCm * heightCm) / cubicCentimetresPerCft;
   }
@@ -218,8 +221,10 @@ class MaterialMeasurementEngine {
     required double heightFt,
     double heightIn = 0.0,
   }) {
-    if (!lengthFt.isFinite || !widthFt.isFinite || !heightFt.isFinite) return 0.0;
-    if (!lengthIn.isFinite || !widthIn.isFinite || !heightIn.isFinite) return 0.0;
+    if (!lengthFt.isFinite || !widthFt.isFinite || !heightFt.isFinite)
+      return 0.0;
+    if (!lengthIn.isFinite || !widthIn.isFinite || !heightIn.isFinite)
+      return 0.0;
     final totalLengthIn = (lengthFt * 12.0) + (lengthIn > 0 ? lengthIn : 0.0);
     final totalWidthIn = (widthFt * 12.0) + (widthIn > 0 ? widthIn : 0.0);
     final totalHeightIn = (heightFt * 12.0) + (heightIn > 0 ? heightIn : 0.0);
@@ -273,7 +278,10 @@ class MaterialMeasurementEngine {
     required double? bulkDensity,
     required bool isDensityApproved,
   }) {
-    if (!isDensityApproved || bulkDensity == null || !bulkDensity.isFinite || bulkDensity <= 0) {
+    if (!isDensityApproved ||
+        bulkDensity == null ||
+        !bulkDensity.isFinite ||
+        bulkDensity <= 0) {
       return null;
     }
     if (!netWeight.isFinite || netWeight <= 0) return 0.0;

@@ -1,8 +1,16 @@
 param(
-    [Parameter(Mandatory=$true)]
-    [string]$ProjectRoot,
+    [Parameter(Mandatory=$false)]
+    [string]$ProjectRoot = "",
+
+    [ValidateSet("client","pos","both")]
+    [string]$TargetApp = "both",
+
     [ValidateSet("portable","installer","both")]
     [string]$Format = "both",
+
+    [string]$Version = "",
+    [int]$BuildNumber = 0,
+
     [string]$OutputRoot = "",
     [switch]$SkipAnalyze,
     [switch]$SkipVcRedist,
@@ -10,11 +18,45 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
-$ProjectRoot = (Resolve-Path $ProjectRoot).Path
 $ToolsRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
+if([string]::IsNullOrWhiteSpace($ProjectRoot) -or -not (Test-Path $ProjectRoot)){
+    $ProjectRoot = Split-Path -Parent $ToolsRoot
+}
+$ProjectRoot = (Resolve-Path $ProjectRoot).Path
+
+# 1. Automatically detect version and build number if not explicitly provided
+if([string]::IsNullOrWhiteSpace($Version) -or $BuildNumber -le 0){
+    $contractFile = Join-Path $ProjectRoot "packages\erp_core\lib\src\release_contract.dart"
+    if(Test-Path $contractFile){
+        $content = Get-Content $contractFile -Raw
+        if($content -match "appVersion\s*=\s*'([^']+)'"){
+            if([string]::IsNullOrWhiteSpace($Version)){ $Version = $matches[1] }
+        }
+        if($content -match "buildNumber\s*=\s*([0-9]+)"){
+            if($BuildNumber -le 0){ $BuildNumber = [int]$matches[1] }
+        }
+    }
+
+    if([string]::IsNullOrWhiteSpace($Version) -or $BuildNumber -le 0){
+        $pubspec = Join-Path $ProjectRoot "apps\client_app\pubspec.yaml"
+        if(Test-Path $pubspec){
+            $verLine = Get-Content $pubspec | Where-Object { $_ -match "^version:\s*([0-9.]+)\+([0-9]+)" } | Select-Object -First 1
+            if($verLine -match "^version:\s*([0-9.]+)\+([0-9]+)"){
+                if([string]::IsNullOrWhiteSpace($Version)){ $Version = $matches[1] }
+                if($BuildNumber -le 0){ $BuildNumber = [int]$matches[2] }
+            }
+        }
+    }
+}
+
+if([string]::IsNullOrWhiteSpace($Version)){ $Version = "8.1.0" }
+if($BuildNumber -le 0){ $BuildNumber = 16 }
+
+Write-Host "THQ ERP Windows Release Builder" -ForegroundColor Cyan
+Write-Host "Version: $Version | Build: $BuildNumber | Target: $TargetApp | Format: $Format" -ForegroundColor Cyan
 
 if([string]::IsNullOrWhiteSpace($OutputRoot)){
-    $OutputRoot = Join-Path $env:USERPROFILE "THQ_Releases\v6.2.8-build13-windows"
+    $OutputRoot = Join-Path $ProjectRoot "build\windows_release"
 }
 New-Item -ItemType Directory -Force -Path $OutputRoot | Out-Null
 
@@ -43,14 +85,14 @@ function Find-ReleaseDir {
         throw "Release executable not found under ${windowsBuild}: $ExeName"
     }
     if($exe.FullName -notmatch '\\x64\\'){
-        throw "Build 13 installer is x64-only, but detected output was: $($exe.FullName)"
+        throw "Installer is x64-only, but detected output was: $($exe.FullName)"
     }
     return $exe.Directory.FullName
 }
 
 function Find-InnoCompiler {
     $cmd = Get-Command ISCC.exe -ErrorAction SilentlyContinue
-    if($cmd){ return $cmd.Source }
+    if($cmd -and $cmd.Source){ return $cmd.Source }
     $candidates = @(
         "$env:ProgramFiles\Inno Setup 7\ISCC.exe",
         "${env:ProgramFiles(x86)}\Inno Setup 7\ISCC.exe",
@@ -58,8 +100,12 @@ function Find-InnoCompiler {
         "$env:ProgramFiles\Inno Setup 6\ISCC.exe",
         "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe",
         "$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe"
-    ) | Where-Object { $_ -and (Test-Path $_) }
-    if($candidates.Count -gt 0){ return $candidates[0] }
+    )
+    foreach($c in $candidates){
+        if(-not [string]::IsNullOrWhiteSpace($c) -and (Test-Path $c)){
+            return $c
+        }
+    }
     throw "ISCC.exe was not found. Install Inno Setup 7 or 6, or add ISCC.exe to PATH."
 }
 
@@ -98,22 +144,26 @@ else {
     Write-Warning "No Windows Authenticode certificate configured. Artifacts will be UNSIGNED QA candidates. Use -RequireSigning for a fail-closed production build."
 }
 
-$apps = @(
+$allApps = @(
     @{
+        Key = "client"
         Name = "THQ Business"
         Dir = Join-Path $ProjectRoot "apps\client_app"
         Exe = "thq_business.exe"
         Iss = Join-Path $ToolsRoot "THQ_Business.iss"
-        PortableBase = "THQ-Business-v6.2.8-build13-windows-x64"
+        PortableBase = "THQ-Business-v$Version-build$BuildNumber-windows-x64"
     },
     @{
+        Key = "pos"
         Name = "THQ POS"
         Dir = Join-Path $ProjectRoot "apps\pos_app"
         Exe = "thq_pos.exe"
         Iss = Join-Path $ToolsRoot "THQ_POS.iss"
-        PortableBase = "THQ-POS-v6.2.8-build13-windows-x64"
+        PortableBase = "THQ-POS-v$Version-build$BuildNumber-windows-x64"
     }
 )
+
+$apps = $allApps | Where-Object { $TargetApp -eq "both" -or $_.Key -eq $TargetApp }
 
 if(-not $SkipAnalyze){
     Push-Location (Join-Path $ProjectRoot "packages\erp_core")
@@ -143,19 +193,26 @@ if(-not $SkipVcRedist){
 }
 
 $artifacts = @()
+$manifestEntries = @()
 $inno = $null
 if($Format -eq "installer" -or $Format -eq "both"){
     $inno = Find-InnoCompiler
 }
 
+# Copy update coordinator script to output directory for customer support & recovery
+$coordSrc = Join-Path $ToolsRoot "thq_update_coordinator.ps1"
+if(Test-Path $coordSrc){
+    Copy-Item $coordSrc (Join-Path $OutputRoot "thq_update_coordinator.ps1") -Force
+}
+
 foreach($app in $apps){
     Write-Host ""
-    Write-Host "=== Building $($app.Name) ===" -ForegroundColor Cyan
+    Write-Host "=== Building $($app.Name) (v$Version+$BuildNumber) ===" -ForegroundColor Cyan
 
     Invoke-Flutter -AppDir $app.Dir -FlutterArgs @(
         "build","windows","--release",
-        "--build-name","6.2.8",
-        "--build-number","13"
+        "--build-name",$Version,
+        "--build-number",$BuildNumber.ToString()
     )
 
     $releaseDir = Find-ReleaseDir -AppDir $app.Dir -ExeName $app.Exe
@@ -176,6 +233,19 @@ foreach($app in $apps){
     New-Item -ItemType Directory -Force -Path $portableDir | Out-Null
     Copy-Item (Join-Path $releaseDir "*") $portableDir -Recurse -Force
 
+    # Ensure update coordinator is bundled directly into the application directory ({app})
+    $coordSrc = Join-Path $ToolsRoot "thq_update_coordinator.ps1"
+    if(Test-Path $coordSrc){
+        Copy-Item $coordSrc (Join-Path $portableDir "thq_update_coordinator.ps1") -Force
+        if($signingConfigured){
+            try {
+                & (Join-Path $ToolsRoot "SIGN_WINDOWS_FILE.ps1") (Join-Path $portableDir "thq_update_coordinator.ps1")
+            } catch {
+                Write-Warning "Could not sign thq_update_coordinator.ps1: $_"
+            }
+        }
+    }
+
     if($vcRedist){
         $portablePrereq = Join-Path $portableDir "Prerequisites"
         New-Item -ItemType Directory -Force -Path $portablePrereq | Out-Null
@@ -193,8 +263,8 @@ foreach($app in $apps){
         $isccArgs = @(
             "/DSourceDir=$portableDir",
             "/DOutputDir=$OutputRoot",
-            "/DAppVersion=6.2.8",
-            "/DBuildNumber=13"
+            "/DAppVersion=$Version",
+            "/DBuildNumber=$BuildNumber"
         )
         if($vcRedist){ $isccArgs += "/DVcRedistPath=$vcRedist" }
 
@@ -223,6 +293,20 @@ foreach($app in $apps){
             }
         }
         $artifacts += $installer
+
+        # Compute SHA256 and size for manifest
+        $instItem = Get-Item $installer
+        $instHash = (Get-FileHash $installer -Algorithm SHA256).Hash.ToLowerInvariant()
+        $manifestEntries += @{
+            app_key = $app.Key
+            platform = "windows"
+            version = $Version
+            build_number = $BuildNumber
+            file_name = $instItem.Name
+            file_size_bytes = $instItem.Length
+            sha256 = $instHash
+            installer_path = $installer
+        }
     }
 }
 
@@ -235,20 +319,34 @@ $hashLines = foreach($artifact in $artifacts){
 }
 $hashLines | Set-Content $hashFile -Encoding ascii
 
+$gitCommit = (& git -C $ProjectRoot rev-parse --short HEAD).Trim()
+
+$manifestFile = Join-Path $OutputRoot "release_manifest.json"
+$manifest = @{
+    version = $Version
+    build_number = $BuildNumber
+    built_at = (Get-Date -Format o)
+    git_commit = $gitCommit
+    signed = $signingConfigured
+    artifacts = $manifestEntries
+}
+$manifest | ConvertTo-Json -Depth 5 | Set-Content $manifestFile -Encoding utf8
+
 $releaseInfo = Join-Path $OutputRoot "RELEASE_INFO.txt"
 @(
-    "THQ ERP Windows v6.2.8 Build 13",
-    "Release: Production Validation & Client Readiness",
+    "THQ ERP Windows v$Version Build $BuildNumber",
+    "Release: Automatic Update System V2 Certified Build",
     "Built: $(Get-Date -Format o)",
     "Signing: $(if($signingConfigured){'Authenticode enabled'}else{'UNSIGNED'})",
     "VC++ Runtime bundled: $([bool]$vcRedist)",
-    "Git HEAD: $((& git -C $ProjectRoot rev-parse --short HEAD).Trim())"
+    "Git HEAD: $gitCommit"
 ) | Set-Content $releaseInfo -Encoding utf8
 
 Write-Host ""
 Write-Host "THQ Windows release artifacts created:" -ForegroundColor Green
 foreach($artifact in $artifacts){ Write-Host "  $artifact" }
 Write-Host "  $hashFile"
+Write-Host "  $manifestFile"
 Write-Host "  $releaseInfo"
 
 if(-not $signingConfigured){
