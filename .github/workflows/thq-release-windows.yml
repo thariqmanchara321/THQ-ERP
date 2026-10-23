@@ -49,9 +49,8 @@ on:
           - 'windows-latest'
           - 'self-hosted'
 
-  push:
-    tags:
-      - 'v*.*.*'
+permissions:
+  contents: write
 
 # Prevent parallel releases from assigning duplicate build numbers
 concurrency:

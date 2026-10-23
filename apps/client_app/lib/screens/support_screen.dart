@@ -471,6 +471,31 @@ class _SupportScreenState extends State<SupportScreen> {
                 ),
               ],
             ),
+            const SizedBox(height: 12),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.teal.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.teal.withValues(alpha: 0.35)),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.verified_rounded, size: 16, color: Colors.teal.shade700),
+                  const SizedBox(width: 8),
+                  const Text(
+                    'GitHub Auto-Update Verified — New Build',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.teal,
+                    ),
+                  ),
+                ],
+              ),
+            ),
             const SizedBox(height: 14),
             SystemHealthPanel(
               tenantId: widget.session.business.id,
