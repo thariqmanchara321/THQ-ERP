@@ -272,9 +272,7 @@ foreach($app in $apps){
             $signScript = Join-Path $ToolsRoot "SIGN_WINDOWS_FILE.ps1"
             $signToolDef = 'thq=powershell.exe -NoProfile -ExecutionPolicy Bypass -File "' + $signScript + '" $f'
             $isccArgs += "/DEnableSigning=1"
-            $isccArgs += "--signtool=$signToolDef"
-        } else {
-            $isccArgs += "--no-signing"
+            $isccArgs += "/S$signToolDef"
         }
 
         $isccArgs += $app.Iss
