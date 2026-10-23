@@ -55,20 +55,18 @@ class SystemHealthReport {
 class SystemHealthService {
   final SupabaseClient? _customClient;
   final FlutterSecureStorage _storage;
-  final Future<dynamic> Function(Duration timeout)? _customDbChecker;
+  final Future<dynamic> Function(Duration timeout)? customDbChecker;
   final String? _customAppVersion;
   final int? _customBuildNumber;
 
   SystemHealthService({
     SupabaseClient? client,
     FlutterSecureStorage? storage,
-    // ignore: prefer_initializing_formals
-    Future<dynamic> Function(Duration timeout)? customDbChecker,
+    this.customDbChecker,
     String? appVersion,
     int? buildNumber,
   })  : _customClient = client,
         _storage = storage ?? const FlutterSecureStorage(),
-        _customDbChecker = customDbChecker,
         _customAppVersion = appVersion,
         _customBuildNumber = buildNumber;
 
@@ -112,9 +110,9 @@ class SystemHealthService {
 
     final stopwatch = Stopwatch()..start();
 
-    if (_customDbChecker != null) {
+    if (customDbChecker != null) {
       try {
-        await _customDbChecker(timeout);
+        await customDbChecker!(timeout);
         stopwatch.stop();
         dbStatus = DatabaseConnectionStatus.connected;
         latencyMs = stopwatch.elapsedMilliseconds;
