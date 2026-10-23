@@ -327,6 +327,8 @@ def main():
     parser.add_argument("--target-store-ids", type=str, default=None, help="Comma-separated store UUIDs")
     parser.add_argument("--rollout", type=int, default=100, help="Rollout percentage (0-100)")
     parser.add_argument("--release-notes", type=str, default=None, help="Release notes")
+    parser.add_argument("--release-notes-file", type=str, default=None, help="Path to text file containing release notes")
+    parser.add_argument("--allow-production", action="store_true", help="Explicit override to allow production release (default is test-restricted)")
     parser.add_argument("--verify-device-id", type=str, default="bc8aeec1-9bce-4935-b349-168caf9a7fa4", help="Device ID to run discovery verification test")
     parser.add_argument("--api-key", type=str, default=None, help="Supabase publish key or CI secret")
     parser.add_argument("--skip-upload", action="store_true", help="Skip uploading artifact to storage")
@@ -369,17 +371,7 @@ def main():
     storage_rel_path = f"installers/{file_name}"
     download_url = storage_rel_path
 
-    # 3. Upload to Supabase Storage
-    if not args.skip_upload:
-        if not effective_key or effective_key == SUPABASE_ANON_KEY:
-            print("[WARN] SUPABASE_SERVICE_ROLE_KEY is not set. Uploading with anon key may fail due to private bucket RLS.", file=sys.stderr)
-        success, res = upload_artifact_to_storage(local_path, storage_rel_path, anon_key=effective_key)
-        if not success:
-            sys.exit(1)
-    else:
-        print(f"[PUBLISH] Skipping artifact upload as requested.")
-
-    # 4. Prepare targeting parameters & map device names to UUIDs
+    # 3. Prepare targeting parameters & map device names to UUIDs
     KNOWN_DEVICE_MAP = {
         "CLIENT-BC8AEE": "bc8aeec1-9bce-4935-b349-168caf9a7fa4",
     }
@@ -416,10 +408,43 @@ def main():
         # Default fallback to internal test PC
         target_devices = ["bc8aeec1-9bce-4935-b349-168caf9a7fa4"]
 
+    # Security check: strict enforcement of test device restriction before any network operations
+    ALLOWED_TEST_DEVICES = {"BC8AEEC1-9BCE-4935-B349-168CAF9A7FA4", "CLIENT-BC8AEE"}
+    if not args.allow_production:
+        if effective_target_type != "device":
+            print(f"[SECURITY ERROR] Automated publishing is restricted strictly to target_type 'device'. Attempted: {effective_target_type}", file=sys.stderr)
+            sys.exit(1)
+        if not target_devices:
+            print("[SECURITY ERROR] Target device list cannot be empty for internal test candidate.", file=sys.stderr)
+            sys.exit(1)
+        for dev in target_devices:
+            if dev.upper() not in ALLOWED_TEST_DEVICES:
+                print(f"[SECURITY ERROR] Device {dev} is not authorized for automated test publishing. Only CLIENT-BC8AEE is permitted.", file=sys.stderr)
+                sys.exit(1)
+
     target_tenants = [t.strip() for t in args.target_tenant_ids.split(",") if t.strip()] if args.target_tenant_ids else None
     target_stores = [s.strip() for s in args.target_store_ids.split(",") if s.strip()] if args.target_store_ids else None
 
-    notes = args.release_notes or f"THQ ERP v{version} (Build {build_number}) automated release."
+    # 4. Upload to Supabase Storage (Only executed once security policy has passed)
+    if not args.skip_upload:
+        if not effective_key or effective_key == SUPABASE_ANON_KEY:
+            print("[WARN] SUPABASE_SERVICE_ROLE_KEY is not set. Uploading with anon key may fail due to private bucket RLS.", file=sys.stderr)
+        success, res = upload_artifact_to_storage(local_path, storage_rel_path, anon_key=effective_key)
+        if not success:
+            sys.exit(1)
+    else:
+        print(f"[PUBLISH] Skipping artifact upload as requested.")
+
+    # Load release notes from file or argument safely
+    notes = args.release_notes
+    if args.release_notes_file and os.path.exists(args.release_notes_file):
+        try:
+            with open(args.release_notes_file, 'r', encoding='utf-8') as rf:
+                notes = rf.read().strip()
+        except Exception as e:
+            print(f"[WARN] Failed to read release notes file: {e}", file=sys.stderr)
+    if not notes:
+        notes = f"THQ ERP v{version} (Build {build_number}) automated release."
 
     # 5. Save release record
     saved, release_record = save_release_record(

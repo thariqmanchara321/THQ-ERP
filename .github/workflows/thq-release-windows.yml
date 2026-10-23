@@ -30,9 +30,8 @@ on:
         options:
           - 'internal_test'
           - 'pilot'
-          - 'production'
       target_device:
-        description: 'Target Device (leave empty for broad distribution, default is internal test PC)'
+        description: 'Target Device (strictly restricted to test PC CLIENT-BC8AEE)'
         required: false
         type: string
         default: 'CLIENT-BC8AEE'
@@ -63,8 +62,37 @@ jobs:
   release-windows:
     name: Build & Publish Windows Release
     runs-on: ${{ github.event.inputs.runner || 'windows-latest' }}
+    environment: release-publishing
 
     steps:
+      - name: Verify Test Device Isolation & Safety Policy
+        shell: powershell
+        env:
+          INPUT_CHANNEL: ${{ github.event.inputs.channel }}
+          INPUT_TARGET_DEVICE: ${{ github.event.inputs.target_device }}
+        run: |
+          $channel = $env:INPUT_CHANNEL
+          if ([string]::IsNullOrWhiteSpace($channel)) { $channel = "internal_test" }
+          $targetDevice = $env:INPUT_TARGET_DEVICE
+          if ([string]::IsNullOrWhiteSpace($targetDevice)) { $targetDevice = "CLIENT-BC8AEE" }
+
+          Write-Host "==========================================" -ForegroundColor Cyan
+          Write-Host "THQ ERP RELEASE ISOLATION POLICY CHECK" -ForegroundColor Cyan
+          Write-Host "Channel: $channel"
+          Write-Host "Target Device: $targetDevice"
+          Write-Host "==========================================" -ForegroundColor Cyan
+
+          $allowedDevices = @("CLIENT-BC8AEE", "BC8AEEC1-9BCE-4935-B349-168CAF9A7FA4")
+          if ($targetDevice.Trim().ToUpper() -notin $allowedDevices) {
+            throw "SECURITY POLICY ERROR: Automated releases are strictly restricted to internal test device 'CLIENT-BC8AEE'. Unauthorized target device: '$targetDevice'"
+          }
+
+          if ($channel.Trim().ToLower() -eq "production") {
+            throw "SECURITY POLICY ERROR: Automated releases cannot be published directly to production channel. You must test on CLIENT-BC8AEE and promote manually in the Admin Release Management panel."
+          }
+
+          Write-Host "Release safety policy passed: Restricted to test device CLIENT-BC8AEE." -ForegroundColor Green
+
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
@@ -207,34 +235,42 @@ jobs:
         env:
           SUPABASE_URL: ${{ vars.SUPABASE_URL || 'https://yguzrxcdvyimjrfvtcvp.supabase.co' }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          INPUT_CHANNEL: ${{ github.event.inputs.channel }}
+          INPUT_TARGET_DEVICE: ${{ github.event.inputs.target_device }}
+          INPUT_RELEASE_NOTES: ${{ github.event.inputs.release_notes }}
         run: |
-          $channel = "${{ github.event.inputs.channel }}"
+          $channel = $env:INPUT_CHANNEL
           if ([string]::IsNullOrWhiteSpace($channel)) { $channel = "internal_test" }
           
-          # Default to internal test PC to guarantee no accidental broadcast to production
-          $targetDevice = "${{ github.event.inputs.target_device }}"
+          # Default to internal test PC to guarantee test device isolation
+          $targetDevice = $env:INPUT_TARGET_DEVICE
           if ([string]::IsNullOrWhiteSpace($targetDevice)) { $targetDevice = "CLIENT-BC8AEE" }
-          
-          $releaseNotes = "${{ github.event.inputs.release_notes }}"
           
           $manifest = "$env:GITHUB_WORKSPACE\build\windows_release\release_manifest.json"
           if (-not (Test-Path $manifest)) {
             throw "release_manifest.json not found at $manifest"
           }
 
-          $args = @(
-            "tools/release/publish_release.py",
-            "--manifest", $manifest,
-            "--channel", $channel,
-            "--target-device", $targetDevice
-          )
+          # Safely write release notes to a temporary file to prevent PowerShell execution or injection
+          $notesFile = Join-Path $env:TEMP "thq_release_notes_$([System.Guid]::NewGuid().ToString('N')).txt"
+          try {
+            [System.IO.File]::WriteAllText($notesFile, [string]$env:INPUT_RELEASE_NOTES, [System.Text.Encoding]::UTF8)
 
-          if (-not [string]::IsNullOrWhiteSpace($releaseNotes)) {
-            $args += @("--release-notes", $releaseNotes)
+            $publishArgs = @(
+              "tools/release/publish_release.py",
+              "--manifest", $manifest,
+              "--channel", $channel,
+              "--target-device", $targetDevice,
+              "--release-notes-file", $notesFile
+            )
+
+            Write-Host "Executing publish_release.py with isolated arguments..."
+            python @publishArgs
+          } finally {
+            if (Test-Path $notesFile) {
+              Remove-Item -Force $notesFile -ErrorAction SilentlyContinue
+            }
           }
-
-          Write-Host "Executing publish_release.py $($args -join ' ')..."
-          python @args
 
       - name: Retain Immutable Artifacts & Provenance
         uses: actions/upload-artifact@v4
@@ -245,7 +281,7 @@ jobs:
             build/windows_release/release_manifest.json
           retention-days: 90
 
-      - name: Tag Release in Git (Optional)
+      - name: Tag Release in Git (Safe, Non-Overwriting)
         shell: powershell
         run: |
           try {
@@ -254,15 +290,32 @@ jobs:
             $v = "${{ steps.versioning.outputs.version }}"
             $b = "${{ steps.versioning.outputs.build_number }}"
             if (-not [string]::IsNullOrWhiteSpace($v) -and -not [string]::IsNullOrWhiteSpace($b)) {
+              $tagName = "v$v+$b"
+              Write-Host "Checking if Git tag '$tagName' already exists..."
+              
+              # Strictly check if tag already exists in local or remote to prevent overwriting
+              $localTag = git tag -l $tagName
+              if (-not [string]::IsNullOrWhiteSpace($localTag)) {
+                Write-Warning "Tag '$tagName' already exists locally. Skipping tagging to prevent tag overwriting."
+                return
+              }
+              $remoteTag = git ls-remote --tags origin "refs/tags/$tagName"
+              if (-not [string]::IsNullOrWhiteSpace($remoteTag)) {
+                Write-Warning "Tag '$tagName' already exists on remote origin. Skipping tagging to prevent tag overwriting."
+                return
+              }
+
               git add apps/*/pubspec.yaml tools/windows_release/*.iss packages/erp_core/lib/src/release_contract.dart
               $status = git status --porcelain
               if (-not [string]::IsNullOrWhiteSpace($status)) {
                 git commit -m "chore(release): bump version to $v+$b [skip ci]"
-                git tag "v$v+$b" -f
-                git push origin HEAD --tags
-                Write-Host "Successfully tagged release as v$v+$b" -ForegroundColor Green
               }
+
+              # Create immutable tag cleanly without force (-f) flag
+              git tag $tagName
+              git push origin "refs/tags/$tagName"
+              Write-Host "Successfully published immutable release tag '$tagName' to origin." -ForegroundColor Green
             }
           } catch {
-            Write-Warning "Could not push git tag: $_. This is non-fatal; release is recorded in Supabase."
+            Write-Warning "Git tagging completed with advisory notice: $_. Release is recorded in Supabase."
           }
