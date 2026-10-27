@@ -8,7 +8,7 @@
   #define AppVersion "8.2.2"
 #endif
 #ifndef BuildNumber
-  #define BuildNumber "19"
+  #define BuildNumber "20"
 #endif
 
 [Setup]

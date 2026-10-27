@@ -5,8 +5,8 @@
 /// GST cutover contract and continue to fail closed when compliance is not ready.
 abstract final class ThqReleaseContract {
   static const String appVersion = '8.2.2';
-  static const int buildNumber = 19;
+  static const int buildNumber = 20;
   static const int minimumMigration = 213;
-  static const String releaseName = 'THQ ERP v8.2.2 System Health Release';
+  static const String releaseName = 'THQ ERP v8.2.2 Automated Release';
   static const String apiVersion = 'v1';
 }
