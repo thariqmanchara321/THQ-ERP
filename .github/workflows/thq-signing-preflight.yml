@@ -51,14 +51,18 @@ jobs:
 
           $testExe = "$env:RUNNER_TEMP\thq_preflight\disposable_preflight_target.exe"
           $certPath = Join-Path $env:TEMP "thq_preflight_sign.pfx"
-          $importedCerts = $null
+          $cerPath = Join-Path $env:TEMP "thq_preflight_sign.cer"
+          $certAddedToRoot = $false
 
           try {
             Write-Host "=== Phase 2: Secure PFX Decoding & Runner Root Trust ==="
             [System.IO.File]::WriteAllBytes($certPath, [System.Convert]::FromBase64String($env:CERT_BASE64))
-            $secPassword = ConvertTo-SecureString -String $env:CERT_PASSWORD.Trim() -Force -AsPlainText
-            $importedCerts = Import-PfxCertificate -FilePath $certPath -CertStoreLocation "Cert:\CurrentUser\Root" -Password $secPassword
-            Write-Host "Certificate temporarily trusted in runner CurrentUser\Root for verification."
+            $pfxObj = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2($certPath, $env:CERT_PASSWORD.Trim())
+            $cerBytes = $pfxObj.Export([System.Security.Cryptography.X509Certificates.X509ContentType]::Cert)
+            [System.IO.File]::WriteAllBytes($cerPath, $cerBytes)
+            certutil.exe -addstore -f "Root" $cerPath
+            $certAddedToRoot = $true
+            Write-Host "Certificate temporarily trusted in runner LocalMachine Root for verification."
 
             Write-Host "=== Phase 3: Sign Disposable Executable via SIGN_WINDOWS_FILE.ps1 ==="
             powershell -ExecutionPolicy Bypass -File tools/windows_release/SIGN_WINDOWS_FILE.ps1 `
@@ -95,11 +99,12 @@ jobs:
 
           } finally {
             Write-Host "=== Cleanup: Removing Temporary Secrets & Artifacts ==="
-            if ($importedCerts) {
-              foreach ($c in $importedCerts) {
-                $c | Remove-Item -Force -ErrorAction SilentlyContinue
-              }
+            if ($certAddedToRoot) {
+              certutil.exe -delstore "Root" "2813DEE08CC4B318907D2F5243DF81DA95EF60A7"
               Write-Host "Removed temporary certificate from runner root store."
+            }
+            if (Test-Path $cerPath) {
+              Remove-Item -Force $cerPath
             }
             if (Test-Path $certPath) {
               Remove-Item -Force $certPath

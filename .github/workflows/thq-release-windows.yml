@@ -200,14 +200,19 @@ jobs:
           if (-not [string]::IsNullOrWhiteSpace($env:CERT_BASE64)) {
             Write-Host "Authenticode certificate provided. Signing installer..." -ForegroundColor Green
             $certPath = Join-Path $env:TEMP "thq_release_sign.pfx"
-            $importedCerts = $null
+            $cerPath = Join-Path $env:TEMP "thq_release_sign.cer"
+            $certAddedToRoot = $false
             try {
               [System.IO.File]::WriteAllBytes($certPath, [System.Convert]::FromBase64String($env:CERT_BASE64))
               
-              # Import into runner CurrentUser Root store for Authenticode chain validation
+              # Import into runner LocalMachine Root store for Authenticode chain validation
               try {
-                $secPassword = ConvertTo-SecureString -String $env:CERT_PASSWORD.Trim() -Force -AsPlainText
-                $importedCerts = Import-PfxCertificate -FilePath $certPath -CertStoreLocation "Cert:\CurrentUser\Root" -Password $secPassword
+                $pfxObj = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2($certPath, $env:CERT_PASSWORD.Trim())
+                $cerBytes = $pfxObj.Export([System.Security.Cryptography.X509Certificates.X509ContentType]::Cert)
+                [System.IO.File]::WriteAllBytes($cerPath, $cerBytes)
+                certutil.exe -addstore -f "Root" $cerPath
+                $certAddedToRoot = $true
+                Write-Host "Runner root trust configured for Authenticode chain validation."
               } catch {
                 Write-Host "Notice: Direct root store import skipped: $_"
               }
@@ -231,10 +236,12 @@ jobs:
                 }
               }
             } finally {
-              if ($importedCerts) {
-                foreach ($c in $importedCerts) {
-                  $c | Remove-Item -Force -ErrorAction SilentlyContinue
-                }
+              if ($certAddedToRoot -and $pfxObj) {
+                certutil.exe -delstore "Root" $pfxObj.Thumbprint
+                Write-Host "Removed temporary certificate from runner root store."
+              }
+              if (Test-Path $cerPath) {
+                Remove-Item -Force $cerPath
               }
               if (Test-Path $certPath) {
                 Remove-Item -Force $certPath
