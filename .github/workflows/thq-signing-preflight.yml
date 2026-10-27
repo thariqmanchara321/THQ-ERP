@@ -30,11 +30,7 @@ jobs:
           $testDir = "$env:RUNNER_TEMP\thq_preflight"
           New-Item -ItemType Directory -Path $testDir -Force | Out-Null
           $testExe = Join-Path $testDir "disposable_preflight_target.exe"
-          Add-Type -TypeDefinition @"
-          public class Program {
-              public static void Main() {}
-          }
-          "@ -OutputAssembly $testExe -OutputType ConsoleApplication
+          Add-Type -TypeDefinition "public class Program { public static void Main() {} }" -OutputAssembly $testExe -OutputType ConsoleApplication
           Write-Host "Created disposable target: $testExe ($((Get-Item $testExe).Length) bytes)"
 
       - name: Verify Secrets & Execute Authenticode Signing
@@ -93,15 +89,7 @@ jobs:
             }
 
             Write-Host "=== Phase 5: Python Release Publisher Inspection Verification ==="
-            python -c @"
-            import sys
-            from tools.release.publish_release import inspect_authenticode_signature
-            status, subject, thumbprint = inspect_authenticode_signature(r'$testExe')
-            print(f'[PY] Status={status} | Subject={subject} | Thumbprint={thumbprint}')
-            assert status == 'Valid', f'Expected Valid status in Python inspector, got {status}'
-            assert thumbprint.upper() == '$expectedThumb'.upper(), f'Thumbprint mismatch in Python inspector'
-            print('[PY] Python Authenticode inspector verified successfully!')
-            "@
+            python -c "import sys; from tools.release.publish_release import inspect_authenticode_signature; status, subject, thumbprint = inspect_authenticode_signature(r'$testExe'); print(f'[PY] Status={status} | Subject={subject} | Thumbprint={thumbprint}'); assert status == 'Valid', f'Expected Valid status, got {status}'; assert thumbprint.upper() == '$expectedThumb'.upper(), 'Thumbprint mismatch'; print('[PY] Python Authenticode inspector verified successfully!')"
 
             Write-Host "`nPREFLIGHT SUCCESS: All Authenticode signing, timestamping, and fail-closed checks PASSED!" -ForegroundColor Green
 
