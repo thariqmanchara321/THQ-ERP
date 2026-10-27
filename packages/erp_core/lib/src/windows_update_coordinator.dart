@@ -85,6 +85,7 @@ class WindowsUpdateCoordinator {
     String? tenantId,
     String? deviceId,
     bool silent = false,
+    bool exitProcess = true,
   }) async {
     if (!Platform.isWindows) {
       throw UnsupportedError(
@@ -160,7 +161,7 @@ class WindowsUpdateCoordinator {
       '-ExecutionPolicy',
       'Bypass',
       '-WindowStyle',
-      silent ? 'Hidden' : 'Normal',
+      silent ? 'Minimized' : 'Normal',
       '-File',
       scriptToRun.path,
       '-ParentProcessId',
@@ -178,18 +179,79 @@ class WindowsUpdateCoordinator {
     }
 
     debugPrint(
-      '[WindowsUpdateCoordinator] Launching detached coordinator: powershell ${psArgs.join(' ')}',
+      '[WindowsUpdateCoordinator] Launching coordinator via cmd start: powershell ${psArgs.join(' ')}',
     );
 
-    await Process.start(
+    // On Windows, launching powershell.exe directly with ProcessStartMode.detached passes DETACHED_PROCESS
+    // to CreateProcessW, which causes powershell.exe to terminate immediately on startup due to missing console subsystem.
+    // Using `cmd.exe /c start ""` properly spawns powershell in its own independent console session
+    // that persists after this application terminates and can display interactive UAC prompts.
+    final cmdArgs = <String>[
+      '/c',
+      'start',
+      '""',
       'powershell.exe',
-      psArgs,
+      ...psArgs,
+    ];
+
+    await Process.start(
+      'cmd.exe',
+      cmdArgs,
       mode: ProcessStartMode.detached,
     );
 
-    // Give helper process 400ms to initialize before safely exiting main application
-    await Future.delayed(const Duration(milliseconds: 400));
-    exit(0);
+    // Confirm that the coordinator process actually started and initialized
+    // before shutting down the main application.
+    var coordinatorActive = false;
+    final waitDeadline = DateTime.now().add(const Duration(seconds: 4));
+    while (DateTime.now().isBefore(waitDeadline)) {
+      await Future.delayed(const Duration(milliseconds: 250));
+      try {
+        if (await sessionFile.exists()) {
+          final content = await sessionFile.readAsString();
+          final map = jsonDecode(content);
+          if (map is Map<String, dynamic>) {
+            final fileAttemptId = map['attempt_id']?.toString();
+            final st = map['status']?.toString();
+            if (fileAttemptId == attemptId &&
+                st != null &&
+                st != 'launching_installer') {
+              coordinatorActive = true;
+              break;
+            }
+          }
+        }
+      } catch (_) {}
+    }
+
+    if (!coordinatorActive) {
+      debugPrint(
+        '[WindowsUpdateCoordinator] Warning: Coordinator did not change session status within timeout.',
+      );
+      final failedSession = session.copyWith(
+        status: 'launch_failed',
+        errorMessage:
+            'The update coordinator helper process could not be confirmed running within timeout.',
+      );
+      try {
+        await sessionFile.writeAsString(
+          const JsonEncoder.withIndent('  ').convert(failedSession.toJson()),
+          flush: true,
+        );
+      } catch (_) {}
+      throw ProcessException(
+        'cmd.exe',
+        cmdArgs,
+        'Update coordinator helper process failed to initialize or was blocked.',
+      );
+    }
+
+    debugPrint(
+      '[WindowsUpdateCoordinator] Coordinator handoff confirmed. Safely exiting main application.',
+    );
+    if (exitProcess) {
+      exit(0);
+    }
   }
 
   static const String _embeddedCoordinatorScript = r'''
@@ -437,24 +499,32 @@ if ($sessionData) {
     Save-SessionData -Object $sessionData -Path $SessionFile
 }
 
-$argList = "/CLOSEAPPLICATIONS /NORESTART"
+$innoLogPath = Join-Path (Split-Path -Parent $SessionFile) "inno_setup.log"
+$innoArgs = @(
+    "/CLOSEAPPLICATIONS",
+    "/FORCECLOSEAPPLICATIONS",
+    "/NORESTART",
+    "/SUPPRESSMSGBOXES",
+    "/LOG=`"$innoLogPath`""
+)
 if ($appDir -and (Test-Path $appDir)) {
-    $argList += " /DIR=`"$appDir`""
+    $innoArgs += "/DIR=`"$appDir`""
 }
-$argList += " /SILENT /SP- /SUPPRESSMSGBOXES /FORCECLOSEAPPLICATIONS"
+$innoArgs += "/SILENT"
+$innoArgs += "/SP-"
 
 # Safety guard: ensure no lingering processes hold binary locks
 Get-Process -Name "thq_business", "thq_pos" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
 Start-Sleep -Milliseconds 500
 
-Write-CoordinatorLog "Launching Inno Setup: $InstallerPath with arguments: $argList (Silent: $Silent)"
+Write-CoordinatorLog "Launching Inno Setup: $InstallerPath with arguments: $($innoArgs -join ' ') (Silent: $Silent)"
 
 $exitCode = -1
 try {
     # Attempt elevated execution first (standard for Inno Setup with PrivilegesRequired=admin in Program Files)
     Write-CoordinatorLog "Requesting elevation for installer execution..."
     Send-TelemetryEvent -Status "elevation_requested"
-    $installerProc = Start-Process -FilePath $InstallerPath -ArgumentList $argList -Verb RunAs -PassThru -Wait
+    $installerProc = Start-Process -FilePath $InstallerPath -ArgumentList $innoArgs -Verb RunAs -PassThru -Wait
     $exitCode = $installerProc.ExitCode
     Write-CoordinatorLog "Installer process (elevated) terminated with exit code: $exitCode"
 } catch {
@@ -466,7 +536,7 @@ try {
     } else {
         try {
             Write-CoordinatorLog "Attempting direct launch fallback..."
-            $installerProc = Start-Process -FilePath $InstallerPath -ArgumentList $argList -PassThru -Wait
+            $installerProc = Start-Process -FilePath $InstallerPath -ArgumentList $innoArgs -PassThru -Wait
             $exitCode = $installerProc.ExitCode
             Write-CoordinatorLog "Installer process (direct) terminated with exit code: $exitCode"
         } catch {

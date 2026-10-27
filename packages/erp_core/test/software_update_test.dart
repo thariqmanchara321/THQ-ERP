@@ -178,6 +178,175 @@ void main() {
       expect(reconstructed.targetBuild, 17);
       expect(reconstructed.installerExitCode, 0);
       expect(reconstructed.status, 'installing');
+      expect(reconstructed.installerPath, r'C:\Updates\setup.exe');
+      expect(reconstructed.appExePath, r'C:\App\thq_business.exe');
+    });
+
+    test('initiateUpdate rejects non-existent installer file', () async {
+      expect(
+        () => WindowsUpdateCoordinator.initiateUpdate(
+          appKey: 'client',
+          currentVersion: '8.2.2',
+          currentBuild: 19,
+          targetVersion: '8.2.3',
+          targetBuild: 21,
+          installerPath: r'C:\NonExistent\installer.exe',
+          exitProcess: false,
+        ),
+        throwsA(isA<FileSystemException>()),
+      );
+    });
+
+    test('UpdateSessionState copyWith preserves and updates fields correctly', () {
+      final now = DateTime.now().toUtc();
+      final session = UpdateSessionState(
+        attemptId: 'test-attempt-id',
+        appKey: 'client',
+        fromVersion: '8.2.2',
+        fromBuild: 19,
+        targetVersion: '8.2.3',
+        targetBuild: 21,
+        installerPath: r'C:\Updates\setup.exe',
+        appExePath: r'C:\App\thq_business.exe',
+        status: 'launching_installer',
+        startedAt: now,
+      );
+
+      final updated = session.copyWith(
+        status: 'launch_failed',
+        errorMessage: 'Helper process blocked.',
+        installerExitCode: 1223,
+      );
+
+      expect(updated.status, 'launch_failed');
+      expect(updated.errorMessage, 'Helper process blocked.');
+      expect(updated.installerExitCode, 1223);
+      expect(updated.installerPath, r'C:\Updates\setup.exe');
+      expect(updated.attemptId, 'test-attempt-id');
+    });
+  });
+
+  group('Update Failure Diagnostic & Version Verification Tests', () {
+    test('Regression: Distinguishes helper launch failure from old version relaunch', () {
+      const currentVersion = '8.2.2';
+      const currentBuild = 19;
+      const targetVersion = '8.2.3';
+      const targetBuild = 21;
+
+      // Scenario A: Helper process died before running installer (ExitCode null, status: launching_installer)
+      final launchFailedSession = UpdateSessionState(
+        attemptId: 'attempt-launch-failed',
+        appKey: 'client',
+        fromVersion: currentVersion,
+        fromBuild: currentBuild,
+        targetVersion: targetVersion,
+        targetBuild: targetBuild,
+        installerPath: r'C:\Updates\setup.exe',
+        appExePath: r'C:\App\thq_business.exe',
+        status: 'launching_installer',
+        startedAt: DateTime.now().toUtc(),
+      );
+
+      String getDiagnosticReason(UpdateSessionState pending) {
+        final exitCode = pending.installerExitCode;
+        if (exitCode == 1223) {
+          return 'Administrator authorization (UAC) was declined or cancelled.';
+        } else if (exitCode == 1) {
+          return 'Installer was cancelled or interrupted before completing setup.';
+        } else if (exitCode == 2) {
+          return 'Installer could not close conflicting files or processes.';
+        } else if (exitCode != null && exitCode != 0) {
+          return 'Installer exited unexpectedly with code $exitCode.';
+        } else if (pending.status == 'launching_installer' || pending.status == 'launch_failed') {
+          return 'The update helper process was interrupted or blocked before installation began.';
+        } else {
+          return pending.errorMessage ??
+              'Application relaunched with version $currentVersion (Build $currentBuild) instead of target $targetVersion (Build $targetBuild).';
+        }
+      }
+
+      final reasonA = getDiagnosticReason(launchFailedSession);
+      expect(
+        reasonA,
+        'The update helper process was interrupted or blocked before installation began.',
+      );
+
+      // Scenario B: User declined UAC elevation prompt (ExitCode 1223)
+      final uacDeclinedSession = launchFailedSession.copyWith(
+        status: 'recovered',
+        installerExitCode: 1223,
+      );
+      final reasonB = getDiagnosticReason(uacDeclinedSession);
+      expect(
+        reasonB,
+        'Administrator authorization (UAC) was declined or cancelled.',
+      );
+
+      // Scenario C: Inno Setup conflict or cancellation (ExitCode 1)
+      final cancelledSession = launchFailedSession.copyWith(
+        status: 'recovered',
+        installerExitCode: 1,
+      );
+      final reasonC = getDiagnosticReason(cancelledSession);
+      expect(
+        reasonC,
+        'Installer was cancelled or interrupted before completing setup.',
+      );
+
+      // Scenario D: Genuine version mismatch after clean installer exit 0
+      final mismatchSession = launchFailedSession.copyWith(
+        status: 'installed',
+        installerExitCode: 0,
+      );
+      final reasonD = getDiagnosticReason(mismatchSession);
+      expect(
+        reasonD,
+        contains('Application relaunched with version 8.2.2 (Build 19) instead of target 8.2.3 (Build 21).'),
+      );
+    });
+
+    test('Installer path is preserved on failure', () {
+      const installerPath = r'C:\Users\SMART COM\AppData\Roaming\THQ\THQ Business\THQ ERP\updates\setup.exe';
+      final session = UpdateSessionState(
+        attemptId: 'attempt-path-preservation',
+        appKey: 'client',
+        fromVersion: '8.2.2',
+        fromBuild: 19,
+        targetVersion: '8.2.3',
+        targetBuild: 21,
+        installerPath: installerPath,
+        appExePath: r'C:\App\thq_business.exe',
+        status: 'launching_installer',
+        startedAt: DateTime.now().toUtc(),
+      );
+
+      // Verify installerPath is retained in session and readable
+      expect(session.installerPath, installerPath);
+      expect(session.installerPath.isNotEmpty, isTrue);
+    });
+
+    test('Target version verified correctly when running build matches target', () {
+      const runningVersion = '8.2.3';
+      const runningBuild = 21;
+
+      final session = UpdateSessionState(
+        attemptId: 'attempt-success',
+        appKey: 'client',
+        fromVersion: '8.2.2',
+        fromBuild: 19,
+        targetVersion: '8.2.3',
+        targetBuild: 21,
+        installerPath: r'C:\Updates\setup.exe',
+        appExePath: r'C:\App\thq_business.exe',
+        status: 'installed',
+        installerExitCode: 0,
+        startedAt: DateTime.now().toUtc(),
+      );
+
+      final isMatch = (runningVersion == session.targetVersion && runningBuild == session.targetBuild) ||
+          (session.status == 'installed' && runningVersion == session.targetVersion);
+
+      expect(isMatch, isTrue);
     });
   });
 }

@@ -29,6 +29,7 @@ class SoftwareUpdateState {
   final int? lastAttemptExitCode;
   final String? lastAttemptId;
   final String? lastAttemptStatus;
+  final String? lastAttemptInstallerPath;
 
   const SoftwareUpdateState({
     this.status = UpdateStatus.idle,
@@ -48,6 +49,7 @@ class SoftwareUpdateState {
     this.lastAttemptExitCode,
     this.lastAttemptId,
     this.lastAttemptStatus,
+    this.lastAttemptInstallerPath,
   });
 
   bool get hasFailedAttempt =>
@@ -88,6 +90,7 @@ class SoftwareUpdateState {
     int? lastAttemptExitCode,
     String? lastAttemptId,
     String? lastAttemptStatus,
+    String? lastAttemptInstallerPath,
     bool clearError = false,
   }) {
     return SoftwareUpdateState(
@@ -108,6 +111,7 @@ class SoftwareUpdateState {
       lastAttemptExitCode: lastAttemptExitCode ?? this.lastAttemptExitCode,
       lastAttemptId: lastAttemptId ?? this.lastAttemptId,
       lastAttemptStatus: lastAttemptStatus ?? this.lastAttemptStatus,
+      lastAttemptInstallerPath: lastAttemptInstallerPath ?? this.lastAttemptInstallerPath,
     );
   }
 }
@@ -248,6 +252,8 @@ class SoftwareUpdateService {
       } else {
         final now = DateTime.now();
         final exitCode = pending.installerExitCode;
+        final installerPath = pending.installerPath;
+        final installerFile = installerPath.isNotEmpty ? File(installerPath) : null;
         
         String diagnosticReason;
         if (exitCode == 1223) {
@@ -258,6 +264,8 @@ class SoftwareUpdateService {
           diagnosticReason = 'Installer could not close conflicting files or processes.';
         } else if (exitCode != null && exitCode != 0) {
           diagnosticReason = 'Installer exited unexpectedly with code $exitCode.';
+        } else if (pending.status == 'launching_installer' || pending.status == 'launch_failed') {
+          diagnosticReason = 'The update helper process was interrupted or blocked before installation began.';
         } else {
           diagnosticReason = pending.errorMessage ??
               'Application relaunched with version $currentVersion (Build $currentBuild) instead of target $targetVersion (Build $targetBuild).';
@@ -276,6 +284,8 @@ class SoftwareUpdateService {
           lastAttemptExitCode: exitCode,
           lastAttemptId: pending.attemptId,
           lastAttemptStatus: pending.status == 'recovered' ? 'recovered' : 'failed',
+          installerFile: installerFile != null && installerFile.existsSync() ? installerFile : null,
+          lastAttemptInstallerPath: installerPath.isNotEmpty ? installerPath : null,
         );
 
         await _recordLog(
@@ -764,7 +774,7 @@ class SoftwareUpdateService {
     buffer.writeln('Last Attempt Status: ${state.lastAttemptStatus ?? "None"}');
     buffer.writeln('Last Attempt Reason: ${state.lastAttemptReason ?? "None"}');
     buffer.writeln('Raw Error: ${state.lastAttemptRawError ?? state.errorMessage ?? "None"}');
-    buffer.writeln('Installer Path: ${state.installerFile?.path ?? "None"}');
+    buffer.writeln('Installer Path: ${state.installerFile?.path ?? state.lastAttemptInstallerPath ?? "None"}');
     buffer.writeln('Readiness: ${ErpUpdateReadinessService().isSafeToUpdate ? "Ready" : "Blocked (${ErpUpdateReadinessService().summaryBlockReason})"}');
     buffer.writeln('========================================');
     return buffer.toString();

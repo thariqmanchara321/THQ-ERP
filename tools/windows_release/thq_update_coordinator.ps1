@@ -255,24 +255,31 @@ if ($sessionData) {
 }
 
 $innoLogPath = Join-Path (Split-Path -Parent $SessionFile) "inno_setup.log"
-$argList = "/CLOSEAPPLICATIONS /FORCECLOSEAPPLICATIONS /NORESTART /SUPPRESSMSGBOXES /LOG=`"$innoLogPath`""
+$innoArgs = @(
+    "/CLOSEAPPLICATIONS",
+    "/FORCECLOSEAPPLICATIONS",
+    "/NORESTART",
+    "/SUPPRESSMSGBOXES",
+    "/LOG=`"$innoLogPath`""
+)
 if ($appDir -and (Test-Path $appDir)) {
-    $argList += " /DIR=`"$appDir`""
+    $innoArgs += "/DIR=`"$appDir`""
 }
-$argList += " /SILENT /SP-"
+$innoArgs += "/SILENT"
+$innoArgs += "/SP-"
 
 # Safety guard: ensure no lingering processes hold binary locks
 Get-Process -Name "thq_business", "thq_pos" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
 Start-Sleep -Milliseconds 500
 
-Write-CoordinatorLog "Launching Inno Setup: $InstallerPath with arguments: $argList (Silent: $Silent)"
+Write-CoordinatorLog "Launching Inno Setup: $InstallerPath with arguments: $($innoArgs -join ' ') (Silent: $Silent)"
 
 $exitCode = -1
 try {
     # Attempt elevated execution first (standard for Inno Setup with PrivilegesRequired=admin in Program Files)
     Write-CoordinatorLog "Requesting elevation for installer execution..."
     Send-TelemetryEvent -Status "elevation_requested"
-    $installerProc = Start-Process -FilePath $InstallerPath -ArgumentList $argList -Verb RunAs -PassThru -Wait
+    $installerProc = Start-Process -FilePath $InstallerPath -ArgumentList $innoArgs -Verb RunAs -PassThru -Wait
     $exitCode = $installerProc.ExitCode
     Write-CoordinatorLog "Installer process (elevated) terminated with exit code: $exitCode"
 } catch {
@@ -284,7 +291,7 @@ try {
     } else {
         try {
             Write-CoordinatorLog "Attempting direct launch fallback..."
-            $installerProc = Start-Process -FilePath $InstallerPath -ArgumentList $argList -PassThru -Wait
+            $installerProc = Start-Process -FilePath $InstallerPath -ArgumentList $innoArgs -PassThru -Wait
             $exitCode = $installerProc.ExitCode
             Write-CoordinatorLog "Installer process (direct) terminated with exit code: $exitCode"
         } catch {
