@@ -11,6 +11,7 @@ import hashlib
 import json
 import os
 import re
+import subprocess
 import sys
 import urllib.request
 import urllib.error
@@ -26,6 +27,31 @@ def compute_sha256(file_path):
         while chunk := f.read(65536):
             h.update(chunk)
     return h.hexdigest().lower()
+
+
+def inspect_authenticode_signature(file_path):
+    """Inspects Authenticode signature using PowerShell Get-AuthenticodeSignature."""
+    if not sys.platform.startswith('win'):
+        return "NonWindows", "", ""
+    try:
+        escaped = file_path.replace("'", "''")
+        cmd = [
+            "powershell.exe", "-NoProfile", "-Command",
+            f"""$sig = Get-AuthenticodeSignature -LiteralPath '{escaped}'
+[PSCustomObject]@{{
+    Status = $sig.Status.ToString()
+    StatusMessage = $sig.StatusMessage
+    Subject = $(if ($sig.SignerCertificate) {{ $sig.SignerCertificate.Subject }} else {{ '' }})
+    Thumbprint = $(if ($sig.SignerCertificate) {{ $sig.SignerCertificate.Thumbprint }} else {{ '' }})
+}} | ConvertTo-Json -Compress"""
+        ]
+        res = subprocess.run(cmd, capture_output=True, text=True, timeout=15)
+        if res.returncode == 0 and res.stdout.strip().startswith('{'):
+            data = json.loads(res.stdout.strip())
+            return data.get("Status", "Unknown"), data.get("Subject") or "", data.get("Thumbprint") or ""
+    except Exception as e:
+        print(f"[WARN] Failed to inspect Authenticode signature: {e}", file=sys.stderr)
+    return "Unknown", "", ""
 
 
 def upload_artifact_to_storage(local_path, storage_rel_path, anon_key):
@@ -79,6 +105,7 @@ def save_release_record(
     target_store_ids=None,
     target_device_ids=None,
     rollout_percentage=100,
+    publisher_signature=None,
     anon_key=SUPABASE_ANON_KEY
 ):
     """Invokes Supabase RPC platform_app_release_save_v820 to register or update the release."""
@@ -96,7 +123,7 @@ def save_release_record(
         "p_download_url": download_url,
         "p_package_size_bytes": package_size_bytes,
         "p_sha256_checksum": sha256_checksum,
-        "p_publisher_signature": "THQ Systems",
+        "p_publisher_signature": publisher_signature,
         "p_min_supported_version": "5.1.0",
         "p_rollout_percentage": rollout_percentage,
         "p_target_type": target_type,
@@ -142,6 +169,7 @@ def save_release_record(
                 target_store_ids=target_store_ids,
                 target_device_ids=target_device_ids,
                 rollout_percentage=rollout_percentage,
+                publisher_signature=publisher_signature,
                 key=anon_key
             )
             if saved:
@@ -185,6 +213,7 @@ def save_release_record_direct(
     target_store_ids=None,
     target_device_ids=None,
     rollout_percentage=100,
+    publisher_signature=None,
     key=SUPABASE_ANON_KEY
 ):
     """Directly creates or updates release record in platform_app_releases using PostgREST table endpoint."""
@@ -221,7 +250,7 @@ def save_release_record_direct(
         "download_url": download_url,
         "package_size_bytes": package_size_bytes,
         "sha256_checksum": sha256_checksum,
-        "publisher_signature": "THQ Systems",
+        "publisher_signature": publisher_signature,
         "rollout_percentage": rollout_percentage,
         "target_type": target_type,
         "target_tenant_ids": target_tenant_ids,
@@ -441,6 +470,7 @@ def main():
     parser.add_argument("--release-notes", type=str, default=None, help="Release notes")
     parser.add_argument("--release-notes-file", type=str, default=None, help="Path to text file containing release notes")
     parser.add_argument("--allow-production", action="store_true", help="Explicit override to allow production release (default is test-restricted)")
+    parser.add_argument("--allow-unsigned", action="store_true", help="Explicit override to allow unsigned test candidates")
     parser.add_argument("--verify-device-id", type=str, default="bc8aeec1-9bce-4935-b349-168caf9a7fa4", help="Device ID to run discovery verification test")
     parser.add_argument("--api-key", type=str, default=None, help="Supabase publish key or CI secret")
     parser.add_argument("--skip-upload", action="store_true", help="Skip uploading artifact to storage")
@@ -478,6 +508,20 @@ def main():
     if manifest_sha256 and manifest_sha256.lower() != computed_sha256:
         print(f"[ERROR] Checksum mismatch! Manifest: {manifest_sha256} vs Computed: {computed_sha256}", file=sys.stderr)
         sys.exit(1)
+
+    sig_status, signer_subject, signer_thumbprint = inspect_authenticode_signature(local_path)
+    print(f"[PUBLISH] Authenticode Verification: Status={sig_status} | Signer={signer_subject or signer_thumbprint or 'None'}")
+
+    effective_publisher_sig = None
+    if sig_status == "Valid":
+        effective_publisher_sig = signer_subject or signer_thumbprint
+    else:
+        if not args.allow_unsigned:
+            print(f"[ERROR] FAIL-CLOSED POLICY: Installer is not signed with a valid Authenticode signature (Status: '{sig_status}'). Publication halted.", file=sys.stderr)
+            sys.exit(1)
+        else:
+            print(f"[WARN] Publishing unsigned candidate (--allow-unsigned specified). Recording publisher_signature as None to prevent updater failure.")
+            effective_publisher_sig = None
 
     file_name = os.path.basename(local_path)
     storage_rel_path = f"installers/{file_name}"
@@ -575,6 +619,7 @@ def main():
         target_store_ids=target_stores,
         target_device_ids=target_devices,
         rollout_percentage=args.rollout,
+        publisher_signature=effective_publisher_sig,
         anon_key=effective_key
     )
 

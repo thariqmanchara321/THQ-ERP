@@ -1,6 +1,14 @@
 param(
     [Parameter(Mandatory=$true, Position=0)]
-    [string]$FilePath
+    [string]$FilePath,
+    [Parameter(Mandatory=$false)]
+    [string]$CertificatePath,
+    [Parameter(Mandatory=$false)]
+    [string]$Password,
+    [Parameter(Mandatory=$false)]
+    [string]$Thumbprint,
+    [Parameter(Mandatory=$false)]
+    [string]$TimestampUrl
 )
 $ErrorActionPreference = "Stop"
 
@@ -25,18 +33,17 @@ function Find-SignTool {
 }
 
 $target = (Resolve-Path $FilePath).Path
-$timestamp = $env:THQ_WINDOWS_TIMESTAMP_URL
-$pfx = $env:THQ_WINDOWS_SIGN_PFX
-$password = $env:THQ_WINDOWS_SIGN_PASSWORD
-$thumbprint = $env:THQ_WINDOWS_SIGN_THUMBPRINT
+$timestamp = if(-not [string]::IsNullOrWhiteSpace($TimestampUrl)){ $TimestampUrl } elseif(-not [string]::IsNullOrWhiteSpace($env:THQ_WINDOWS_TIMESTAMP_URL)){ $env:THQ_WINDOWS_TIMESTAMP_URL } else { "http://timestamp.digicert.com" }
+$pfx = if(-not [string]::IsNullOrWhiteSpace($CertificatePath)){ $CertificatePath } else { $env:THQ_WINDOWS_SIGN_PFX }
+$password = if(-not [string]::IsNullOrWhiteSpace($Password)){ $Password } else { $env:THQ_WINDOWS_SIGN_PASSWORD }
+$thumbprint = if(-not [string]::IsNullOrWhiteSpace($Thumbprint)){ $Thumbprint } else { $env:THQ_WINDOWS_SIGN_THUMBPRINT }
 $machineStore = $env:THQ_WINDOWS_SIGN_MACHINE_STORE -eq "1"
 
-if([string]::IsNullOrWhiteSpace($timestamp)){
-    throw "THQ_WINDOWS_TIMESTAMP_URL is required for production signing."
-}
-
 $signtool = Find-SignTool
-$args = @("sign","/fd","SHA256","/td","SHA256","/tr",$timestamp)
+$args = @("sign","/fd","SHA256")
+if(-not [string]::IsNullOrWhiteSpace($timestamp)){
+    $args += @("/td","SHA256","/tr",$timestamp)
+}
 
 if(-not [string]::IsNullOrWhiteSpace($pfx)){
     $pfx = (Resolve-Path $pfx).Path
@@ -60,4 +67,5 @@ if($LASTEXITCODE -ne 0){ throw "SignTool failed for $target" }
 & $signtool verify /pa /v $target
 if($LASTEXITCODE -ne 0){ throw "Signature verification failed for $target" }
 
-Write-Host "SIGNED  $target" -ForegroundColor Green
+$sig = Get-AuthenticodeSignature $target
+Write-Host "SIGNED  $target | Status: $($sig.Status) | Signer: $($sig.SignerCertificate.Subject)" -ForegroundColor Green

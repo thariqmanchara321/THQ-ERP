@@ -204,6 +204,9 @@ jobs:
               [System.IO.File]::WriteAllBytes($certPath, [System.Convert]::FromBase64String($env:CERT_BASE64))
               
               $installers = Get-ChildItem -Path "$env:GITHUB_WORKSPACE\build\windows_release" -Filter "*.exe" -Recurse
+              if (-not $installers -or $installers.Count -eq 0) {
+                throw "No installer executable found under build\windows_release to sign."
+              }
               foreach ($inst in $installers) {
                 Write-Host "Signing $($inst.FullName)..."
                 powershell -ExecutionPolicy Bypass -File tools/windows_release/SIGN_WINDOWS_FILE.ps1 `
@@ -215,7 +218,7 @@ jobs:
                 $sig = Get-AuthenticodeSignature -FilePath $inst.FullName
                 Write-Host "Signature Status: $($sig.Status) | Signer: $($sig.SignerCertificate.Subject)"
                 if ($sig.Status -ne "Valid") {
-                  throw "Signature verification failed for $($inst.Name)"
+                  throw "Fail-Closed: Authenticode signature verification failed for $($inst.Name): Status is $($sig.Status) (expected Valid). Error: $($sig.StatusMessage)"
                 }
               }
             } finally {
@@ -225,7 +228,7 @@ jobs:
               }
             }
           } else {
-            Write-Host "No THQ_WINDOWS_SIGN_PFX_BASE64 secret provided. Skipping Authenticode signing for internal test candidate." -ForegroundColor Yellow
+            throw "FAIL-CLOSED POLICY: Code signing certificate secret 'THQ_WINDOWS_SIGN_PFX_BASE64' is missing in release-publishing environment. An Authenticode signature (Status = Valid) is mandatory for THQ Business updates. Release publication halted."
           }
 
       - name: Publish to Supabase Private Storage & Registry
