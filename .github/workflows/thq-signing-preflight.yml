@@ -1,9 +1,6 @@
 name: THQ Windows Code Signing Preflight
 
 on:
-  push:
-    branches:
-      - feat/gst-nongst-final-architecture
   workflow_dispatch:
 
 permissions:
