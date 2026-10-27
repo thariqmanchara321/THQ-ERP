@@ -35,8 +35,8 @@ function Find-SignTool {
 $target = (Resolve-Path $FilePath).Path
 $timestamp = if(-not [string]::IsNullOrWhiteSpace($TimestampUrl)){ $TimestampUrl } elseif(-not [string]::IsNullOrWhiteSpace($env:THQ_WINDOWS_TIMESTAMP_URL)){ $env:THQ_WINDOWS_TIMESTAMP_URL } else { "http://timestamp.digicert.com" }
 $pfx = if(-not [string]::IsNullOrWhiteSpace($CertificatePath)){ $CertificatePath } else { $env:THQ_WINDOWS_SIGN_PFX }
-$password = if(-not [string]::IsNullOrWhiteSpace($Password)){ $Password } else { $env:THQ_WINDOWS_SIGN_PASSWORD }
-$thumbprint = if(-not [string]::IsNullOrWhiteSpace($Thumbprint)){ $Thumbprint } else { $env:THQ_WINDOWS_SIGN_THUMBPRINT }
+$password = if(-not [string]::IsNullOrWhiteSpace($Password)){ $Password.Trim() } elseif(-not [string]::IsNullOrWhiteSpace($env:THQ_WINDOWS_SIGN_PASSWORD)){ $env:THQ_WINDOWS_SIGN_PASSWORD.Trim() } else { $null }
+$thumbprint = if(-not [string]::IsNullOrWhiteSpace($Thumbprint)){ $Thumbprint.Trim() } elseif(-not [string]::IsNullOrWhiteSpace($env:THQ_WINDOWS_SIGN_THUMBPRINT)){ $env:THQ_WINDOWS_SIGN_THUMBPRINT.Trim() } else { $null }
 $machineStore = $env:THQ_WINDOWS_SIGN_MACHINE_STORE -eq "1"
 
 $signtool = Find-SignTool

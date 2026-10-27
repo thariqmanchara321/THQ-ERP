@@ -38,3 +38,7 @@ key.properties
 .thq_patch_backups/
 scratch/
 apps/client_app/test/accounting/output/
+*.pfx
+*.cer
+*.crt
+*.key

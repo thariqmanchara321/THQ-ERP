@@ -200,9 +200,18 @@ jobs:
           if (-not [string]::IsNullOrWhiteSpace($env:CERT_BASE64)) {
             Write-Host "Authenticode certificate provided. Signing installer..." -ForegroundColor Green
             $certPath = Join-Path $env:TEMP "thq_release_sign.pfx"
+            $importedCerts = $null
             try {
               [System.IO.File]::WriteAllBytes($certPath, [System.Convert]::FromBase64String($env:CERT_BASE64))
               
+              # Import into runner CurrentUser Root store for Authenticode chain validation
+              try {
+                $secPassword = ConvertTo-SecureString -String $env:CERT_PASSWORD.Trim() -Force -AsPlainText
+                $importedCerts = Import-PfxCertificate -FilePath $certPath -CertStoreLocation "Cert:\CurrentUser\Root" -Password $secPassword
+              } catch {
+                Write-Host "Notice: Direct root store import skipped: $_"
+              }
+
               $installers = Get-ChildItem -Path "$env:GITHUB_WORKSPACE\build\windows_release" -Filter "*.exe" -Recurse
               if (-not $installers -or $installers.Count -eq 0) {
                 throw "No installer executable found under build\windows_release to sign."
@@ -222,6 +231,11 @@ jobs:
                 }
               }
             } finally {
+              if ($importedCerts) {
+                foreach ($c in $importedCerts) {
+                  $c | Remove-Item -Force -ErrorAction SilentlyContinue
+                }
+              }
               if (Test-Path $certPath) {
                 Remove-Item -Force $certPath
                 Write-Host "Cleaned up temporary signing certificate."
