@@ -234,6 +234,42 @@ jobs:
                 if ($sig.Status -ne "Valid") {
                   throw "Fail-Closed: Authenticode signature verification failed for $($inst.Name): Status is $($sig.Status) (expected Valid). Error: $($sig.StatusMessage)"
                 }
+
+                $expectedThumb = "2813DEE08CC4B318907D2F5243DF81DA95EF60A7"
+                if ($sig.SignerCertificate.Thumbprint.ToUpper() -ne $expectedThumb.ToUpper()) {
+                  throw "Fail-Closed: Signer thumbprint '$($sig.SignerCertificate.Thumbprint)' does not match expected '$expectedThumb'"
+                }
+                if (-not $sig.TimeStamperCertificate) {
+                  throw "Fail-Closed: Digital signature is missing valid timestamp."
+                }
+              }
+
+              # Recalculate post-signing SHA-256 and size to update release_manifest.json and SHA256SUMS.txt
+              $manifestFile = "$env:GITHUB_WORKSPACE\build\windows_release\release_manifest.json"
+              if (Test-Path $manifestFile) {
+                $manifestJson = Get-Content $manifestFile -Raw | ConvertFrom-Json
+                $manifestJson.signed = $true
+                foreach ($art in $manifestJson.artifacts) {
+                  $artPath = "$env:GITHUB_WORKSPACE\build\windows_release\$($art.file_name)"
+                  if (Test-Path $artPath) {
+                    $newHash = (Get-FileHash $artPath -Algorithm SHA256).Hash.ToLowerInvariant()
+                    $newLen = (Get-Item $artPath).Length
+                    $art.sha256 = $newHash
+                    $art.file_size_bytes = $newLen
+                    Write-Host "Updated manifest checksum for $($art.file_name): $newHash ($newLen bytes)"
+                  }
+                }
+                $manifestJson | ConvertTo-Json -Depth 5 | Set-Content $manifestFile -Encoding utf8
+              }
+
+              $hashFile = "$env:GITHUB_WORKSPACE\build\windows_release\SHA256SUMS.txt"
+              if (Test-Path $hashFile) {
+                $allFiles = Get-ChildItem -Path "$env:GITHUB_WORKSPACE\build\windows_release" -Include "*.exe", "*.zip" -File
+                $hashLines = foreach ($f in $allFiles) {
+                  $h = (Get-FileHash $f.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+                  "$h  $($f.Name)"
+                }
+                $hashLines | Set-Content $hashFile -Encoding ascii
               }
             } finally {
               if ($certAddedToRoot -and $pfxObj) {
