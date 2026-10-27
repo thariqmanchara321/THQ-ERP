@@ -272,16 +272,12 @@ jobs:
                 $hashLines | Set-Content $hashFile -Encoding ascii
               }
             } finally {
-              if ($certAddedToRoot -and $pfxObj) {
-                certutil.exe -delstore "Root" $pfxObj.Thumbprint
-                Write-Host "Removed temporary certificate from runner root store."
-              }
               if (Test-Path $cerPath) {
                 Remove-Item -Force $cerPath
               }
               if (Test-Path $certPath) {
                 Remove-Item -Force $certPath
-                Write-Host "Cleaned up temporary signing certificate."
+                Write-Host "Cleaned up temporary signing certificate files."
               }
             }
           } else {
@@ -378,3 +374,16 @@ jobs:
           } catch {
             Write-Warning "Git tagging completed with advisory notice: $_. Release is recorded in Supabase."
           }
+
+      - name: Cleanup Code Signing Root Trust
+        if: always()
+        shell: powershell
+        run: |
+          try {
+            $expectedThumb = "2813DEE08CC4B318907D2F5243DF81DA95EF60A7"
+            certutil.exe -delstore "Root" $expectedThumb
+            Write-Host "Cleaned up runner root certificate trust."
+          } catch {
+            Write-Host "Notice: delstore completed or skipped: $_"
+          }
+

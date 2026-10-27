@@ -515,6 +515,11 @@ def main():
     effective_publisher_sig = None
     if sig_status == "Valid":
         effective_publisher_sig = signer_subject or signer_thumbprint
+        EXPECTED_INTERNAL_QA_THUMBPRINT = "2813DEE08CC4B318907D2F5243DF81DA95EF60A7"
+        if args.channel in ("internal_test", "internal") and signer_thumbprint:
+            if signer_thumbprint.upper() != EXPECTED_INTERNAL_QA_THUMBPRINT.upper():
+                print(f"[ERROR] FAIL-CLOSED POLICY: Signer thumbprint '{signer_thumbprint}' does not match expected internal QA thumbprint '{EXPECTED_INTERNAL_QA_THUMBPRINT}'.", file=sys.stderr)
+                sys.exit(1)
     else:
         if not args.allow_unsigned:
             print(f"[ERROR] FAIL-CLOSED POLICY: Installer is not signed with a valid Authenticode signature (Status: '{sig_status}'). Publication halted.", file=sys.stderr)
@@ -579,6 +584,14 @@ def main():
                 sys.exit(1)
 
     target_tenants = [t.strip() for t in args.target_tenant_ids.split(",") if t.strip()] if args.target_tenant_ids else None
+    if not target_tenants and target_devices:
+        KNOWN_DEVICE_TENANT_MAP = {
+            "BC8AEEC1-9BCE-4935-B349-168CAF9A7FA4": "a659b6de-885d-44ed-9fa7-93eefa7d47d2",
+            "CLIENT-BC8AEE": "a659b6de-885d-44ed-9fa7-93eefa7d47d2",
+        }
+        derived_tenants = [KNOWN_DEVICE_TENANT_MAP[d.upper()] for d in target_devices if d.upper() in KNOWN_DEVICE_TENANT_MAP]
+        if derived_tenants:
+            target_tenants = derived_tenants
     target_stores = [s.strip() for s in args.target_store_ids.split(",") if s.strip()] if args.target_store_ids else None
 
     # 4. Upload to Supabase Storage (Only executed once security policy has passed)
@@ -639,6 +652,15 @@ def main():
             print(f"[PUBLISH] Discovery result: update_available={is_avail}, latest_build={latest_build}")
         else:
             print(f"[WARN] Discovery verification failed: {discovery_res}")
+
+    # Verify device isolation: unauthorized devices must receive update_available=False
+    print("[PUBLISH] Verifying device isolation for unauthorized device (00000000-0000-0000-0000-000000000000)...")
+    iso_ok, iso_res = verify_release_discovery(app_key, platform, "00000000-0000-0000-0000-000000000000", anon_key=effective_key)
+    if iso_ok and isinstance(iso_res, dict) and iso_res.get("update_available") is True:
+        print("[ERROR] FAIL-CLOSED POLICY: Release is discoverable by unauthorized devices! Device isolation failed.", file=sys.stderr)
+        sys.exit(1)
+    else:
+        print("[PUBLISH] Device isolation verified: unauthorized devices receive update_available=False.")
 
     # 7. Record telemetry log
     log_telemetry_event(
