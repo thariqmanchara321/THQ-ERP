@@ -6,6 +6,7 @@ creates immutable release records, and validates release discovery RPCs.
 """
 
 import argparse
+import datetime
 import hashlib
 import json
 import os
@@ -194,8 +195,8 @@ def save_release_record_direct(
         'Prefer': 'return=representation'
     }
 
-    # 1. Check if record already exists
-    query_url = f"{SUPABASE_URL}/rest/v1/platform_app_releases?app_key=eq.{app_key}&platform=eq.{platform}&version=eq.{version}&build_number=eq.{build_number}&select=id"
+    # 1. Check if record already exists for this (app_key, platform, version)
+    query_url = f"{SUPABASE_URL}/rest/v1/platform_app_releases?app_key=eq.{app_key}&platform=eq.{platform}&version=eq.{version}&select=id"
     req_check = urllib.request.Request(query_url, headers=headers, method='GET')
     existing_id = None
     try:
@@ -206,6 +207,7 @@ def save_release_record_direct(
     except Exception as e:
         print(f"[WARN] Could not query existing release record: {e}", file=sys.stderr)
 
+    now_iso = datetime.datetime.now(datetime.timezone.utc).isoformat()
     record_payload = {
         "app_key": app_key,
         "platform": platform,
@@ -224,7 +226,9 @@ def save_release_record_direct(
         "target_type": target_type,
         "target_tenant_ids": target_tenant_ids,
         "target_store_ids": target_store_ids,
-        "target_device_ids": target_device_ids
+        "target_device_ids": target_device_ids,
+        "released_at": now_iso,
+        "updated_at": now_iso
     }
 
     try:
@@ -237,8 +241,10 @@ def save_release_record_direct(
                 print(f"[PUBLISH] Direct release record updated successfully: ID {ret_obj.get('id', existing_id)}")
                 return True, ret_obj
         else:
-            post_url = f"{SUPABASE_URL}/rest/v1/platform_app_releases"
-            req_post = urllib.request.Request(post_url, data=json.dumps(record_payload).encode('utf-8'), headers=headers, method='POST')
+            post_url = f"{SUPABASE_URL}/rest/v1/platform_app_releases?on_conflict=app_key,platform,version"
+            post_headers = headers.copy()
+            post_headers['Prefer'] = 'return=representation,resolution=merge-duplicates'
+            req_post = urllib.request.Request(post_url, data=json.dumps(record_payload).encode('utf-8'), headers=post_headers, method='POST')
             with urllib.request.urlopen(req_post, timeout=10) as resp:
                 res = json.loads(resp.read().decode('utf-8'))
                 ret_obj = res[0] if (isinstance(res, list) and res) else res

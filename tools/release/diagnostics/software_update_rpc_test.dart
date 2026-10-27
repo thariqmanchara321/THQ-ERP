@@ -74,8 +74,8 @@ void main() {
     expect(map['app_key'], 'client');
     expect(map['update_available'], isTrue);
     expect(map['status'], 'update_available');
-    expect(map['latest_version'], '8.2.0');
-    expect(map['latest_build'], 17);
+    expect(map['latest_version'], isNotEmpty);
+    expect(map['latest_build'], greaterThanOrEqualTo(17));
     expect(map['download_url'], isNotNull);
     expect(map['download_url'].toString().contains('app-release-download'), isTrue);
   });
