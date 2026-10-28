@@ -338,7 +338,8 @@ function Invoke-CheckRelease {
     $commit = (& git -C $RepoRoot rev-parse HEAD).Trim()
     $shortCommit = (& git -C $RepoRoot rev-parse --short HEAD).Trim()
     $commitMsg = (& git -C $RepoRoot log -1 --format="%s").Trim()
-    $porcelain = (& git -C $RepoRoot status --porcelain).Trim()
+    $rawPorcelain = & git -C $RepoRoot status --porcelain
+    $porcelain = if ($rawPorcelain) { ($rawPorcelain -join "`n").Trim() } else { "" }
     $isDirty = -not [string]::IsNullOrWhiteSpace($porcelain)
 
     Write-Host "  Git Branch:    $branch"
@@ -478,7 +479,8 @@ function Invoke-PublishQA {
     $commitMsg = (& git -C $RepoRoot log -1 --format="%s").Trim()
 
     # Dirty check: release MUST be clean
-    $porcelain = (& git -C $RepoRoot status --porcelain).Trim()
+    $rawPorcelain = & git -C $RepoRoot status --porcelain
+    $porcelain = if ($rawPorcelain) { ($rawPorcelain -join "`n").Trim() } else { "" }
     if (-not [string]::IsNullOrWhiteSpace($porcelain)) {
         Write-Host "ERROR: Working tree has uncommitted modifications. A release cannot be initiated from a dirty tree." -ForegroundColor Red
         & git -C $RepoRoot status -s
