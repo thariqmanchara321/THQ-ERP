@@ -153,6 +153,9 @@ jobs:
       - name: Centralized Version & Build Allocation
         id: versioning
         shell: powershell
+        env:
+          SUPABASE_URL: ${{ vars.SUPABASE_URL || 'https://yguzrxcdvyimjrfvtcvp.supabase.co' }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
           $app = "${{ github.event.inputs.app }}"
           if ([string]::IsNullOrWhiteSpace($app)) { $app = "client" }
@@ -160,7 +163,7 @@ jobs:
           if ([string]::IsNullOrWhiteSpace($bump)) { $bump = "auto_build" }
 
           Write-Host "Allocating atomic version/build for App: $app, Bump: $bump"
-          python tools/release/manage_version.py --app $app --bump-type $bump
+          python tools/release/manage_version.py --app $app --bump-type $bump --enforce-complete-registry
 
       - name: Run Application Tests
         shell: powershell
@@ -370,6 +373,25 @@ jobs:
               git tag $tagName
               git push origin "refs/tags/$tagName"
               Write-Host "Successfully published immutable release tag '$tagName' to origin." -ForegroundColor Green
+
+              # Fast-forward safe branch synchronization
+              $targetBranch = "${{ github.ref_name }}"
+              $initialSha = "${{ github.sha }}"
+              if (-not [string]::IsNullOrWhiteSpace($targetBranch) -and -not [string]::IsNullOrWhiteSpace($initialSha)) {
+                Write-Host "Verifying remote branch '$targetBranch' for fast-forward synchronization..."
+                $remoteBranchLine = git ls-remote origin "refs/heads/$targetBranch"
+                $remoteSha = if ($remoteBranchLine) { ($remoteBranchLine -split '\s+')[0].Trim() } else { "" }
+                if ($remoteSha -eq $initialSha) {
+                  try {
+                    git push origin "HEAD:refs/heads/$targetBranch"
+                    Write-Host "Branch '$targetBranch' successfully synchronized to release commit." -ForegroundColor Green
+                  } catch {
+                    Write-Warning "Branch synchronization push was rejected (possibly due to branch protection): $_. Release tag '$tagName' retains immutable provenance."
+                  }
+                } else {
+                  Write-Warning "Remote branch '$targetBranch' advanced (current HEAD: $remoteSha vs checkout: $initialSha). Skipping branch update to prevent overwriting concurrent commits. Release tag '$tagName' retains immutable provenance."
+                }
+              }
             }
           } catch {
             Write-Warning "Git tagging completed with advisory notice: $_. Release is recorded in Supabase."

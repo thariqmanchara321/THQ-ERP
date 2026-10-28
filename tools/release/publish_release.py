@@ -225,16 +225,28 @@ def save_release_record_direct(
     }
 
     # 1. Check if record already exists for this (app_key, platform, version)
-    query_url = f"{SUPABASE_URL}/rest/v1/platform_app_releases?app_key=eq.{app_key}&platform=eq.{platform}&version=eq.{version}&select=id"
+    query_url = f"{SUPABASE_URL}/rest/v1/platform_app_releases?app_key=eq.{app_key}&platform=eq.{platform}&version=eq.{version}&select=id,build_number"
     req_check = urllib.request.Request(query_url, headers=headers, method='GET')
     existing_id = None
+    existing_build = None
     try:
         with urllib.request.urlopen(req_check, timeout=10) as resp:
             rows = json.loads(resp.read().decode('utf-8'))
             if rows and isinstance(rows, list) and len(rows) > 0:
                 existing_id = rows[0].get('id')
+                existing_build = rows[0].get('build_number')
     except Exception as e:
         print(f"[WARN] Could not query existing release record: {e}", file=sys.stderr)
+
+    if existing_id:
+        print(
+            f"[ERROR] FAIL-CLOSED POLICY: Release record for version '{version}' already exists in registry "
+            f"(ID: {existing_id}, Build: {existing_build}). The uniqueness constraint (app_key, platform, version) "
+            f"forbids duplicate versions. Overwriting existing release records is strictly prohibited to prevent data loss. "
+            f"Release publication halted.",
+            file=sys.stderr
+        )
+        return False, f"Version collision: release for {version} already exists (ID: {existing_id})"
 
     now_iso = datetime.datetime.now(datetime.timezone.utc).isoformat()
     record_payload = {
@@ -261,24 +273,15 @@ def save_release_record_direct(
     }
 
     try:
-        if existing_id:
-            patch_url = f"{SUPABASE_URL}/rest/v1/platform_app_releases?id=eq.{existing_id}"
-            req_patch = urllib.request.Request(patch_url, data=json.dumps(record_payload).encode('utf-8'), headers=headers, method='PATCH')
-            with urllib.request.urlopen(req_patch, timeout=10) as resp:
-                res = json.loads(resp.read().decode('utf-8'))
-                ret_obj = res[0] if (isinstance(res, list) and res) else {"id": existing_id}
-                print(f"[PUBLISH] Direct release record updated successfully: ID {ret_obj.get('id', existing_id)}")
-                return True, ret_obj
-        else:
-            post_url = f"{SUPABASE_URL}/rest/v1/platform_app_releases?on_conflict=app_key,platform,version"
-            post_headers = headers.copy()
-            post_headers['Prefer'] = 'return=representation,resolution=merge-duplicates'
-            req_post = urllib.request.Request(post_url, data=json.dumps(record_payload).encode('utf-8'), headers=post_headers, method='POST')
-            with urllib.request.urlopen(req_post, timeout=10) as resp:
-                res = json.loads(resp.read().decode('utf-8'))
-                ret_obj = res[0] if (isinstance(res, list) and res) else res
-                print(f"[PUBLISH] Direct release record created successfully: ID {ret_obj.get('id', '')}")
-                return True, ret_obj
+        post_url = f"{SUPABASE_URL}/rest/v1/platform_app_releases"
+        post_headers = headers.copy()
+        post_headers['Prefer'] = 'return=representation'
+        req_post = urllib.request.Request(post_url, data=json.dumps(record_payload).encode('utf-8'), headers=post_headers, method='POST')
+        with urllib.request.urlopen(req_post, timeout=10) as resp:
+            res = json.loads(resp.read().decode('utf-8'))
+            ret_obj = res[0] if (isinstance(res, list) and res) else res
+            print(f"[PUBLISH] Direct release record created successfully: ID {ret_obj.get('id', '')}")
+            return True, ret_obj
     except urllib.error.HTTPError as e:
         err = e.read().decode('utf-8')
         print(f"[ERROR] Direct table save failed: HTTP {e.code} - {err}", file=sys.stderr)
@@ -519,6 +522,10 @@ def main():
         if args.channel in ("internal_test", "internal") and signer_thumbprint:
             if signer_thumbprint.upper() != EXPECTED_INTERNAL_QA_THUMBPRINT.upper():
                 print(f"[ERROR] FAIL-CLOSED POLICY: Signer thumbprint '{signer_thumbprint}' does not match expected internal QA thumbprint '{EXPECTED_INTERNAL_QA_THUMBPRINT}'.", file=sys.stderr)
+                sys.exit(1)
+        elif args.channel == "production":
+            if signer_thumbprint and signer_thumbprint.upper() == EXPECTED_INTERNAL_QA_THUMBPRINT.upper():
+                print(f"[ERROR] FAIL-CLOSED POLICY: The internal QA certificate ({EXPECTED_INTERNAL_QA_THUMBPRINT}) cannot be used to publish a production release. Dedicated production code signing certificate required.", file=sys.stderr)
                 sys.exit(1)
     else:
         if not args.allow_unsigned:

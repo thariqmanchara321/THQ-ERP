@@ -42,3 +42,11 @@ apps/client_app/test/accounting/output/
 *.cer
 *.crt
 *.key
+
+# Python
+__pycache__/
+*.py[cod]
+
+# Logs
+*.log
+ci_failed_logs.txt
