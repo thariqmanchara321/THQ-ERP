@@ -36,6 +36,7 @@ jobs:
           CERT_BASE64: ${{ secrets.THQ_WINDOWS_SIGN_PFX_BASE64 }}
           CERT_PASSWORD: ${{ secrets.THQ_WINDOWS_SIGN_PASSWORD }}
           TIMESTAMP_URL: 'http://timestamp.digicert.com'
+          EXPECTED_THUMBPRINT: ${{ secrets.THQ_WINDOWS_EXPECTED_THUMBPRINT }}
         run: |
           Write-Host "=== Phase 1: Fail-Closed Secrets Presence Check ==="
           if ([string]::IsNullOrWhiteSpace($env:CERT_BASE64)) {
@@ -80,7 +81,7 @@ jobs:
               throw "Preflight FAILED: Authenticode Status is '$($sig.Status)' (expected Valid). Error: $($sig.StatusMessage)"
             }
 
-            $expectedThumb = "2813DEE08CC4B318907D2F5243DF81DA95EF60A7"
+            $expectedThumb = if (-not [string]::IsNullOrWhiteSpace($env:EXPECTED_THUMBPRINT)) { $env:EXPECTED_THUMBPRINT.Trim() } else { "2813DEE08CC4B318907D2F5243DF81DA95EF60A7" }
             if ($sig.SignerCertificate.Thumbprint.ToUpper() -ne $expectedThumb.ToUpper()) {
               throw "Preflight FAILED: Thumbprint '$($sig.SignerCertificate.Thumbprint)' does not match expected '$expectedThumb'"
             }
@@ -97,7 +98,7 @@ jobs:
           } finally {
             Write-Host "=== Cleanup: Removing Temporary Secrets & Artifacts ==="
             if ($certAddedToRoot) {
-              certutil.exe -delstore "Root" "2813DEE08CC4B318907D2F5243DF81DA95EF60A7"
+              certutil.exe -delstore "Root" $expectedThumb
               Write-Host "Removed temporary certificate from runner root store."
             }
             if (Test-Path $cerPath) {

@@ -20,7 +20,14 @@ param(
 $ErrorActionPreference = "Stop"
 $ToolsRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 if([string]::IsNullOrWhiteSpace($ProjectRoot) -or -not (Test-Path $ProjectRoot)){
-    $ProjectRoot = Split-Path -Parent $ToolsRoot
+    $candidate = Split-Path -Parent $ToolsRoot
+    if (Test-Path (Join-Path $candidate "packages\erp_core")) {
+        $ProjectRoot = $candidate
+    } elseif (Test-Path (Join-Path (Split-Path -Parent $candidate) "packages\erp_core")) {
+        $ProjectRoot = Split-Path -Parent $candidate
+    } else {
+        $ProjectRoot = "D:\ERP\flexi_erp"
+    }
 }
 $ProjectRoot = (Resolve-Path $ProjectRoot).Path
 
@@ -49,8 +56,8 @@ if([string]::IsNullOrWhiteSpace($Version) -or $BuildNumber -le 0){
     }
 }
 
-if([string]::IsNullOrWhiteSpace($Version)){ $Version = "8.1.0" }
-if($BuildNumber -le 0){ $BuildNumber = 16 }
+if([string]::IsNullOrWhiteSpace($Version)){ $Version = "8.2.2" }
+if($BuildNumber -le 0){ $BuildNumber = 19 }
 
 Write-Host "THQ ERP Windows Release Builder" -ForegroundColor Cyan
 Write-Host "Version: $Version | Build: $BuildNumber | Target: $TargetApp | Format: $Format" -ForegroundColor Cyan

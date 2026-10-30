@@ -5,10 +5,10 @@
   #error OutputDir was not provided.
 #endif
 #ifndef AppVersion
-  #define AppVersion "8.1.0"
+  #define AppVersion "8.2.2"
 #endif
 #ifndef BuildNumber
-  #define BuildNumber "16"
+  #define BuildNumber "19"
 #endif
 
 [Setup]

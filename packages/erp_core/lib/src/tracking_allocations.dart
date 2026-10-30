@@ -30,10 +30,11 @@ List<Map<String, dynamic>> parseTrackingBatches(String text, double quantity) {
   for (final line
       in text.split('\n').map((s) => s.trim()).where((s) => s.isNotEmpty)) {
     final separator = line.lastIndexOf('=');
-    if (separator < 1)
+    if (separator < 1) {
       throw const FormatException(
         'Use BATCH=QUANTITY or BATCH=QUANTITY|YYYY-MM-DD.',
       );
+    }
     final name = line.substring(0, separator).trim();
     final parts = line
         .substring(separator + 1)
@@ -44,8 +45,9 @@ List<Map<String, dynamic>> parseTrackingBatches(String text, double quantity) {
     if (parts.length > 2 || amount == null || !amount.isFinite || amount <= 0) {
       throw const FormatException('Every batch needs a positive quantity.');
     }
-    if (!names.add(name.toLowerCase()))
+    if (!names.add(name.toLowerCase())) {
       throw const FormatException('A batch appears more than once.');
+    }
     final row = <String, dynamic>{'batch_number': name, 'quantity': amount};
     if (parts.length == 2 && parts[1].isNotEmpty) {
       final date = DateTime.tryParse(parts[1]);
