@@ -143,3 +143,4 @@ Configure the following secrets in the GitHub repository (`Settings -> Secrets a
 - **Database Schema:** Fully migrated and verified.
 - **Windows Release Pipeline:** Verified and generating valid installer candidates for both applications.
 - **Blocking Items for Public Rollout:** None on the software side; only the commercial CA certificate needs to be placed into GitHub Actions secrets when ready for external release.
+
