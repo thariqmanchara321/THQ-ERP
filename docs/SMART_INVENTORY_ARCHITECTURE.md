@@ -66,3 +66,61 @@ apps/mobile_pos/
 - **Location Permissions:** Stock adjustments and counts verify location access permissions (`private.v4_location_access`).
 - **No Secret Leakage:** No Supabase service-role keys are compiled into client binaries. All transactions authenticate via standard bearer JWTs and hardware device secrets.
 - **Fail-Closed Default Deny:** RLS protects all new and existing tables.
+
+---
+
+## 4. Product Identification Architecture (Phase 2)
+
+### 4.1 Orchestration Flow
+
+```
+                      SmartScanResult (from Phase 1: Camera / USB / Manual)
+                                      │
+                                      ▼
+                      ProductIdentificationRequest
+                       (rawIdentifier, tenantId, locationId, source)
+                                      │
+                                      ▼
+                      ProductIdentificationEngine
+                                      │
+                 ┌────────────────────┴────────────────────┐
+                 │                                         │
+                 ▼                                         ▼
+   Online Path (via RpcCaller)              Offline Path (SQLite / Memory)
+RpcProductIdentificationRepository        LocalProductIdentificationRepository
+                 │                                         │
+       PostgreSQL RPC Execution                 Indexed Local Search
+     inventory_product_lookup_v482              (barcode, SKU, part, id, searchCodes)
+                 │                                         │
+                 └────────────────────┬────────────────────┘
+                                      │
+                                      ▼
+                       Match Prioritization & Ambiguity Check
+                                      │
+             ┌────────────────────────┼────────────────────────┐
+             ▼                        ▼                        ▼
+       [exactMatch]          [multipleMatches]            [noMatch / offlineMiss]
+  Single candidate picked   Ambiguity preserved;        No candidates identified;
+    by priority hierarchy    requires user selection      diagnostic info attached
+```
+
+### 4.2 Matching Priority Hierarchy
+
+When resolving scanned codes, `ProductIdentificationEngine` enforces a strict 9-tier priority ranking:
+1. `MatchMethod.exactBarcode` (EAN-13, UPC, Code 128)
+2. `MatchMethod.exactQr` (THQ encoded QR matrix: `THQ:PRODUCT:...`)
+3. `MatchMethod.exactInternal` (Internal warehouse/bin tags)
+4. `MatchMethod.exactSku` (Canonical product variant SKU)
+5. `MatchMethod.exactManufacturer` (Part numbers / OEM codes)
+6. `MatchMethod.exactSupplier` (Vendor SKU mapping)
+7. `MatchMethod.exactAlternateSku` (Legacy migration cross-references)
+8. `MatchMethod.legacyBarcodeFallback` (Historical pre-v482 product barcodes)
+9. `MatchMethod.searchIndexMatch` (Tokenized multi-code index)
+
+### 4.3 Safe Data Integrity Guarantees
+
+1. **Leading Zeros Invariant:** Barcodes such as `0012345678905` are strictly preserved as immutable strings. No numeric parsing (`int.parse`, `double.parse`) is ever performed on identifier codes.
+2. **Deterministic Ambiguity Handling:** If multiple variants match at the highest priority level, the engine returns `ProductIdentificationStatus.multipleMatches` with `isAmbiguous = true`. It **never** silently auto-selects the first candidate.
+3. **Fail-Closed Error Propagation:** Network disconnects or database exceptions are classified as `ProductIdentificationStatus.error` with error details, preventing technical faults from appearing as normal "not found" results.
+4. **Tenant Isolation:** Lookups require explicit `tenantId`. A scanned barcode can never bypass tenant boundaries or expose records belonging to other businesses.
+

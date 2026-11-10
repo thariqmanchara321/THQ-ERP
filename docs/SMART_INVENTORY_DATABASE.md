@@ -29,7 +29,13 @@ Stores multiple barcodes, QR codes, and supplier reference numbers per variant.
 - `next_barcode` (bigint, default 1) -> Generates internal EAN-13 codes starting with prefix `28`.
 - `next_qr` (bigint, default 1) -> Generates internal QR strings format `THQ:PRODUCT:<variant_short>:<seq>`.
 
-### 1.3 `public.stock_counts` & `public.stock_count_items`
+### 1.3 `public.inventory_product_lookup_v482(p_tenant_id uuid, p_code text, p_location_id uuid default null)`
+Primary read-only RPC powering online product identification:
+- Resolves `p_code` against `product_variants.sku`, `product_identifiers_v482.code`, and legacy `product_variants.barcode` / `product_variants.part_number`.
+- Returns enriched product JSONB with prices, location-specific stock quantities, and associated identifier records.
+- Security definer enforcing `private.erp_user_has_tenant_access(p_tenant_id)` and `private.v4_location_access`.
+
+### 1.4 `public.stock_counts` & `public.stock_count_items`
 - Physical inventory reconciliation headers and lines.
 - Lines record `system_quantity`, `counted_quantity`, and derived `variance`.
 
