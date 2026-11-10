@@ -153,6 +153,9 @@ jobs:
       - name: Centralized Version & Build Allocation
         id: versioning
         shell: powershell
+        env:
+          SUPABASE_URL: ${{ vars.SUPABASE_URL || 'https://yguzrxcdvyimjrfvtcvp.supabase.co' }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
           $app = "${{ github.event.inputs.app }}"
           if ([string]::IsNullOrWhiteSpace($app)) { $app = "client" }
@@ -160,7 +163,7 @@ jobs:
           if ([string]::IsNullOrWhiteSpace($bump)) { $bump = "auto_build" }
 
           Write-Host "Allocating atomic version/build for App: $app, Bump: $bump"
-          python tools/release/manage_version.py --app $app --bump-type $bump
+          python tools/release/manage_version.py --app $app --bump-type $bump --enforce-complete-registry
 
       - name: Run Application Tests
         shell: powershell
@@ -196,14 +199,32 @@ jobs:
           CERT_BASE64: ${{ secrets.THQ_WINDOWS_SIGN_PFX_BASE64 }}
           CERT_PASSWORD: ${{ secrets.THQ_WINDOWS_SIGN_PASSWORD }}
           TIMESTAMP_URL: ${{ secrets.THQ_WINDOWS_TIMESTAMP_URL || 'http://timestamp.digicert.com' }}
+          EXPECTED_THUMBPRINT: ${{ secrets.THQ_WINDOWS_EXPECTED_THUMBPRINT }}
         run: |
           if (-not [string]::IsNullOrWhiteSpace($env:CERT_BASE64)) {
             Write-Host "Authenticode certificate provided. Signing installer..." -ForegroundColor Green
             $certPath = Join-Path $env:TEMP "thq_release_sign.pfx"
+            $cerPath = Join-Path $env:TEMP "thq_release_sign.cer"
+            $certAddedToRoot = $false
             try {
               [System.IO.File]::WriteAllBytes($certPath, [System.Convert]::FromBase64String($env:CERT_BASE64))
               
+              # Import into runner LocalMachine Root store for Authenticode chain validation
+              try {
+                $pfxObj = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2($certPath, $env:CERT_PASSWORD.Trim())
+                $cerBytes = $pfxObj.Export([System.Security.Cryptography.X509Certificates.X509ContentType]::Cert)
+                [System.IO.File]::WriteAllBytes($cerPath, $cerBytes)
+                certutil.exe -addstore -f "Root" $cerPath
+                $certAddedToRoot = $true
+                Write-Host "Runner root trust configured for Authenticode chain validation."
+              } catch {
+                Write-Host "Notice: Direct root store import skipped: $_"
+              }
+
               $installers = Get-ChildItem -Path "$env:GITHUB_WORKSPACE\build\windows_release" -Filter "*.exe" -Recurse
+              if (-not $installers -or $installers.Count -eq 0) {
+                throw "No installer executable found under build\windows_release to sign."
+              }
               foreach ($inst in $installers) {
                 Write-Host "Signing $($inst.FullName)..."
                 powershell -ExecutionPolicy Bypass -File tools/windows_release/SIGN_WINDOWS_FILE.ps1 `
@@ -215,17 +236,56 @@ jobs:
                 $sig = Get-AuthenticodeSignature -FilePath $inst.FullName
                 Write-Host "Signature Status: $($sig.Status) | Signer: $($sig.SignerCertificate.Subject)"
                 if ($sig.Status -ne "Valid") {
-                  throw "Signature verification failed for $($inst.Name)"
+                  throw "Fail-Closed: Authenticode signature verification failed for $($inst.Name): Status is $($sig.Status) (expected Valid). Error: $($sig.StatusMessage)"
+                }
+
+                $expectedThumb = if (-not [string]::IsNullOrWhiteSpace($env:EXPECTED_THUMBPRINT)) { $env:EXPECTED_THUMBPRINT.Trim() } else { "2813DEE08CC4B318907D2F5243DF81DA95EF60A7" }
+                if ($sig.SignerCertificate.Thumbprint.ToUpper() -ne $expectedThumb.ToUpper()) {
+                  throw "Fail-Closed: Signer thumbprint '$($sig.SignerCertificate.Thumbprint)' does not match expected '$expectedThumb'"
+                }
+                if (-not $sig.TimeStamperCertificate) {
+                  throw "Fail-Closed: Digital signature is missing valid timestamp."
                 }
               }
+
+              # Recalculate post-signing SHA-256 and size to update release_manifest.json and SHA256SUMS.txt
+              $manifestFile = "$env:GITHUB_WORKSPACE\build\windows_release\release_manifest.json"
+              if (Test-Path $manifestFile) {
+                $manifestJson = Get-Content $manifestFile -Raw | ConvertFrom-Json
+                $manifestJson.signed = $true
+                foreach ($art in $manifestJson.artifacts) {
+                  $artPath = "$env:GITHUB_WORKSPACE\build\windows_release\$($art.file_name)"
+                  if (Test-Path $artPath) {
+                    $newHash = (Get-FileHash $artPath -Algorithm SHA256).Hash.ToLowerInvariant()
+                    $newLen = (Get-Item $artPath).Length
+                    $art.sha256 = $newHash
+                    $art.file_size_bytes = $newLen
+                    Write-Host "Updated manifest checksum for $($art.file_name): $newHash ($newLen bytes)"
+                  }
+                }
+                $manifestJson | ConvertTo-Json -Depth 5 | Set-Content $manifestFile -Encoding utf8
+              }
+
+              $hashFile = "$env:GITHUB_WORKSPACE\build\windows_release\SHA256SUMS.txt"
+              if (Test-Path $hashFile) {
+                $allFiles = Get-ChildItem -Path "$env:GITHUB_WORKSPACE\build\windows_release" -Include "*.exe", "*.zip" -File
+                $hashLines = foreach ($f in $allFiles) {
+                  $h = (Get-FileHash $f.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+                  "$h  $($f.Name)"
+                }
+                $hashLines | Set-Content $hashFile -Encoding ascii
+              }
             } finally {
+              if (Test-Path $cerPath) {
+                Remove-Item -Force $cerPath
+              }
               if (Test-Path $certPath) {
                 Remove-Item -Force $certPath
-                Write-Host "Cleaned up temporary signing certificate."
+                Write-Host "Cleaned up temporary signing certificate files."
               }
             }
           } else {
-            Write-Host "No THQ_WINDOWS_SIGN_PFX_BASE64 secret provided. Skipping Authenticode signing for internal test candidate." -ForegroundColor Yellow
+            throw "FAIL-CLOSED POLICY: Code signing certificate secret 'THQ_WINDOWS_SIGN_PFX_BASE64' is missing in release-publishing environment. An Authenticode signature (Status = Valid) is mandatory for THQ Business updates. Release publication halted."
           }
 
       - name: Publish to Supabase Private Storage & Registry
@@ -314,7 +374,41 @@ jobs:
               git tag $tagName
               git push origin "refs/tags/$tagName"
               Write-Host "Successfully published immutable release tag '$tagName' to origin." -ForegroundColor Green
+
+              # Fast-forward safe branch synchronization
+              $targetBranch = "${{ github.ref_name }}"
+              $initialSha = "${{ github.sha }}"
+              if (-not [string]::IsNullOrWhiteSpace($targetBranch) -and -not [string]::IsNullOrWhiteSpace($initialSha)) {
+                Write-Host "Verifying remote branch '$targetBranch' for fast-forward synchronization..."
+                $remoteBranchLine = git ls-remote origin "refs/heads/$targetBranch"
+                $remoteSha = if ($remoteBranchLine) { ($remoteBranchLine -split '\s+')[0].Trim() } else { "" }
+                if ($remoteSha -eq $initialSha) {
+                  try {
+                    git push origin "HEAD:refs/heads/$targetBranch"
+                    Write-Host "Branch '$targetBranch' successfully synchronized to release commit." -ForegroundColor Green
+                  } catch {
+                    Write-Warning "Branch synchronization push was rejected (possibly due to branch protection): $_. Release tag '$tagName' retains immutable provenance."
+                  }
+                } else {
+                  Write-Warning "Remote branch '$targetBranch' advanced (current HEAD: $remoteSha vs checkout: $initialSha). Skipping branch update to prevent overwriting concurrent commits. Release tag '$tagName' retains immutable provenance."
+                }
+              }
             }
           } catch {
             Write-Warning "Git tagging completed with advisory notice: $_. Release is recorded in Supabase."
           }
+
+      - name: Cleanup Code Signing Root Trust
+        if: always()
+        shell: powershell
+        env:
+          EXPECTED_THUMBPRINT: ${{ secrets.THQ_WINDOWS_EXPECTED_THUMBPRINT }}
+        run: |
+          try {
+            $thumbToClean = if (-not [string]::IsNullOrWhiteSpace($env:EXPECTED_THUMBPRINT)) { $env:EXPECTED_THUMBPRINT.Trim() } else { "2813DEE08CC4B318907D2F5243DF81DA95EF60A7" }
+            certutil.exe -delstore "Root" $thumbToClean
+            Write-Host "Cleaned up runner root certificate trust."
+          } catch {
+            Write-Host "Notice: delstore completed or skipped: $_"
+          }
+

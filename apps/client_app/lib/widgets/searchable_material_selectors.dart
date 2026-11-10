@@ -4,6 +4,7 @@ import 'package:thq_ui/thq_ui.dart';
 
 import '../models/client_session.dart';
 import '../services/aggregate_yard_service.dart';
+import '../services/location_scope_service.dart';
 
 /// Reusable searchable autocomplete selector for Drivers.
 class SearchableDriverSelector extends StatefulWidget {
@@ -361,6 +362,9 @@ class SearchableTruckSelector extends StatefulWidget {
   final String? initialVehicleId;
   final ValueChanged<Map<String, dynamic>?> onVehicleSelected;
   final ValueChanged<String?>? onSuggestDriver;
+  final ValueChanged<Map<String, dynamic>>? onVehicleCreated;
+  final ClientSession? session;
+  final String? locationId;
   final String labelText;
 
   const SearchableTruckSelector({
@@ -369,6 +373,9 @@ class SearchableTruckSelector extends StatefulWidget {
     this.initialVehicleId,
     required this.onVehicleSelected,
     this.onSuggestDriver,
+    this.onVehicleCreated,
+    this.session,
+    this.locationId,
     this.labelText = 'Truck / Vehicle',
   });
 
@@ -378,21 +385,50 @@ class SearchableTruckSelector extends StatefulWidget {
 }
 
 class _SearchableTruckSelectorState extends State<SearchableTruckSelector> {
+  final AggregateYardService _service = AggregateYardService();
   final TextEditingController _controller = TextEditingController();
   final FocusNode _focusNode = FocusNode();
 
   List<Map<String, dynamic>> _filtered = [];
   Map<String, dynamic>? _selectedVehicle;
+  late List<Map<String, dynamic>> _localVehicles;
 
   @override
   void initState() {
     super.initState();
+    _localVehicles = List<Map<String, dynamic>>.from(widget.vehicles);
     if (widget.initialVehicleId != null) {
-      final found = widget.vehicles.firstWhere(
+      final found = _localVehicles.firstWhere(
         (v) => (v['vehicle_id'] ?? v['id'])?.toString() == widget.initialVehicleId,
         orElse: () => const {},
       );
       if (found.isNotEmpty) {
+        _selectedVehicle = found;
+        _controller.text = found['registration_number'] ?? '';
+      }
+    }
+  }
+
+  @override
+  void didUpdateWidget(SearchableTruckSelector oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.vehicles != oldWidget.vehicles) {
+      final existingIds = widget.vehicles
+          .map((v) => (v['vehicle_id'] ?? v['id'])?.toString())
+          .toSet();
+      final newLocals = _localVehicles.where(
+        (v) => !existingIds.contains((v['vehicle_id'] ?? v['id'])?.toString()),
+      );
+      _localVehicles = [...widget.vehicles, ...newLocals];
+    }
+    if (widget.initialVehicleId != oldWidget.initialVehicleId) {
+      final found = _localVehicles.firstWhere(
+        (v) => (v['vehicle_id'] ?? v['id'])?.toString() == widget.initialVehicleId,
+        orElse: () => const {},
+      );
+      if (found.isNotEmpty &&
+          _selectedVehicle?['id'] != widget.initialVehicleId &&
+          _selectedVehicle?['vehicle_id'] != widget.initialVehicleId) {
         _selectedVehicle = found;
         _controller.text = found['registration_number'] ?? '';
       }
@@ -417,7 +453,7 @@ class _SearchableTruckSelectorState extends State<SearchableTruckSelector> {
     }
 
     final normalized = query.replaceAll(' ', '').toUpperCase();
-    final results = widget.vehicles.where((v) {
+    final results = _localVehicles.where((v) {
       final reg = (v['registration_number'] ?? '').toString().replaceAll(' ', '').toUpperCase();
       final owner = (v['owner_name'] ?? '').toString().toUpperCase();
       final type = (v['vehicle_type'] ?? '').toString().toUpperCase();
@@ -452,6 +488,207 @@ class _SearchableTruckSelectorState extends State<SearchableTruckSelector> {
     widget.onVehicleSelected(null);
   }
 
+  Future<void> _quickCreateTruck() async {
+    final regCtrl = TextEditingController(text: _controller.text.trim().toUpperCase());
+    final makeModelCtrl = TextEditingController();
+    final capacityCtrl = TextEditingController();
+    final driverNameCtrl = TextEditingController();
+    final driverPhoneCtrl = TextEditingController();
+    String vehicleType = 'Truck';
+    var saving = false;
+
+    final tenantId = widget.session?.business.id;
+    final locationId = widget.locationId ??
+        (widget.session != null
+            ? LocationScopeService.currentForCreate(widget.session!)
+            : null);
+
+    final created = await showThqDialog<Map<String, dynamic>>(
+      context: context,
+      builder: (dialogCtx) => StatefulBuilder(
+        builder: (ctx, setDlgState) => AlertDialog(
+          title: const Row(
+            children: [
+              Icon(Icons.local_shipping_outlined),
+              SizedBox(width: 8),
+              Text('Add Truck / Vehicle'),
+            ],
+          ),
+          content: SizedBox(
+            width: 480,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: regCtrl,
+                    autofocus: true,
+                    textCapitalization: TextCapitalization.characters,
+                    decoration: const InputDecoration(
+                      labelText: 'Registration number *',
+                      hintText: 'e.g. KL-10-AZ-1234',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: DropdownButtonFormField<String>(
+                          initialValue: vehicleType,
+                          decoration: const InputDecoration(
+                            labelText: 'Vehicle type',
+                            border: OutlineInputBorder(),
+                          ),
+                          items: const [
+                            DropdownMenuItem(value: 'Truck', child: Text('Truck')),
+                            DropdownMenuItem(value: 'Tipper', child: Text('Tipper')),
+                            DropdownMenuItem(value: 'Taurus', child: Text('Taurus')),
+                            DropdownMenuItem(value: 'Trailer', child: Text('Trailer')),
+                            DropdownMenuItem(value: 'Pickup', child: Text('Pickup')),
+                            DropdownMenuItem(value: 'Dumper', child: Text('Dumper')),
+                            DropdownMenuItem(value: 'Lorry', child: Text('Lorry')),
+                            DropdownMenuItem(value: 'Other', child: Text('Other')),
+                          ],
+                          onChanged: (v) => setDlgState(() => vehicleType = v ?? 'Truck'),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: TextField(
+                          controller: capacityCtrl,
+                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                          decoration: const InputDecoration(
+                            labelText: 'Nominal Capacity (CFT)',
+                            hintText: 'e.g. 150',
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: makeModelCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Make / model (optional)',
+                      hintText: 'e.g. BharatBenz, Tata',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: driverNameCtrl,
+                          decoration: const InputDecoration(
+                            labelText: 'Default driver (optional)',
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: TextField(
+                          controller: driverPhoneCtrl,
+                          keyboardType: TextInputType.phone,
+                          decoration: const InputDecoration(
+                            labelText: 'Driver phone',
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: saving ? null : () => Navigator.of(dialogCtx).pop(),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: saving
+                  ? null
+                  : () async {
+                      final reg = regCtrl.text.trim().toUpperCase();
+                      if (reg.isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Registration number is required.')),
+                        );
+                        return;
+                      }
+                      if (tenantId == null || locationId == null) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Active business store/yard is required.')),
+                        );
+                        return;
+                      }
+
+                      setDlgState(() => saving = true);
+                      try {
+                        final cap = double.tryParse(capacityCtrl.text.trim());
+                        final newId = await _service.createVehicle(
+                          tenantId: tenantId,
+                          locationId: locationId,
+                          registrationNumber: reg,
+                          vehicleType: vehicleType,
+                          makeModel: makeModelCtrl.text.trim().isNotEmpty
+                              ? makeModelCtrl.text.trim()
+                              : null,
+                          driverName: driverNameCtrl.text.trim().isNotEmpty
+                              ? driverNameCtrl.text.trim()
+                              : null,
+                          driverPhone: driverPhoneCtrl.text.trim().isNotEmpty
+                              ? driverPhoneCtrl.text.trim()
+                              : null,
+                          capacityCft: cap,
+                        );
+
+                        final newVehicle = {
+                          'id': newId,
+                          'vehicle_id': newId,
+                          'registration_number': reg,
+                          'vehicle_type': vehicleType,
+                          'make_model': makeModelCtrl.text.trim(),
+                          'capacity': cap,
+                          'nominal_capacity_cft': cap,
+                          'driver_name': driverNameCtrl.text.trim(),
+                          'driver_phone': driverPhoneCtrl.text.trim(),
+                          'location_id': locationId,
+                        };
+
+                        if (dialogCtx.mounted) {
+                          Navigator.of(dialogCtx).pop(newVehicle);
+                        }
+                      } catch (err) {
+                        if (dialogCtx.mounted) {
+                          setDlgState(() => saving = false);
+                          ScaffoldMessenger.of(dialogCtx).showSnackBar(
+                            SnackBar(content: Text(err.toString())),
+                          );
+                        }
+                      }
+                    },
+              child: Text(saving ? 'Saving…' : 'Save Truck'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    if (created != null && mounted) {
+      setState(() {
+        _localVehicles.insert(0, created);
+      });
+      _selectVehicle(created);
+      widget.onVehicleCreated?.call(created);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -467,12 +704,42 @@ class _SearchableTruckSelectorState extends State<SearchableTruckSelector> {
             hintText: 'Search registration or owner',
             border: const OutlineInputBorder(),
             prefixIcon: const Icon(Icons.local_shipping_outlined),
-            suffixIcon: (_selectedVehicle != null || _controller.text.isNotEmpty)
-                ? IconButton(
+            suffixIcon: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (_selectedVehicle != null || _controller.text.isNotEmpty)
+                  IconButton(
                     icon: const Icon(Icons.clear, size: 18),
                     onPressed: _clearSelection,
-                  )
-                : null,
+                    tooltip: 'Clear truck',
+                  ),
+                IconButton(
+                  icon: Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      const Icon(Icons.local_shipping_outlined, size: 20),
+                      Positioned(
+                        right: -4,
+                        bottom: -2,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).colorScheme.surface,
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            Icons.add_circle,
+                            size: 13,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  onPressed: _quickCreateTruck,
+                  tooltip: 'Add new truck',
+                ),
+              ],
+            ),
           ),
         ),
         if (_filtered.isNotEmpty)
@@ -526,3 +793,4 @@ class _SearchableTruckSelectorState extends State<SearchableTruckSelector> {
     );
   }
 }
+

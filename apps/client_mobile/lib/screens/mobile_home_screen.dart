@@ -9,8 +9,16 @@ import '../services/mobile_auth_service.dart';
 import '../services/mobile_client_service.dart';
 import '../widgets/mobile_workspace_widgets.dart';
 import 'mobile_entry_screen.dart';
+import 'workspace/mobile_accounting_page.dart';
+import 'workspace/mobile_material_yard_page.dart';
+import 'workspace/mobile_modules_catalog_page.dart';
 import 'workspace/mobile_primary_tabs.dart';
+import 'workspace/mobile_purchase_create_page.dart';
+import 'workspace/mobile_reports_center_page.dart';
+import 'workspace/mobile_staff_attendance_page.dart';
+import 'workspace/mobile_stock_transfers_page.dart';
 import 'workspace/mobile_tools_pages.dart';
+import 'workspace/mobile_expense_report_page.dart';
 
 class MobileHomeScreen extends StatefulWidget {
   final MobileSession session;
@@ -35,6 +43,25 @@ class _MobileHomeScreenState extends State<MobileHomeScreen> {
         ? null
         : widget.session.locationId;
     _dashboard = _loadDashboard();
+    _loadInitialPreferences();
+  }
+
+  Future<void> _loadInitialPreferences() async {
+    try {
+      final prefs = await _service.loadUserPreferences('client_mobile');
+      if (!mounted) return;
+      if (prefs.defaultLandingModule != null && prefs.defaultLandingModule!.isNotEmpty) {
+        final landing = prefs.defaultLandingModule!.toLowerCase();
+        int? targetIndex;
+        if (landing == 'sales' || landing == 'sales_pos') targetIndex = 1;
+        if (landing == 'inventory' || landing == 'stock') targetIndex = 2;
+        if (landing == 'modules' || landing == 'catalog') targetIndex = 3;
+        if (landing == 'more') targetIndex = 4;
+        if (targetIndex != null) {
+          setState(() => _index = targetIndex!);
+        }
+      }
+    } catch (_) {}
   }
 
   String get _locationLabel {
@@ -138,6 +165,18 @@ class _MobileHomeScreenState extends State<MobileHomeScreen> {
     );
   }
 
+  void _openMaterialYard() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => MobileMaterialYardPage(
+          session: widget.session,
+          service: _service,
+          locationId: _locationId,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final pages = <Widget>[
@@ -155,7 +194,15 @@ class _MobileHomeScreenState extends State<MobileHomeScreen> {
             : null,
         onSales: () => setState(() => _index = 1),
         onInventory: () => setState(() => _index = 2),
-        onMoney: () => setState(() => _index = 3),
+        onMoney: () => Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => MobileAccountingPage(
+              session: widget.session,
+              service: _service,
+              locationId: _locationId,
+            ),
+          ),
+        ),
         onApprovals: _openApprovals,
         onPurchases: () => Navigator.of(context).push(
           MaterialPageRoute(
@@ -166,7 +213,17 @@ class _MobileHomeScreenState extends State<MobileHomeScreen> {
             ),
           ),
         ),
+        onExpenses: () => Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => MobileExpenseReportPage(
+              session: widget.session,
+              service: _service,
+              locationId: _locationId,
+            ),
+          ),
+        ),
         onTraceability: _openTraceability,
+        onMaterialYard: _openMaterialYard,
       ),
       MobileSalesWorkspace(
         session: widget.session,
@@ -181,10 +238,11 @@ class _MobileHomeScreenState extends State<MobileHomeScreen> {
             ? _openTraceability
             : null,
       ),
-      MobileMoneyWorkspace(
+      MobileModulesCatalogPage(
         session: widget.session,
         service: _service,
         locationId: _locationId,
+        onSwitchTab: (tabIndex) => setState(() => _index = tabIndex),
       ),
       _MoreTab(
         session: widget.session,
@@ -201,50 +259,107 @@ class _MobileHomeScreenState extends State<MobileHomeScreen> {
       ),
     ];
 
-    const titles = ['Overview', 'Sales', 'Inventory', 'Money', 'More'];
+    const titles = ['Overview', 'Sales', 'Inventory', 'Modules Catalog', 'More'];
 
-    return Scaffold(
-      appBar: _index == 0
-          ? null
-          : AppBar(
-              title: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(titles[_index]),
-                  Text(
-                    _locationLabel,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
+    final isTablet = MediaQuery.of(context).size.width >= 600;
+
+    final appBarWidget = _index == 0
+        ? null
+        : AppBar(
+            title: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(titles[_index]),
+                Text(
+                  _locationLabel,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
-                ],
-              ),
-              actions: [
-                const ThqAppearanceButton(),
-                const ThqMotionButton(),
-                if (widget.session.canViewAllLocations)
-                  IconButton(
-                    tooltip: 'Change store scope',
-                    onPressed: _selectLocation,
-                    icon: const Icon(Icons.store_mall_directory_outlined),
-                  ),
-                IconButton(
-                  tooltip: 'Search business',
-                  onPressed: _openSearch,
-                  icon: const Icon(Icons.search_rounded),
                 ),
-                if (widget.session.canViewNotifications)
-                  IconButton(
-                    tooltip: 'Notifications',
-                    onPressed: _openNotifications,
-                    icon: const Icon(Icons.notifications_none_rounded),
-                  ),
-                const SizedBox(width: 4),
               ],
             ),
-      body: IndexedStack(index: _index, children: pages),
+            actions: [
+              const ThqAppearanceButton(),
+              const ThqMotionButton(),
+              if (widget.session.canViewAllLocations)
+                IconButton(
+                  tooltip: 'Change store scope',
+                  onPressed: _selectLocation,
+                  icon: const Icon(Icons.store_mall_directory_outlined),
+                ),
+              IconButton(
+                tooltip: 'Search business',
+                onPressed: _openSearch,
+                icon: const Icon(Icons.search_rounded),
+              ),
+              if (widget.session.canViewNotifications)
+                IconButton(
+                  tooltip: 'Notifications',
+                  onPressed: _openNotifications,
+                  icon: const Icon(Icons.notifications_none_rounded),
+                ),
+              const SizedBox(width: 4),
+            ],
+          );
+
+    final contentWidget = IndexedStack(index: _index, children: pages);
+
+    if (isTablet) {
+      return Scaffold(
+        appBar: appBarWidget,
+        body: Row(
+          children: [
+            NavigationRail(
+              selectedIndex: _index,
+              onDestinationSelected: (value) => setState(() => _index = value),
+              labelType: NavigationRailLabelType.all,
+              leading: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8.0),
+                child: CircleAvatar(
+                  backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+                  child: const Icon(Icons.business_rounded),
+                ),
+              ),
+              destinations: const [
+                NavigationRailDestination(
+                  icon: Icon(Icons.grid_view_outlined),
+                  selectedIcon: Icon(Icons.grid_view_rounded),
+                  label: Text('Overview'),
+                ),
+                NavigationRailDestination(
+                  icon: Icon(Icons.receipt_long_outlined),
+                  selectedIcon: Icon(Icons.receipt_long_rounded),
+                  label: Text('Sales'),
+                ),
+                NavigationRailDestination(
+                  icon: Icon(Icons.inventory_2_outlined),
+                  selectedIcon: Icon(Icons.inventory_2_rounded),
+                  label: Text('Stock'),
+                ),
+                NavigationRailDestination(
+                  icon: Icon(Icons.widgets_outlined),
+                  selectedIcon: Icon(Icons.widgets_rounded),
+                  label: Text('Modules'),
+                ),
+                NavigationRailDestination(
+                  icon: Icon(Icons.more_horiz_rounded),
+                  selectedIcon: Icon(Icons.more_horiz_rounded),
+                  label: Text('More'),
+                ),
+              ],
+            ),
+            const VerticalDivider(thickness: 1, width: 1),
+            Expanded(child: contentWidget),
+          ],
+        ),
+      );
+    }
+
+    return Scaffold(
+      appBar: appBarWidget,
+      body: contentWidget,
       bottomNavigationBar: SafeArea(
         top: false,
         minimum: const EdgeInsets.fromLTRB(10, 0, 10, 8),
@@ -270,9 +385,9 @@ class _MobileHomeScreenState extends State<MobileHomeScreen> {
                 label: 'Stock',
               ),
               NavigationDestination(
-                icon: Icon(Icons.account_balance_wallet_outlined),
-                selectedIcon: Icon(Icons.account_balance_wallet_rounded),
-                label: 'Money',
+                icon: Icon(Icons.widgets_outlined),
+                selectedIcon: Icon(Icons.widgets_rounded),
+                label: 'Modules',
               ),
               NavigationDestination(
                 icon: Icon(Icons.more_horiz_rounded),
@@ -347,7 +462,9 @@ class _OverviewTab extends StatelessWidget {
   final VoidCallback onMoney;
   final VoidCallback onApprovals;
   final VoidCallback onPurchases;
+  final VoidCallback? onExpenses;
   final VoidCallback onTraceability;
+  final VoidCallback onMaterialYard;
 
   const _OverviewTab({
     required this.session,
@@ -364,7 +481,9 @@ class _OverviewTab extends StatelessWidget {
     required this.onMoney,
     required this.onApprovals,
     required this.onPurchases,
+    this.onExpenses,
     required this.onTraceability,
+    required this.onMaterialYard,
   });
 
   @override
@@ -495,6 +614,7 @@ class _OverviewTab extends StatelessWidget {
                           label: 'Expenses',
                           value: workspaceMoney(session, data['expenses']),
                           icon: Icons.receipt_long_outlined,
+                          onTap: onExpenses,
                         ),
                       ),
                       const SizedBox(width: 8),
@@ -623,6 +743,23 @@ class _OverviewTab extends StatelessWidget {
                               onTap: onTraceability,
                             ),
                           ),
+                      ],
+                    ),
+                  ],
+                  if (session.canManageMaterialYard ||
+                      session.hasModule('material_yard') ||
+                      session.hasModule('aggregate_yard')) ...[
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: WorkspaceQuickAction(
+                            label: 'Material Yard',
+                            subtitle: 'Loads, fleet & quarry',
+                            icon: Icons.local_shipping_outlined,
+                            onTap: onMaterialYard,
+                          ),
+                        ),
                       ],
                     ),
                   ],
@@ -804,6 +941,12 @@ class _MoreTab extends StatelessWidget {
       ),
       const SizedBox(height: 8),
       _MoreAction(
+        icon: Icons.dashboard_customize_outlined,
+        title: 'Workspace & Modules',
+        subtitle: 'Customize navigation, favorites, and visible tools',
+        onTap: () => _openWorkspaceCustomization(context),
+      ),
+      _MoreAction(
         icon: Icons.manage_search_rounded,
         title: 'Search business',
         subtitle: 'Sales, purchases, stock and parties',
@@ -816,6 +959,91 @@ class _MoreTab extends StatelessWidget {
         onTap: () => Navigator.of(context).push(
           MaterialPageRoute(
             builder: (_) => MobilePurchasesPage(
+              session: session,
+              service: service,
+              locationId: locationId,
+            ),
+          ),
+        ),
+      ),
+      if (session.showStandaloneNewPurchase)
+        _MoreAction(
+          icon: Icons.post_add_rounded,
+          title: 'New purchase bill',
+          subtitle: 'Record supplier purchase and items',
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => MobilePurchaseCreatePage(
+                session: session,
+                service: service,
+                locationId: locationId,
+              ),
+            ),
+          ),
+        ),
+      _MoreAction(
+        icon: Icons.swap_horiz_rounded,
+        title: 'Stock transfers',
+        subtitle: 'Inter-branch and warehouse stock movements',
+        onTap: () => Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => MobileStockTransfersPage(
+              session: session,
+              service: service,
+              locationId: locationId,
+            ),
+          ),
+        ),
+      ),
+      _MoreAction(
+        icon: Icons.local_shipping_outlined,
+        title: 'Material yard & quarry',
+        subtitle: 'Truck dispatch loads and daily rate board',
+        onTap: () => Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => MobileMaterialYardPage(
+              session: session,
+              service: service,
+              locationId: locationId,
+            ),
+          ),
+        ),
+      ),
+      _MoreAction(
+        icon: Icons.badge_outlined,
+        title: 'Staff & attendance',
+        subtitle: 'Staff profiles, daily attendance and payments',
+        onTap: () => Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => MobileStaffAttendancePage(
+              session: session,
+              service: service,
+              locationId: locationId,
+            ),
+          ),
+        ),
+      ),
+      _MoreAction(
+        icon: Icons.account_balance_wallet_outlined,
+        title: 'Financial & accounting',
+        subtitle: 'Double-entry journals, ledgers, P&L and balance sheet',
+        onTap: () => Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => MobileAccountingPage(
+              session: session,
+              service: service,
+              locationId: locationId,
+            ),
+          ),
+        ),
+      ),
+      _MoreAction(
+        icon: Icons.query_stats_rounded,
+        title: 'Reports center',
+        subtitle: 'Comprehensive business intelligence catalog',
+        onTap: () => Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => MobileReportsCenterPage(
               session: session,
               service: service,
               locationId: locationId,
@@ -978,6 +1206,37 @@ class _MoreTab extends StatelessWidget {
       ),
     ],
   );
+
+  Future<void> _openWorkspaceCustomization(BuildContext context) async {
+    try {
+      final results = await Future.wait([
+        service.loadNavigation(session.tenantId, 'client_mobile'),
+        service.loadUserPreferences('client_mobile'),
+      ]);
+      final nodes = results[0] as List<ThqNavigationNode>;
+      final prefs = results[1] as ThqUserUiPreferences;
+
+      final controller = ThqWorkspaceCustomizationController(
+        appScope: 'client_mobile',
+        allNodes: nodes,
+        initialPreferences: prefs,
+      );
+
+      if (!context.mounted) return;
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => ThqWorkspaceCustomizationView(
+            controller: controller,
+            onSave: (updated) => service.saveUserPreferences(updated),
+          ),
+        ),
+      );
+    } catch (e) {
+      if (context.mounted) {
+        ThqNotify.error(context, 'Customization Error', message: '$e');
+      }
+    }
+  }
 }
 
 class _AttentionTile extends StatelessWidget {

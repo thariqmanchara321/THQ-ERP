@@ -5,21 +5,22 @@
   #error OutputDir was not provided.
 #endif
 #ifndef AppVersion
-  #define AppVersion "8.1.0"
+  #define AppVersion "8.2.2"
 #endif
 #ifndef BuildNumber
-  #define BuildNumber "16"
+  #define BuildNumber "19"
 #endif
 
 [Setup]
-AppId={{4E7B9FD2-221F-4E3A-8B20-6C024613B106}}
+AppId={{4E7B9FD2-221F-4E3A-8B20-6C024613B106}
 AppName=THQ Business
 AppVersion={#AppVersion}
 AppVerName=THQ Business {#AppVersion} (Build {#BuildNumber})
 AppPublisher=THQ
-DefaultDirName={autopf}\THQ ERP\Business
+DefaultDirName={autopf}\THQ\Business
 DefaultGroupName=THQ ERP
 DisableProgramGroupPage=yes
+DirExistsWarning=no
 PrivilegesRequired=admin
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible

@@ -231,8 +231,49 @@ class ClientSession {
       canViewAllLocations || locations.any((location) => location.id == id);
   bool deviceAllows(String moduleKey) => device?.allows(moduleKey) ?? true;
 
-  dynamic setting(String key, [dynamic fallback]) =>
-      settings.containsKey(key) ? settings[key] : fallback;
+  dynamic setting(String key, [dynamic fallback]) {
+    if (settings.containsKey(key)) return settings[key];
+    if (key == 'sales.show_standalone_new') {
+      if (settings['sales_purchases'] is Map &&
+          settings['sales_purchases']['show_standalone_new_sale'] != null) {
+        return settings['sales_purchases']['show_standalone_new_sale'];
+      }
+      if (settings['sales'] is Map &&
+          settings['sales']['show_standalone_new'] != null) {
+        return settings['sales']['show_standalone_new'];
+      }
+    }
+    if (key == 'purchases.show_standalone_new') {
+      if (settings['sales_purchases'] is Map &&
+          settings['sales_purchases']['show_standalone_new_purchase'] != null) {
+        return settings['sales_purchases']['show_standalone_new_purchase'];
+      }
+      if (settings['purchases'] is Map &&
+          settings['purchases']['show_standalone_new'] != null) {
+        return settings['purchases']['show_standalone_new'];
+      }
+    }
+    if (key == 'sales.preferred_entry') {
+      if (settings['sales_purchases'] is Map &&
+          settings['sales_purchases']['preferred_transaction_entry'] != null) {
+        return settings['sales_purchases']['preferred_transaction_entry'];
+      }
+      if (settings['sales'] is Map &&
+          settings['sales']['preferred_entry'] != null) {
+        return settings['sales']['preferred_entry'];
+      }
+    }
+    return fallback;
+  }
+
+  bool get showStandaloneNewSale =>
+      setting('sales.show_standalone_new', true) == true;
+
+  bool get showStandaloneNewPurchase =>
+      setting('purchases.show_standalone_new', true) == true;
+
+  String get preferredTransactionEntry =>
+      setting('sales.preferred_entry', 'standard')?.toString() ?? 'standard';
 
   ClientSession copyWith({
     ClientBusiness? business,

@@ -1,3 +1,5 @@
+import 'purchase.dart';
+
 class PurchaseDetail {
   final String purchaseId;
   final String purchaseNumber;
@@ -87,7 +89,12 @@ class PurchaseDetail {
 
     return PurchaseDetail(
       purchaseId: purchase['purchase_id']?.toString() ?? '',
-      purchaseNumber: purchase['purchase_number']?.toString() ?? '',
+      purchaseNumber: Purchase.cleanTrackingNumber(
+        (purchase['purchase_number'] ?? purchase['invoice_number'])
+                ?.toString() ??
+            '',
+        fallbackPrefix: 'PUR',
+      ),
       supplierId: purchase['supplier_id']?.toString() ?? '',
       supplierName: purchase['supplier_name']?.toString() ?? '',
       supplierTaxNumber: purchase['supplier_tax_number']?.toString(),

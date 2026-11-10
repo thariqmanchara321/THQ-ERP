@@ -417,8 +417,22 @@ class _InvoiceDesignerScreenState extends State<InvoiceDesignerScreen>
         ? Map<String, dynamic>.from(row['effective_config'] as Map)
         : <String, dynamic>{};
     final draft = Map<String, dynamic>.from(config);
+    var documentType = (draft['document_type'] ?? '').toString().trim().toLowerCase();
+    if (documentType != 'estimate' && documentType != 'tax_invoice') {
+      final tName = (row['template_name'] ?? '').toString().toLowerCase();
+      documentType = tName.contains('estimate') ? 'estimate' : 'tax_invoice';
+    }
     final accent = TextEditingController(
       text: '${draft['accent'] ?? '#5B5BD6'}',
+    );
+    final companyName = TextEditingController(
+      text: '${draft['company_name'] ?? ''}',
+    );
+    final companyColor = TextEditingController(
+      text: '${draft['company_name_color'] ?? '#0F172A'}',
+    );
+    final companySize = TextEditingController(
+      text: '${draft['company_name_size'] ?? '26'}',
     );
     final footer = TextEditingController(text: '${draft['footer'] ?? ''}');
     final font = TextEditingController(
@@ -460,6 +474,11 @@ class _InvoiceDesignerScreenState extends State<InvoiceDesignerScreen>
     bool flag(String key, bool fallback) =>
         draft.containsKey(key) ? draft[key] == true : fallback;
 
+    var companyBold = flag('company_name_bold', true);
+    var companyItalic = flag('company_name_italic', false);
+    var companyUpper = flag('company_name_uppercase', false);
+    var showBranch = flag('show_branch_name', false);
+    var showErpRef = flag('show_erp_ref', false);
     var showLogo = flag('show_logo', true);
     var showGstin = flag('show_gstin', true);
     var showPhone = flag('show_phone', true);
@@ -479,6 +498,15 @@ class _InvoiceDesignerScreenState extends State<InvoiceDesignerScreen>
 
     Map<String, dynamic> currentConfig() => {
       ...draft,
+      'document_type': documentType,
+      'company_name': companyName.text.trim(),
+      'company_name_color': companyColor.text.trim(),
+      'company_name_size': double.tryParse(companySize.text) ?? 26,
+      'company_name_bold': companyBold,
+      'company_name_italic': companyItalic,
+      'company_name_uppercase': companyUpper,
+      'show_branch_name': showBranch,
+      'show_erp_ref': showErpRef,
       'show_logo': showLogo,
       'show_gstin': showGstin,
       'show_phone': showPhone,
@@ -505,151 +533,388 @@ class _InvoiceDesignerScreenState extends State<InvoiceDesignerScreen>
           .toList(),
     };
 
+    const colorSwatches = <(String, String, Color)>[
+      ('indigo', 'Indigo', Color(0xFF4F46E5)),
+      ('teal', 'Teal', Color(0xFF0D9488)),
+      ('emerald', 'Emerald', Color(0xFF059669)),
+      ('navy', 'Navy', Color(0xFF1E40AF)),
+      ('slate', 'Slate', Color(0xFF334155)),
+      ('crimson', 'Crimson', Color(0xFFBE123C)),
+      ('amber', 'Amber', Color(0xFFD97706)),
+      ('violet', 'Violet', Color(0xFF7C3AED)),
+      ('dark', 'Dark', Color(0xFF0F172A)),
+    ];
+
     final save = await showThqDialog<bool>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setLocal) {
           void refresh([String? _]) => setLocal(() {});
+          final currentAccent = _parseAccent(currentConfig());
+          final currentAccentRaw = accent.text.trim().toLowerCase();
+          final screenSize = MediaQuery.sizeOf(context);
+          final dialogWidth = (screenSize.width - 48).clamp(820.0, 1180.0);
+          final dialogHeight = (screenSize.height - 48).clamp(560.0, 780.0);
+
           return AlertDialog(
-            title: Text('Design • ${row['template_name']}'),
+            titlePadding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
+            contentPadding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+            actionsPadding: const EdgeInsets.fromLTRB(20, 8, 20, 14),
+            title: Row(
+              children: [
+                Container(
+                  width: 32,
+                  height: 32,
+                  decoration: BoxDecoration(
+                    color: currentAccent.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(Icons.palette_outlined, size: 20, color: currentAccent),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'Design • ${row['template_name']}',
+                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+                      ),
+                      Text(
+                        '${row['paper_type'].toString().toUpperCase()} • Professional invoice styling & live layout engine',
+                        style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: currentAccent.withValues(alpha: 0.10),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: currentAccent.withValues(alpha: 0.3)),
+                  ),
+                  child: Text(
+                    row['paper_type'].toString().toUpperCase(),
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                      color: currentAccent,
+                    ),
+                  ),
+                ),
+              ],
+            ),
             content: SizedBox(
-              width: 920,
-              height: 620,
+              width: dialogWidth,
+              height: dialogHeight,
               child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  // Left side controls
                   Expanded(
+                    flex: 5,
                     child: SingleChildScrollView(
+                      padding: const EdgeInsets.only(right: 12),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            '${row['paper_type'].toString().toUpperCase()} • Design settings are stored as data so future THQ versions keep the layout.',
-                            style: const TextStyle(fontSize: 11),
+                          // Document Type Selection (Tax Invoice vs Estimate)
+                          const Text(
+                            'Document Type',
+                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
                           ),
-                          const SizedBox(height: 10),
-                          Wrap(
-                            spacing: 6,
-                            runSpacing: 4,
-                            children: [
-                              _toggle(
-                                'Logo',
-                                showLogo,
-                                (value) => setLocal(() => showLogo = value),
+                          const SizedBox(height: 6),
+                          SegmentedButton<String>(
+                            segments: const [
+                              ButtonSegment(
+                                value: 'tax_invoice',
+                                icon: Icon(Icons.receipt_long_outlined, size: 14),
+                                label: Text('Tax Invoice', style: TextStyle(fontSize: 11)),
                               ),
-                              _toggle(
-                                'GSTIN',
-                                showGstin,
-                                (value) => setLocal(() => showGstin = value),
-                              ),
-                              _toggle(
-                                'Phone',
-                                showPhone,
-                                (value) => setLocal(() => showPhone = value),
-                              ),
-                              _toggle(
-                                'Email',
-                                showEmail,
-                                (value) => setLocal(() => showEmail = value),
-                              ),
-                              _toggle(
-                                'Website',
-                                showWebsite,
-                                (value) => setLocal(() => showWebsite = value),
-                              ),
-                              _toggle(
-                                'Address',
-                                showAddress,
-                                (value) => setLocal(() => showAddress = value),
-                              ),
-                              _toggle(
-                                'Customer',
-                                showCustomer,
-                                (value) => setLocal(() => showCustomer = value),
-                              ),
-                              _toggle(
-                                'HSN/SAC',
-                                showHsn,
-                                (value) => setLocal(() => showHsn = value),
-                              ),
-                              _toggle(
-                                'GST breakup',
-                                showTax,
-                                (value) => setLocal(() => showTax = value),
-                              ),
-                              _toggle(
-                                'Header',
-                                showHeader,
-                                (value) => setLocal(() => showHeader = value),
-                              ),
-                              _toggle(
-                                'Footer',
-                                showFooter,
-                                (value) => setLocal(() => showFooter = value),
-                              ),
-                              _toggle(
-                                'Terms',
-                                showTerms,
-                                (value) => setLocal(() => showTerms = value),
-                              ),
-                              _toggle(
-                                'Bank details',
-                                showBank,
-                                (value) => setLocal(() => showBank = value),
-                              ),
-                              _toggle(
-                                'Payment / UPI',
-                                showPayment,
-                                (value) => setLocal(() => showPayment = value),
-                              ),
-                              _toggle(
-                                'Payment QR',
-                                showPaymentQr,
-                                (value) =>
-                                    setLocal(() => showPaymentQr = value),
+                              ButtonSegment(
+                                value: 'estimate',
+                                icon: Icon(Icons.request_quote_outlined, size: 14),
+                                label: Text('Estimate', style: TextStyle(fontSize: 11)),
                               ),
                             ],
+                            selected: {documentType},
+                            onSelectionChanged: (val) => setLocal(() => documentType = val.first),
+                            style: const ButtonStyle(
+                              visualDensity: VisualDensity.compact,
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            ),
                           ),
-                          const SizedBox(height: 10),
+                          const SizedBox(height: 12),
+                          // 1. Accent Color Palette
+                          const Text(
+                            'Accent Theme Color',
+                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
+                          ),
+                          const SizedBox(height: 6),
+                          Wrap(
+                            spacing: 6,
+                            runSpacing: 6,
+                            children: colorSwatches.map((swatch) {
+                              final isActive = currentAccentRaw == swatch.$1 ||
+                                  currentAccentRaw == '#${swatch.$3.toARGB32().toRadixString(16).substring(2).toLowerCase()}';
+                              return InkWell(
+                                onTap: () => setLocal(() => accent.text = swatch.$1),
+                                borderRadius: BorderRadius.circular(16),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: isActive ? swatch.$3.withValues(alpha: 0.14) : Colors.transparent,
+                                    borderRadius: BorderRadius.circular(16),
+                                    border: Border.all(
+                                      color: isActive ? swatch.$3 : Colors.black12,
+                                      width: isActive ? 1.6 : 1,
+                                    ),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Container(
+                                        width: 12,
+                                        height: 12,
+                                        decoration: BoxDecoration(
+                                          color: swatch.$3,
+                                          shape: BoxShape.circle,
+                                        ),
+                                        child: isActive
+                                            ? const Icon(Icons.check, size: 9, color: Colors.white)
+                                            : null,
+                                      ),
+                                      const SizedBox(width: 5),
+                                      Text(
+                                        swatch.$2,
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
+                                          color: isActive ? swatch.$3 : null,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            }).toList(),
+                          ),
+                          const SizedBox(height: 8),
                           Row(
                             children: [
                               Expanded(
+                                flex: 4,
                                 child: TextField(
                                   controller: accent,
                                   onChanged: refresh,
-                                  decoration: const InputDecoration(
-                                    labelText: 'Accent / hex color',
+                                  style: const TextStyle(fontSize: 12),
+                                  decoration: InputDecoration(
+                                    isDense: true,
+                                    labelText: 'Custom Hex / Color Name',
+                                    prefixIcon: Padding(
+                                      padding: const EdgeInsets.all(8),
+                                      child: Container(
+                                        width: 16,
+                                        height: 16,
+                                        decoration: BoxDecoration(
+                                          color: currentAccent,
+                                          shape: BoxShape.circle,
+                                          border: Border.all(color: Colors.black26),
+                                        ),
+                                      ),
+                                    ),
                                   ),
                                 ),
                               ),
                               const SizedBox(width: 8),
                               Expanded(
-                                child: DropdownButtonFormField<String>(
-                                  initialValue: alignment,
-                                  decoration: const InputDecoration(
-                                    labelText: 'Header alignment',
-                                  ),
-                                  items: const [
-                                    DropdownMenuItem(
+                                flex: 5,
+                                child: SegmentedButton<String>(
+                                  segments: const [
+                                    ButtonSegment(
                                       value: 'left',
-                                      child: Text('Left'),
+                                      icon: Icon(Icons.format_align_left, size: 14),
+                                      label: Text('Left', style: TextStyle(fontSize: 11)),
                                     ),
-                                    DropdownMenuItem(
+                                    ButtonSegment(
                                       value: 'center',
-                                      child: Text('Center'),
+                                      icon: Icon(Icons.format_align_center, size: 14),
+                                      label: Text('Center', style: TextStyle(fontSize: 11)),
                                     ),
-                                    DropdownMenuItem(
+                                    ButtonSegment(
                                       value: 'right',
-                                      child: Text('Right'),
+                                      icon: Icon(Icons.format_align_right, size: 14),
+                                      label: Text('Right', style: TextStyle(fontSize: 11)),
                                     ),
                                   ],
-                                  onChanged: (value) => setLocal(
-                                    () => alignment = value ?? 'center',
+                                  selected: {alignment},
+                                  onSelectionChanged: (val) => setLocal(() => alignment = val.first),
+                                  style: const ButtonStyle(
+                                    visualDensity: VisualDensity.compact,
+                                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                                   ),
                                 ),
                               ),
                             ],
                           ),
+
+                          const SizedBox(height: 14),
+                          // Company Name & Header Styling
+                          const Text(
+                            'Company Name & Header Styling',
+                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
+                          ),
+                          const SizedBox(height: 6),
+                          TextField(
+                            controller: companyName,
+                            onChanged: refresh,
+                            style: const TextStyle(fontSize: 12),
+                            decoration: InputDecoration(
+                              isDense: true,
+                              labelText: 'Company / Display Name',
+                              hintText: _legalName.text.isEmpty ? widget.session.business.name : _legalName.text,
+                              prefixIcon: const Icon(Icons.business_outlined, size: 16),
+                            ),
+                          ),
                           const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              Expanded(
+                                flex: 5,
+                                child: TextField(
+                                  controller: companyColor,
+                                  onChanged: refresh,
+                                  style: const TextStyle(fontSize: 12),
+                                  decoration: InputDecoration(
+                                    isDense: true,
+                                    labelText: 'Name Color (Hex or name)',
+                                    prefixIcon: Padding(
+                                      padding: const EdgeInsets.all(8),
+                                      child: Container(
+                                        width: 16,
+                                        height: 16,
+                                        decoration: BoxDecoration(
+                                          color: companyColor.text.trim().toLowerCase() == 'accent'
+                                              ? currentAccent
+                                              : _parseAccent({'accent': companyColor.text.trim().isEmpty ? '#0F172A' : companyColor.text.trim()}),
+                                          shape: BoxShape.circle,
+                                          border: Border.all(color: Colors.black26),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                flex: 4,
+                                child: TextField(
+                                  controller: companySize,
+                                  onChanged: refresh,
+                                  keyboardType: TextInputType.number,
+                                  style: const TextStyle(fontSize: 12),
+                                  decoration: const InputDecoration(
+                                    isDense: true,
+                                    labelText: 'Font Size (pt)',
+                                    hintText: '26',
+                                    prefixIcon: Icon(Icons.format_size, size: 16),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          Wrap(
+                            spacing: 6,
+                            runSpacing: 4,
+                            children: [
+                              ActionChip(
+                                visualDensity: VisualDensity.compact,
+                                label: const Text('Match Accent', style: TextStyle(fontSize: 10)),
+                                onPressed: () => setLocal(() => companyColor.text = 'accent'),
+                              ),
+                              ActionChip(
+                                visualDensity: VisualDensity.compact,
+                                label: const Text('Black', style: TextStyle(fontSize: 10)),
+                                onPressed: () => setLocal(() => companyColor.text = '#0F172A'),
+                              ),
+                              ActionChip(
+                                visualDensity: VisualDensity.compact,
+                                label: const Text('Slate', style: TextStyle(fontSize: 10)),
+                                onPressed: () => setLocal(() => companyColor.text = '#334155'),
+                              ),
+                              ActionChip(
+                                visualDensity: VisualDensity.compact,
+                                label: const Text('Navy', style: TextStyle(fontSize: 10)),
+                                onPressed: () => setLocal(() => companyColor.text = '#1E40AF'),
+                              ),
+                              FilterChip(
+                                visualDensity: VisualDensity.compact,
+                                label: const Text('Bold', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
+                                selected: companyBold,
+                                onSelected: (v) => setLocal(() => companyBold = v),
+                              ),
+                              FilterChip(
+                                visualDensity: VisualDensity.compact,
+                                label: const Text('Italic', style: TextStyle(fontSize: 10, fontStyle: FontStyle.italic)),
+                                selected: companyItalic,
+                                onSelected: (v) => setLocal(() => companyItalic = v),
+                              ),
+                              FilterChip(
+                                visualDensity: VisualDensity.compact,
+                                label: const Text('ALL CAPS', style: TextStyle(fontSize: 10)),
+                                selected: companyUpper,
+                                onSelected: (v) => setLocal(() => companyUpper = v),
+                              ),
+                            ],
+                          ),
+
+                          const SizedBox(height: 14),
+                          // 2. Typography & Density
+                          Row(
+                            children: [
+                              const Text(
+                                'Density & Spacing',
+                                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
+                              ),
+                              const Spacer(),
+                              Wrap(
+                                spacing: 4,
+                                children: [
+                                  ActionChip(
+                                    visualDensity: VisualDensity.compact,
+                                    padding: EdgeInsets.zero,
+                                    label: const Text('Compact', style: TextStyle(fontSize: 10)),
+                                    onPressed: () => setLocal(() {
+                                      font.text = '8.5';
+                                      margin.text = '8.0';
+                                    }),
+                                  ),
+                                  ActionChip(
+                                    visualDensity: VisualDensity.compact,
+                                    padding: EdgeInsets.zero,
+                                    label: const Text('Standard', style: TextStyle(fontSize: 10)),
+                                    onPressed: () => setLocal(() {
+                                      font.text = '10.0';
+                                      margin.text = '12.0';
+                                    }),
+                                  ),
+                                  ActionChip(
+                                    visualDensity: VisualDensity.compact,
+                                    padding: EdgeInsets.zero,
+                                    label: const Text('Spacious', style: TextStyle(fontSize: 10)),
+                                    onPressed: () => setLocal(() {
+                                      font.text = '11.5';
+                                      margin.text = '16.0';
+                                    }),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
                           Row(
                             children: [
                               Expanded(
@@ -657,8 +922,11 @@ class _InvoiceDesignerScreenState extends State<InvoiceDesignerScreen>
                                   controller: font,
                                   onChanged: refresh,
                                   keyboardType: TextInputType.number,
+                                  style: const TextStyle(fontSize: 12),
                                   decoration: const InputDecoration(
-                                    labelText: 'Base font size',
+                                    isDense: true,
+                                    labelText: 'Font Size (pt)',
+                                    prefixIcon: Icon(Icons.format_size, size: 16),
                                   ),
                                 ),
                               ),
@@ -668,62 +936,185 @@ class _InvoiceDesignerScreenState extends State<InvoiceDesignerScreen>
                                   controller: margin,
                                   onChanged: refresh,
                                   keyboardType: TextInputType.number,
+                                  style: const TextStyle(fontSize: 12),
                                   decoration: const InputDecoration(
-                                    labelText: 'Margin (mm)',
+                                    isDense: true,
+                                    labelText: 'Page Margin (mm)',
+                                    prefixIcon: Icon(Icons.space_bar, size: 16),
                                   ),
                                 ),
                               ),
                             ],
                           ),
-                          const SizedBox(height: 8),
-                          const Text(
-                            'Invoice columns',
-                            style: TextStyle(fontWeight: FontWeight.w700),
+
+                          const SizedBox(height: 14),
+                          // 3. Columns & Presets
+                          Row(
+                            children: [
+                              const Text(
+                                'Invoice Columns',
+                                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
+                              ),
+                              const Spacer(),
+                              Wrap(
+                                spacing: 4,
+                                children: [
+                                  ActionChip(
+                                    visualDensity: VisualDensity.compact,
+                                    padding: EdgeInsets.zero,
+                                    label: const Text('Retail', style: TextStyle(fontSize: 10)),
+                                    onPressed: () => setLocal(() {
+                                      selectedColumns
+                                        ..clear()
+                                        ..addAll(['item', 'qty', 'rate', 'total']);
+                                    }),
+                                  ),
+                                  ActionChip(
+                                    visualDensity: VisualDensity.compact,
+                                    padding: EdgeInsets.zero,
+                                    label: const Text('Standard', style: TextStyle(fontSize: 10)),
+                                    onPressed: () => setLocal(() {
+                                      selectedColumns
+                                        ..clear()
+                                        ..addAll(['item', 'qty', 'unit', 'rate', 'discount', 'total']);
+                                    }),
+                                  ),
+                                  ActionChip(
+                                    visualDensity: VisualDensity.compact,
+                                    padding: EdgeInsets.zero,
+                                    label: const Text('Full B2B GST', style: TextStyle(fontSize: 10)),
+                                    onPressed: () => setLocal(() {
+                                      selectedColumns
+                                        ..clear()
+                                        ..addAll([
+                                          'item',
+                                          'hsn',
+                                          'qty',
+                                          'unit',
+                                          'rate',
+                                          'discount',
+                                          'tax',
+                                          'taxable',
+                                          'total',
+                                        ]);
+                                      showHsn = true;
+                                      showTax = true;
+                                    }),
+                                  ),
+                                ],
+                              ),
+                            ],
                           ),
-                          const SizedBox(height: 5),
+                          const SizedBox(height: 4),
                           Text(
-                            'Select the columns that should appear on the printed/PDF invoice.',
-                            style: Theme.of(context).textTheme.bodySmall,
+                            'Click columns to include or exclude from the printed and PDF invoice.',
+                            style: Theme.of(context).textTheme.bodySmall?.copyWith(fontSize: 11),
                           ),
                           const SizedBox(height: 6),
                           Wrap(
                             spacing: 6,
-                            runSpacing: 5,
-                            children: availableColumns
-                                .map(
-                                  (entry) => FilterChip(
-                                    label: Text(entry.$2),
-                                    selected: selectedColumns.contains(
-                                      entry.$1,
-                                    ),
-                                    onSelected: (value) => setLocal(() {
-                                      if (value) {
-                                        selectedColumns.add(entry.$1);
-                                      } else if (selectedColumns.length > 1) {
-                                        selectedColumns.remove(entry.$1);
-                                      }
-                                    }),
-                                    visualDensity: VisualDensity.compact,
-                                  ),
-                                )
-                                .toList(),
+                            runSpacing: 4,
+                            children: availableColumns.map((entry) {
+                              final isSelected = selectedColumns.contains(entry.$1);
+                              return FilterChip(
+                                label: Text(entry.$2, style: const TextStyle(fontSize: 11)),
+                                selected: isSelected,
+                                onSelected: (value) => setLocal(() {
+                                  if (value) {
+                                    selectedColumns.add(entry.$1);
+                                  } else if (selectedColumns.length > 1) {
+                                    selectedColumns.remove(entry.$1);
+                                  }
+                                }),
+                                visualDensity: VisualDensity.compact,
+                              );
+                            }).toList(),
                           ),
-                          const SizedBox(height: 8),
+
+                          const SizedBox(height: 14),
+                          // 4. Section Toggles
+                          const Text(
+                            'Branding & Header Elements',
+                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
+                          ),
+                          const SizedBox(height: 4),
+                          Wrap(
+                            spacing: 6,
+                            runSpacing: 4,
+                            children: [
+                              _toggle('Logo', showLogo, (v) => setLocal(() => showLogo = v)),
+                              _toggle('Store / Branch name', showBranch, (v) => setLocal(() => showBranch = v)),
+                              _toggle('ERP / Internal Ref', showErpRef, (v) => setLocal(() => showErpRef = v)),
+                              _toggle('Header Note', showHeader, (v) => setLocal(() => showHeader = v)),
+                              _toggle('GSTIN', showGstin, (v) => setLocal(() => showGstin = v)),
+                              _toggle('Phone', showPhone, (v) => setLocal(() => showPhone = v)),
+                              _toggle('Email', showEmail, (v) => setLocal(() => showEmail = v)),
+                              _toggle('Website', showWebsite, (v) => setLocal(() => showWebsite = v)),
+                              _toggle('Address', showAddress, (v) => setLocal(() => showAddress = v)),
+                            ],
+                          ),
+
+                          const SizedBox(height: 10),
+                          const Text(
+                            'Customer & Compliance Elements',
+                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
+                          ),
+                          const SizedBox(height: 4),
+                          Wrap(
+                            spacing: 6,
+                            runSpacing: 4,
+                            children: [
+                              _toggle('Customer (Bill To)', showCustomer, (v) => setLocal(() => showCustomer = v)),
+                              _toggle('HSN/SAC', showHsn, (v) => setLocal(() => showHsn = v)),
+                              _toggle('GST breakup', showTax, (v) => setLocal(() => showTax = v)),
+                            ],
+                          ),
+
+                          const SizedBox(height: 10),
+                          const Text(
+                            'Payment & Footer Elements',
+                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
+                          ),
+                          const SizedBox(height: 4),
+                          Wrap(
+                            spacing: 6,
+                            runSpacing: 4,
+                            children: [
+                              _toggle('Bank details', showBank, (v) => setLocal(() => showBank = v)),
+                              _toggle('Payment / UPI', showPayment, (v) => setLocal(() => showPayment = v)),
+                              _toggle('Payment QR', showPaymentQr, (v) => setLocal(() => showPaymentQr = v)),
+                              _toggle('Terms', showTerms, (v) => setLocal(() => showTerms = v)),
+                              _toggle('Footer', showFooter, (v) => setLocal(() => showFooter = v)),
+                            ],
+                          ),
+
+                          const SizedBox(height: 12),
                           TextField(
                             controller: footer,
                             onChanged: refresh,
                             minLines: 2,
                             maxLines: 3,
+                            style: const TextStyle(fontSize: 12),
                             decoration: const InputDecoration(
-                              labelText: 'Template-specific footer',
+                              isDense: true,
+                              labelText: 'Template-specific footer note',
+                              hintText: 'e.g. Thank you for your business. Visit us again!',
                             ),
                           ),
+                          const SizedBox(height: 10),
                         ],
                       ),
                     ),
                   ),
+
+                  const VerticalDivider(width: 1),
                   const SizedBox(width: 12),
-                  Expanded(child: _livePreview(row, currentConfig())),
+
+                  // Right side live preview
+                  Expanded(
+                    flex: 6,
+                    child: _livePreview(row, currentConfig()),
+                  ),
                 ],
               ),
             ),
@@ -734,12 +1125,16 @@ class _InvoiceDesignerScreenState extends State<InvoiceDesignerScreen>
               ),
               OutlinedButton.icon(
                 onPressed: () => _duplicate(row),
-                icon: const Icon(Icons.copy_outlined),
+                icon: const Icon(Icons.copy_outlined, size: 16),
                 label: const Text('Duplicate'),
               ),
-              FilledButton(
+              FilledButton.icon(
+                style: FilledButton.styleFrom(
+                  backgroundColor: currentAccent,
+                ),
                 onPressed: () => Navigator.pop(dialogContext, true),
-                child: const Text('Save & Set Default'),
+                icon: const Icon(Icons.check, size: 16),
+                label: const Text('Save & Set Default'),
               ),
             ],
           );
@@ -772,6 +1167,9 @@ class _InvoiceDesignerScreenState extends State<InvoiceDesignerScreen>
     }
 
     accent.dispose();
+    companyName.dispose();
+    companyColor.dispose();
+    companySize.dispose();
     footer.dispose();
     font.dispose();
     margin.dispose();
@@ -779,11 +1177,185 @@ class _InvoiceDesignerScreenState extends State<InvoiceDesignerScreen>
 
   Widget _toggle(String label, bool value, ValueChanged<bool> change) =>
       FilterChip(
-        label: Text(label),
+        label: Text(label, style: const TextStyle(fontSize: 11)),
         selected: value,
         onSelected: change,
         visualDensity: VisualDensity.compact,
       );
+
+  Color _parseAccent(Map<String, dynamic> config) {
+    final raw = (config['accent'] ?? '#4F46E5').toString().trim().toLowerCase();
+    switch (raw) {
+      case 'indigo':
+        return const Color(0xFF4F46E5);
+      case 'teal':
+        return const Color(0xFF0D9488);
+      case 'emerald':
+      case 'green':
+        return const Color(0xFF059669);
+      case 'navy':
+      case 'blue':
+        return const Color(0xFF1E40AF);
+      case 'slate':
+      case 'mono':
+      case 'gray':
+      case 'grey':
+      case 'charcoal':
+        return const Color(0xFF334155);
+      case 'crimson':
+      case 'red':
+      case 'rose':
+        return const Color(0xFFBE123C);
+      case 'amber':
+      case 'orange':
+        return const Color(0xFFD97706);
+      case 'violet':
+      case 'purple':
+        return const Color(0xFF7C3AED);
+      case 'dark':
+      case 'black':
+        return const Color(0xFF0F172A);
+    }
+    final hex = raw.replaceAll('#', '');
+    if (hex.length == 6) {
+      final val = int.tryParse(hex, radix: 16);
+      if (val != null) return Color(0xFF000000 | val);
+    } else if (hex.length == 8) {
+      final val = int.tryParse(hex, radix: 16);
+      if (val != null) return Color(val);
+    }
+    return const Color(0xFF4F46E5);
+  }
+
+  List<String> _previewResolveColumns(Map<String, dynamic> config, bool narrow) {
+    final raw = config['columns'];
+    final defaults = narrow
+        ? <String>['item', 'qty', 'rate', 'total']
+        : <String>['item', 'qty', 'unit', 'rate', 'total'];
+    final requested = raw is List
+        ? raw.map((v) => v.toString().trim().toLowerCase()).where((v) => v.isNotEmpty).toList()
+        : defaults;
+    final allowed = <String>{
+      'item', 'sku', 'hsn', 'hsn_sac', 'qty', 'quantity',
+      'unit', 'rate', 'price', 'discount', 'tax', 'tax_amount',
+      'taxable', 'total',
+    };
+    final clean = requested.where(allowed.contains).where((c) {
+      if (config['show_hsn'] == false && (c == 'hsn' || c == 'hsn_sac')) {
+        return false;
+      }
+      return true;
+    }).toList();
+    return clean.isEmpty ? defaults : clean;
+  }
+
+  String _previewColumnLabel(String column) => switch (column.toLowerCase()) {
+    'item' => 'Description',
+    'sku' => 'SKU',
+    'hsn' || 'hsn_sac' => 'HSN/SAC',
+    'qty' || 'quantity' => 'Qty',
+    'unit' => 'Unit',
+    'rate' || 'price' => 'Rate',
+    'discount' => 'Disc.',
+    'tax' => 'Tax %',
+    'tax_amount' => 'Tax Amt',
+    'taxable' => 'Taxable',
+    _ => 'Amount',
+  };
+
+  bool _previewIsNumeric(String column) => switch (column.toLowerCase()) {
+    'item' || 'sku' || 'hsn' || 'hsn_sac' => false,
+    _ => true,
+  };
+
+  String _previewSampleValue(String column, int index) {
+    final norm = column.toLowerCase();
+    switch (norm) {
+      case 'item':
+        return switch (index) {
+          0 => 'Premium Steel Bolt M8',
+          1 => 'Industrial Lubricant 1L',
+          _ => 'Heavy Duty Cable 5m',
+        };
+      case 'sku':
+        return switch (index) {
+          0 => 'BOLT-001',
+          1 => 'LUB-100',
+          _ => 'CBL-505',
+        };
+      case 'hsn' || 'hsn_sac':
+        return switch (index) {
+          0 => '7318',
+          1 => '2710',
+          _ => '8544',
+        };
+      case 'qty' || 'quantity':
+        return switch (index) {
+          0 => '10.00',
+          1 => '2.00',
+          _ => '1.00',
+        };
+      case 'unit':
+        return switch (index) {
+          0 => 'PCS',
+          1 => 'LTR',
+          _ => 'MTR',
+        };
+      case 'rate' || 'price':
+        return switch (index) {
+          0 => '₹45.00',
+          1 => '₹350.00',
+          _ => '₹250.00',
+        };
+      case 'discount':
+        return switch (index) {
+          0 => '₹5.00',
+          1 => '₹20.00',
+          _ => '₹0.00',
+        };
+      case 'tax':
+        return '18.0%';
+      case 'tax_amount':
+        return switch (index) {
+          0 => '₹72.00',
+          1 => '₹122.40',
+          _ => '₹45.00',
+        };
+      case 'taxable':
+        return switch (index) {
+          0 => '₹400.00',
+          1 => '₹680.00',
+          _ => '₹250.00',
+        };
+      default:
+        return switch (index) {
+          0 => '₹472.00',
+          1 => '₹802.40',
+          _ => '₹295.00',
+        };
+    }
+  }
+
+  Map<int, TableColumnWidth> _previewColumnWidths(List<String> cols) {
+    final map = <int, TableColumnWidth>{};
+    for (var i = 0; i < cols.length; i++) {
+      final c = cols[i].toLowerCase();
+      map[i] = switch (c) {
+        'item' => const FlexColumnWidth(2.8),
+        'sku' => const FlexColumnWidth(1.3),
+        'hsn' || 'hsn_sac' => const FlexColumnWidth(1.2),
+        'qty' || 'quantity' => const FlexColumnWidth(1.0),
+        'unit' => const FlexColumnWidth(0.9),
+        'rate' || 'price' => const FlexColumnWidth(1.2),
+        'discount' => const FlexColumnWidth(1.1),
+        'tax' => const FlexColumnWidth(1.0),
+        'tax_amount' => const FlexColumnWidth(1.2),
+        'taxable' => const FlexColumnWidth(1.3),
+        _ => const FlexColumnWidth(1.3),
+      };
+    }
+    return map;
+  }
 
   Widget _livePreview(Map<String, dynamic> row, Map<String, dynamic> config) {
     final narrow = row['paper_type'] == '80mm';
@@ -793,233 +1365,513 @@ class _InvoiceDesignerScreenState extends State<InvoiceDesignerScreen>
       'right' => TextAlign.right,
       _ => TextAlign.center,
     };
+    final accentColor = _parseAccent(config);
+    final columns = _previewResolveColumns(config, narrow);
+    final footerText = '${config['footer'] ?? _footer.text}'.trim();
+    final customName = (config['company_name']?.toString().trim().isNotEmpty == true)
+        ? config['company_name'].toString().trim()
+        : (_legalName.text.isEmpty ? widget.session.business.name : _legalName.text);
+    final displayName = config['company_name_uppercase'] == true
+        ? customName.toUpperCase()
+        : customName;
+    final rawCompColor = (config['company_name_color'] ?? '').toString().trim();
+    final compColor = rawCompColor.toLowerCase() == 'accent'
+        ? accentColor
+        : _parseAccent({'accent': rawCompColor.isEmpty ? '#0F172A' : rawCompColor});
+    final double configuredSize = double.tryParse(config['company_name_size']?.toString() ?? '') ?? 26.0;
+    final double previewSize = (configuredSize / 26.0) * (narrow ? 12.0 : 15.0);
+    final bool isBold = config['company_name_bold'] != false;
+    final bool isItalic = config['company_name_italic'] == true;
+
     return Container(
-      color: Theme.of(context).colorScheme.surfaceContainerLowest,
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainerLowest,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.black12),
+      ),
       padding: const EdgeInsets.all(12),
       child: Center(
-        child: AspectRatio(
-          aspectRatio: narrow ? 0.42 : 0.72,
-          child: Container(
-            padding: EdgeInsets.all(narrow ? 10 : 18),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              border: Border.all(color: Colors.black12),
-              boxShadow: const [
-                BoxShadow(blurRadius: 10, color: Colors.black12),
-              ],
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                if (config['show_logo'] != false)
-                  SizedBox(
-                    height: narrow ? 34 : 46,
-                    child: _logoUrl.text.trim().isEmpty
-                        ? const Icon(Icons.business, size: 28)
-                        : Image.network(
-                            _logoUrl.text.trim(),
-                            fit: BoxFit.contain,
-                            errorBuilder: (context, error, stackTrace) =>
-                                const Icon(
-                                  Icons.broken_image_outlined,
-                                  size: 28,
-                                ),
-                          ),
-                  ),
-                if (config['show_header'] != false) ...[
-                  if (_header.text.isNotEmpty)
-                    Text(
-                      _header.text,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      textAlign: align,
-                      style: const TextStyle(fontSize: 7),
-                    ),
-                  Text(
-                    _legalName.text.isEmpty
-                        ? widget.session.business.name
-                        : _legalName.text,
-                    textAlign: align,
-                    style: TextStyle(
-                      fontWeight: FontWeight.w900,
-                      fontSize: narrow ? 12 : 17,
-                    ),
-                  ),
-                ],
-                if (config['show_gstin'] != false && _gstin.text.isNotEmpty)
-                  Text(
-                    'GSTIN ${_gstin.text}',
-                    textAlign: align,
-                    style: const TextStyle(fontSize: 8),
-                  ),
-                if (config['show_phone'] != false && _phone.text.isNotEmpty)
-                  Text(
-                    'Phone: ${_phone.text}',
-                    textAlign: align,
-                    style: const TextStyle(fontSize: 8),
-                  ),
-                if (config['show_email'] == true && _email.text.isNotEmpty)
-                  Text(
-                    'Email: ${_email.text}',
-                    textAlign: align,
-                    style: const TextStyle(fontSize: 8),
-                  ),
-                if (config['show_website'] == true && _website.text.isNotEmpty)
-                  Text(
-                    _website.text,
-                    textAlign: align,
-                    style: const TextStyle(fontSize: 8),
-                  ),
-                if (config['show_address'] != false && _address.text.isNotEmpty)
-                  Text(
-                    _address.text,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    textAlign: align,
-                    style: const TextStyle(fontSize: 8),
-                  ),
-                const Divider(),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text(
-                      'Invoice # INV-00042',
-                      style: TextStyle(
-                        fontSize: 8,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    if (config['show_customer'] != false)
-                      const Text(
-                        'Customer: Walk-in',
-                        style: TextStyle(fontSize: 8),
-                      ),
-                  ],
+        child: Container(
+          constraints: BoxConstraints(
+            maxWidth: narrow ? 340 : 540,
+          ),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(6),
+            border: Border.all(color: accentColor.withValues(alpha: 0.22)),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x14000000),
+                blurRadius: 14,
+                offset: Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Top accent line
+              Container(
+                height: 4,
+                decoration: BoxDecoration(
+                  color: accentColor,
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(5)),
                 ),
-                const SizedBox(height: 6),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    vertical: 5,
-                    horizontal: 3,
-                  ),
-                  color: Colors.black.withValues(alpha: .04),
-                  child: const Row(
+              ),
+              Flexible(
+                child: SingleChildScrollView(
+                  padding: EdgeInsets.all(narrow ? 10 : 16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Expanded(
-                        child: Text(
-                          'Item',
+                      // Logo
+                      if (config['show_logo'] != false) ...[
+                        Container(
+                          height: narrow ? 32 : 44,
+                          alignment: switch (headerAlignment) {
+                            'left' => Alignment.centerLeft,
+                            'right' => Alignment.centerRight,
+                            _ => Alignment.center,
+                          },
+                          child: _logoUrl.text.trim().isEmpty
+                              ? Container(
+                                  width: 40,
+                                  height: 40,
+                                  decoration: BoxDecoration(
+                                    color: accentColor.withValues(alpha: 0.1),
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Icon(Icons.business_outlined, size: 24, color: accentColor),
+                                )
+                              : Image.network(
+                                  _logoUrl.text.trim(),
+                                  fit: BoxFit.contain,
+                                  errorBuilder: (_, _, _) =>
+                                      Icon(Icons.business_outlined, size: 28, color: accentColor),
+                                ),
+                        ),
+                        const SizedBox(height: 6),
+                      ],
+
+                      // Header & Company Identity
+                      if (config['show_header'] != false && _header.text.isNotEmpty)
+                        Text(
+                          _header.text,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          textAlign: align,
+                          style: TextStyle(fontSize: 8, color: Colors.grey.shade600),
+                        ),
+                      Text(
+                        displayName,
+                        textAlign: align,
+                        style: TextStyle(
+                          fontWeight: isBold ? FontWeight.w900 : FontWeight.w500,
+                          fontStyle: isItalic ? FontStyle.italic : FontStyle.normal,
+                          fontSize: previewSize,
+                          color: compColor,
+                        ),
+                      ),
+                      if (config['show_branch_name'] == true)
+                        Text(
+                          'Store / Branch Location',
+                          textAlign: align,
+                          style: TextStyle(fontSize: 8.5, color: Colors.grey.shade700),
+                        ),
+                      if (config['show_gstin'] != false && _gstin.text.isNotEmpty)
+                        Text(
+                          'GSTIN: ${_gstin.text}',
+                          textAlign: align,
+                          style: const TextStyle(fontSize: 8.5),
+                        ),
+                      if (config['show_phone'] != false && _phone.text.isNotEmpty)
+                        Text(
+                          'Phone: ${_phone.text}',
+                          textAlign: align,
+                          style: const TextStyle(fontSize: 8.5),
+                        ),
+                      if (config['show_email'] == true && _email.text.isNotEmpty)
+                        Text(
+                          'Email: ${_email.text}',
+                          textAlign: align,
+                          style: const TextStyle(fontSize: 8.5),
+                        ),
+                      if (config['show_website'] == true && _website.text.isNotEmpty)
+                        Text(
+                          _website.text,
+                          textAlign: align,
+                          style: const TextStyle(fontSize: 8.5),
+                        ),
+                      if (config['show_address'] != false && _address.text.isNotEmpty)
+                        Text(
+                          _address.text,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          textAlign: align,
+                          style: TextStyle(fontSize: 8.5, color: Colors.grey.shade700),
+                        ),
+
+                      const SizedBox(height: 6),
+                      Divider(height: 1, color: accentColor.withValues(alpha: 0.25)),
+                      const SizedBox(height: 6),
+
+                      // Title & Invoice Meta
+                      Text(
+                        config['document_type'] == 'estimate' ? 'ESTIMATE' : 'TAX INVOICE',
+                        textAlign: align,
+                        style: TextStyle(
+                          fontSize: narrow ? 11 : 13,
+                          fontWeight: FontWeight.w900,
+                          color: accentColor,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            config['document_type'] == 'estimate'
+                                ? 'Estimate #: EST-00042'
+                                : 'Invoice #: INV-00042',
+                            style: const TextStyle(fontSize: 8.5, fontWeight: FontWeight.bold),
+                          ),
+                          Text(
+                            'Date: 12/10/2026',
+                            style: TextStyle(fontSize: 8.5, color: Colors.grey.shade700),
+                          ),
+                        ],
+                      ),
+                      if (config['show_erp_ref'] == true)
+                        Text(
+                          'ERP Ref: SAL-000042',
+                          style: TextStyle(fontSize: 7.5, color: Colors.grey.shade600),
+                        ),
+
+                      // Bill To Customer Card
+                      if (config['show_customer'] != false) ...[
+                        const SizedBox(height: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                          decoration: BoxDecoration(
+                            color: accentColor.withValues(alpha: 0.03),
+                            borderRadius: BorderRadius.circular(4),
+                            border: Border.all(color: accentColor.withValues(alpha: 0.12)),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'BILL TO',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w900,
+                                  fontSize: 8,
+                                  color: accentColor,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              const Text(
+                                'Acme Enterprises / Walk-in Customer',
+                                style: TextStyle(fontWeight: FontWeight.w700, fontSize: 8.5),
+                              ),
+                              const Text(
+                                'Kerala, India • Phone: 9876543210',
+                                style: TextStyle(fontSize: 8),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+
+                      const SizedBox(height: 8),
+
+                      // Dynamic Table Columns
+                      Table(
+                        columnWidths: _previewColumnWidths(columns),
+                        border: TableBorder.all(
+                          color: accentColor.withValues(alpha: 0.20),
+                          width: 0.8,
+                        ),
+                        children: [
+                          // Header
+                          TableRow(
+                            decoration: BoxDecoration(
+                              color: accentColor.withValues(alpha: 0.10),
+                            ),
+                            children: [
+                              for (final col in columns)
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 4),
+                                  child: Text(
+                                    _previewColumnLabel(col),
+                                    textAlign: _previewIsNumeric(col) ? TextAlign.right : TextAlign.left,
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w800,
+                                      fontSize: 7.5,
+                                      color: accentColor,
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
+                          // Sample rows
+                          for (var r = 0; r < 3; r++)
+                            TableRow(
+                              decoration: BoxDecoration(
+                                color: r.isOdd ? Colors.black.withValues(alpha: 0.015) : Colors.white,
+                              ),
+                              children: [
+                                for (final col in columns)
+                                  Padding(
+                                    padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 3.5),
+                                    child: Text(
+                                      _previewSampleValue(col, r),
+                                      textAlign: _previewIsNumeric(col) ? TextAlign.right : TextAlign.left,
+                                      style: const TextStyle(fontSize: 7.5),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                        ],
+                      ),
+
+                      // GST Rate Summary Breakup (if enabled)
+                      if (config['show_tax_breakup'] != false && !narrow) ...[
+                        const SizedBox(height: 8),
+                        Text(
+                          'TAX SUMMARY',
                           style: TextStyle(
-                            fontSize: 8,
-                            fontWeight: FontWeight.bold,
+                            fontSize: 7.5,
+                            fontWeight: FontWeight.w800,
+                            color: accentColor,
+                          ),
+                        ),
+                        const SizedBox(height: 3),
+                        Table(
+                          border: TableBorder.all(
+                            color: accentColor.withValues(alpha: 0.18),
+                            width: 0.8,
+                          ),
+                          children: [
+                            TableRow(
+                              decoration: BoxDecoration(
+                                color: accentColor.withValues(alpha: 0.07),
+                              ),
+                              children: const [
+                                Padding(
+                                  padding: EdgeInsets.symmetric(horizontal: 3, vertical: 3),
+                                  child: Text('GST Rate', style: TextStyle(fontSize: 7, fontWeight: FontWeight.bold)),
+                                ),
+                                Padding(
+                                  padding: EdgeInsets.symmetric(horizontal: 3, vertical: 3),
+                                  child: Text('Taxable', textAlign: TextAlign.right, style: TextStyle(fontSize: 7, fontWeight: FontWeight.bold)),
+                                ),
+                                Padding(
+                                  padding: EdgeInsets.symmetric(horizontal: 3, vertical: 3),
+                                  child: Text('CGST', textAlign: TextAlign.right, style: TextStyle(fontSize: 7, fontWeight: FontWeight.bold)),
+                                ),
+                                Padding(
+                                  padding: EdgeInsets.symmetric(horizontal: 3, vertical: 3),
+                                  child: Text('SGST', textAlign: TextAlign.right, style: TextStyle(fontSize: 7, fontWeight: FontWeight.bold)),
+                                ),
+                                Padding(
+                                  padding: EdgeInsets.symmetric(horizontal: 3, vertical: 3),
+                                  child: Text('Total', textAlign: TextAlign.right, style: TextStyle(fontSize: 7, fontWeight: FontWeight.bold)),
+                                ),
+                              ],
+                            ),
+                            TableRow(
+                              children: const [
+                                Padding(
+                                  padding: EdgeInsets.symmetric(horizontal: 3, vertical: 2.5),
+                                  child: Text('18.00%', style: TextStyle(fontSize: 7)),
+                                ),
+                                Padding(
+                                  padding: EdgeInsets.symmetric(horizontal: 3, vertical: 2.5),
+                                  child: Text('₹1,330.00', textAlign: TextAlign.right, style: TextStyle(fontSize: 7)),
+                                ),
+                                Padding(
+                                  padding: EdgeInsets.symmetric(horizontal: 3, vertical: 2.5),
+                                  child: Text('₹119.70', textAlign: TextAlign.right, style: TextStyle(fontSize: 7)),
+                                ),
+                                Padding(
+                                  padding: EdgeInsets.symmetric(horizontal: 3, vertical: 2.5),
+                                  child: Text('₹119.70', textAlign: TextAlign.right, style: TextStyle(fontSize: 7)),
+                                ),
+                                Padding(
+                                  padding: EdgeInsets.symmetric(horizontal: 3, vertical: 2.5),
+                                  child: Text('₹1,569.40', textAlign: TextAlign.right, style: TextStyle(fontSize: 7)),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ],
+
+                      const SizedBox(height: 8),
+
+                      // Totals Summary Box
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: Container(
+                          width: narrow ? double.infinity : 200,
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: accentColor.withValues(alpha: 0.03),
+                            borderRadius: BorderRadius.circular(4),
+                            border: Border.all(color: accentColor.withValues(alpha: 0.16)),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: const [
+                                  Text('Discount', style: TextStyle(fontSize: 7.5)),
+                                  Text('₹25.00', style: TextStyle(fontSize: 7.5)),
+                                ],
+                              ),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: const [
+                                  Text('Taxable Value', style: TextStyle(fontSize: 7.5)),
+                                  Text('₹1,330.00', style: TextStyle(fontSize: 7.5)),
+                                ],
+                              ),
+                              if (config['show_tax_breakup'] != false) ...[
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: const [
+                                    Text('CGST (9%)', style: TextStyle(fontSize: 7.5)),
+                                    Text('₹119.70', style: TextStyle(fontSize: 7.5)),
+                                  ],
+                                ),
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: const [
+                                    Text('SGST (9%)', style: TextStyle(fontSize: 7.5)),
+                                    Text('₹119.70', style: TextStyle(fontSize: 7.5)),
+                                  ],
+                                ),
+                              ],
+                              Divider(height: 6, color: accentColor.withValues(alpha: 0.2)),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    config['document_type'] == 'estimate' ? 'ESTIMATED TOTAL' : 'TOTAL',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w900,
+                                      fontSize: 9,
+                                      color: accentColor,
+                                    ),
+                                  ),
+                                  Text(
+                                    '₹1,569.40',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w900,
+                                      fontSize: 9,
+                                      color: accentColor,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              if (config['document_type'] != 'estimate') ...[
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: const [
+                                    Text('Paid', style: TextStyle(fontSize: 7.5)),
+                                    Text('₹1,569.40', style: TextStyle(fontSize: 7.5)),
+                                  ],
+                                ),
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: const [
+                                    Text('Balance', style: TextStyle(fontSize: 7.5)),
+                                    Text('₹0.00', style: TextStyle(fontSize: 7.5)),
+                                  ],
+                                ),
+                              ],
+                            ],
                           ),
                         ),
                       ),
-                      Text(
-                        'Qty  Rate  Total',
-                        style: TextStyle(
-                          fontSize: 8,
-                          fontWeight: FontWeight.bold,
+
+                      // Bank / UPI details / QR
+                      if (config['show_bank_details'] == true && _bank.text.isNotEmpty) ...[
+                        const SizedBox(height: 6),
+                        Text(
+                          'Bank: ${_bank.text}',
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          textAlign: align,
+                          style: const TextStyle(fontSize: 7.5),
                         ),
-                      ),
+                      ],
+                      if (config['show_payment_details'] != false && _payment.text.isNotEmpty) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          _payment.text,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          textAlign: align,
+                          style: const TextStyle(fontSize: 7.5),
+                        ),
+                      ],
+                      if (config['show_payment_qr'] == true && _paymentQrUrl.text.trim().isNotEmpty) ...[
+                        const SizedBox(height: 6),
+                        Center(
+                          child: Column(
+                            children: [
+                              Text(
+                                _paymentQrLabel.text.trim().isEmpty ? 'Scan to Pay' : _paymentQrLabel.text.trim(),
+                                style: const TextStyle(fontSize: 7.5, fontWeight: FontWeight.bold),
+                              ),
+                              const SizedBox(height: 3),
+                              SizedBox(
+                                width: 44,
+                                height: 44,
+                                child: Image.network(
+                                  _paymentQrUrl.text.trim(),
+                                  fit: BoxFit.contain,
+                                  errorBuilder: (_, _, _) =>
+                                      Icon(Icons.qr_code_2_outlined, size: 36, color: accentColor),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+
+                      // Terms
+                      if (config['show_terms'] != false && _terms.text.isNotEmpty) ...[
+                        const SizedBox(height: 6),
+                        Text(
+                          'Terms: ${_terms.text}',
+                          maxLines: narrow ? 2 : 3,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(fontSize: 7, color: Colors.grey.shade700),
+                        ),
+                      ],
+
+                      // Footer
+                      if (config['show_footer'] != false && footerText.isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        Text(
+                          footerText,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 7.5,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.grey.shade700,
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),
-                ...List.generate(
-                  3,
-                  (index) => Padding(
-                    padding: const EdgeInsets.symmetric(
-                      vertical: 5,
-                      horizontal: 3,
-                    ),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            'Sample Product ${index + 1}',
-                            style: const TextStyle(fontSize: 8),
-                          ),
-                        ),
-                        Text(
-                          '${index + 1}   120   ${(index + 1) * 120}',
-                          style: const TextStyle(fontSize: 8),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                const Spacer(),
-                const Divider(),
-                const Align(
-                  alignment: Alignment.centerRight,
-                  child: Text(
-                    'Grand Total   ₹720.00',
-                    style: TextStyle(fontWeight: FontWeight.w900, fontSize: 10),
-                  ),
-                ),
-                if (config['show_bank_details'] == true &&
-                    _bank.text.isNotEmpty)
-                  Text(
-                    'Bank: ${_bank.text}',
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(fontSize: 7),
-                  ),
-                if (config['show_payment_details'] != false &&
-                    _payment.text.isNotEmpty)
-                  Text(
-                    _payment.text,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(fontSize: 7),
-                  ),
-                if (config['show_payment_qr'] == true &&
-                    _paymentQrUrl.text.trim().isNotEmpty) ...[
-                  const SizedBox(height: 4),
-                  Text(
-                    _paymentQrLabel.text.trim().isEmpty
-                        ? 'Scan to Pay'
-                        : _paymentQrLabel.text.trim(),
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      fontSize: 7,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: 3),
-                  Align(
-                    alignment: Alignment.center,
-                    child: SizedBox(
-                      width: narrow ? 40 : 50,
-                      height: narrow ? 40 : 50,
-                      child: Image.network(
-                        _paymentQrUrl.text.trim(),
-                        fit: BoxFit.contain,
-                        errorBuilder: (_, _, _) =>
-                            const Icon(Icons.qr_code_2_outlined, size: 34),
-                      ),
-                    ),
-                  ),
-                ],
-                if (config['show_terms'] != false && _terms.text.isNotEmpty)
-                  Text(
-                    _terms.text,
-                    maxLines: narrow ? 3 : 5,
-                    overflow: TextOverflow.ellipsis,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(fontSize: 7),
-                  ),
-                if (config['show_footer'] != false) ...[
-                  const SizedBox(height: 8),
-                  Text(
-                    '${config['footer'] ?? _footer.text}',
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(fontSize: 7),
-                  ),
-                ],
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
@@ -1433,6 +2285,15 @@ class _InvoiceDesignerScreenState extends State<InvoiceDesignerScreen>
                                 fontWeight: FontWeight.w800,
                               ),
                             ),
+                          ),
+                          _Tag(
+                            (config['document_type'] == 'estimate' ||
+                                    (row['template_name'] ?? '')
+                                        .toString()
+                                        .toLowerCase()
+                                        .contains('estimate'))
+                                ? 'ESTIMATE'
+                                : 'TAX INVOICE',
                           ),
                           if (row['is_custom'] == true) const _Tag('CUSTOM'),
                           if (selected) const _Tag('DEFAULT'),

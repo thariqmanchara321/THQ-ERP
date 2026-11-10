@@ -3,6 +3,7 @@ import 'package:thq_ui/thq_ui.dart';
 import '../models/client_session.dart';
 import '../models/expense.dart';
 import '../services/expense_service.dart';
+import 'advanced_expense_report_screen.dart';
 
 class ExpensesScreen extends StatefulWidget {
   final ClientSession session;
@@ -62,6 +63,19 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
       if (mounted) {
         ThqNotify.success(context, 'Expense recorded');
       }
+    }
+  }
+
+  Future<void> _openManageCategoriesDialog() async {
+    await showThqDialog<void>(
+      context: context,
+      builder: (context) => _ManageCategoriesDialog(
+        session: widget.session,
+        service: _service,
+      ),
+    );
+    if (mounted) {
+      await _refresh();
     }
   }
 
@@ -248,7 +262,25 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                   onPressed: _refresh,
                   icon: const Icon(Icons.refresh_rounded, size: 19),
                 ),
+                const SizedBox(width: 4),
+                OutlinedButton.icon(
+                  onPressed: () => Navigator.push<void>(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) =>
+                          AdvancedExpenseReportScreen(session: widget.session),
+                    ),
+                  ),
+                  icon: const Icon(Icons.analytics_outlined, size: 16),
+                  label: const Text('Advanced Report'),
+                ),
                 if (_canManage) ...[
+                  const SizedBox(width: 4),
+                  OutlinedButton.icon(
+                    onPressed: _openManageCategoriesDialog,
+                    icon: const Icon(Icons.category_outlined, size: 16),
+                    label: const Text('Categories'),
+                  ),
                   const SizedBox(width: 4),
                   FilledButton.icon(
                     onPressed: _newExpense,
@@ -773,6 +805,128 @@ class _ExpenseDialogState extends State<_ExpenseDialog> {
     if (d != null) setState(() => _date = d);
   }
 
+  Future<void> _openAddCategoryDialog() async {
+    final nameCtrl = TextEditingController();
+    final descCtrl = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+    bool creating = false;
+    String? createErr;
+
+    final createdCategory = await showThqDialog<Map<String, dynamic>>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDlgState) => AlertDialog(
+          title: const Text('Add Expense Category'),
+          content: SizedBox(
+            width: 380,
+            child: Form(
+              key: formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  TextFormField(
+                    controller: nameCtrl,
+                    autofocus: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Category Name *',
+                      hintText: 'e.g. Diesel, Driver Wages, Repairs',
+                      border: OutlineInputBorder(),
+                    ),
+                    validator: (v) => (v == null || v.trim().isEmpty)
+                        ? 'Category name is required'
+                        : null,
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: descCtrl,
+                    decoration: const InputDecoration(
+                      labelText: 'Description (optional)',
+                      border: OutlineInputBorder(),
+                    ),
+                    maxLines: 2,
+                  ),
+                  if (createErr != null) ...[
+                    const SizedBox(height: 10),
+                    Text(
+                      createErr!,
+                      style: TextStyle(
+                        color: Theme.of(ctx).colorScheme.error,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: creating ? null : () => Navigator.pop(ctx),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: creating
+                  ? null
+                  : () async {
+                      if (!formKey.currentState!.validate()) return;
+                      setDlgState(() {
+                        creating = true;
+                        createErr = null;
+                      });
+                      try {
+                        final res = await _service.createCategory(
+                          tenantId: widget.session.business.id,
+                          name: nameCtrl.text.trim(),
+                          description: descCtrl.text.trim().isEmpty
+                              ? null
+                              : descCtrl.text.trim(),
+                        );
+                        if (ctx.mounted) {
+                          Navigator.pop(ctx, res);
+                        }
+                      } catch (e) {
+                        if (ctx.mounted) {
+                          setDlgState(() {
+                            creating = false;
+                            createErr =
+                                e.toString().replaceFirst('Exception: ', '');
+                          });
+                        }
+                      }
+                    },
+              child: creating
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Text('Save Category'),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    nameCtrl.dispose();
+    descCtrl.dispose();
+
+    if (createdCategory != null && mounted) {
+      final newId = createdCategory['id']?.toString();
+      setState(() {
+        _cats = _service.getCategories(tenantId: widget.session.business.id);
+        if (newId != null && newId.isNotEmpty) {
+          _cat = newId;
+        }
+      });
+      ThqNotify.success(
+        context,
+        'Category "${createdCategory['name'] ?? ''}" created',
+      );
+    }
+  }
+
   Future<void> _save() async {
     if (!_form.currentState!.validate() || _cat == null) return;
     if (_n(_round).abs() > 1.000001) {
@@ -853,35 +1007,60 @@ class _ExpenseDialogState extends State<_ExpenseDialog> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              FutureBuilder<List<ExpenseCategory>>(
-                future: _cats,
-                builder: (context, s) {
-                  final rows = s.data ?? [];
-                  if (_cat == null && rows.isNotEmpty) {
-                    WidgetsBinding.instance.addPostFrameCallback((_) {
-                      if (mounted && _cat == null) {
-                        setState(() => _cat = rows.first.id);
-                      }
-                    });
-                  }
-                  return DropdownButtonFormField<String>(
-                    initialValue: _cat,
-                    decoration: const InputDecoration(
-                      labelText: 'Category',
-                      border: OutlineInputBorder(),
-                    ),
-                    items: rows
-                        .map(
-                          (e) => DropdownMenuItem(
-                            value: e.id,
-                            child: Text(e.name),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: FutureBuilder<List<ExpenseCategory>>(
+                      future: _cats,
+                      builder: (context, s) {
+                        final rows = s.data ?? [];
+                        if (_cat == null && rows.isNotEmpty) {
+                          WidgetsBinding.instance.addPostFrameCallback((_) {
+                            if (mounted && _cat == null) {
+                              setState(() => _cat = rows.first.id);
+                            }
+                          });
+                        }
+                        final hasSelected = rows.any((r) => r.id == _cat);
+                        return DropdownButtonFormField<String>(
+                          initialValue: hasSelected ? _cat : null,
+                          decoration: const InputDecoration(
+                            labelText: 'Category *',
+                            border: OutlineInputBorder(),
+                            contentPadding: EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 14,
+                            ),
                           ),
-                        )
-                        .toList(),
-                    onChanged: (v) => setState(() => _cat = v),
-                    validator: (v) => v == null ? 'Select category' : null,
-                  );
-                },
+                          items: rows
+                              .map(
+                                (e) => DropdownMenuItem(
+                                  value: e.id,
+                                  child: Text(e.name),
+                                ),
+                              )
+                              .toList(),
+                          onChanged: (v) => setState(() => _cat = v),
+                          validator: (v) =>
+                              v == null ? 'Select category' : null,
+                        );
+                      },
+                    ),
+                  ),
+                  if (widget.session.hasPermission('expenses.manage') ||
+                      widget.session.hasRole('owner')) ...[
+                    const SizedBox(width: 8),
+                    Padding(
+                      padding: const EdgeInsets.only(top: 2),
+                      child: IconButton.filledTonal(
+                        tooltip: 'Add new category',
+                        onPressed: _openAddCategoryDialog,
+                        icon: const Icon(Icons.add),
+                      ),
+                    ),
+                  ],
+                ],
               ),
               const SizedBox(height: 12),
               ListTile(
@@ -1052,4 +1231,419 @@ class _ExpenseDialogState extends State<_ExpenseDialog> {
       ),
     ],
   );
+}
+
+class _ManageCategoriesDialog extends StatefulWidget {
+  final ClientSession session;
+  final ExpenseService service;
+
+  const _ManageCategoriesDialog({
+    required this.session,
+    required this.service,
+  });
+
+  @override
+  State<_ManageCategoriesDialog> createState() =>
+      _ManageCategoriesDialogState();
+}
+
+class _ManageCategoriesDialogState extends State<_ManageCategoriesDialog> {
+  late Future<List<ExpenseCategory>> _categoriesFuture;
+  bool _busy = false;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  void _load() {
+    _categoriesFuture = widget.service.getManageCategories(
+      tenantId: widget.session.business.id,
+    );
+  }
+
+  Future<void> _refresh() async {
+    setState(_load);
+    await _categoriesFuture;
+  }
+
+  Future<void> _addCategory() async {
+    final nameCtrl = TextEditingController();
+    final descCtrl = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+
+    final created = await showThqDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Add Expense Category'),
+        content: SizedBox(
+          width: 380,
+          child: Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextFormField(
+                  controller: nameCtrl,
+                  autofocus: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Category Name *',
+                    hintText: 'e.g. Diesel, Driver Wages, Quarry Charges',
+                    border: OutlineInputBorder(),
+                  ),
+                  validator: (v) => (v == null || v.trim().isEmpty)
+                      ? 'Category name is required'
+                      : null,
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: descCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Description (optional)',
+                    border: OutlineInputBorder(),
+                  ),
+                  maxLines: 2,
+                ),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () async {
+              if (!formKey.currentState!.validate()) return;
+              try {
+                await widget.service.createCategory(
+                  tenantId: widget.session.business.id,
+                  name: nameCtrl.text.trim(),
+                  description: descCtrl.text.trim().isEmpty
+                      ? null
+                      : descCtrl.text.trim(),
+                );
+                if (ctx.mounted) Navigator.pop(ctx, true);
+              } catch (e) {
+                if (ctx.mounted) {
+                  ThqNotify.showSnackBar(
+                    ctx,
+                    SnackBar(
+                      content: Text(
+                        e.toString().replaceFirst('Exception: ', ''),
+                      ),
+                    ),
+                  );
+                }
+              }
+            },
+            child: const Text('Save Category'),
+          ),
+        ],
+      ),
+    );
+
+    nameCtrl.dispose();
+    descCtrl.dispose();
+
+    if (created == true && mounted) {
+      ThqNotify.success(context, 'Category created');
+      await _refresh();
+    }
+  }
+
+  Future<void> _renameCategory(ExpenseCategory cat) async {
+    final nameCtrl = TextEditingController(text: cat.name);
+    final descCtrl = TextEditingController(text: cat.description ?? '');
+    final formKey = GlobalKey<FormState>();
+
+    final updated = await showThqDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Edit ${cat.name}'),
+        content: SizedBox(
+          width: 380,
+          child: Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextFormField(
+                  controller: nameCtrl,
+                  autofocus: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Category Name *',
+                    border: OutlineInputBorder(),
+                  ),
+                  validator: (v) => (v == null || v.trim().isEmpty)
+                      ? 'Category name is required'
+                      : null,
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: descCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Description (optional)',
+                    border: OutlineInputBorder(),
+                  ),
+                  maxLines: 2,
+                ),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () async {
+              if (!formKey.currentState!.validate()) return;
+              try {
+                await widget.service.updateCategory(
+                  tenantId: widget.session.business.id,
+                  categoryId: cat.id,
+                  name: nameCtrl.text.trim(),
+                  description: descCtrl.text.trim(),
+                );
+                if (ctx.mounted) Navigator.pop(ctx, true);
+              } catch (e) {
+                if (ctx.mounted) {
+                  ThqNotify.showSnackBar(
+                    ctx,
+                    SnackBar(
+                      content: Text(
+                        e.toString().replaceFirst('Exception: ', ''),
+                      ),
+                    ),
+                  );
+                }
+              }
+            },
+            child: const Text('Update'),
+          ),
+        ],
+      ),
+    );
+
+    nameCtrl.dispose();
+    descCtrl.dispose();
+
+    if (updated == true && mounted) {
+      ThqNotify.success(context, 'Category updated');
+      await _refresh();
+    }
+  }
+
+  Future<void> _toggleActive(ExpenseCategory cat) async {
+    final newActive = !cat.active;
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      await widget.service.updateCategory(
+        tenantId: widget.session.business.id,
+        categoryId: cat.id,
+        active: newActive,
+      );
+      if (mounted) {
+        ThqNotify.success(
+          context,
+          'Category "${cat.name}" ${newActive ? 'activated' : 'deactivated'}',
+        );
+        await _refresh();
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(
+          () => _error = e.toString().replaceFirst('Exception: ', ''),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _busy = false);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+
+    return AlertDialog(
+      title: Row(
+        children: [
+          const Expanded(
+            child: Text(
+              'Manage Expense Categories',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+            ),
+          ),
+          FilledButton.icon(
+            onPressed: _busy ? null : _addCategory,
+            icon: const Icon(Icons.add, size: 16),
+            label: const Text('Add Category'),
+          ),
+        ],
+      ),
+      content: SizedBox(
+        width: 640,
+        height: 480,
+        child: Column(
+          children: [
+            if (_error != null) ...[
+              Container(
+                padding: const EdgeInsets.all(8),
+                margin: const EdgeInsets.only(bottom: 8),
+                decoration: BoxDecoration(
+                  color: scheme.errorContainer,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.error_outline, size: 16, color: scheme.error),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        _error!,
+                        style: TextStyle(
+                          color: scheme.onErrorContainer,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+            Expanded(
+              child: FutureBuilder<List<ExpenseCategory>>(
+                future: _categoriesFuture,
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  if (snapshot.hasError) {
+                    return Center(child: Text('Error: ${snapshot.error}'));
+                  }
+                  final list = snapshot.data ?? [];
+                  if (list.isEmpty) {
+                    return const Center(
+                      child: Text('No expense categories found.'),
+                    );
+                  }
+
+                  return ListView.separated(
+                    itemCount: list.length,
+                    separatorBuilder: (_, _) => const Divider(height: 1),
+                    itemBuilder: (context, index) {
+                      final item = list[index];
+                      return ListTile(
+                        dense: true,
+                        title: Row(
+                          children: [
+                            Text(
+                              item.name,
+                              style: TextStyle(
+                                fontWeight: FontWeight.w600,
+                                decoration: item.active
+                                    ? null
+                                    : TextDecoration.lineThrough,
+                                color: item.active
+                                    ? null
+                                    : scheme.onSurfaceVariant,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: item.active
+                                    ? scheme.primaryContainer
+                                    : scheme.surfaceContainerHighest,
+                                borderRadius: BorderRadius.circular(999),
+                              ),
+                              child: Text(
+                                item.active ? 'ACTIVE' : 'INACTIVE',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w600,
+                                  color: item.active
+                                      ? scheme.onPrimaryContainer
+                                      : scheme.onSurfaceVariant,
+                                ),
+                              ),
+                            ),
+                            if (item.expenseCount > 0) ...[
+                              const SizedBox(width: 6),
+                              Text(
+                                '(${item.expenseCount} expenses)',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: scheme.onSurfaceVariant,
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                        subtitle:
+                            item.description != null &&
+                                item.description!.isNotEmpty
+                            ? Text(item.description!)
+                            : null,
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              tooltip: 'Rename / Edit description',
+                              icon: const Icon(
+                                Icons.edit_outlined,
+                                size: 18,
+                              ),
+                              onPressed: _busy
+                                  ? null
+                                  : () => _renameCategory(item),
+                            ),
+                            IconButton(
+                              tooltip: item.active
+                                  ? 'Deactivate (historical records preserved)'
+                                  : 'Reactivate',
+                              icon: Icon(
+                                item.active
+                                    ? Icons.toggle_on
+                                    : Icons.toggle_off_outlined,
+                                color: item.active ? scheme.primary : null,
+                                size: 26,
+                              ),
+                              onPressed: _busy
+                                  ? null
+                                  : () => _toggleActive(item),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Close'),
+        ),
+      ],
+    );
+  }
 }

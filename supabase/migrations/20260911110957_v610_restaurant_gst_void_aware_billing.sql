@@ -134,9 +134,6 @@ begin
     raise exception 'Choose an active customer before billing';
   end if;
 
-  -- v6.1 cancellation-aware authoritative billing:
-  -- only remaining active quantity reaches the v5.2 GST Sale writer.
-  -- Existing line discount is prorated by the remaining active quantity.
   select coalesce(
     jsonb_agg(
       jsonb_strip_nulls(
@@ -323,4 +320,4 @@ begin
 
   return v_response;
 end;
-$$;
+$$;;

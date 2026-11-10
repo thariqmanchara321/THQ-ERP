@@ -373,4 +373,4 @@ revoke all on function public.restaurant_waitlist_status_set_v610(uuid,uuid,uuid
 
 grant execute on function public.restaurant_waitlist_list_v610(uuid,uuid,uuid,text,integer) to authenticated, service_role;
 grant execute on function public.restaurant_waitlist_add_v610(uuid,uuid,uuid,text,text,integer,integer,text,text) to authenticated, service_role;
-grant execute on function public.restaurant_waitlist_status_set_v610(uuid,uuid,uuid,text,uuid,text) to authenticated, service_role;
+grant execute on function public.restaurant_waitlist_status_set_v610(uuid,uuid,uuid,text,uuid,text) to authenticated, service_role;;

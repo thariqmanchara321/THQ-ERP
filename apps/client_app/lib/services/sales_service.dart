@@ -71,6 +71,7 @@ class SalesService {
     String? supplyType,
     String? placeOfSupplyCode,
     List<Map<String, dynamic>> chargeSelections = const [],
+    DateTime? loadUpdatedAt,
   }) async {
     final origin = await _originParams(tenantId, locationId: locationId);
     final context = await _invoiceContext(
@@ -79,7 +80,7 @@ class SalesService {
       origin,
       materialLoadId,
     );
-    context.checkCustomer(customerId);
+    context.checkCustomer(customerId, strict: false);
     items = context.saleItems(items);
     if (!context.gstApplicable) {
       supplyType = null;
@@ -98,6 +99,7 @@ class SalesService {
       'place_of_supply_code': placeOfSupplyCode,
       'charge_selections': chargeSelections,
       'material_load_id': ?materialLoadId,
+      if (loadUpdatedAt != null) 'load_updated_at': loadUpdatedAt.toIso8601String(),
     };
 
     final lease = await _requestIds.acquire(
@@ -142,6 +144,7 @@ class SalesService {
           'p_supply_type': supplyType,
           'p_place_of_supply_code': placeOfSupplyCode,
           'p_charge_selections': chargeSelections,
+          'p_load_updated_at': loadUpdatedAt?.toIso8601String(),
         },
       );
       if (result is! Map) {

@@ -176,42 +176,86 @@ class _MaterialYardCrusherReportScreenState
     final quantity = _number(load['quantity']);
     final unitCode = (load['unit_code'] ?? 'FT').toString().trim().toUpperCase();
 
-    // Deriving Purchasing Price & Total
+    // Deriving Purchasing Price & Total (THQ Pricing Rules v713)
     double purchasingPrice = 0.0;
     double total = 0.0;
+    bool hasPrice = false;
+    bool isInvoiced = false;
+    String? invoiceNumber;
 
-    if (delivery.containsKey('purchasing_price')) {
-      purchasingPrice = _number(delivery['purchasing_price']);
-    }
-    if (delivery.containsKey('purchasing_total')) {
-      total = _number(delivery['purchasing_total']);
-    }
+    // 1. Direct Invoice Resolution from migration v713 (aggregate_load_list_v629)
+    final invRate = _number(load['invoice_rate']);
+    final invAmt = _number(load['invoice_amount']);
+    final invNum = load['invoice_number']?.toString();
 
-    if (purchasingPrice == 0 && purchase.isNotEmpty) {
+    if (invRate > 0) {
+      purchasingPrice = invRate;
+      hasPrice = true;
+      isInvoiced = true;
+      total = invAmt > 0 ? invAmt : (quantity > 0 ? quantity * invRate : 0.0);
+      invoiceNumber = invNum;
+    } else if (purchase.isNotEmpty) {
+      isInvoiced = true;
+      invoiceNumber = purchase['purchase_number']?.toString() ??
+          purchase['invoice_number']?.toString();
       final items = (purchase['items'] as List? ?? const []);
       if (items.isNotEmpty && items.first is Map) {
-        purchasingPrice = _number(items.first['unit_price']);
+        final it = items.first as Map;
+        final itRate = _number(it['unit_cost'] ??
+            it['entered_unit_cost'] ??
+            it['unit_price'] ??
+            it['cost_price']);
+        if (itRate > 0) {
+          purchasingPrice = itRate;
+          hasPrice = true;
+        }
       }
-      if (total == 0) {
-        total = _number(purchase['grand_total']);
-      }
-    }
-
-    // Fallback checks from load costs
-    if (total == 0 && purchasingPrice == 0) {
-      final costs = StaffLoadService.rows(load['costs']);
-      for (final cost in costs) {
-        final kind = (cost['cost_kind'] ?? '').toString();
-        final desc = (cost['description'] ?? '').toString().toLowerCase();
-        if (kind == 'other' && (desc.contains('material') || desc.contains('purchase'))) {
-          purchasingPrice = _number(cost['rate']);
-          total = _number(cost['amount']);
-          break;
+      final grandTotal = _number(purchase['grand_total']);
+      if (grandTotal > 0) {
+        total = grandTotal;
+        if (purchasingPrice == 0 && quantity > 0) {
+          purchasingPrice = grandTotal / quantity;
+          hasPrice = true;
         }
       }
     }
 
-    // Auto-compute between price and total if one is missing
+    // 2. Pre-invoice negotiated / delivery rate fallback (suggested buy price)
+    if (!hasPrice) {
+      if (delivery.containsKey('purchasing_price') &&
+          _number(delivery['purchasing_price']) > 0) {
+        purchasingPrice = _number(delivery['purchasing_price']);
+        hasPrice = true;
+      }
+      if (delivery.containsKey('purchasing_total') &&
+          _number(delivery['purchasing_total']) > 0) {
+        total = _number(delivery['purchasing_total']);
+        if (purchasingPrice == 0 && quantity > 0) {
+          purchasingPrice = total / quantity;
+        }
+        hasPrice = true;
+      }
+    }
+
+    // 3. Fallback checks from load costs
+    if (!hasPrice) {
+      final costs = StaffLoadService.rows(load['costs']);
+      for (final cost in costs) {
+        final kind = (cost['cost_kind'] ?? '').toString();
+        final desc = (cost['description'] ?? '').toString().toLowerCase();
+        if (kind == 'other' &&
+            (desc.contains('material') || desc.contains('purchase'))) {
+          purchasingPrice = _number(cost['rate']);
+          total = _number(cost['amount']);
+          if (purchasingPrice > 0 || total > 0) {
+            hasPrice = true;
+            break;
+          }
+        }
+      }
+    }
+
+    // 4. Auto-compute between price and total if one was entered and other is 0
     if (total == 0 && purchasingPrice > 0 && quantity > 0) {
       total = quantity * purchasingPrice;
     } else if (purchasingPrice == 0 && total > 0 && quantity > 0) {
@@ -230,6 +274,9 @@ class _MaterialYardCrusherReportScreenState
       'quantity': quantity,
       'unit_code': unitCode,
       'quantity_display': '${_cleanQty(quantity)} $unitCode',
+      'has_price': hasPrice && purchasingPrice > 0,
+      'is_invoiced': isInvoiced,
+      'invoice_number': invoiceNumber,
       'purchasing_price': purchasingPrice,
       'total': total,
       'supplier_id': load['supplier_id'],
@@ -619,16 +666,21 @@ class _MaterialYardCrusherReportScreenState
       ]);
 
       double totalQty = 0.0;
+      double pricedQty = 0.0;
       double grandTotal = 0.0;
 
       // Data Rows
       for (final r in rows) {
         final q = r['quantity'] as double;
+        final hasPrice = r['has_price'] as bool? ?? false;
         final p = r['purchasing_price'] as double;
         final t = r['total'] as double;
 
         totalQty += q;
-        grandTotal += t;
+        if (hasPrice && p > 0) {
+          pricedQty += q;
+          grandTotal += t;
+        }
 
         sheet.appendRow([
           TextCellValue(r['display_date'].toString()),
@@ -637,12 +689,14 @@ class _MaterialYardCrusherReportScreenState
           TextCellValue(r['driver'].toString()),
           TextCellValue(r['vehicle_no'].toString()),
           TextCellValue(r['quantity_display'].toString()),
-          DoubleCellValue(p),
-          DoubleCellValue(t),
+          hasPrice && p > 0 ? DoubleCellValue(p) : TextCellValue('Rate pending'),
+          hasPrice && t > 0 ? DoubleCellValue(t) : TextCellValue('Not invoiced'),
         ]);
       }
 
-      // Summary Total Row
+      final weightedAvg = pricedQty > 0 ? (grandTotal / pricedQty) : 0.0;
+
+      // Summary Total Row (Formula: Total Purchase Value ÷ Total Purchased Quantity of priced transactions)
       sheet.appendRow([
         TextCellValue('TOTAL'),
         TextCellValue(''),
@@ -651,7 +705,7 @@ class _MaterialYardCrusherReportScreenState
         TextCellValue(''),
         TextCellValue('${_cleanQty(totalQty)} FT'),
         TextCellValue(
-          totalQty > 0 ? _cleanQty(grandTotal / totalQty) : '',
+          weightedAvg > 0 ? _cleanQty(weightedAvg) : 'Rate pending',
         ),
         DoubleCellValue(grandTotal),
       ]);
@@ -697,24 +751,30 @@ class _MaterialYardCrusherReportScreenState
     );
 
     double totalQty = 0.0;
+    double pricedQty = 0.0;
     double grandTotal = 0.0;
 
     for (final r in rows) {
       final q = r['quantity'] as double;
+      final hasPrice = r['has_price'] as bool? ?? false;
       final p = r['purchasing_price'] as double;
       final t = r['total'] as double;
 
       totalQty += q;
-      grandTotal += t;
+      if (hasPrice && p > 0) {
+        pricedQty += q;
+        grandTotal += t;
+      }
 
       buffer.writeln(
-        '${r['display_date']}\t${r['material']}\t${r['crusher']}\t${r['driver']}\t${r['vehicle_no']}\t${r['quantity_display']}\t${p > 0 ? _cleanQty(p) : ''}\t${t > 0 ? t.toStringAsFixed(2) : ''}',
+        '${r['display_date']}\t${r['material']}\t${r['crusher']}\t${r['driver']}\t${r['vehicle_no']}\t${r['quantity_display']}\t${hasPrice && p > 0 ? _cleanQty(p) : 'Rate pending'}\t${hasPrice && t > 0 ? t.toStringAsFixed(2) : 'Not invoiced'}',
       );
     }
 
     // Total row
+    final weightedAvg = pricedQty > 0 ? (grandTotal / pricedQty) : 0.0;
     buffer.writeln(
-      'TOTAL\t\t\t\t\t${_cleanQty(totalQty)} FT\t${totalQty > 0 ? _cleanQty(grandTotal / totalQty) : ''}\t${grandTotal.toStringAsFixed(2)}',
+      'TOTAL\t\t\t\t\t${_cleanQty(totalQty)} FT\t${weightedAvg > 0 ? _cleanQty(weightedAvg) : 'Rate pending'}\t${grandTotal.toStringAsFixed(2)}',
     );
 
     await Clipboard.setData(ClipboardData(text: buffer.toString()));
@@ -734,14 +794,33 @@ class _MaterialYardCrusherReportScreenState
     final rows = _filteredRows;
     if (rows.isEmpty) return;
 
+    double totalQty = 0.0;
+    double pricedQty = 0.0;
+    double grandTotal = 0.0;
+    for (final r in rows) {
+      final q = r['quantity'] as double;
+      final hasPrice = r['has_price'] as bool? ?? false;
+      final p = r['purchasing_price'] as double;
+      final t = r['total'] as double;
+      totalQty += q;
+      if (hasPrice && p > 0) {
+        pricedQty += q;
+        grandTotal += t;
+      }
+    }
+    final weightedAvg = pricedQty > 0 ? (grandTotal / pricedQty) : 0.0;
+
     final dataset = {
       'overview': {
         'Report': 'Crusher Material Register',
         'Business': session.business.name,
         'Period': '${_formatDate(_from)} to ${_formatDate(_to)}',
         'Total Loads': rows.length,
-        'Total Quantity': '${_cleanQty(rows.fold(0.0, (s, r) => s + (r['quantity'] as double)))} FT',
-        'Total Amount': _money(rows.fold(0.0, (s, r) => s + (r['total'] as double))),
+        'Total Quantity': '${_cleanQty(totalQty)} FT',
+        'Priced Quantity': '${_cleanQty(pricedQty)} FT',
+        'Unpriced Quantity': '${_cleanQty(totalQty - pricedQty)} FT',
+        'Invoiced Amount': _money(grandTotal),
+        'Weighted Average Rate': weightedAvg > 0 ? '${_money(weightedAvg)} / FT' : 'Rate pending',
       },
       'crusher_loads': [
         for (final r in rows)
@@ -752,8 +831,12 @@ class _MaterialYardCrusherReportScreenState
             'Driver': r['driver'],
             'Vehicle': r['vehicle_no'],
             'Quantity': r['quantity_display'],
-            'Price': _cleanQty(r['purchasing_price'] as double),
-            'Total': (r['total'] as double).toStringAsFixed(2),
+            'Price': (r['has_price'] as bool? ?? false) && (r['purchasing_price'] as double) > 0
+                ? _cleanQty(r['purchasing_price'] as double)
+                : 'Rate pending',
+            'Total': (r['has_price'] as bool? ?? false) && (r['total'] as double) > 0
+                ? (r['total'] as double).toStringAsFixed(2)
+                : 'Not invoiced',
           },
       ],
     };
@@ -767,11 +850,17 @@ class _MaterialYardCrusherReportScreenState
     final scheme = theme.colorScheme;
     final rows = _filteredRows;
 
-    // Totals for summary ribbon
+    // Totals for summary ribbon (THQ Pricing Rules v713)
     final totalLoads = rows.length;
     final totalQty = rows.fold<double>(0.0, (s, r) => s + (r['quantity'] as double));
-    final grandTotal = rows.fold<double>(0.0, (s, r) => s + (r['total'] as double));
-    final avgRate = totalQty > 0 ? grandTotal / totalQty : 0.0;
+
+    final pricedRows = rows.where((r) => (r['has_price'] as bool? ?? false) && (r['purchasing_price'] as double? ?? 0.0) > 0).toList();
+    final pricedQty = pricedRows.fold<double>(0.0, (s, r) => s + (r['quantity'] as double));
+    final pricedTotal = pricedRows.fold<double>(0.0, (s, r) => s + (r['total'] as double));
+    final weightedAvgRate = pricedQty > 0 ? (pricedTotal / pricedQty) : 0.0;
+
+    final unpricedRows = rows.where((r) => !(r['has_price'] as bool? ?? false) || (r['purchasing_price'] as double? ?? 0.0) <= 0).toList();
+    final unpricedQty = unpricedRows.fold<double>(0.0, (s, r) => s + (r['quantity'] as double));
     final crushersCount = rows.map((r) => r['crusher']).toSet().length;
 
     // Filter Options
@@ -920,15 +1009,29 @@ class _MaterialYardCrusherReportScreenState
                     child: DropdownButtonFormField<String>(
                       initialValue: _selectedCrusher ?? '',
                       isExpanded: true,
+                      dropdownColor: scheme.surface,
                       decoration: const InputDecoration(
                         labelText: 'Crusher',
                         contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 0),
                       ),
-                      style: const TextStyle(fontSize: 12),
+                      style: TextStyle(fontSize: 12, color: scheme.onSurface),
                       items: [
-                        const DropdownMenuItem(value: '', child: Text('All Crushers')),
+                        DropdownMenuItem(
+                          value: '',
+                          child: Text(
+                            'All Crushers',
+                            style: TextStyle(fontSize: 12, color: scheme.onSurface),
+                          ),
+                        ),
                         for (final c in crusherOptions)
-                          DropdownMenuItem(value: c, child: Text(c, overflow: TextOverflow.ellipsis)),
+                          DropdownMenuItem(
+                            value: c,
+                            child: Text(
+                              c,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(fontSize: 12, color: scheme.onSurface),
+                            ),
+                          ),
                       ],
                       onChanged: (v) {
                         setState(() => _selectedCrusher = (v == null || v.isEmpty) ? null : v);
@@ -944,15 +1047,29 @@ class _MaterialYardCrusherReportScreenState
                     child: DropdownButtonFormField<String>(
                       initialValue: _selectedMaterial ?? '',
                       isExpanded: true,
+                      dropdownColor: scheme.surface,
                       decoration: const InputDecoration(
                         labelText: 'Material',
                         contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 0),
                       ),
-                      style: const TextStyle(fontSize: 12),
+                      style: TextStyle(fontSize: 12, color: scheme.onSurface),
                       items: [
-                        const DropdownMenuItem(value: '', child: Text('All Materials')),
+                        DropdownMenuItem(
+                          value: '',
+                          child: Text(
+                            'All Materials',
+                            style: TextStyle(fontSize: 12, color: scheme.onSurface),
+                          ),
+                        ),
                         for (final m in materialOptions)
-                          DropdownMenuItem(value: m, child: Text(m, overflow: TextOverflow.ellipsis)),
+                          DropdownMenuItem(
+                            value: m,
+                            child: Text(
+                              m,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(fontSize: 12, color: scheme.onSurface),
+                            ),
+                          ),
                       ],
                       onChanged: (v) {
                         setState(() => _selectedMaterial = (v == null || v.isEmpty) ? null : v);
@@ -968,15 +1085,29 @@ class _MaterialYardCrusherReportScreenState
                     child: DropdownButtonFormField<String>(
                       initialValue: _selectedVehicle ?? '',
                       isExpanded: true,
+                      dropdownColor: scheme.surface,
                       decoration: const InputDecoration(
                         labelText: 'Vehicle',
                         contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 0),
                       ),
-                      style: const TextStyle(fontSize: 12),
+                      style: TextStyle(fontSize: 12, color: scheme.onSurface),
                       items: [
-                        const DropdownMenuItem(value: '', child: Text('All Trucks')),
+                        DropdownMenuItem(
+                          value: '',
+                          child: Text(
+                            'All Trucks',
+                            style: TextStyle(fontSize: 12, color: scheme.onSurface),
+                          ),
+                        ),
                         for (final v in vehicleOptions)
-                          DropdownMenuItem(value: v, child: Text(v, overflow: TextOverflow.ellipsis)),
+                          DropdownMenuItem(
+                            value: v,
+                            child: Text(
+                              v,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(fontSize: 12, color: scheme.onSurface),
+                            ),
+                          ),
                       ],
                       onChanged: (v) {
                         setState(() => _selectedVehicle = (v == null || v.isEmpty) ? null : v);
@@ -992,15 +1123,29 @@ class _MaterialYardCrusherReportScreenState
                     child: DropdownButtonFormField<String>(
                       initialValue: _selectedDriver ?? '',
                       isExpanded: true,
+                      dropdownColor: scheme.surface,
                       decoration: const InputDecoration(
                         labelText: 'Driver',
                         contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 0),
                       ),
-                      style: const TextStyle(fontSize: 12),
+                      style: TextStyle(fontSize: 12, color: scheme.onSurface),
                       items: [
-                        const DropdownMenuItem(value: '', child: Text('All Drivers')),
+                        DropdownMenuItem(
+                          value: '',
+                          child: Text(
+                            'All Drivers',
+                            style: TextStyle(fontSize: 12, color: scheme.onSurface),
+                          ),
+                        ),
                         for (final d in driverOptions)
-                          DropdownMenuItem(value: d, child: Text(d, overflow: TextOverflow.ellipsis)),
+                          DropdownMenuItem(
+                            value: d,
+                            child: Text(
+                              d,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(fontSize: 12, color: scheme.onSurface),
+                            ),
+                          ),
                       ],
                       onChanged: (v) {
                         setState(() => _selectedDriver = (v == null || v.isEmpty) ? null : v);
@@ -1028,7 +1173,7 @@ class _MaterialYardCrusherReportScreenState
                           : null,
                       contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
                     ),
-                    style: const TextStyle(fontSize: 12),
+                    style: TextStyle(fontSize: 12, color: scheme.onSurface),
                     onChanged: (_) => setState(() {}),
                   ),
                 ),
@@ -1036,7 +1181,7 @@ class _MaterialYardCrusherReportScreenState
             ),
           ),
 
-          // Compact KPI Summary Ribbon (Futuristic, compact THQ ERP design)
+          // Compact KPI Summary Ribbon (Futuristic, compact THQ ERP design - Rules 9 & 10)
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             decoration: BoxDecoration(
@@ -1048,7 +1193,9 @@ class _MaterialYardCrusherReportScreenState
                 _SummaryMetric(
                   icon: Icons.local_shipping_outlined,
                   label: 'TOTAL LOADS',
-                  value: '$totalLoads',
+                  value: unpricedRows.isEmpty
+                      ? '$totalLoads'
+                      : '$totalLoads (${pricedRows.length} priced, ${unpricedRows.length} pending)',
                 ),
                 _separator(scheme),
                 _SummaryMetric(
@@ -1059,16 +1206,25 @@ class _MaterialYardCrusherReportScreenState
                 _separator(scheme),
                 _SummaryMetric(
                   icon: Icons.currency_rupee_rounded,
-                  label: 'TOTAL PURCHASE',
-                  value: _money(grandTotal),
+                  label: 'INVOICED VALUE',
+                  value: _money(pricedTotal),
                   valueColor: scheme.primary,
                 ),
                 _separator(scheme),
                 _SummaryMetric(
                   icon: Icons.analytics_outlined,
-                  label: 'AVERAGE RATE',
-                  value: '${_money(avgRate)} / FT',
+                  label: 'WEIGHTED AVG RATE',
+                  value: weightedAvgRate > 0 ? '${_money(weightedAvgRate)} / FT' : 'Rate pending',
                 ),
+                if (unpricedRows.isNotEmpty) ...[
+                  _separator(scheme),
+                  _SummaryMetric(
+                    icon: Icons.pending_actions_outlined,
+                    label: 'RATE PENDING',
+                    value: '${_cleanQty(unpricedQty)} FT',
+                    valueColor: const Color(0xFFC06200),
+                  ),
+                ],
                 _separator(scheme),
                 _SummaryMetric(
                   icon: Icons.factory_outlined,
@@ -1134,7 +1290,7 @@ class _MaterialYardCrusherReportScreenState
                           ],
                         ),
                       )
-                    : _buildTable(rows, scheme, totalQty, avgRate, grandTotal),
+                    : _buildTable(rows, scheme, totalQty, weightedAvgRate, pricedTotal),
           ),
         ],
       ),
@@ -1282,53 +1438,85 @@ class _MaterialYardCrusherReportScreenState
                               ),
                             ),
                           ),
-                          // PURCHASING PRICE
+                          // PURCHASING PRICE (THQ Rule 4: Rate pending badge)
                           DataCell(
                             InkWell(
                               onTap: () => _editPriceDialog(r),
                               borderRadius: BorderRadius.circular(4),
                               child: Padding(
                                 padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Text(
-                                      (r['purchasing_price'] as double) > 0
-                                          ? _cleanQty(r['purchasing_price'] as double)
-                                          : '-',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.w600,
-                                        color: (r['purchasing_price'] as double) > 0
-                                            ? scheme.onSurface
-                                            : scheme.onSurfaceVariant.withValues(alpha: .5),
+                                child: (r['has_price'] as bool? ?? false) && (r['purchasing_price'] as double) > 0
+                                    ? Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Text(
+                                            _cleanQty(r['purchasing_price'] as double),
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w600,
+                                              color: scheme.onSurface,
+                                            ),
+                                          ),
+                                          const SizedBox(width: 4),
+                                          Icon(
+                                            Icons.edit_outlined,
+                                            size: 13,
+                                            color: scheme.primary.withValues(alpha: .7),
+                                          ),
+                                        ],
+                                      )
+                                    : Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFFFF8B00).withValues(alpha: 0.12),
+                                          borderRadius: BorderRadius.circular(4),
+                                          border: Border.all(
+                                            color: const Color(0xFFFF8B00).withValues(alpha: 0.4),
+                                            width: 0.8,
+                                          ),
+                                        ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: const [
+                                            Text(
+                                              'Rate pending',
+                                              style: TextStyle(
+                                                fontSize: 10.5,
+                                                fontWeight: FontWeight.w600,
+                                                color: Color(0xFFC06200),
+                                              ),
+                                            ),
+                                            SizedBox(width: 3),
+                                            Icon(
+                                              Icons.edit_outlined,
+                                              size: 12,
+                                              color: Color(0xFFC06200),
+                                            ),
+                                          ],
+                                        ),
                                       ),
-                                    ),
-                                    const SizedBox(width: 4),
-                                    Icon(
-                                      Icons.edit_outlined,
-                                      size: 13,
-                                      color: scheme.primary.withValues(alpha: .7),
-                                    ),
-                                  ],
-                                ),
                               ),
                             ),
                           ),
-                          // TOTTAL
+                          // TOTTAL (THQ Rule 4: Not invoiced)
                           DataCell(
-                            Text(
-                              (r['total'] as double) > 0
-                                  ? (r['total'] as double).toStringAsFixed(2)
-                                  : '-',
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                                color: (r['total'] as double) > 0
-                                    ? scheme.primary
-                                    : scheme.onSurfaceVariant.withValues(alpha: .5),
-                              ),
-                            ),
+                            (r['has_price'] as bool? ?? false) && (r['total'] as double) > 0
+                                ? Text(
+                                    (r['total'] as double).toStringAsFixed(2),
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                      color: scheme.primary,
+                                    ),
+                                  )
+                                : Text(
+                                    'Not invoiced',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontStyle: FontStyle.italic,
+                                      color: scheme.onSurfaceVariant.withValues(alpha: 0.6),
+                                    ),
+                                  ),
                           ),
                           // ACTIONS
                           DataCell(

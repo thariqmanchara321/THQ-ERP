@@ -9,6 +9,8 @@ import '../services/tenant_settings_service.dart';
 import '../services/invoice_template_service.dart';
 import '../widgets/additional_charges_dialog.dart';
 import 'custom_fields_screen.dart';
+import '../models/app_menu_node.dart';
+import '../services/navigation_service.dart';
 import '../widgets/payment_method_ledger_settings.dart';
 
 class BusinessSettingsScreen extends StatefulWidget {
@@ -135,6 +137,52 @@ class _BusinessSettingsScreenState extends State<BusinessSettingsScreen> {
       context,
       'Logo removed. Click "Save Settings" below to apply.',
     );
+  }
+
+  Future<void> _openWorkspaceCustomization() async {
+    final navService = NavigationService();
+    try {
+      final results = await Future.wait([
+        navService.load(
+          tenantId: widget.session.business.id,
+          appKey: 'client',
+        ),
+        navService.loadUserPreferences('client'),
+      ]);
+      final nodes = results[0] as List<AppMenuNode>;
+      final prefs = results[1] as ThqUserUiPreferences;
+
+      final thqNodes = nodes.map((n) => ThqNavigationNode(
+        id: n.id,
+        nodeKey: n.nodeKey,
+        nodeType: n.nodeType,
+        moduleKey: n.moduleKey,
+        parentId: n.parentId,
+        label: n.label,
+        iconKey: n.iconKey,
+        sortOrder: n.sortOrder,
+        enabled: n.enabled,
+        collapsedByDefault: n.collapsedByDefault,
+        metadata: n.metadata,
+      )).toList();
+
+      final controller = ThqWorkspaceCustomizationController(
+        appScope: 'client',
+        allNodes: thqNodes,
+        initialPreferences: prefs,
+      );
+
+      if (!mounted) return;
+      await showThqWorkspaceCustomizationDialog(
+        context: context,
+        controller: controller,
+        onSave: (updated) => navService.saveUserPreferences(updated),
+      );
+    } catch (e) {
+      if (mounted) {
+        ThqNotify.error(context, 'Customization Error', message: '$e');
+      }
+    }
   }
 
   Future<void> _save() async {
@@ -270,7 +318,60 @@ class _BusinessSettingsScreenState extends State<BusinessSettingsScreen> {
                 ),
               ]),
               const SizedBox(height: 16),
-              _section('Sales & POS', [
+              _section('Sales & Purchases', [
+                SwitchListTile(
+                  title: const Text('Show standalone New Sale'),
+                  subtitle: const Text(
+                    'Display standalone New Sale button. Material Yard businesses can disable this to create sales exclusively from outward loads.',
+                  ),
+                  value: _value('sales.show_standalone_new', true),
+                  onChanged: !_canManage
+                      ? null
+                      : (v) => setState(
+                          () => _settings['sales.show_standalone_new'] = v,
+                        ),
+                ),
+                SwitchListTile(
+                  title: const Text('Show standalone New Purchase'),
+                  subtitle: const Text(
+                    'Display standalone New Purchase button. Material Yard businesses can disable this to create purchases exclusively from inward loads.',
+                  ),
+                  value: _value('purchases.show_standalone_new', true),
+                  onChanged: !_canManage
+                      ? null
+                      : (v) => setState(
+                          () => _settings['purchases.show_standalone_new'] = v,
+                        ),
+                ),
+                DropdownButtonFormField<String>(
+                  initialValue: _value('sales.preferred_entry', 'standard'),
+                  decoration: const InputDecoration(
+                    labelText: 'Preferred transaction entry',
+                    border: OutlineInputBorder(),
+                    helperText:
+                        'Controls primary navigation preference for sales and purchase workflows.',
+                  ),
+                  items: const [
+                    DropdownMenuItem(
+                      value: 'standard',
+                      child: Text('Standard (Sales / Purchases Register)'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'material_yard',
+                      child: Text('Material Yard (Load-Linked Billing)'),
+                    ),
+                  ],
+                  onChanged: !_canManage
+                      ? null
+                      : (v) {
+                          if (v != null) {
+                            setState(
+                              () => _settings['sales.preferred_entry'] = v,
+                            );
+                          }
+                        },
+                ),
+                const SizedBox(height: 12),
                 SwitchListTile(
                   title: const Text('Tax-inclusive selling prices'),
                   subtitle: const Text(
@@ -421,6 +522,17 @@ class _BusinessSettingsScreenState extends State<BusinessSettingsScreen> {
               ]),
               const SizedBox(height: 16),
               _section('Customization', [
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.dashboard_customize_outlined),
+                  title: const Text('Workspace & Navigation'),
+                  subtitle: const Text(
+                    'Customize navigation menus, pin favorites, toggle visible modules, and adjust table density.',
+                  ),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: _openWorkspaceCustomization,
+                ),
+                const Divider(),
                 ListTile(
                   contentPadding: EdgeInsets.zero,
                   leading: const Icon(Icons.tune_outlined),

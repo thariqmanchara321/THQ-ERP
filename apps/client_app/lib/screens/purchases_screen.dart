@@ -41,6 +41,7 @@ class _PurchasesScreenState extends State<PurchasesScreen> {
   int _purchaseGeneration = 0;
 
   bool get _canManage => widget.session.hasPermission('purchases.manage');
+  bool get _showStandaloneNew => widget.session.showStandaloneNewPurchase;
 
   @override
   void initState() {
@@ -50,6 +51,7 @@ class _PurchasesScreenState extends State<PurchasesScreen> {
     _creating =
         widget.startInCreate &&
         _canManage &&
+        _showStandaloneNew &&
         LocationScopeService.selectedLocationId.value != null;
   }
 
@@ -57,7 +59,7 @@ class _PurchasesScreenState extends State<PurchasesScreen> {
     if (!mounted) return;
     setState(() {
       _load();
-      if (widget.startInCreate && _canManage) {
+      if (widget.startInCreate && _canManage && _showStandaloneNew) {
         _creating = LocationScopeService.selectedLocationId.value != null;
       }
     });
@@ -232,7 +234,7 @@ class _PurchasesScreenState extends State<PurchasesScreen> {
                   onPressed: _refresh,
                   icon: const Icon(Icons.refresh_rounded, size: 19),
                 ),
-                if (_canManage && !widget.historyOnly) ...[
+                if (_canManage && !widget.historyOnly && _showStandaloneNew) ...[
                   const SizedBox(width: 4),
                   FilledButton.icon(
                     onPressed: _newPurchase,
@@ -288,7 +290,7 @@ class _PurchasesScreenState extends State<PurchasesScreen> {
                             fontWeight: FontWeight.w600,
                           ),
                         ),
-                        if (_canManage && !widget.historyOnly) ...[
+                        if (_canManage && !widget.historyOnly && _showStandaloneNew) ...[
                           const SizedBox(height: 10),
                           FilledButton.icon(
                             onPressed: _newPurchase,
@@ -431,7 +433,10 @@ class _PurchasesScreenState extends State<PurchasesScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      purchase.number,
+                      Purchase.cleanTrackingNumber(
+                        purchase.number,
+                        fallbackPrefix: 'PUR',
+                      ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
@@ -539,9 +544,11 @@ class NewPurchaseScreen extends StatefulWidget {
   final String? initialVariantId;
   final double? initialQuantity;
   final String? initialUnitCode;
+  final double? initialUnitPrice;
   final String? initialSupplierInvoiceNumber;
   final String? initialNotes;
   final String? materialLoadId;
+  final DateTime? loadUpdatedAt;
 
   const NewPurchaseScreen({
     super.key,
@@ -554,9 +561,11 @@ class NewPurchaseScreen extends StatefulWidget {
     this.initialVariantId,
     this.initialQuantity,
     this.initialUnitCode,
+    this.initialUnitPrice,
     this.initialSupplierInvoiceNumber,
     this.initialNotes,
     this.materialLoadId,
+    this.loadUpdatedAt,
   });
 
   @override
@@ -768,6 +777,7 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
             initialVariantId: material.variantId,
             initialUnitCode: requestedUnit,
             initialQuantity: quantity,
+            initialUnitPrice: widget.initialUnitPrice,
           ),
         );
         if (line != null && mounted) {
@@ -782,8 +792,9 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
           product: product,
           unit: unit,
           quantity: quantity,
-          unitCost:
-              unit?.purchaseCostFor(product.costPrice) ?? product.costPrice,
+          unitCost: widget.initialUnitPrice != null && widget.initialUnitPrice! > 0
+              ? widget.initialUnitPrice!
+              : (unit?.purchaseCostFor(product.costPrice) ?? product.costPrice),
           discount: 0,
           taxRate: product.taxRate,
         ),
@@ -1148,6 +1159,7 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
         notes: _notesController.text,
         locationId: widget.locationId,
         materialLoadId: widget.materialLoadId,
+        loadUpdatedAt: widget.loadUpdatedAt,
       );
 
       final createdPurchaseIdRawId =
@@ -1315,6 +1327,10 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
                           child: Column(
                             children: [
                               _documentHeader(),
+                              if (widget.materialLoadId != null) ...[
+                                const SizedBox(height: 10),
+                                _materialLoadNotice(),
+                              ],
                               const SizedBox(height: 10),
                               KeyedSubtree(
                                 key: _detailsSectionKey,
@@ -1358,6 +1374,81 @@ class _NewPurchaseScreenState extends State<NewPurchaseScreen> {
         ),
       ),
       body: content,
+    );
+  }
+
+  Widget _materialLoadNotice() {
+    if (widget.materialLoadId == null) return const SizedBox.shrink();
+    final scheme = Theme.of(context).colorScheme;
+    final totalQty = _lines.fold<double>(0.0, (sum, l) => sum + l.quantity);
+    final hasQtyDivergence = widget.initialQuantity != null &&
+        (totalQty - widget.initialQuantity!).abs() > 0.001;
+    final hasSupplierDivergence = widget.initialSupplierId != null &&
+        _supplierId != widget.initialSupplierId;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerHighest.withValues(alpha: 0.35),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: (hasQtyDivergence || hasSupplierDivergence)
+              ? Colors.amber.shade700
+              : scheme.outlineVariant,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                (hasQtyDivergence || hasSupplierDivergence)
+                    ? Icons.warning_amber_rounded
+                    : Icons.link_rounded,
+                size: 18,
+                color: (hasQtyDivergence || hasSupplierDivergence)
+                    ? Colors.amber.shade800
+                    : scheme.primary,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Linked Material Load: ${widget.materialLoadId}',
+                  style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: scheme.primaryContainer,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: const Text('Draft Billing (Editable)', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            'All billing lines, rates, quantities, taxes, and supplier details are editable before final posting. Changes will post to the authoritative purchase invoice without rewriting physical load measurements.',
+            style: TextStyle(fontSize: 12),
+          ),
+          if (hasQtyDivergence) ...[
+            const SizedBox(height: 4),
+            Text(
+              '⚠️ Invoiced quantity ($totalQty) differs from physical load measurement (${widget.initialQuantity} ${widget.initialUnitCode ?? ''}).',
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.amber.shade900),
+            ),
+          ],
+          if (hasSupplierDivergence) ...[
+            const SizedBox(height: 4),
+            Text(
+              '⚠️ Billing supplier diverged from ticket supplier. Divergence audit event will be recorded on posting.',
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.amber.shade900),
+            ),
+          ],
+        ],
+      ),
     );
   }
 
@@ -2057,6 +2148,7 @@ class _AddPurchaseItemDialog extends StatefulWidget {
   final String? initialVariantId;
   final String? initialUnitCode;
   final double? initialQuantity;
+  final double? initialUnitPrice;
 
   const _AddPurchaseItemDialog({
     required this.products,
@@ -2064,6 +2156,7 @@ class _AddPurchaseItemDialog extends StatefulWidget {
     this.initialVariantId,
     this.initialUnitCode,
     this.initialQuantity,
+    this.initialUnitPrice,
   });
 
   @override
@@ -2162,10 +2255,14 @@ class _AddPurchaseItemDialogState extends State<_AddPurchaseItemDialog> {
           _unitId = unit.unitId;
         }
       }
-      _costController.text =
-          (_selectedUnit?.purchaseCostFor(_product!.costPrice) ??
-                  _product!.costPrice)
-              .toStringAsFixed(4);
+      if (widget.initialUnitPrice != null && widget.initialUnitPrice! > 0) {
+        _costController.text = widget.initialUnitPrice!.toStringAsFixed(4);
+      } else {
+        _costController.text =
+            (_selectedUnit?.purchaseCostFor(_product!.costPrice) ??
+                    _product!.costPrice)
+                .toStringAsFixed(4);
+      }
       _sellingPriceController.text =
           _product?.sellingPrice.toStringAsFixed(2) ?? '';
       if (_product?.trackingMode == 'serial') {

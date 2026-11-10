@@ -172,4 +172,4 @@ begin
  select owed+coalesce(sum(c.amount-private.load_cost_paid_v630(c.id)),0) into owed from public.material_load_costs_v630 c join public.aggregate_loads_v617 l on l.id=c.load_id and l.tenant_id=c.tenant_id where c.tenant_id=p_tenant_id and c.status='posted' and c.staff_id is null and private.erp_document_scope_allowed(p_tenant_id,l.location_id,p_location_id,'view');
  return result||jsonb_build_object('staff_and_load_expenses',extra,'staff_and_load_payables',owed,'payables',coalesce((result->>'payables')::numeric,0)+owed,'expense_count',coalesce((result->>'expense_count')::bigint,0)+extra_count,'expenses',coalesce((result->>'expenses')::numeric,0)+extra,'net_profit',coalesce((result->>'net_profit')::numeric,0)-extra);
 end $$;
-
+;

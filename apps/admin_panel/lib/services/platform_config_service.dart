@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/platform_models.dart';
@@ -294,13 +296,24 @@ class PlatformConfigService {
     required bool mandatory,
     required String releaseNotes,
     required String downloadUrl,
+    String channel = 'stable',
+    int packageSizeBytes = 0,
+    String? sha256Checksum,
+    String? publisherSignature,
+    String? minSupportedVersion,
+    int rolloutPercentage = 100,
+    String targetType = 'all',
+    List<String>? targetTenantIds,
+    List<String>? targetStoreIds,
+    List<String>? targetDeviceIds,
   }) async {
     await _supabase.rpc(
-      'platform_app_release_save_v4',
+      'platform_app_release_save_v820',
       params: {
         'p_id': id,
         'p_app_key': appKey,
         'p_platform': platform,
+        'p_channel': channel,
         'p_version': version,
         'p_build_number': buildNumber,
         'p_status': status,
@@ -308,8 +321,112 @@ class PlatformConfigService {
         'p_mandatory': mandatory,
         'p_release_notes': releaseNotes,
         'p_download_url': downloadUrl,
+        'p_package_size_bytes': packageSizeBytes,
+        'p_sha256_checksum': sha256Checksum,
+        'p_publisher_signature': publisherSignature,
+        'p_min_supported_version': minSupportedVersion,
+        'p_rollout_percentage': rolloutPercentage,
+        'p_target_type': targetType,
+        'p_target_tenant_ids': targetTenantIds,
+        'p_target_store_ids': targetStoreIds,
+        'p_target_device_ids': targetDeviceIds,
       },
     );
+  }
+
+  Future<Map<String, dynamic>> previewReleaseTargets({
+    required String appKey,
+    String platform = 'windows',
+    String channel = 'stable',
+    String targetType = 'all',
+    List<String>? targetTenantIds,
+    List<String>? targetStoreIds,
+    List<String>? targetDeviceIds,
+  }) async {
+    final result = await _supabase.rpc(
+      'platform_release_preview_targets_v820',
+      params: {
+        'p_app_key': appKey,
+        'p_platform': platform,
+        'p_channel': channel,
+        'p_target_type': targetType,
+        'p_target_tenant_ids': targetTenantIds,
+        'p_target_store_ids': targetStoreIds,
+        'p_target_device_ids': targetDeviceIds,
+      },
+    );
+    return result is Map ? Map<String, dynamic>.from(result) : <String, dynamic>{};
+  }
+
+  Future<Map<String, dynamic>> getTargetingCatalog() async {
+    final result = await _supabase.rpc('platform_targeting_catalog_v820');
+    return result is Map ? Map<String, dynamic>.from(result) : <String, dynamic>{};
+  }
+
+  Future<String> uploadReleaseArtifact({
+    required String fileName,
+    required List<int> bytes,
+    String contentType = 'application/octet-stream',
+  }) async {
+    final path = 'installers/$fileName';
+    await _supabase.storage.from('thq-releases').uploadBinary(
+      path,
+      Uint8List.fromList(bytes),
+      fileOptions: FileOptions(contentType: contentType, upsert: true),
+    );
+    return _supabase.storage.from('thq-releases').getPublicUrl(path);
+  }
+
+  Future<void> setAppReleaseStatus(String id, String status) async {
+    await _supabase.rpc(
+      'platform_app_release_set_status_v820',
+      params: {
+        'p_id': id,
+        'p_status': status,
+      },
+    );
+  }
+
+  Future<Map<String, dynamic>> checkAppReleaseDiscovery({
+    required String appKey,
+    required String platform,
+    required String channel,
+    required String currentVersion,
+    required int currentBuild,
+    String? deviceId,
+  }) async {
+    final result = await _supabase.rpc(
+      'app_release_check_v820',
+      params: {
+        'p_app_key': appKey,
+        'p_platform': platform,
+        'p_channel': channel,
+        'p_current_version': currentVersion,
+        'p_current_build': currentBuild,
+        'p_device_id': deviceId,
+      },
+    );
+    return result is Map ? Map<String, dynamic>.from(result) : <String, dynamic>{};
+  }
+
+  Future<List<Map<String, dynamic>>> getAppUpdateLogs({
+    int limit = 100,
+    int offset = 0,
+    String? status,
+    String? appKey,
+  }) async {
+    final result = await _supabase.rpc(
+      'platform_app_update_logs_list_v820',
+      params: {
+        'p_limit': limit,
+        'p_offset': offset,
+        'p_status': status,
+        'p_app_key': appKey,
+      },
+    );
+    return (result as List? ?? const [])
+        .map((row) => Map<String, dynamic>.from(row as Map))
+        .toList();
   }
 
   Future<List<Map<String, dynamic>>> getDeviceVersions() async {

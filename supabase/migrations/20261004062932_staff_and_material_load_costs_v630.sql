@@ -906,3 +906,4 @@ begin
   if f.nspname='public' then execute format('grant execute on function %s to authenticated',f.signature);end if;
  end loop;
 end $security$;
+;

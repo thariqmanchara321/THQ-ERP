@@ -14,7 +14,10 @@ void main() {
     ]);
     expect(() => parseTrackingBatches('A=1', 2), throwsFormatException);
     expect(() => parseTrackingBatches('A=1\na=1', 2), throwsFormatException);
-    expect(() => parseTrackingBatches('A=1|2027-02-30', 1), throwsFormatException);
+    expect(
+      () => parseTrackingBatches('A=1|2027-02-30', 1),
+      throwsFormatException,
+    );
     expect(() => parseTrackingBatches('A=NaN', 1), throwsFormatException);
     expect(parseTrackingBatches('', 0), isEmpty);
   });

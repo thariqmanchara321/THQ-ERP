@@ -60,11 +60,15 @@ class ExpenseCategory {
   final String id;
   final String name;
   final bool active;
+  final String? description;
+  final int expenseCount;
 
   const ExpenseCategory({
     required this.id,
     required this.name,
     required this.active,
+    this.description,
+    this.expenseCount = 0,
   });
 
   factory ExpenseCategory.fromMap(Map<String, dynamic> map) {
@@ -72,6 +76,8 @@ class ExpenseCategory {
       id: map['category_id']?.toString() ?? map['id']?.toString() ?? '',
       name: map['category_name']?.toString() ?? map['name']?.toString() ?? '',
       active: map['active'] != false,
+      description: map['description']?.toString(),
+      expenseCount: int.tryParse(map['expense_count']?.toString() ?? '') ?? 0,
     );
   }
 }

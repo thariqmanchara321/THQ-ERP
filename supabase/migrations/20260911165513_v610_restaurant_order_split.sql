@@ -433,4 +433,4 @@ revoke all on function public.restaurant_order_split_v610(
 
 grant execute on function public.restaurant_order_split_v610(
   uuid, uuid, uuid, uuid, jsonb, integer, text
-) to authenticated, service_role;
+) to authenticated, service_role;;

@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:thq_ui/thq_ui.dart';
 import 'package:erp_core/erp_core.dart';
 
+import '../models/app_menu_node.dart';
 import '../models/client_session.dart';
+import '../services/navigation_service.dart';
 import '../services/pos_completion_service.dart';
 import '../services/pos_hardware_service.dart';
 import '../services/pos_local_backup_service.dart';
@@ -235,6 +237,52 @@ class _PosSettingsScreenState extends State<PosSettingsScreen> {
   void _message(String text) {
     if (!mounted) return;
     ThqNotify.showSnackBar(context, SnackBar(content: Text(text)));
+  }
+
+  Future<void> _openWorkspaceCustomization() async {
+    final navService = NavigationService();
+    try {
+      final results = await Future.wait([
+        navService.load(
+          tenantId: _tenantId,
+          appKey: 'pos',
+        ),
+        navService.loadUserPreferences('pos'),
+      ]);
+      final nodes = results[0] as List<AppMenuNode>;
+      final prefs = results[1] as ThqUserUiPreferences;
+
+      final thqNodes = nodes.map((n) => ThqNavigationNode(
+        id: n.id,
+        nodeKey: n.nodeKey,
+        nodeType: n.nodeType,
+        moduleKey: n.moduleKey,
+        parentId: n.parentId,
+        label: n.label,
+        iconKey: n.iconKey,
+        sortOrder: n.sortOrder,
+        enabled: n.enabled,
+        collapsedByDefault: n.collapsedByDefault,
+        metadata: n.metadata,
+      )).toList();
+
+      final controller = ThqWorkspaceCustomizationController(
+        appScope: 'pos',
+        allNodes: thqNodes,
+        initialPreferences: prefs,
+      );
+
+      if (!mounted) return;
+      await showThqWorkspaceCustomizationDialog(
+        context: context,
+        controller: controller,
+        onSave: (updated) => navService.saveUserPreferences(updated),
+      );
+    } catch (e) {
+      if (mounted) {
+        _message('Unable to open customization: $e');
+      }
+    }
   }
 
   Future<void> _changeStoreBusiness() async {
@@ -527,6 +575,25 @@ class _PosSettingsScreenState extends State<PosSettingsScreen> {
                       'After a successful Cashier Shift close, THQ writes a complete business JSON backup to this folder when enabled.',
                     ),
                     contentPadding: EdgeInsets.zero,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 10),
+            _section(
+              title: 'Workspace & Navigation',
+              icon: Icons.dashboard_customize_outlined,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Customize POS navigation shortcuts, quick actions, role presets, and table density.',
+                  ),
+                  const SizedBox(height: 10),
+                  OutlinedButton.icon(
+                    onPressed: _openWorkspaceCustomization,
+                    icon: const Icon(Icons.dashboard_customize_outlined),
+                    label: const Text('Customize Workspace & Modules'),
                   ),
                 ],
               ),

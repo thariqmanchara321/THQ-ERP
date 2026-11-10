@@ -754,3 +754,4 @@ grant execute on function public.reports_center_catalog_v631(uuid) to authentica
 grant execute on function public.reports_center_run_v631(uuid,text,date,date,uuid,text,integer,integer,jsonb,text,boolean) to authenticated;
 notify pgrst,'reload schema';
 commit;
+;

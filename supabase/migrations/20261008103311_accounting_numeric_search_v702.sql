@@ -1,4 +1,3 @@
--- Numeric account codes, SKUs and payment references remain searchable alongside exact money values.
 create or replace function private.accounting_search_v702(r jsonb,q text) returns boolean
 language plpgsql immutable set search_path='' as $$
 declare n numeric;clean text:=replace(replace(trim(coalesce(q,'')),',',''),'₹','');
@@ -12,4 +11,4 @@ begin
  return strpos(lower(r::text),lower(trim(q)))>0;
 end $$;
 revoke all on function private.accounting_search_v702(jsonb,text) from public,anon,authenticated;
-notify pgrst,'reload schema';
+notify pgrst,'reload schema';;

@@ -65,6 +65,8 @@ class AccountingWorkspaceService {
       'Account',
       'Debit',
       'Credit',
+      'Narration',
+      'Posted At',
     ],
     for (final row in result.rows)
       for (final line in accountingMaps(row['lines']))
@@ -74,9 +76,13 @@ class AccountingWorkspaceService {
           row['entry_number'],
           row['source_type'],
           row['status'],
-          line['account_name'],
+          line['account_code'] != null && line['account_code'].toString().isNotEmpty
+              ? '${line['account_code']} · ${line['account_name'] ?? ''}'
+              : (line['account_name'] ?? ''),
           line['debit'],
           line['credit'],
+          line['description'] ?? row['description'] ?? '',
+          row['created_at'] ?? '',
         ],
   ];
   Future<void> export(

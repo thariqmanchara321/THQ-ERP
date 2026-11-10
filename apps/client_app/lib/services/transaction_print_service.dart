@@ -119,12 +119,13 @@ class TransactionPrintService {
       settingsOverride: settings,
     );
 
-    final invoiceNumber =
+    final rawNumber =
         origin['invoice_number']?.toString().trim().isNotEmpty == true
         ? origin['invoice_number'].toString().trim()
         : origin['local_number']?.toString().trim().isNotEmpty == true
         ? origin['local_number'].toString().trim()
         : sale.saleNumber;
+    final invoiceNumber = _cleanInvoiceNumber(rawNumber);
 
     await _invoicePdf.printBytes(bytes, name: invoiceNumber);
 
@@ -439,5 +440,29 @@ class TransactionPrintService {
         ],
       ),
     );
+  }
+
+  String _cleanInvoiceNumber(String raw) {
+    final trimmed = raw.trim();
+    if (trimmed.isEmpty) return '';
+    final docMatch = RegExp(
+      r'(?:^|[-_])((?:INV|EST|PUR|EXP|BILL|SAL|TAX|RET)[-_]\d+)',
+      caseSensitive: false,
+    ).firstMatch(trimmed);
+    if (docMatch != null) {
+      return docMatch.group(1)!.toUpperCase();
+    }
+    final parts = trimmed.split('-');
+    if (parts.length >= 3) {
+      final last = parts.last.trim();
+      final prev = parts[parts.length - 2].trim();
+      if (RegExp(r'^\d+$').hasMatch(last) && RegExp(r'^[A-Za-z]+$').hasMatch(prev)) {
+        return '$prev-$last'.toUpperCase();
+      }
+      if (RegExp(r'^\d+$').hasMatch(last)) {
+        return 'INV-$last';
+      }
+    }
+    return trimmed;
   }
 }

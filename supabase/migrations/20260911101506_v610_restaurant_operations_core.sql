@@ -581,4 +581,4 @@ revoke all on function public.restaurant_order_add_items_v610(uuid,uuid,uuid,jso
 grant execute on function public.restaurant_waiters_list_v610(uuid,uuid,uuid) to authenticated, service_role;
 grant execute on function public.restaurant_order_create_v610(uuid,uuid,uuid,text,uuid,uuid,integer,text,text,jsonb,integer,uuid,text) to authenticated, service_role;
 grant execute on function public.restaurant_order_update_v610(uuid,uuid,uuid,uuid,uuid,integer,uuid,text,text,text) to authenticated, service_role;
-grant execute on function public.restaurant_order_add_items_v610(uuid,uuid,uuid,jsonb) to authenticated, service_role;
+grant execute on function public.restaurant_order_add_items_v610(uuid,uuid,uuid,jsonb) to authenticated, service_role;;

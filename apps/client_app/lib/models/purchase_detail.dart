@@ -1,4 +1,5 @@
 import 'package:erp_core/erp_core.dart';
+import 'purchase.dart';
 
 class PurchaseDetail {
   final String purchaseId;
@@ -91,7 +92,12 @@ class PurchaseDetail {
 
     return PurchaseDetail(
       purchaseId: purchase['purchase_id']?.toString() ?? '',
-      purchaseNumber: purchase['purchase_number']?.toString() ?? '',
+      purchaseNumber: Purchase.cleanTrackingNumber(
+        (purchase['purchase_number'] ?? purchase['invoice_number'])
+                ?.toString() ??
+            '',
+        fallbackPrefix: 'PUR',
+      ),
       supplierId: purchase['supplier_id']?.toString() ?? '',
       supplierName: purchase['supplier_name']?.toString() ?? '',
       supplierTaxNumber: purchase['supplier_tax_number']?.toString(),

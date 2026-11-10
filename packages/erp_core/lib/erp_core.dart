@@ -10,3 +10,10 @@ export 'src/numeric_zero_auto_select.dart';
 export 'src/desktop_release_status.dart';
 
 export 'src/tracking_allocations.dart';
+export 'src/software_update_models.dart';
+export 'src/software_update_verifier.dart';
+export 'src/software_update_downloader.dart';
+export 'src/module_customization_models.dart';
+export 'src/material_measurement_engine.dart';
+export 'src/windows_update_coordinator.dart';
+export 'src/erp_update_readiness_service.dart';

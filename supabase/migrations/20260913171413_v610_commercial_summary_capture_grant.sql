@@ -1,0 +1,1 @@
+revoke all on function public.sales_commercial_summary_capture_v610(uuid,uuid,uuid,uuid,text,uuid,text,jsonb) from public; grant execute on function public.sales_commercial_summary_capture_v610(uuid,uuid,uuid,uuid,text,uuid,text,jsonb) to authenticated,service_role;;

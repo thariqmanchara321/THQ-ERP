@@ -5,26 +5,27 @@
   #error OutputDir was not provided.
 #endif
 #ifndef AppVersion
-  #define AppVersion "8.1.0"
+  #define AppVersion "8.2.2"
 #endif
 #ifndef BuildNumber
-  #define BuildNumber "16"
+  #define BuildNumber "19"
 #endif
 
 [Setup]
-AppId={{16779573-A282-46C5-A098-3419C1D8BFD6}}
+AppId={{16779573-A282-46C5-A098-3419C1D8BFD6}
 AppName=THQ POS
 AppVersion={#AppVersion}
 AppVerName=THQ POS {#AppVersion} (Build {#BuildNumber})
 AppPublisher=THQ
-DefaultDirName={autopf}\THQ ERP\POS
+DefaultDirName={autopf}\THQ\POS
 DefaultGroupName=THQ ERP
 DisableProgramGroupPage=yes
+DirExistsWarning=no
 PrivilegesRequired=admin
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 OutputDir={#OutputDir}
-OutputBaseFilename=THQ-POS-v6.2.8-build13-windows-x64
+OutputBaseFilename=THQ-POS-v{#AppVersion}-build{#BuildNumber}-windows-x64
 Compression=lzma2/max
 SolidCompression=yes
 WizardStyle=modern

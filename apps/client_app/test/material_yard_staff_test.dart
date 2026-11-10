@@ -272,17 +272,17 @@ void main() {
     await _openCost(tester, monthly: false, changed: (value) => saved = value);
     expect(
       tester
-          .widget<TextFormField>(_field('Cost per unit (editable)'))
+          .widget<TextFormField>(_field('Rate per trip *'))
           .controller!
           .text,
       '700',
     );
-    await tester.tap(find.text('Save'));
+    await tester.tap(find.widgetWithText(FilledButton, 'Save Expense'));
     await tester.pumpAndSettle();
     expect(saved, hasLength(1));
     expect(saved!.single, containsPair('staff_id', 'staff'));
     expect(saved!.single, containsPair('staff_mode', 'extra_wage'));
-    expect(saved!.single, containsPair('amount', 700));
+    expect(saved!.single, containsPair('amount', 700.0));
     expect(saved!.single['id'], isNotEmpty);
   });
 
@@ -291,23 +291,28 @@ void main() {
   ) async {
     List<Map<String, dynamic>>? saved;
     await _openCost(tester, monthly: true, changed: (value) => saved = value);
-    await tester.ensureVisible(_field('Cost per unit (editable)'));
-    await tester.enterText(_field('Cost per unit (editable)'), '1000');
-    await tester.ensureVisible(_field('Pay on load confirmation'));
-    await tester.enterText(_field('Pay on load confirmation'), '100');
-    await tester.tap(find.text('Save'));
+    await tester.ensureVisible(_field('Expense Amount *'));
+    await tester.enterText(_field('Expense Amount *'), '1000');
+    await tester.ensureVisible(find.text('Partially Paid'));
+    await tester.tap(find.text('Partially Paid'));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(_field('Amount Paid *'));
+    await tester.enterText(_field('Amount Paid *'), '100');
+    await tester.tap(find.widgetWithText(FilledButton, 'Save Expense'));
     await tester.pumpAndSettle();
     expect(saved, isNull);
     expect(
       find.textContaining('Salary allocation requires monthly staff'),
       findsOneWidget,
     );
-    await tester.enterText(_field('Pay on load confirmation'), '0');
-    await tester.tap(find.text('Save'));
+    await tester.ensureVisible(find.text('Unpaid'));
+    await tester.tap(find.text('Unpaid'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, 'Save Expense'));
     await tester.pumpAndSettle();
     expect(saved!.single, containsPair('staff_mode', 'salary_allocation'));
-    expect(saved!.single, containsPair('amount', 1000));
-    expect(saved!.single, containsPair('initial_payment', 0));
+    expect(saved!.single, containsPair('amount', 1000.0));
+    expect(saved!.single, containsPair('initial_payment', 0.0));
   });
 
   testWidgets('customer charge requires its invoice service classification', (
@@ -315,12 +320,15 @@ void main() {
   ) async {
     var changed = false;
     await _openCost(tester, monthly: false, changed: (_) => changed = true);
+    await tester.ensureVisible(find.text('Charge Customer'));
+    await tester.tap(find.text('Charge Customer'));
+    await tester.pumpAndSettle();
     await tester.ensureVisible(_field('Amount charged to customer before GST'));
     await tester.enterText(
       _field('Amount charged to customer before GST'),
       '900',
     );
-    await tester.tap(find.text('Save'));
+    await tester.tap(find.widgetWithText(FilledButton, 'Save Expense'));
     await tester.pumpAndSettle();
     expect(changed, isFalse);
     expect(find.textContaining('Select or create the service'), findsOneWidget);

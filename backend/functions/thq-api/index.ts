@@ -378,6 +378,10 @@ Deno.serve(async (req) => {
           return json({ success: false, error: 'Unsupported supplier-payments-v2 action.' }, 400)
         }
         break
+      case 'customer-ledger-v2':
+        rpc = 'customers_get_statement_v715'
+        params = { ...params, p_customer_id: payload.customer_id, p_from: payload.from ?? null, p_to: payload.to ?? null, p_location_id: payload.location_id ?? null }
+        break
       case 'supplier-ledger-v2':
         rpc = 'suppliers_get_statement_v484'
         params = { ...params, p_supplier_id: payload.supplier_id, p_from: payload.from ?? null, p_to: payload.to ?? null, p_location_id: payload.location_id ?? null }

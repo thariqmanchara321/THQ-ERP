@@ -51,3 +51,4 @@ begin
   'history',coalesce((select jsonb_agg(to_jsonb(a) order by a.created_at) from public.workforce_audit_v630 a where a.tenant_id=t and a.load_id=load),'[]'::jsonb)
  );
 end $$;
+;

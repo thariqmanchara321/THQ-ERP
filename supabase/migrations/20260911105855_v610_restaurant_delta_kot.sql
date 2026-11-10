@@ -249,4 +249,4 @@ end;
 $$;
 
 revoke all on function public.restaurant_kot_send_v32(uuid, uuid, uuid, text) from public, anon;
-grant execute on function public.restaurant_kot_send_v32(uuid, uuid, uuid, text) to authenticated, service_role;
+grant execute on function public.restaurant_kot_send_v32(uuid, uuid, uuid, text) to authenticated, service_role;;

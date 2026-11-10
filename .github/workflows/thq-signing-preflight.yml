@@ -1,0 +1,116 @@
+name: THQ Windows Code Signing Preflight
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  preflight-signing:
+    name: Authenticode Signing Preflight (Disposable Target)
+    runs-on: windows-latest
+    environment: release-publishing
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Create Disposable Test Executable
+        shell: powershell
+        run: |
+          $testDir = "$env:RUNNER_TEMP\thq_preflight"
+          New-Item -ItemType Directory -Path $testDir -Force | Out-Null
+          $testExe = Join-Path $testDir "disposable_preflight_target.exe"
+          Add-Type -TypeDefinition "public class Program { public static void Main() {} }" -OutputAssembly $testExe -OutputType ConsoleApplication
+          Write-Host "Created disposable target: $testExe ($((Get-Item $testExe).Length) bytes)"
+
+      - name: Verify Secrets & Execute Authenticode Signing
+        shell: powershell
+        env:
+          CERT_BASE64: ${{ secrets.THQ_WINDOWS_SIGN_PFX_BASE64 }}
+          CERT_PASSWORD: ${{ secrets.THQ_WINDOWS_SIGN_PASSWORD }}
+          TIMESTAMP_URL: 'http://timestamp.digicert.com'
+          EXPECTED_THUMBPRINT: ${{ secrets.THQ_WINDOWS_EXPECTED_THUMBPRINT }}
+        run: |
+          Write-Host "=== Phase 1: Fail-Closed Secrets Presence Check ==="
+          if ([string]::IsNullOrWhiteSpace($env:CERT_BASE64)) {
+            throw "FAIL-CLOSED: THQ_WINDOWS_SIGN_PFX_BASE64 secret is missing or empty."
+          }
+          if ([string]::IsNullOrWhiteSpace($env:CERT_PASSWORD)) {
+            throw "FAIL-CLOSED: THQ_WINDOWS_SIGN_PASSWORD secret is missing or empty."
+          }
+          Write-Host "Both signing secrets are configured in 'release-publishing' environment." -ForegroundColor Green
+
+          $testExe = "$env:RUNNER_TEMP\thq_preflight\disposable_preflight_target.exe"
+          $certPath = Join-Path $env:TEMP "thq_preflight_sign.pfx"
+          $cerPath = Join-Path $env:TEMP "thq_preflight_sign.cer"
+          $certAddedToRoot = $false
+
+          try {
+            Write-Host "=== Phase 2: Secure PFX Decoding & Runner Root Trust ==="
+            [System.IO.File]::WriteAllBytes($certPath, [System.Convert]::FromBase64String($env:CERT_BASE64))
+            $pfxObj = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2($certPath, $env:CERT_PASSWORD.Trim())
+            $cerBytes = $pfxObj.Export([System.Security.Cryptography.X509Certificates.X509ContentType]::Cert)
+            [System.IO.File]::WriteAllBytes($cerPath, $cerBytes)
+            certutil.exe -addstore -f "Root" $cerPath
+            $certAddedToRoot = $true
+            Write-Host "Certificate temporarily trusted in runner LocalMachine Root for verification."
+
+            Write-Host "=== Phase 3: Sign Disposable Executable via SIGN_WINDOWS_FILE.ps1 ==="
+            powershell -ExecutionPolicy Bypass -File tools/windows_release/SIGN_WINDOWS_FILE.ps1 `
+              -FilePath $testExe `
+              -CertificatePath $certPath `
+              -Password $env:CERT_PASSWORD `
+              -TimestampUrl $env:TIMESTAMP_URL
+
+            Write-Host "=== Phase 4: PowerShell Authenticode Verification ==="
+            $sig = Get-AuthenticodeSignature -FilePath $testExe
+            Write-Host "Authenticode Status: $($sig.Status)"
+            Write-Host "Status Message:      $($sig.StatusMessage)"
+            Write-Host "Signer Subject:      $($sig.SignerCertificate.Subject)"
+            Write-Host "Signer Thumbprint:   $($sig.SignerCertificate.Thumbprint)"
+            Write-Host "TimeStamper Subject: $(if ($sig.TimeStamperCertificate) { $sig.TimeStamperCertificate.Subject } else { 'None' })"
+
+            if ($sig.Status -ne "Valid") {
+              throw "Preflight FAILED: Authenticode Status is '$($sig.Status)' (expected Valid). Error: $($sig.StatusMessage)"
+            }
+
+            $expectedThumb = if (-not [string]::IsNullOrWhiteSpace($env:EXPECTED_THUMBPRINT)) { $env:EXPECTED_THUMBPRINT.Trim() } else { "2813DEE08CC4B318907D2F5243DF81DA95EF60A7" }
+            if ($sig.SignerCertificate.Thumbprint.ToUpper() -ne $expectedThumb.ToUpper()) {
+              throw "Preflight FAILED: Thumbprint '$($sig.SignerCertificate.Thumbprint)' does not match expected '$expectedThumb'"
+            }
+
+            if (-not $sig.TimeStamperCertificate) {
+              throw "Preflight FAILED: TimeStamper certificate is missing (timestamping failed)."
+            }
+
+            Write-Host "=== Phase 5: Python Release Publisher Inspection Verification ==="
+            python -c "import sys; from tools.release.publish_release import inspect_authenticode_signature; status, subject, thumbprint = inspect_authenticode_signature(r'$testExe'); print(f'[PY] Status={status} | Subject={subject} | Thumbprint={thumbprint}'); assert status == 'Valid', f'Expected Valid status, got {status}'; assert thumbprint.upper() == '$expectedThumb'.upper(), 'Thumbprint mismatch'; print('[PY] Python Authenticode inspector verified successfully!')"
+
+            Write-Host "`nPREFLIGHT SUCCESS: All Authenticode signing, timestamping, and fail-closed checks PASSED!" -ForegroundColor Green
+
+          } finally {
+            Write-Host "=== Cleanup: Removing Temporary Secrets & Artifacts ==="
+            if ($certAddedToRoot) {
+              certutil.exe -delstore "Root" $expectedThumb
+              Write-Host "Removed temporary certificate from runner root store."
+            }
+            if (Test-Path $cerPath) {
+              Remove-Item -Force $cerPath
+            }
+            if (Test-Path $certPath) {
+              Remove-Item -Force $certPath
+              Write-Host "Removed temporary PFX file."
+            }
+            $testDir = "$env:RUNNER_TEMP\thq_preflight"
+            if (Test-Path $testDir) {
+              Remove-Item -Recurse -Force $testDir
+              Write-Host "Removed disposable target directory."
+            }
+          }

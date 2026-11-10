@@ -60,4 +60,4 @@ end;
 $$;
 
 revoke all on function public.restaurant_available_serials_v610(uuid,uuid,uuid,uuid,integer) from public;
-grant execute on function public.restaurant_available_serials_v610(uuid,uuid,uuid,uuid,integer) to authenticated, service_role;
+grant execute on function public.restaurant_available_serials_v610(uuid,uuid,uuid,uuid,integer) to authenticated, service_role;;

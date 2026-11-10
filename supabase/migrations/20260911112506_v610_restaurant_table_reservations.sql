@@ -359,4 +359,4 @@ grant execute on function public.restaurant_table_reservation_clear_v610(
 
 grant execute on function public.restaurant_table_status_set_v610(
   uuid, uuid, uuid, text, text
-) to authenticated, service_role;
+) to authenticated, service_role;;

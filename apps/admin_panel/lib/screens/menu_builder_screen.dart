@@ -404,11 +404,11 @@ class _MenuBuilderScreenState extends State<MenuBuilderScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'Dynamic Client & POS Navigation',
+            'Universal Multi-Scope Navigation Builder',
             style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
           ),
           const Text(
-            'Rename, nest, reorder, hide and role-filter menu groups without changing stable feature IDs.',
+            'Customize, nest, reorder, and role-filter navigation across Business Desktop, POS Desktop, Mobile ERP, Mobile POS, and Admin.',
             style: TextStyle(fontSize: 11),
           ),
           const SizedBox(height: 10),
@@ -442,8 +442,11 @@ class _MenuBuilderScreenState extends State<MenuBuilderScreen> {
               ),
               SegmentedButton<String>(
                 segments: const [
-                  ButtonSegment(value: 'client', label: Text('THQ Business')),
-                  ButtonSegment(value: 'pos', label: Text('THQ POS')),
+                  ButtonSegment(value: 'client', label: Text('Business Desktop')),
+                  ButtonSegment(value: 'pos', label: Text('POS Desktop')),
+                  ButtonSegment(value: 'client_mobile', label: Text('Mobile ERP')),
+                  ButtonSegment(value: 'mobile_pos', label: Text('Mobile POS')),
+                  ButtonSegment(value: 'admin', label: Text('Admin')),
                 ],
                 selected: {_app},
                 onSelectionChanged: (value) async {

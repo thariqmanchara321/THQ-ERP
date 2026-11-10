@@ -64,3 +64,4 @@ begin
  return result||jsonb_build_object('load_costs_recorded',true);
 end $$;
 revoke all on function private.load_sale_items_v630(uuid,uuid,jsonb,date) from public,anon,authenticated;
+;

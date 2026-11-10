@@ -36,3 +36,17 @@ key.properties
 *.dart.before_**.bak
 .thq_patch_backup/
 .thq_patch_backups/
+scratch/
+apps/client_app/test/accounting/output/
+*.pfx
+*.cer
+*.crt
+*.key
+
+# Python
+__pycache__/
+*.py[cod]
+
+# Logs
+*.log
+ci_failed_logs.txt

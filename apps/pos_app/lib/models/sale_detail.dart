@@ -1,3 +1,5 @@
+import 'sale.dart';
+
 class SaleDetail {
   final String saleId;
   final String saleNumber;
@@ -68,7 +70,10 @@ class SaleDetail {
     final paymentsRaw = map['payments'] as List? ?? const [];
     return SaleDetail(
       saleId: sale['sale_id']?.toString() ?? '',
-      saleNumber: sale['sale_number']?.toString() ?? '',
+      saleNumber: Sale.cleanTrackingNumber(
+        (sale['sale_number'] ?? sale['invoice_number'])?.toString() ?? '',
+        fallbackPrefix: 'SAL',
+      ),
       customerId: sale['customer_id']?.toString() ?? '',
       customerName: sale['customer_name']?.toString() ?? '',
       customerTaxNumber: sale['customer_tax_number']?.toString(),
@@ -157,6 +162,12 @@ class SaleGstDetail {
       utgstTotal.abs() > 0.0001 ||
       igstTotal.abs() > 0.0001 ||
       cessTotal.abs() > 0.0001;
+
+  bool get isNonGst => authoritative && taxMode == 'non_gst';
+
+  String get invoiceTitle => isNonGst
+      ? 'INVOICE'
+      : (taxMode == 'bill_of_supply' ? 'BILL OF SUPPLY' : 'TAX INVOICE');
 
   List<SaleGstRateSummary> get rateSummaries {
     final grouped = <String, SaleGstRateSummary>{};

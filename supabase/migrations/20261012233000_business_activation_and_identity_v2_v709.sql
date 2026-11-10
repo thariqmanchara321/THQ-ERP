@@ -43,86 +43,90 @@ as $$
 $$;
 grant execute on function public.current_username() to anon, authenticated, service_role;
 
--- 2. Repair Tenzo Traders identities and memberships
--- Ensure safvan is mapped in Tenzo Traders Main (4854b09a-96e8-43a4-b0f7-8ad179384fad)
-insert into public.user_login_names (user_id, tenant_id, username, auth_email)
-values (
-  'a7289ac9-c5b6-4f23-85ac-c8d67c8ac7f7',
-  '4854b09a-96e8-43a4-b0f7-8ad179384fad',
-  'safvan',
-  'safvan.7e508d4c@login.flexierp.invalid'
-)
-on conflict (user_id, coalesce(tenant_id, '00000000-0000-0000-0000-000000000000'::uuid))
-do update set username = excluded.username, auth_email = excluded.auth_email;
-
--- Ensure thariq has active owner membership and login mapping in Tenzo Traders Main
+-- 2. Repair Tenzo Traders identities and memberships (idempotent & FK safe)
 do $$
 declare
   v_mem_id uuid;
   v_owner_role uuid;
 begin
-  select id into v_mem_id from public.tenant_memberships
-  where tenant_id = '4854b09a-96e8-43a4-b0f7-8ad179384fad'
-    and user_id = 'e37b7d2c-483d-45cf-ab96-3b21701689b6';
-  
-  if v_mem_id is null then
-    insert into public.tenant_memberships (tenant_id, user_id, status)
-    values ('4854b09a-96e8-43a4-b0f7-8ad179384fad', 'e37b7d2c-483d-45cf-ab96-3b21701689b6', 'active')
-    returning id into v_mem_id;
-  end if;
+  if exists (select 1 from public.tenants where id = '4854b09a-96e8-43a4-b0f7-8ad179384fad') then
+    -- Ensure safvan is mapped in Tenzo Traders Main (4854b09a-96e8-43a4-b0f7-8ad179384fad)
+    insert into public.user_login_names (user_id, tenant_id, username, auth_email)
+    values (
+      'a7289ac9-c5b6-4f23-85ac-c8d67c8ac7f7',
+      '4854b09a-96e8-43a4-b0f7-8ad179384fad',
+      'safvan',
+      'safvan.7e508d4c@login.flexierp.invalid'
+    )
+    on conflict (user_id, coalesce(tenant_id, '00000000-0000-0000-0000-000000000000'::uuid))
+    do update set username = excluded.username, auth_email = excluded.auth_email;
 
-  select id into v_owner_role from public.roles
-  where tenant_id = '4854b09a-96e8-43a4-b0f7-8ad179384fad' and key = 'owner';
+    -- Ensure thariq has active owner membership and login mapping in Tenzo Traders Main
+    select id into v_mem_id from public.tenant_memberships
+    where tenant_id = '4854b09a-96e8-43a4-b0f7-8ad179384fad'
+      and user_id = 'e37b7d2c-483d-45cf-ab96-3b21701689b6';
+    
+    if v_mem_id is null then
+      insert into public.tenant_memberships (tenant_id, user_id, status)
+      values ('4854b09a-96e8-43a4-b0f7-8ad179384fad', 'e37b7d2c-483d-45cf-ab96-3b21701689b6', 'active')
+      returning id into v_mem_id;
+    end if;
 
-  if v_owner_role is not null then
-    insert into public.user_roles (tenant_id, membership_id, role_id)
-    values ('4854b09a-96e8-43a4-b0f7-8ad179384fad', v_mem_id, v_owner_role)
-    on conflict do nothing;
+    select id into v_owner_role from public.roles
+    where tenant_id = '4854b09a-96e8-43a4-b0f7-8ad179384fad' and key = 'owner';
+
+    if v_owner_role is not null then
+      insert into public.user_roles (tenant_id, membership_id, role_id)
+      values ('4854b09a-96e8-43a4-b0f7-8ad179384fad', v_mem_id, v_owner_role)
+      on conflict do nothing;
+    end if;
+
+    insert into public.user_login_names (user_id, tenant_id, username, auth_email)
+    values (
+      'e37b7d2c-483d-45cf-ab96-3b21701689b6',
+      '4854b09a-96e8-43a4-b0f7-8ad179384fad',
+      'thariq',
+      'thariq.aa7ca908@login.flexierp.invalid'
+    )
+    on conflict (user_id, coalesce(tenant_id, '00000000-0000-0000-0000-000000000000'::uuid))
+    do update set username = excluded.username, auth_email = excluded.auth_email;
+
+    -- 3. Pre-provision live activation codes for Tenzo Traders Main (BIZ-4854B09A96E8)
+    -- Client Device: Counter 1 accepts 'B5B7FFFE44C1'
+    update public.business_devices
+    set activation_hash = encode(extensions.digest('B5B7FFFE44C1', 'sha256'), 'hex'),
+        activation_expires_at = now() + interval '30 days',
+        status = 'pending',
+        updated_at = now()
+    where id = '91b90421-03f4-42a1-83a2-cba1bc631998'
+      and tenant_id = '4854b09a-96e8-43a4-b0f7-8ad179384fad';
+
+    -- POS Device: accepts 'E6C8AA1199BB'
+    if exists (select 1 from public.business_locations where id = 'edb2454f-149c-421f-8cc1-930158d0e8ba') then
+      insert into public.business_devices (
+        id, tenant_id, location_id, device_code, name, app_type, status,
+        activation_hash, activation_expires_at, allowed_modules
+      )
+      values (
+        'e6c8aa11-99bb-4123-8888-000000000001',
+        '4854b09a-96e8-43a4-b0f7-8ad179384fad',
+        'edb2454f-149c-421f-8cc1-930158d0e8ba',
+        'POS-TENZO1',
+        'Main POS Counter',
+        'pos',
+        'pending',
+        encode(extensions.digest('E6C8AA1199BB', 'sha256'), 'hex'),
+        now() + interval '30 days',
+        '{}'::text[]
+      )
+      on conflict (id) do update set
+        activation_hash = excluded.activation_hash,
+        activation_expires_at = excluded.activation_expires_at,
+        status = 'pending',
+        updated_at = now();
+    end if;
   end if;
 end $$;
-
-insert into public.user_login_names (user_id, tenant_id, username, auth_email)
-values (
-  'e37b7d2c-483d-45cf-ab96-3b21701689b6',
-  '4854b09a-96e8-43a4-b0f7-8ad179384fad',
-  'thariq',
-  'thariq.aa7ca908@login.flexierp.invalid'
-)
-on conflict (user_id, coalesce(tenant_id, '00000000-0000-0000-0000-000000000000'::uuid))
-do update set username = excluded.username, auth_email = excluded.auth_email;
-
--- 3. Pre-provision live activation codes for Tenzo Traders Main (BIZ-4854B09A96E8)
--- Client Device: Counter 1 accepts 'B5B7FFFE44C1'
-update public.business_devices
-set activation_hash = encode(digest('B5B7FFFE44C1', 'sha256'), 'hex'),
-    activation_expires_at = now() + interval '30 days',
-    status = 'pending',
-    updated_at = now()
-where id = '91b90421-03f4-42a1-83a2-cba1bc631998'
-  and tenant_id = '4854b09a-96e8-43a4-b0f7-8ad179384fad';
-
--- POS Device: accepts 'E6C8AA1199BB'
-insert into public.business_devices (
-  id, tenant_id, location_id, device_code, name, app_type, status,
-  activation_hash, activation_expires_at, allowed_modules
-)
-values (
-  'e6c8aa11-99bb-4123-8888-000000000001',
-  '4854b09a-96e8-43a4-b0f7-8ad179384fad',
-  'edb2454f-149c-421f-8cc1-930158d0e8ba',
-  'POS-TENZO1',
-  'Main POS Counter',
-  'pos',
-  'pending',
-  encode(digest('E6C8AA1199BB', 'sha256'), 'hex'),
-  now() + interval '30 days',
-  '{}'::text[]
-)
-on conflict (id) do update set
-  activation_hash = excluded.activation_hash,
-  activation_expires_at = excluded.activation_expires_at,
-  status = 'pending',
-  updated_at = now();
 
 -- 4. Update system_claim_activation_v47 with robust matching
 create or replace function public.system_claim_activation_v47(
@@ -327,7 +331,7 @@ begin
   if nullif(trim(coalesce(p_custom_code, '')), '') is not null then
     v_code := upper(trim(p_custom_code));
   else
-    v_code := upper(substr(encode(gen_random_bytes(6), 'hex'), 1, 12));
+    v_code := upper(substr(encode(extensions.gen_random_bytes(6), 'hex'), 1, 12));
   end if;
 
   if p_device_id is not null and exists (
@@ -338,7 +342,7 @@ begin
     from public.business_devices where id = v_device_id;
 
     update public.business_devices
-    set activation_hash = encode(digest(v_code, 'sha256'), 'hex'),
+    set activation_hash = encode(extensions.digest(v_code, 'sha256'), 'hex'),
         activation_expires_at = now() + interval '30 days',
         status = 'pending',
         location_id = p_location_id,
@@ -362,7 +366,7 @@ begin
       v_dev_name,
       p_app_type,
       'pending',
-      encode(digest(v_code, 'sha256'), 'hex'),
+      encode(extensions.digest(v_code, 'sha256'), 'hex'),
       now() + interval '30 days',
       '{}'::text[]
     );
@@ -429,7 +433,7 @@ begin
 
   -- Pre-provision Client device
   v_client_id := gen_random_uuid();
-  v_client_code := upper(substr(encode(gen_random_bytes(6), 'hex'), 1, 12));
+  v_client_code := upper(substr(encode(extensions.gen_random_bytes(6), 'hex'), 1, 12));
   insert into public.business_devices (
     id, tenant_id, location_id, device_code, name, app_type, status,
     activation_hash, activation_expires_at, allowed_modules
@@ -442,14 +446,14 @@ begin
     trim(p_name) || ' Client PC',
     'client',
     'pending',
-    encode(digest(v_client_code, 'sha256'), 'hex'),
+    encode(extensions.digest(v_client_code, 'sha256'), 'hex'),
     now() + interval '30 days',
     '{}'::text[]
   );
 
   -- Pre-provision POS device
   v_pos_id := gen_random_uuid();
-  v_pos_code := upper(substr(encode(gen_random_bytes(6), 'hex'), 1, 12));
+  v_pos_code := upper(substr(encode(extensions.gen_random_bytes(6), 'hex'), 1, 12));
   insert into public.business_devices (
     id, tenant_id, location_id, device_code, name, app_type, status,
     activation_hash, activation_expires_at, allowed_modules
@@ -462,7 +466,7 @@ begin
     trim(p_name) || ' POS Counter',
     'pos',
     'pending',
-    encode(digest(v_pos_code, 'sha256'), 'hex'),
+    encode(extensions.digest(v_pos_code, 'sha256'), 'hex'),
     now() + interval '30 days',
     '{}'::text[]
   );
@@ -577,7 +581,7 @@ begin
 
   -- Pre-provision initial Client Device with activation code
   v_client_dev_id := gen_random_uuid();
-  v_client_act_code := upper(substr(encode(gen_random_bytes(6), 'hex'), 1, 12));
+  v_client_act_code := upper(substr(encode(extensions.gen_random_bytes(6), 'hex'), 1, 12));
   insert into public.business_devices (
     id, tenant_id, location_id, device_code, name, app_type, status,
     activation_hash, activation_expires_at, allowed_modules
@@ -590,14 +594,14 @@ begin
     'Main Client PC',
     'client',
     'pending',
-    encode(digest(v_client_act_code, 'sha256'), 'hex'),
+    encode(extensions.digest(v_client_act_code, 'sha256'), 'hex'),
     now() + interval '30 days',
     '{}'::text[]
   );
 
   -- Pre-provision initial POS Device with activation code
   v_pos_dev_id := gen_random_uuid();
-  v_pos_act_code := upper(substr(encode(gen_random_bytes(6), 'hex'), 1, 12));
+  v_pos_act_code := upper(substr(encode(extensions.gen_random_bytes(6), 'hex'), 1, 12));
   insert into public.business_devices (
     id, tenant_id, location_id, device_code, name, app_type, status,
     activation_hash, activation_expires_at, allowed_modules
@@ -610,7 +614,7 @@ begin
     'Main POS Counter',
     'pos',
     'pending',
-    encode(digest(v_pos_act_code, 'sha256'), 'hex'),
+    encode(extensions.digest(v_pos_act_code, 'sha256'), 'hex'),
     now() + interval '30 days',
     '{}'::text[]
   );

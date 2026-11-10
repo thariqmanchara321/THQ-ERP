@@ -31,8 +31,11 @@ class SaleInvoiceContext {
           })
           .toList(growable: false);
 
-  void checkCustomer(String customerId) {
-    if (lockedCustomerId != null && lockedCustomerId != customerId) {
+  bool isCustomerDivergent(String customerId) =>
+      lockedCustomerId != null && lockedCustomerId != customerId;
+
+  void checkCustomer(String customerId, {bool strict = true}) {
+    if (strict && lockedCustomerId != null && lockedCustomerId != customerId) {
       throw StateError(
         'Select the customer recorded on the confirmed Load Ticket.',
       );

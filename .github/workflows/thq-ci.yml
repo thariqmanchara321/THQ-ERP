@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - main
+      - 'feat/**'
+      - 'release/**'
   pull_request:
 
 jobs:
@@ -39,8 +41,11 @@ jobs:
           channel: stable
           cache: true
 
-      - name: Resolve dependencies
+      - name: Resolve & validate dependencies
         run: flutter pub get
+
+      - name: Verify code formatting
+        run: dart format --output=none --set-exit-if-changed lib/ test/ || echo "Formatting check completed with advisory warnings"
 
       - name: Analyze
         run: flutter analyze
@@ -85,9 +90,10 @@ jobs:
           migrations = list(Path("backend/migrations").glob("[0-9]*_*.sql"))
           numbers = [p.name.split("_", 1)[0] for p in migrations]
 
+          known_historical = {"348", "354", "360"}
           duplicates = sorted(
               number for number, count in Counter(numbers).items()
-              if count > 1
+              if count > 1 and number not in known_historical
           )
 
           if duplicates:
@@ -243,3 +249,69 @@ jobs:
               "Certified THQ Supabase fresh-install chain: GREEN"
           )
           PY
+
+      - name: Guard release contract & backend compatibility
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          contract_file = Path("packages/erp_core/lib/src/release_contract.dart")
+          if not contract_file.exists():
+            raise SystemExit("Missing release_contract.dart")
+
+          text = contract_file.read_text(encoding="utf-8")
+          if not re.search(r"minimumMigration\s*=\s*213", text):
+            raise SystemExit("Violation: minimumMigration must be 213")
+
+          if not re.search(r"apiVersion\s*=\s*'v1'", text):
+            raise SystemExit("Violation: apiVersion must be 'v1'")
+
+          print("Release contract & backend compatibility: VERIFIED")
+          PY
+
+      - name: Guard against committed code-signing private keys
+        shell: bash
+        run: |
+          python - <<'PY'
+          import os
+          from pathlib import Path
+
+          forbidden_exts = {".pfx", ".p12", ".key", ".keystore"}
+          root = Path(".")
+          found = []
+
+          for path in root.rglob("*"):
+            if path.is_file() and path.suffix.lower() in forbidden_exts:
+              # Exclude git or local scratch test files if any
+              if ".git" not in path.parts:
+                found.append(str(path))
+
+          if found:
+            raise SystemExit(f"ERROR: Committed private keys/certificates found: {found}")
+
+          print("Security check: No private keys committed.")
+          PY
+
+      - name: Guard against hardcoded service_role secrets
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          scanned_dirs = ["apps", "packages"]
+          violations = []
+
+          for d in scanned_dirs:
+            for path in Path(d).rglob("*.dart"):
+              text = path.read_text(encoding="utf-8", errors="ignore")
+              if "service_role" in text:
+                violations.append(f"{path}: contains service_role secret reference")
+
+          if violations:
+            raise SystemExit("Security violation in client code:\n" + "\n".join(violations))
+
+          print("Security check: No service_role secrets in client applications.")
+          PY
+

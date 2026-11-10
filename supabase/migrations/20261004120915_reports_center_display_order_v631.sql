@@ -497,3 +497,4 @@ when 'sales_summary' then sql:=$q$select to_jsonb(result) from (with sales as(se
 end $body$;
 notify pgrst,'reload schema';
 commit;
+;

@@ -151,4 +151,4 @@ revoke all on function public.restaurant_kot_history_v610(
 
 grant execute on function public.restaurant_kot_history_v610(
   uuid, uuid, uuid, uuid, timestamptz, timestamptz, integer
-) to authenticated, service_role;
+) to authenticated, service_role;;

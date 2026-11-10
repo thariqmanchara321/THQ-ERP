@@ -19,6 +19,8 @@ import '../services/tracking_service.dart';
 import '../widgets/batch_allocation_dialog.dart';
 import '../services/transaction_print_service.dart';
 import 'sale_detail_screen.dart';
+import 'invoice_preview_screen.dart';
+import '../models/sale_detail.dart';
 import '../widgets/searchable_select.dart';
 import '../widgets/multi_payment_editor.dart';
 
@@ -49,6 +51,7 @@ class _SalesScreenState extends State<SalesScreen> {
   int _saleGeneration = 0;
 
   bool get _canManage => widget.session.hasPermission('sales.manage');
+  bool get _showStandaloneNew => widget.session.showStandaloneNewSale;
 
   @override
   void initState() {
@@ -58,6 +61,7 @@ class _SalesScreenState extends State<SalesScreen> {
     _creating =
         widget.startInCreate &&
         _canManage &&
+        _showStandaloneNew &&
         LocationScopeService.selectedLocationId.value != null;
   }
 
@@ -65,7 +69,7 @@ class _SalesScreenState extends State<SalesScreen> {
     if (!mounted) return;
     setState(() {
       _load();
-      if (widget.startInCreate && _canManage) {
+      if (widget.startInCreate && _canManage && _showStandaloneNew) {
         _creating = LocationScopeService.selectedLocationId.value != null;
       }
     });
@@ -234,7 +238,7 @@ class _SalesScreenState extends State<SalesScreen> {
                   onPressed: _refresh,
                   icon: const Icon(Icons.refresh_rounded, size: 19),
                 ),
-                if (_canManage && !widget.historyOnly) ...[
+                if (_canManage && !widget.historyOnly && _showStandaloneNew) ...[
                   const SizedBox(width: 4),
                   FilledButton.icon(
                     onPressed: _newSale,
@@ -290,7 +294,7 @@ class _SalesScreenState extends State<SalesScreen> {
                             fontWeight: FontWeight.w600,
                           ),
                         ),
-                        if (_canManage && !widget.historyOnly) ...[
+                        if (_canManage && !widget.historyOnly && _showStandaloneNew) ...[
                           const SizedBox(height: 10),
                           FilledButton.icon(
                             onPressed: _newSale,
@@ -433,7 +437,10 @@ class _SalesScreenState extends State<SalesScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      sale.number,
+                      Sale.cleanTrackingNumber(
+                        sale.number,
+                        fallbackPrefix: 'SAL',
+                      ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
@@ -541,8 +548,10 @@ class NewSaleScreen extends StatefulWidget {
   final String? initialVariantId;
   final double? initialQuantity;
   final String? initialUnitCode;
+  final double? initialUnitPrice;
   final String? initialNotes;
   final String? materialLoadId;
+  final DateTime? loadUpdatedAt;
 
   const NewSaleScreen({
     super.key,
@@ -555,8 +564,10 @@ class NewSaleScreen extends StatefulWidget {
     this.initialVariantId,
     this.initialQuantity,
     this.initialUnitCode,
+    this.initialUnitPrice,
     this.initialNotes,
     this.materialLoadId,
+    this.loadUpdatedAt,
   });
 
   @override
@@ -644,7 +655,7 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
         }
         _invoiceContext = context;
         _invoiceContextError = null;
-        if (locked != null) _customerId = locked;
+        if (locked != null && _customerId == null) _customerId = locked;
         if (!context.gstApplicable) _placeOfSupplyCode = null;
         for (var i = 0; i < _lines.length; i++) {
           _lines[i] = _lines[i].copyWith(
@@ -893,6 +904,7 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
           initialVariantId: material.variantId,
           initialQuantity: quantity,
           initialUnitCode: requestedUnit,
+          initialUnitPrice: widget.initialUnitPrice,
         ),
       );
       if (selected != null && mounted) {
@@ -910,30 +922,36 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
       product: product,
       unit: unit,
       quantity: quantity,
-      unitPrice:
-          unit?.salePriceFor(product.sellingPrice) ?? product.sellingPrice,
+      unitPrice: widget.initialUnitPrice != null && widget.initialUnitPrice! > 0
+          ? widget.initialUnitPrice!
+          : (unit?.salePriceFor(product.sellingPrice) ?? product.sellingPrice),
       discount: 0,
       taxRate: _gstApplicable ? product.taxRate : 0,
       cuttingChargeApplied: false,
-      pricingSource: 'Material Yard load',
+      manualPrice: widget.initialUnitPrice != null && widget.initialUnitPrice! > 0,
+      pricingSource: widget.initialUnitPrice != null && widget.initialUnitPrice! > 0
+          ? 'Negotiated Load Rate'
+          : 'Material Yard load',
     );
 
-    try {
-      final price = await _pricingService.resolve(
-        tenantId: widget.session.business.id,
-        variantId: product.variantId,
-        customerId: _customerId,
-        unitId: line.unitId,
-        quantity: quantity,
-        locationId: widget.locationId,
-      );
-      line = line.copyWith(
-        unitPrice: price.unitPrice,
-        pricingSource: price.sourceLabel,
-      );
-    } catch (_) {
-      // Keep the product/unit selling price. The authoritative Sale writer
-      // still validates the transaction on confirmation.
+    if (widget.initialUnitPrice == null || widget.initialUnitPrice! <= 0) {
+      try {
+        final price = await _pricingService.resolve(
+          tenantId: widget.session.business.id,
+          variantId: product.variantId,
+          customerId: _customerId,
+          unitId: line.unitId,
+          quantity: quantity,
+          locationId: widget.locationId,
+        );
+        line = line.copyWith(
+          unitPrice: price.unitPrice,
+          pricingSource: price.sourceLabel,
+        );
+      } catch (_) {
+        // Keep the product/unit selling price. The authoritative Sale writer
+        // still validates the transaction on confirmation.
+      }
     }
 
     if (!mounted) return;
@@ -1812,6 +1830,7 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
         notes: _notesController.text,
         locationId: widget.locationId,
         materialLoadId: widget.materialLoadId,
+        loadUpdatedAt: widget.loadUpdatedAt,
         placeOfSupplyCode: _placeOfSupplyCode,
         chargeSelections: _additionalChargesEnabled
             ? _commercialChargeSelections
@@ -1952,6 +1971,10 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
                           child: Column(
                             children: [
                               _documentHeader(),
+                              if (widget.materialLoadId != null) ...[
+                                const SizedBox(height: 10),
+                                _materialLoadNotice(),
+                              ],
                               const SizedBox(height: 10),
                               KeyedSubtree(
                                 key: _detailsSectionKey,
@@ -2009,6 +2032,81 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
         ),
       );
     }
+  }
+
+  Widget _materialLoadNotice() {
+    if (widget.materialLoadId == null) return const SizedBox.shrink();
+    final scheme = Theme.of(context).colorScheme;
+    final totalQty = _lines.fold<double>(0.0, (sum, l) => sum + l.quantity);
+    final hasQtyDivergence = widget.initialQuantity != null &&
+        (totalQty - widget.initialQuantity!).abs() > 0.001;
+    final hasCustomerDivergence = _invoiceContext?.lockedCustomerId != null &&
+        _customerId != _invoiceContext?.lockedCustomerId;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: scheme.surfaceContainerHighest.withValues(alpha: 0.35),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: (hasQtyDivergence || hasCustomerDivergence)
+              ? Colors.amber.shade700
+              : scheme.outlineVariant,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                (hasQtyDivergence || hasCustomerDivergence)
+                    ? Icons.warning_amber_rounded
+                    : Icons.link_rounded,
+                size: 18,
+                color: (hasQtyDivergence || hasCustomerDivergence)
+                    ? Colors.amber.shade800
+                    : scheme.primary,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Linked Material Load: ${widget.materialLoadId}',
+                  style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: scheme.primaryContainer,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: const Text('Draft Billing (Editable)', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          const Text(
+            'All billing lines, rates, quantities, taxes, and customer details are editable before final posting. Changes will post to the authoritative invoice without rewriting physical load measurements.',
+            style: TextStyle(fontSize: 12),
+          ),
+          if (hasQtyDivergence) ...[
+            const SizedBox(height: 4),
+            Text(
+              '⚠️ Invoiced quantity ($totalQty) differs from physical load measurement (${widget.initialQuantity} ${widget.initialUnitCode ?? ''}).',
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.amber.shade900),
+            ),
+          ],
+          if (hasCustomerDivergence) ...[
+            const SizedBox(height: 4),
+            Text(
+              '⚠️ Billing customer diverged from ticket customer. Divergence audit event will be recorded on posting.',
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.amber.shade900),
+            ),
+          ],
+        ],
+      ),
+    );
   }
 
   Widget _documentHeader() {
@@ -2465,6 +2563,89 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
     );
   }
 
+  void _openEstimatePreview() {
+    if (_lines.isEmpty) {
+      setState(() => _error = 'Add at least one product to generate an Estimate.');
+      return;
+    }
+    final customer = _selectedCustomer;
+    final items = <SaleDetailItem>[];
+    for (var i = 0; i < _lines.length; i++) {
+      final line = _lines[i];
+      final cost = line.quantity * line.product.costPrice;
+      items.add(
+        SaleDetailItem(
+          itemId: 'item-$i',
+          variantId: line.product.variantId,
+          productName: line.product.productName,
+          sku: line.product.sku,
+          partNumber: line.product.partNumber,
+          unitCode: line.unitCode,
+          hsnSac: null,
+          quantity: line.quantity,
+          unitPrice: line.unitPrice,
+          discountAmount: line.discount,
+          taxRate: line.taxRate,
+          subtotal: line.subtotal,
+          taxableAmount: line.taxable,
+          taxAmount: line.tax,
+          lineTotal: line.total,
+          unitCost: line.product.costPrice,
+          costTotal: cost,
+          grossProfit: line.total - cost,
+        ),
+      );
+    }
+
+    final costTotal = _lines.fold(
+      0.0,
+      (sum, l) => sum + (l.quantity * l.product.costPrice),
+    );
+    final estimateSale = SaleDetail(
+      saleId: 'estimate-draft',
+      saleNumber:
+          'EST-${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}',
+      saleDate: _saleDate,
+      dueDate: _dueDate ?? _saleDate,
+      customerId: customer?.id ?? 'walk-in',
+      customerName: customer?.name ?? 'Walk-in Customer',
+      customerPhone: customer?.phone,
+      customerEmail: customer?.email,
+      customerAddress: customer?.addressLine1,
+      customerTaxNumber: customer?.gstGstin ?? customer?.taxNumber,
+      status: 'estimate',
+      subtotal: _subtotal,
+      discountTotal: _discount,
+      taxableTotal: _subtotal - _discount,
+      taxTotal: _tax,
+      additionalCharges: _classifiedChargeTotal,
+      grandTotal: _grandTotal,
+      costTotal: costTotal,
+      grossProfit: _grandTotal - costTotal,
+      paidAmount: 0,
+      balanceDue: _grandTotal,
+      items: items,
+      payments: const [],
+      createdAt: DateTime.now(),
+      notes: _notesController.text.trim().isEmpty
+          ? null
+          : _notesController.text.trim(),
+      gst: null,
+    );
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => InvoicePreviewScreen(
+          session: widget.session,
+          sale: estimateSale,
+          paperType: 'a4',
+          documentType: 'estimate',
+        ),
+      ),
+    );
+  }
+
   Widget _invoiceActions() => Container(
     width: double.infinity,
     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -2544,6 +2725,14 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
                         icon: const Icon(Icons.close),
                       ),
                       const SizedBox(width: 6),
+                      OutlinedButton(
+                        onPressed: _saving ? null : _openEstimatePreview,
+                        child: const Text(
+                          'Estimate',
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
                       Expanded(
                         child: OutlinedButton(
                           onPressed: _saving
@@ -2587,6 +2776,11 @@ class _NewSaleScreenState extends State<NewSaleScreen> {
                     OutlinedButton(
                       onPressed: cancel,
                       child: const Text('Cancel'),
+                    ),
+                    OutlinedButton.icon(
+                      onPressed: _saving ? null : _openEstimatePreview,
+                      icon: const Icon(Icons.request_quote_outlined),
+                      label: const Text('Estimate'),
                     ),
                     OutlinedButton.icon(
                       onPressed: _saving
@@ -2733,6 +2927,7 @@ class _AddSaleItemDialog extends StatefulWidget {
   final String? initialVariantId;
   final String? initialUnitCode;
   final double? initialQuantity;
+  final double? initialUnitPrice;
 
   const _AddSaleItemDialog({
     this.initialLine,
@@ -2745,6 +2940,7 @@ class _AddSaleItemDialog extends StatefulWidget {
     this.initialVariantId,
     this.initialUnitCode,
     this.initialQuantity,
+    this.initialUnitPrice,
   });
 
   @override
@@ -2841,10 +3037,15 @@ class _AddSaleItemDialogState extends State<_AddSaleItemDialog> {
           }
           final product = _product;
           if (product != null) {
-            _priceController.text =
-                (_selectedUnit?.salePriceFor(product.sellingPrice) ??
-                        product.sellingPrice)
-                    .toStringAsFixed(2);
+            if (widget.initialUnitPrice != null && widget.initialUnitPrice! > 0) {
+              _priceController.text = widget.initialUnitPrice!.toStringAsFixed(2);
+              _priceEdited = true;
+            } else {
+              _priceController.text =
+                  (_selectedUnit?.salePriceFor(product.sellingPrice) ??
+                          product.sellingPrice)
+                      .toStringAsFixed(2);
+            }
           }
           final initial = widget.initialLine;
           if (initial != null) {

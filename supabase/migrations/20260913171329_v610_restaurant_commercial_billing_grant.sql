@@ -1,0 +1,1 @@
+revoke all on function public.gst_restaurant_order_bill_v610(uuid,uuid,uuid,uuid,date,jsonb,jsonb,text,numeric,jsonb,text,text,text) from public; grant execute on function public.gst_restaurant_order_bill_v610(uuid,uuid,uuid,uuid,date,jsonb,jsonb,text,numeric,jsonb,text,text,text) to authenticated,service_role;;

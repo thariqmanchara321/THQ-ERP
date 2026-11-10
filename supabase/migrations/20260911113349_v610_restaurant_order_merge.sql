@@ -253,4 +253,4 @@ revoke all on function public.restaurant_orders_merge_v610(
 
 grant execute on function public.restaurant_orders_merge_v610(
   uuid, uuid, uuid, uuid, text
-) to authenticated, service_role;
+) to authenticated, service_role;;

@@ -73,7 +73,6 @@ class _CustomerAccountDialogState extends State<CustomerAccountDialog> {
 
   Future<void> _receivePayment() async {
     final outstanding = _number(_account['outstanding']);
-    if (outstanding <= 0.005) return;
     final invoices = (_account['open_invoices'] as List? ?? const [])
         .whereType<Map>()
         .map((row) => Map<String, dynamic>.from(row))
@@ -90,7 +89,11 @@ class _CustomerAccountDialogState extends State<CustomerAccountDialog> {
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setLocalState) => AlertDialog(
-          title: const Text('Receive Customer Payment'),
+          title: Text(
+            outstanding > 0.005
+                ? 'Receive Customer Payment'
+                : 'Receive Customer Advance / Deposit',
+          ),
           content: SizedBox(
             width: 560,
             child: SingleChildScrollView(
@@ -111,15 +114,20 @@ class _CustomerAccountDialogState extends State<CustomerAccountDialog> {
                   DropdownButtonFormField<String?>(
                     initialValue: saleId,
                     isExpanded: true,
-                    decoration: const InputDecoration(
+                    decoration: InputDecoration(
                       labelText: 'Apply payment to',
-                      helperText:
-                          'Account payment automatically settles oldest invoices first.',
+                      helperText: invoices.isEmpty
+                          ? 'Payment will be credited to customer account as an advance deposit.'
+                          : 'Account payment automatically settles oldest invoices first.',
                     ),
                     items: [
-                      const DropdownMenuItem<String?>(
+                      DropdownMenuItem<String?>(
                         value: null,
-                        child: Text('Customer account • oldest invoices first'),
+                        child: Text(
+                          invoices.isEmpty
+                              ? 'Customer account • on-account deposit / advance'
+                              : 'Customer account • oldest invoices first',
+                        ),
                       ),
                       ...invoices.map(
                         (invoice) => DropdownMenuItem<String?>(
@@ -163,7 +171,9 @@ class _CustomerAccountDialogState extends State<CustomerAccountDialog> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'Selected outstanding: ${_money(selectedOutstanding)}',
+                    selectedOutstanding > 0.005
+                        ? 'Selected outstanding: ${_money(selectedOutstanding)}'
+                        : 'No open balance in scope • full amount will be credited as advance',
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
                   const SizedBox(height: 12),
@@ -226,25 +236,37 @@ class _CustomerAccountDialogState extends State<CustomerAccountDialog> {
                   );
                   return;
                 }
-                if (value > selectedOutstanding + 0.005) {
-                  setLocalState(
-                    () => formError =
-                        'Amount cannot exceed ${_money(selectedOutstanding)} for the selected scope.',
-                  );
-                  return;
-                }
+                final isAdvance = selectedOutstanding <= 0.005;
+                final isOverpayment = value > selectedOutstanding + 0.005;
                 final remaining = (selectedOutstanding - value).clamp(
                   0.0,
                   selectedOutstanding,
                 );
+                final advancePortion = isAdvance
+                    ? value
+                    : (isOverpayment ? value - selectedOutstanding : 0.0);
+
+                final String confirmationText;
+                if (isAdvance) {
+                  confirmationText =
+                      'Receive ${_money(value)} from ${widget.customerName} as an on-account deposit / advance?';
+                } else if (isOverpayment) {
+                  confirmationText =
+                      'Receive ${_money(value)} from ${widget.customerName}?\n\n'
+                      '• Invoice settlement: ${_money(selectedOutstanding)}\n'
+                      '• On-account advance / credit: ${_money(advancePortion)}\n'
+                      '• Remaining invoice balance: ${_money(0)}';
+                } else {
+                  confirmationText =
+                      'Receive ${_money(value)} from ${widget.customerName}?\n\n'
+                      'Selected balance after this receipt: ${_money(remaining)}';
+                }
+
                 final confirmed = await showThqDialog<bool>(
                   context: dialogContext,
                   builder: (confirmContext) => AlertDialog(
                     title: const Text('Confirm receipt amount'),
-                    content: Text(
-                      'Receive ${_money(value)} from ${widget.customerName}?\n\n'
-                      'Selected balance after this receipt: ${_money(remaining)}',
-                    ),
+                    content: Text(confirmationText),
                     actions: [
                       TextButton(
                         onPressed: () => Navigator.pop(confirmContext, false),
@@ -266,8 +288,8 @@ class _CustomerAccountDialogState extends State<CustomerAccountDialog> {
                   'notes': notes.text.trim(),
                 });
               },
-              icon: const Icon(Icons.check_circle_outline),
-              label: const Text('Receive'),
+              icon: const Icon(Icons.check),
+              label: const Text('Continue'),
             ),
           ],
         ),
@@ -392,6 +414,7 @@ class _CustomerAccountDialogState extends State<CustomerAccountDialog> {
         .map((row) => Map<String, dynamic>.from(row))
         .toList();
     final outstanding = _number(_account['outstanding']);
+    final unallocatedAdvance = _number(_account['unallocated_advance']);
 
     return AlertDialog(
       title: Row(
@@ -429,9 +452,17 @@ class _CustomerAccountDialogState extends State<CustomerAccountDialog> {
                             ? Icons.schedule
                             : Icons.check_circle_outline,
                       ),
-                      title: const Text('Outstanding balance'),
+                      title: Text(
+                        unallocatedAdvance > 0.005 && outstanding <= 0.005
+                            ? 'On-account advance deposit / credit'
+                            : (unallocatedAdvance > 0.005
+                                ? 'Net outstanding (${_money(unallocatedAdvance)} advance credited)'
+                                : 'Outstanding balance'),
+                      ),
                       trailing: Text(
-                        _money(outstanding),
+                        unallocatedAdvance > 0.005 && outstanding <= 0.005
+                            ? '-${_money(unallocatedAdvance)}'
+                            : _money(outstanding),
                         style: const TextStyle(
                           fontSize: 22,
                           fontWeight: FontWeight.w600,
@@ -448,11 +479,15 @@ class _CustomerAccountDialogState extends State<CustomerAccountDialog> {
                           style: TextStyle(fontWeight: FontWeight.w600),
                         ),
                       ),
-                      if (widget.canReceive && outstanding > 0.005)
+                      if (widget.canReceive)
                         FilledButton.icon(
                           onPressed: _receiving ? null : _receivePayment,
                           icon: const Icon(Icons.payments_outlined),
-                          label: const Text('Receive Payment'),
+                          label: Text(
+                            outstanding > 0.005
+                                ? 'Receive Payment'
+                                : 'Receive Advance',
+                          ),
                         ),
                     ],
                   ),

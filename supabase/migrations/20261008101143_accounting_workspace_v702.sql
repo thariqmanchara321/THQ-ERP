@@ -327,3 +327,4 @@ grant execute on function public.accounting_workspace_v702(uuid,text,date,date,u
 revoke all on function private.accounting_workspace_v702(uuid,text,date,date,uuid,text,jsonb,text,boolean,integer,integer) from public,anon,authenticated;
 revoke all on function private.accounting_lines_v702(uuid,date,uuid),private.accounting_rows_v702(uuid,text,date,date,uuid,jsonb),private.accounting_source_v702(uuid,text,uuid),private.accounting_money_method_v702(uuid,uuid),private.accounting_search_v702(jsonb,text) from public,anon,authenticated;
 notify pgrst,'reload schema';
+;
