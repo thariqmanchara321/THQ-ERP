@@ -35,11 +35,18 @@
   - [x] Direct seamless integration with Phase 1 `SmartScanResult`.
   - [x] Write and pass 20 comprehensive unit tests in `packages/erp_core`.
 
-- [ ] **Phase 3: Client Smart Inventory Workspace**
-  - [ ] Build 9-section `SmartInventoryWorkspaceScreen` in `apps/client_app`.
-  - [ ] Implement Dashboard, Scan Center, Product Lookup, Bulk Scanner, Smart Import, Stock Counting, Purchase Receiving, Barcode Studio, Scan History.
-  - [ ] Integrate into Client navigation.
-  - [ ] Write and pass widget and flow tests.
+- [x] **Phase 3: Client Smart Inventory Workspace**
+  - [x] Build `SmartInventoryWorkspaceScreen` in `apps/client_app` with segmented navigation.
+  - [x] Screen A: Overview / Home tab with metrics, quick launchers, and recent activity feed.
+  - [x] Screen B: Scan Center tab with hardware wedge listener, single/continuous modes, camera toggle, manual entry, exact match card, ambiguity resolution, and not-found/error states.
+  - [x] Screen C: Product Lookup tab with multi-identifier text search, filter chips, and product detail modal.
+  - [x] Screen D: Bulk Scanning tab with temporary staging session, rapid quantity accumulation, unresolved scan preservation, and non-mutating completion.
+  - [x] Screen E: Scan History tab with completed session audit inspection.
+  - [x] Integrated into Client navigation (`client_home_screen.dart` and `inventory_products_screen.dart`).
+  - [x] Cost price protection strictly enforced via `inventory.manage` / `owner` role.
+  - [x] Multi-store location scope isolation strictly respected.
+  - [x] 6 unit and widget tests written and passing in `apps/client_app/test/smart_inventory_workspace_test.dart`.
+  - [x] All 248 tests in `apps/client_app` passing.
 
 - [ ] **Phase 4: POS Desktop Integration**
   - [ ] Integrate wedge listener and direct cart injection into `apps/pos_app/lib/screens/pos_screen.dart`.

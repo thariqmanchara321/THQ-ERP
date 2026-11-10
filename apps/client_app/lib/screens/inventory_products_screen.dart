@@ -12,6 +12,7 @@ import 'add_product_screen.dart';
 import 'inventory_movement_history_screen.dart';
 import 'inventory_reports_screen.dart';
 import 'product_detail_screen.dart';
+import 'smart_inventory/smart_inventory_workspace_screen.dart';
 
 class InventoryProductsScreen extends StatefulWidget {
   final ClientSession session;
@@ -300,6 +301,18 @@ class _InventoryProductsScreenState extends State<InventoryProductsScreen> {
                       ),
                       icon: const Icon(Icons.analytics_outlined),
                     ),
+                  OutlinedButton.icon(
+                    onPressed: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => SmartInventoryWorkspaceScreen(
+                          session: widget.session,
+                        ),
+                      ),
+                    ),
+                    icon: const Icon(Icons.qr_code_scanner, size: 17),
+                    label: const Text('Smart Inventory'),
+                  ),
+                  const SizedBox(width: 6),
                   OutlinedButton.icon(
                     onPressed: () => Navigator.of(context).push(
                       MaterialPageRoute(

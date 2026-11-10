@@ -124,3 +124,72 @@ When resolving scanned codes, `ProductIdentificationEngine` enforces a strict 9-
 3. **Fail-Closed Error Propagation:** Network disconnects or database exceptions are classified as `ProductIdentificationStatus.error` with error details, preventing technical faults from appearing as normal "not found" results.
 4. **Tenant Isolation:** Lookups require explicit `tenantId`. A scanned barcode can never bypass tenant boundaries or expose records belonging to other businesses.
 
+---
+
+## 5. Phase 3 — Client Smart Inventory Workspace Architecture
+
+### 5.1 Overview and Navigation Integration
+
+The Client Smart Inventory Workspace is implemented natively within `apps/client_app` as `SmartInventoryWorkspaceScreen`. It is registered into the primary client navigation system:
+- **Module Routing:** Added `smart_inventory` to `_isRoutableClientModule`, `_moduleIcon` (`Icons.qr_code_scanner`), and `_moduleCache` in `client_home_screen.dart`.
+- **Direct Entrypoint:** Added a "Smart Inventory" action button in `inventory_products_screen.dart` header toolbar for instant one-click access from the main products catalog.
+
+### 5.2 Workspace Component Structure
+
+```
+┌────────────────────────────────────────────────────────────────────────┐
+│                       SmartInventoryWorkspaceScreen                    │
+│  [Icon] Smart Inventory | Multi-identifier scanning   [Store Status]   │
+├───────────┬───────────────┬────────────────┬───────────────┬───────────┤
+│ Overview  │  Scan Center  │ Product Lookup │ Bulk Scanning │ History   │
+└───────────┴───────────────┴────────────────┴───────────────┴───────────┘
+      │             │               │                │             │
+  Overview      Single /         Text & Code       Continuous     Local
+   Metrics &   Continuous        Search Across     Crate/Truck    Session
+  Quick Links  Viewfinder &     All Identifiers    Staging List   Auditing
+               Wedge Stream                       (Zero Stock
+                                                   Mutation)
+```
+
+### 5.3 Tab Specifications
+
+1. **Screen A: Overview Tab (`SmartInventoryOverviewTab`):**
+   - Summary metric stat cards: Session Scans, Identified Products, Unresolved Scans, and Active Bulk Session.
+   - Quick action launchers to jump directly to Scan Center, Catalog Lookup, or Bulk Scan.
+   - Real-time recent activity stream showing the last 8 scans with success badges, matched SKU/code, and timestamps.
+
+2. **Screen B: Scan Center Tab (`SmartInventoryScanCenterTab`):**
+   - Embedded `ThqBarcodeWedgeListener` wrapping the view to capture rapid USB/Bluetooth scanner keystrokes without requiring focus.
+   - ChoiceChips for Single Scan vs Continuous Scan modes.
+   - On-demand camera viewfinder (`ThqSmartScannerView`) toggle for laptops/tablets with built-in cameras.
+   - Manual entry input with auto-focus for damaged barcodes.
+   - Comprehensive product card rendering: SKU, barcode, unit, stock quantity, selling price, and authorized cost price (strictly gated by `inventory.manage` / `owner`).
+   - Ambiguity resolution picker when multiple variants match.
+   - Clear visual diagnostic cards for Product Not Found, Offline Cache Miss, or Network Errors.
+
+3. **Screen C: Product Lookup Tab (`SmartInventoryProductLookupTab`):**
+   - Multi-identifier live text search with 350ms debounce.
+   - Filter chips to filter by All Identifiers, Has Barcode, Has SKU, or Has Manufacturer Code.
+   - Detailed inspection modal displaying registered identifiers, category, brand, and stock status.
+
+4. **Screen D: Bulk Scanning Tab (`SmartInventoryBulkScanTab`):**
+   - Continuous scanning mode into an active staging session (`SmartScanSession`).
+   - Rapid barcode wedge ingestion accumulating quantities for repeated scans.
+   - Dedicated tabs for Identified Products vs Unresolved Scans.
+   - Item increment/decrement/delete controls without touching the database.
+   - Unresolved scan preservation with retry capability.
+   - Explicit "Finish Session" and "Cancel" controls.
+
+5. **Screen E: Scan History Tab (`SmartInventoryScanHistoryTab`):**
+   - Inspection of completed bulk scan sessions during the client runtime.
+   - Detailed session dialog displaying operator, timestamp, items, and unit totals.
+   - Explicit disclaimers clarifying that sessions are temporary audit records ahead of Phase 8 database hardening.
+
+### 5.4 Non-Negotiable Business & Accounting Protections
+
+1. **Zero Stock Mutation Invariant:** Scanning in Phase 3 is strictly for verification, inspection, and temporary bulk staging. No database inventory balance, cost basis, or stock movement table is modified.
+2. **Cost Price Protection:** Product cost price is strictly guarded behind `session.hasPermission('inventory.manage') || session.hasRole('owner')`. Non-admin staff can only see selling prices and available quantities.
+3. **Multi-Store Isolation:** All lookup requests explicitly pass the currently selected store location (`LocationScopeService.selectedLocationId`) or fallback to the session's primary location. Store inventory balances remain strictly partitioned.
+4. **POS Decoupling:** `apps/client_app` maintains complete architectural independence from POS offline SQLite tables (`OfflinePosService`), ensuring the client workspace operates seamlessly in both online and standard client environments.
+
+

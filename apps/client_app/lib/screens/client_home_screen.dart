@@ -59,6 +59,7 @@ import 'suppliers_screen.dart';
 import 'support_screen.dart';
 import 'team_access_screen.dart';
 import 'transport_logistics_hub_screen.dart';
+import 'smart_inventory/smart_inventory_workspace_screen.dart';
 
 class ClientHomeScreen extends StatefulWidget {
   final ClientSession session;
@@ -178,6 +179,22 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
               'Business intelligence, operational analytics, inventory and sales',
           category: 'Reports',
           sortOrder: 90,
+        ),
+      );
+    }
+
+    if ((_session.modules.any((m) => m.key == 'inventory') ||
+            _session.hasPermission('inventory.view') ||
+            _session.hasPermission('inventory.manage')) &&
+        !modules.any((module) => module.key == 'smart_inventory')) {
+      modules.add(
+        const ClientModule(
+          key: 'smart_inventory',
+          name: 'Smart Inventory',
+          description:
+              'Universal barcode scanning, product lookup, bulk scanning & scan session history',
+          category: 'Inventory',
+          sortOrder: 22,
         ),
       );
     }
@@ -508,6 +525,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
     'gst_compliance' => Icons.receipt_long_outlined,
     'audit_center' => Icons.policy_outlined,
     'reports' => Icons.insights_outlined,
+    'smart_inventory' => Icons.qr_code_scanner,
     'barcode' => Icons.qr_code_scanner_outlined,
     'warranty' => Icons.verified_user_outlined,
     'vehicle_compatibility' => Icons.directions_car_outlined,
@@ -1117,6 +1135,7 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
     'aggregate_yard' ||
     'operations_intelligence' ||
     'inventory' ||
+    'smart_inventory' ||
     'inventory_reports' ||
     'warranty' ||
     'suppliers' ||
@@ -1725,6 +1744,7 @@ class _ModulePage extends StatelessWidget {
         session: session,
       ),
       'inventory' => InventoryProductsScreen(session: session),
+      'smart_inventory' => SmartInventoryWorkspaceScreen(session: session),
       'inventory_reports' => ReportsCenterV500Screen(
         session: session,
         initialCategory: 'Inventory',
