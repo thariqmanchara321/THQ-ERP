@@ -1,7 +1,7 @@
 # THQ ERP — Smart Inventory Progress Log
 
 **Active Branch:** `main`  
-**Current Milestone:** Phase 0 Completed  
+**Current Milestone:** Phase 1 Completed  
 **Last Updated:** 2026-11-10  
 
 ---
@@ -19,11 +19,11 @@
   - [x] `docs/SMART_INVENTORY_TEST_PLAN.md` authored.
   - [x] `docs/SMART_INVENTORY_PROGRESS.md` authored.
 
-- [ ] **Phase 1: Shared Scanning Engine**
-  - [ ] Implement `SmartScannerController` in `packages/erp_core`.
-  - [ ] Implement `ThqBarcodeWedgeListener` in `packages/thq_ui`.
-  - [ ] Implement `ThqSmartScannerView` in `packages/thq_ui`.
-  - [ ] Write and pass unit tests for scanner controller and keyboard wedge listener.
+- [x] **Phase 1: Shared Scanning Engine**
+  - [x] Implement `SmartScannerController` in `packages/erp_core`.
+  - [x] Implement `ThqBarcodeWedgeListener` in `packages/thq_ui`.
+  - [x] Implement `ThqSmartScannerView` in `packages/thq_ui`.
+  - [x] Write and pass unit tests for scanner controller and keyboard wedge listener.
 
 - [ ] **Phase 2: Product Identification Engine**
   - [ ] Implement multi-tiered `ProductIdentificationEngine` in `packages/erp_core`.

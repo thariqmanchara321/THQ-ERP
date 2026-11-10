@@ -42,3 +42,7 @@ export 'src/accounting/thq_accounting_models.dart';
 export 'src/accounting/thq_accounting_workspace.dart';
 
 export 'src/audit/thq_audit_widgets.dart';
+
+export 'src/scanner/thq_barcode_wedge_listener.dart';
+export 'src/scanner/thq_smart_scanner_view.dart';
+
