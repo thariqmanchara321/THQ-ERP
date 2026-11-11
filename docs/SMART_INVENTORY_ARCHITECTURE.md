@@ -266,5 +266,92 @@ Phase 4 embeds the shared Smart Scanning Engine (`SmartScannerController`, `ThqB
    - Displays positive confirmation on item add and informative warnings on unknown codes or offline cache misses.
    - Automatically dismisses after 4 seconds or on manual close.
 
+---
+
+## 7. Phase 5: Mobile POS Smart Inventory Integration Architecture
+
+Phase 5 brings the shared Smart Scanning and Identification engines directly to mobile retail devices in `apps/mobile_pos` (`MobilePosHomeScreen` and `BarcodeScannerScreen`).
+
+```
++-----------------------------------------------------------------------------------+
+|                     Mobile POS Home Screen (MobilePosHomeScreen)                  |
+|                                                                                   |
+|  +-----------------------------------------------------------------------------+  |
+|  |             ThqBarcodeWedgeListener (Root Window HID Event Interceptor)      |  |
+|  |   - Captures Bluetooth handheld scanner guns / HID barcode devices          |  |
+|  |   - Fast hardware keystroke discrimination (< 50ms)                         |  |
+|  |   - Dispatches parsed scan stream to _handleScanCode                        |  |
+|  +-----------------------------------------------------------------------------+  |
+|                                         |                                         |
+|         +-------------------------------+-------------------------------+         |
+|         |                               |                               |         |
+|         v                               v                               v         |
+|   [Bluetooth Gun]             [Search onSubmitted]            [BarcodeScannerScreen]
+|         |                               |                   (Continuous Camera /  |
+|         |                               |                    Flash / Flip / Manual)|
+|         +-------------------------------+-------------------------------+         |
+|                                         |                                         |
+|                                         v                                         |
+|  +-----------------------------------------------------------------------------+  |
+|  |            MobilePosSmartInventoryService (Dual-Engine Orchestrator)        |  |
+|  |   - Tier 1: Supabase RPC (inventory_product_lookup_v482)                    |  |
+|  |   - Tier 2: Offline SQLite catalog (MobilePosLocalStore / products table)   |  |
+|  |   - Preserves leading zeros (e.g. 0089012345678)                            |  |
+|  +-----------------------------------------------------------------------------+  |
+|                                         |                                         |
+|                  +----------------------+-----------------------+                 |
+|                  |                                              |                 |
+|            [Exact Match]                                   [Ambiguous]            |
+|                  v                                              v                 |
+|        _addProduct(MobileProduct)                    MobilePosMultipleMatchDialog  |
+|   - Auto-checks serial tracking                     - Compact mobile sheet        |
+|   - Calls _add(MobileProduct)                       - Displays SKU, price, stock  |
+|   - Consolidates quantity on repeat scan            - Explicit cashier selection  |
+|   - Recalculates discounts, taxes, totals           - Dispatches to _addProduct   |
+|   - ThqNotify success banner                        - Zero database stock mutation|
++-----------------------------------------------------------------------------------+
+```
+
+### 7.1 Key Architectural Components
+
+1. **`MobilePosSmartInventoryService` (`apps/mobile_pos/lib/services/mobile_pos_smart_inventory_service.dart`):**
+   - Singleton service bridging `ProductIdentificationEngine` with the Mobile POS execution environment.
+   - Dual-repository architecture:
+     - Online: `RpcProductIdentificationRepository` calling Supabase RPC `inventory_product_lookup_v482`.
+     - Offline: `LocalProductIdentificationRepository` backed by `MobilePosLocalStore.instance.db` querying table `products`.
+   - `resolveProduct(match, {products})`: Resolves `ProductIdentificationMatch` to `MobileProduct` by matching in-memory cached products, querying the local SQLite database, or parsing the raw RPC payload map.
+
+2. **Upgraded Full-Screen Scanner (`BarcodeScannerScreen`):**
+   - Replaced legacy single-scan raw `MobileScanner` with full `ThqSmartScannerView` + `SmartScannerController`.
+   - Supports:
+     - **Continuous Scanning Mode:** Keeps camera active while items are scanned in rapid succession, showing item count and real-time feedback toast.
+     - **Torch Toggle:** Hardware flashlight toggle for dark stockrooms and warehouses.
+     - **Camera Switch:** Seamless flip between back and front cameras.
+     - **Manual Code Entry Modal:** `_ManualCodeEntryDialog` with autofocus for keyboard/num-pad input of barcode, SKU, or serial number.
+     - **Live Toast Overlay:** Instant color-coded visual indicator displaying scanned code and status.
+     - Backward-compatible fallback for callers requesting single-code return.
+
+3. **Root Bluetooth / USB Scanner Wedge Interception:**
+   - Wraps the root layout of `MobilePosHomeScreen` in `ThqBarcodeWedgeListener`.
+   - Captures wireless Bluetooth barcode scanners paired to the mobile device in HID keyboard mode without requiring the search input to be focused.
+
+4. **Search Bar `onSubmitted` Integration:**
+   - Search field `onSubmitted` triggers `_handleScanCode(value, source: ScannerSource.manual)`.
+   - Clears the search text and automatically runs multi-tier identification.
+
+5. **Cart Integration (`_addProduct` / `_add`):**
+   - Serial tracked products prompt for serial number validation against `MobilePosLocalStore.findSerial`.
+   - Non-serial items route directly to `_add(MobileProduct)`.
+   - Repeated scans of the same product consolidate quantity without creating redundant cart lines (`line.quantity += step`).
+   - Re-evaluates unit price, customer wholesale/retail price tiering, taxes, round-off, and totals.
+   - Stock check verifies offline available stock for inventory-tracked products.
+   - **Zero database mutation upon scan:** Inventory quantities in SQLite and Supabase decrement strictly when the bill is completed and synchronized.
+
+6. **Ambiguity Resolution (`MobilePosMultipleMatchDialog`):**
+   - When a barcode or identifier returns multiple candidate variants, displays a mobile-optimized modal dialog.
+   - Displays variant name, SKU, price, and available stock with individual `Select` actions.
+   - Requires explicit cashier choice before adding to cart.
+
+
 
 

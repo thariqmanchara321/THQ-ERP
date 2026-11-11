@@ -153,5 +153,37 @@ This test plan specifies the verification requirements for all Smart Inventory c
 11. **Non-Disruptive Failure Handling:** Scanning unknown barcode displays informative not-found banner while keeping the cart intact.
 12. **Static Analysis:** Zero issues (`flutter analyze apps/pos_app` passed clean with 0 warnings/errors).
 
+---
+
+## 7. Phase 5 Test Matrix & Execution (Mobile POS Smart Inventory Integration)
+
+| Test Target | Test File | Planned | Executed | Status |
+| :--- | :--- | :--- | :--- | :--- |
+| `MobilePosSmartInventoryService` Unit Suite | `apps/mobile_pos/test/mobile_pos_smart_inventory_test.dart` | 5 | 5 | **PASSED** |
+| `MobilePosMultipleMatchDialog` Widget Suite | `apps/mobile_pos/test/mobile_pos_smart_inventory_test.dart` | 1 | 1 | **PASSED** |
+| `BarcodeScannerScreen` Enhanced Scanner Suite | `apps/mobile_pos/test/mobile_pos_smart_inventory_test.dart` | 1 | 1 | **PASSED** |
+| `MobilePosHomeScreen` Smart Inventory Suite | `apps/mobile_pos/test/mobile_pos_smart_inventory_test.dart` | 3 | 3 | **PASSED** |
+| Mobile POS Full Test Suite (Regression) | `apps/mobile_pos/test/` | 17 | 17 | **PASSED** |
+| `packages/erp_core` Full Suite (Regression) | `packages/erp_core/test/` | 83 | 83 | **PASSED** |
+| `packages/thq_ui` Full Suite (Regression) | `packages/thq_ui/test/` | 73 | 73 | **PASSED** |
+| `apps/pos_app` Full Suite (Regression) | `apps/pos_app/test/` | 39 | 39 | **PASSED** |
+| `apps/client_app` Full Suite (Regression) | `apps/client_app/test/` | 248 | 248 | **PASSED** |
+
+### Verified Phase 5 Capabilities:
+1. **Preservation of Leading Zeros:** EAN-13 barcodes with leading zeros (`0089012345678`) are preserved without truncation throughout mobile identification.
+2. **Exact SKU Manual Entry:** Typing or scanning SKU string (`SKU-CEM-PPC`) resolves to the correct product variant.
+3. **Clean No-Match Handling:** Unrecognized barcodes return `ProductIdentificationStatus.noMatch` cleanly without raising exceptions or breaking the cart.
+4. **Offline Fallback on RPC Failure:** Network failures automatically trigger offline lookup against the local SQLite store (`MobilePosLocalStore`), resolving cached catalog products.
+5. **Product Resolution to `MobileProduct`:** `resolveProduct` constructs valid `MobileProduct` models with sales units, price, and stock quantities.
+6. **Mobile Ambiguity Resolution:** `MobilePosMultipleMatchDialog` renders variant candidates in a compact touch-friendly sheet, returning the user's selected candidate.
+7. **Enhanced Mobile Scanner:** `BarcodeScannerScreen` supports continuous scanning, torch toggle, camera flip, and modal manual code entry with clean controller lifecycle management.
+8. **Direct Mobile Cart Addition:** Barcode scans add exact products directly to the mobile cart, displaying non-intrusive `ThqNotify` confirmation.
+9. **Quantity Consolidation on Repeated Scans:** Repeated scans of the same barcode automatically increment the existing cart line's quantity (`line.quantity += step`) without duplicating line rows.
+10. **Ambiguous Candidate Disambiguation:** Ambiguous barcodes open the disambiguation dialog; choosing a candidate variant adds that item to the active bill.
+11. **Non-Disruptive Failure Handling:** Unknown codes display informative not-found notifications while preserving active cart items.
+12. **Zero Database Mutation on Scan:** Scanning solely manipulates the in-memory cart; database stock records in SQLite and Supabase are untouched until sale completion.
+13. **Static Analysis:** Zero issues (`flutter analyze lib test` in `apps/mobile_pos` passed with 0 warnings/errors).
+
+
 
 

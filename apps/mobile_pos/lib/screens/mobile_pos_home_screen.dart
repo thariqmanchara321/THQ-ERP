@@ -25,6 +25,8 @@ import 'mobile_pos_report_screen.dart';
 import 'mobile_pos_purchase_screen.dart';
 import 'mobile_pos_expense_screen.dart';
 import 'offline_queue_screen.dart';
+import '../services/mobile_pos_smart_inventory_service.dart';
+import '../widgets/mobile_pos_multiple_match_dialog.dart';
 
 class MobilePosHomeScreen extends StatefulWidget {
   final PosSession session;
@@ -38,7 +40,10 @@ class _State extends State<MobilePosHomeScreen> {
       sync = MobilePosSyncService(),
       receipt = MobileReceiptService(),
       kot = MobileKotService(),
-      pricing = MobilePricingService();
+      pricing = MobilePricingService(),
+      _smartInventory = MobilePosSmartInventoryService.instance;
+  late final SmartScannerController _wedgeController;
+  StreamSubscription<SmartScanResult>? _wedgeSubscription;
   final search = TextEditingController();
   final cart = <CartLine>[];
   List<MobileProduct> products = [];
@@ -58,38 +63,47 @@ class _State extends State<MobilePosHomeScreen> {
   @override
   void initState() {
     super.initState();
+    _wedgeController = SmartScannerController();
+    _wedgeSubscription = _wedgeController.scans.listen((scan) {
+      _handleScanCode(scan.rawValue, source: scan.source);
+    });
+    _wedgeController.start();
     _start();
     timer = Timer.periodic(const Duration(seconds: 20), (_) => _heartbeat());
   }
 
   @override
   void dispose() {
+    _wedgeSubscription?.cancel();
+    _wedgeController.dispose();
     timer?.cancel();
     search.dispose();
     super.dispose();
   }
 
   Future<void> _start() async {
-    await local.db;
-    final stored = await local.getMeta(
-      'manual_offline:${widget.session.tenantId}:${widget.session.deviceId}',
-    );
-    _manualOffline = stored == true;
+    try {
+      await local.db;
+      final stored = await local.getMeta(
+        'manual_offline:${widget.session.tenantId}:${widget.session.deviceId}',
+      );
+      _manualOffline = stored == true;
 
-    if (_manualOffline) {
-      syncText = 'Offline | manual mode';
-    } else {
-      try {
-        await sync.refreshCatalogue(widget.session);
-        syncText = 'Online | cache refreshed';
-      } catch (_) {
-        syncText = 'Offline | using local cache';
+      if (_manualOffline) {
+        syncText = 'Offline | manual mode';
+      } else {
+        try {
+          await sync.refreshCatalogue(widget.session);
+          syncText = 'Online | cache refreshed';
+        } catch (_) {
+          syncText = 'Offline | using local cache';
+        }
       }
-    }
 
-    await _reload();
-    if (mounted) setState(() => loading = false);
-    if (!_manualOffline) unawaited(_heartbeat());
+      await _reload();
+      if (mounted) setState(() => loading = false);
+      if (!_manualOffline) unawaited(_heartbeat());
+    } catch (_) {}
   }
 
   Future<void> _reload() async {
@@ -286,17 +300,20 @@ class _State extends State<MobilePosHomeScreen> {
     await Future.wait(cart.map((x) => _resolvePrice(x, notify: notify)));
   }
 
-  Future<void> scan() async {
-    final code = await Navigator.of(context).push<String>(
-      MaterialPageRoute(builder: (_) => const BarcodeScannerScreen()),
-    );
-    if (code == null || code.isEmpty || !mounted) return;
+  Future<bool> _handleScanCode(
+    String rawCode, {
+    ScannerSource source = ScannerSource.camera,
+  }) async {
+    final code = rawCode.trim();
+    if (code.isEmpty) return false;
+
+    // 1. Check serial numbers in local cache
     final serial = await local.findSerial(
       widget.session.tenantId,
       widget.session.locationId,
       code,
     );
-    if (!mounted) return;
+    if (!mounted) return false;
     if (serial != null) {
       final id = serial['variant_id']?.toString();
       MobileProduct? p;
@@ -308,24 +325,125 @@ class _State extends State<MobilePosHomeScreen> {
       }
       if (p != null) {
         _add(p, serial: code);
-        return;
+        return true;
       }
     }
-    final matches = products.where((p) => p.matchesCode(code)).toList();
-    if (matches.length == 1) {
-      await _addProduct(matches.first);
-    } else if (mounted) {
-      ThqNotify.showSnackBar(
-        context,
-        SnackBar(
-          content: Text(
-            matches.isEmpty
-                ? 'No cached product/serial matches $code.'
-                : 'Multiple products match this code. Search and select one.',
-          ),
-        ),
+
+    // 2. Identify code via multi-tier identification engine
+    try {
+      final result = await _smartInventory.identifyCode(
+        code,
+        session: widget.session,
+        source: source,
+        forceOffline: _manualOffline,
       );
+
+      if (!mounted) return false;
+
+      if (result.isExact && result.primaryMatch != null) {
+        final match = result.primaryMatch!;
+        final p = _smartInventory.resolveProduct(match, products: products);
+        if (p != null) {
+          await _addProduct(p);
+          if (!mounted) return false;
+          ThqNotify.showSnackBar(
+            context,
+            SnackBar(
+              content: Text('Added ${p.name} (${match.sku})'),
+              duration: const Duration(seconds: 2),
+            ),
+          );
+          return true;
+        } else {
+          if (!mounted) return false;
+          ThqNotify.showSnackBar(
+            context,
+            SnackBar(
+              content: Text(
+                'Product found (${match.productName}), but catalog details could not be parsed.',
+              ),
+            ),
+          );
+          return false;
+        }
+      } else if (result.isAmbiguous && result.matches.isNotEmpty) {
+        if (!mounted) return false;
+        final chosen = await showDialog<ProductIdentificationMatch>(
+          context: context,
+          barrierDismissible: false,
+          builder: (_) => MobilePosMultipleMatchDialog(
+            rawCode: code,
+            matches: result.matches,
+            currencyCode: widget.session.currencyCode,
+          ),
+        );
+        if (chosen != null && mounted) {
+          final p = _smartInventory.resolveProduct(chosen, products: products);
+          if (p != null) {
+            await _addProduct(p);
+            if (!mounted) return false;
+            ThqNotify.showSnackBar(
+              context,
+              SnackBar(
+                content: Text('Added ${p.name} (${chosen.sku})'),
+                duration: const Duration(seconds: 2),
+              ),
+            );
+            return true;
+          }
+        }
+        return false;
+      } else if (result.isNotFound) {
+        if (!mounted) return false;
+        final msg = result.status == ProductIdentificationStatus.offlineMiss
+            ? 'Code "$code" not found in offline product cache.'
+            : 'No product found for code "$code".';
+        ThqNotify.showSnackBar(context, SnackBar(content: Text(msg)));
+        return false;
+      } else if (result.hasError) {
+        if (!mounted) return false;
+        ThqNotify.showSnackBar(
+          context,
+          SnackBar(
+            content: Text('Identification error: ${result.errorMessage}'),
+          ),
+        );
+        return false;
+      } else if (result.status == ProductIdentificationStatus.invalidIdentifier) {
+        if (!mounted) return false;
+        ThqNotify.showSnackBar(
+          context,
+          SnackBar(content: Text('Invalid code: $code')),
+        );
+        return false;
+      }
+    } catch (e) {
+      if (mounted) {
+        ThqNotify.showSnackBar(
+          context,
+          SnackBar(content: Text('Scan processing failed: $e')),
+        );
+      }
+      return false;
     }
+
+    return false;
+  }
+
+  Future<void> scan() async {
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        builder: (_) => BarcodeScannerScreen(
+          session: widget.session,
+          products: products,
+          onScanCode: (code, {source = ScannerSource.camera}) =>
+              _handleScanCode(code, source: source),
+          initialContinuous: true,
+          initialCartCount: cart.length,
+        ),
+      ),
+    );
+    if (mounted) setState(() {});
   }
 
   Future<void> _addProduct(MobileProduct p) async {
@@ -1314,10 +1432,13 @@ class _State extends State<MobilePosHomeScreen> {
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       drawer: showSidebar ? null : Drawer(child: _sideMenu(inDrawer: true)),
-      body: SafeArea(
-        child: loading
-            ? const ThqLoadingState(label: 'Preparing POS...')
-            : Row(
+      body: ThqBarcodeWedgeListener(
+        controller: _wedgeController,
+        onScan: (rawCode, source) => _handleScanCode(rawCode, source: source),
+        child: SafeArea(
+          child: loading
+              ? const ThqLoadingState(label: 'Preparing POS...')
+              : Row(
                 children: [
                   if (showSidebar)
                     SizedBox(width: 176, child: _sideMenu(inDrawer: false)),
@@ -1402,6 +1523,7 @@ class _State extends State<MobilePosHomeScreen> {
                   ),
                 ],
               ),
+        ),
       ),
     );
   }
@@ -2082,6 +2204,16 @@ class _State extends State<MobilePosHomeScreen> {
                 child: TextField(
                   controller: search,
                   onChanged: (_) => setState(() {}),
+                  onSubmitted: (value) async {
+                    if (value.trim().isNotEmpty) {
+                      await _handleScanCode(
+                        value.trim(),
+                        source: ScannerSource.manual,
+                      );
+                      search.clear();
+                      if (mounted) setState(() {});
+                    }
+                  },
                   decoration: InputDecoration(
                     isDense: true,
                     prefixIcon: const Icon(Icons.search_rounded),

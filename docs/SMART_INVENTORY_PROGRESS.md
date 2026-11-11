@@ -1,7 +1,7 @@
 # THQ ERP — Smart Inventory Progress Log
 
 **Active Branch:** `main`  
-**Current Milestone:** Phase 4 Completed  
+**Current Milestone:** Phase 5 Completed  
 **Last Updated:** 2026-11-11  
 
 ---
@@ -59,10 +59,17 @@
   - [x] 11 unit, widget, and integration tests passing in `apps/pos_app/test/pos_smart_inventory_test.dart`.
   - [x] Full POS suite passing: 39 / 39 tests. All monorepo regression suites passing (443 tests total).
 
-- [ ] **Phase 5: Mobile POS Integration**
-  - [ ] Enhance `apps/mobile_pos/lib/screens/barcode_scanner_screen.dart` with continuous mode, zoom, and flashlight.
-  - [ ] Implement Phone-to-PC pairing transmitter.
-  - [ ] Verify offline sale queueing and FEFO compatibility.
+- [x] **Phase 5: Mobile POS Integration**
+  - [x] Enhance `apps/mobile_pos/lib/screens/barcode_scanner_screen.dart` with `ThqSmartScannerView`, `SmartScannerController`, continuous scanning, torch toggle, camera flip, and modal manual code entry.
+  - [x] Build `MobilePosSmartInventoryService` coordinating `ProductIdentificationEngine` with RPC and local SQLite catalog.
+  - [x] Wrap root `MobilePosHomeScreen` with `ThqBarcodeWedgeListener` for Bluetooth/USB barcode scanners.
+  - [x] Integrate search bar `onSubmitted` for manual barcode/SKU entry.
+  - [x] Direct cart line addition via `_add(MobileProduct)` preserving unit pricing, tier rules, and stock validation.
+  - [x] Auto-consolidate quantities on repeated scans (`line.quantity += step`).
+  - [x] Build `MobilePosMultipleMatchDialog` for explicit candidate variant disambiguation.
+  - [x] Non-disruptive feedback via `ThqNotify` without corrupting cart or mutating database stock.
+  - [x] 10 unit, widget, and integration tests passing in `apps/mobile_pos/test/mobile_pos_smart_inventory_test.dart`.
+  - [x] Full Mobile POS suite passing: 17 / 17 tests. All monorepo regression suites passing (460 tests total).
 
 - [ ] **Phase 6: Client Mobile Integration**
   - [ ] Add `mobile_scanner: 7.4.0` to `apps/client_mobile/pubspec.yaml`.
