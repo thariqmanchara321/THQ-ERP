@@ -36,3 +36,7 @@ export 'src/import/smart_duplicate_detector.dart';
 export 'src/import/sample_template_generator.dart';
 export 'src/import/smart_import_engine.dart';
 
+export 'src/barcode/barcode_format.dart';
+export 'src/barcode/barcode_generator.dart';
+export 'src/barcode/label_models.dart';
+

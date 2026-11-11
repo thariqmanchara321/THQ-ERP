@@ -128,3 +128,36 @@ CREATE POLICY inventory_import_batches_tenant ON public.inventory_import_batches
   - It does **NOT** write opening balances or ledger adjustments into `public.location_stock_balances` or stock movement tables.
   - Opening stock numbers in supplier spreadsheets are informational only; live stock adjustments require approved stock count posts (Phase 9).
 
+---
+
+## 5. Phase 8: Barcode Generation & Label Template Database Contracts
+
+### 5.1 Reused Existing RPCs & Functions
+
+1. **`public.label_templates_v482(p_tenant_id uuid) RETURNS SETOF public.label_templates_v482`**
+   - Retrieves active and default label templates configured for the business tenant.
+   - Output includes: `id`, `code`, `name`, `paper_mode`, `width_mm`, `height_mm`, `columns`, `rows`, `show_business`, `show_product`, `show_price`, `show_sku`, `show_code_text`, `code_mode`, `is_default`, `active`.
+
+2. **`public.label_template_save_v482(p_tenant_id uuid, p_template_id uuid, p_code text, p_name text, p_paper_mode text, p_width_mm numeric, p_height_mm numeric, p_columns integer, p_show_business boolean, p_show_product boolean, p_show_price boolean, p_show_sku boolean, p_show_code_text boolean, p_code_mode text, p_is_default boolean, p_active boolean) RETURNS uuid`**
+   - Saves or updates a custom label layout for the tenant.
+   - Enforces `inventory.manage` permission check or `owner` role.
+   - Atomically resets other default templates if `p_is_default` is set to true.
+
+3. **`public.product_identifier_generate_v482(p_tenant_id uuid, p_variant_id uuid, p_identifier_type text) RETURNS jsonb`**
+   - Generates an in-store barcode using sequence table `public.product_identifier_sequences_v482`.
+   - For `p_identifier_type = 'barcode'`:
+     - Uses prefix `'28'` (GS1 reserved for restricted/in-store circulation).
+     - Pads the 10-digit sequential counter: `'28' || lpad(v_seq::text, 10, '0')`.
+     - Appends the standard modulo-10 check digit via `private.v482_ean13_check_digit(v_seed)`.
+   - Guaranteed zero collision with external manufacturer EAN-13 barcodes.
+
+4. **`public.product_identifier_save_v482(p_tenant_id uuid, p_identifier_id uuid, p_variant_id uuid, p_identifier_type text, p_code text, p_supplier_id uuid, p_label text, p_is_primary boolean, p_active boolean) RETURNS uuid`**
+   - Saves new or generated identifiers for a product variant.
+   - Preserves exact string representation including leading zeroes.
+
+### 5.2 Strict Invariants for Label Operations
+
+- Barcode generation and label printing are strictly catalogue, identification, and presentation operations.
+- They NEVER alter stock counts in `public.location_stock_balances` or create entries in financial accounts.
+
+

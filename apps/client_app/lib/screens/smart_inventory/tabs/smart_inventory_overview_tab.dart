@@ -178,6 +178,14 @@ class SmartInventoryOverviewTab extends StatelessWidget {
                   buttonText: 'Import Products',
                   onTap: () => onSelectTab(5),
                 ),
+                _ActionCard(
+                  title: 'Barcode Studio',
+                  subtitle:
+                      'Design, generate, and print thermal barcode labels and A4 multi-label sheets with GS1 check digits.',
+                  icon: Icons.print_outlined,
+                  buttonText: 'Open Barcode Studio',
+                  onTap: () => onSelectTab(6),
+                ),
               ];
 
               if (isWide) {

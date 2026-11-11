@@ -1,7 +1,7 @@
 # THQ ERP — Smart Inventory Progress Log
 
 **Active Branch:** `main`  
-**Current Milestone:** Phase 7 Completed  
+**Current Milestone:** Phase 8 Completed  
 **Last Updated:** 2026-11-11  
 
 ---
@@ -101,9 +101,19 @@
   - [x] 7 widget and workflow tests passing in `apps/client_app/test/smart_inventory_import_test.dart`.
   - [x] Full monorepo regression suites passing (529 tests total across 6 projects).
 
-- [ ] **Phase 8: Label Printing & Barcode Generation Engine**
-  - [ ] Shared barcode rendering service (Code 128, EAN-13, QR).
-  - [ ] Thermal label formatting for ESC/POS and TSPL printers.
+- [x] **Phase 8: Label Printing & Barcode Generation Engine**
+  - [x] Shared barcode package in `packages/erp_core`: `barcode_format.dart`, `barcode_generator.dart`, `label_models.dart`.
+  - [x] Barcode format validation and GS1 modulo 10 check digit algorithms for EAN-13 and UPC-A, plus Code 128 ASCII and QR code validation.
+  - [x] In-store barcode generation: EAN-13 (GS1 restricted prefix 28), UPC-A (prefix 2), Code 128, and structured THQ QR payloads (`THQ:PRODUCT:<variant_id>:<sku>`).
+  - [x] Label template models with paper modes (`thermal`, `a4`), standard dimensions, built-in presets (50x30, 50x25, 58x40, A4 24, A4 14, A4 40), custom dimensions, and element visibility toggles.
+  - [x] High-resolution batch PDF document generation and printing engine via `LabelPrintingService` supporting thermal rolls and A4 multi-label sheets.
+  - [x] Interactive `SmartBarcodeStudioTab` in `apps/client_app` featuring catalog search, missing barcode filtering, batch selection, copies management, live responsive preview canvas, barcode generation, and print/export actions.
+  - [x] Integrated as Tab 6 into `SmartInventoryWorkspaceScreen`, added quick action card in `SmartInventoryOverviewTab`, and added toolbar button in `InventoryProductsScreen`.
+  - [x] Strict invariant enforced: ZERO stock balance mutations or ledger changes during barcode design and label printing.
+  - [x] 15 unit tests passing in `packages/erp_core/test/barcode_studio_test.dart`.
+  - [x] 6 unit and widget tests passing in `apps/client_app/test/smart_barcode_studio_test.dart`.
+  - [x] All 7 tabs in `apps/client_app/test/smart_inventory_workspace_test.dart` passing.
+  - [x] Full monorepo regression suites passing (550 tests total across all projects).
 
 - [ ] **Phase 9: Physical Stock Counting & Reconciliation Engine**
   - [ ] Integration with `inventory_stock_count_post_v485` and `inventory_adjust_stock_v483`.

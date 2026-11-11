@@ -512,3 +512,83 @@ Phase 7 provides a resilient, professional, and reusable product import capabili
   - "Import Products" entry point added to `InventoryProductsScreen` toolbar with automatic refresh upon return.
   - Quick Action launcher added to `SmartInventoryOverviewTab`.
 
+---
+
+## 10. Phase 8: Smart Barcode Studio & Label Printing Engine Architecture
+
+### 10.1 Objectives & Scope
+
+The Smart Barcode Studio provides an integrated design, generation, and batch-printing environment for product labels across desktop and retail environments.
+It enables business operators to:
+1. Search and select products across the active store catalogue.
+2. Filter for products missing barcodes or needing re-labelling.
+3. Validate barcode symbologies (Code 128, EAN-13, UPC-A, QR Code) with strict check-digit algorithms.
+4. Auto-generate conflict-free in-store EAN-13 barcodes (GS1 prefix `28`), UPC-A (prefix `2`), Code 128, or structured QR payloads.
+5. Configure thermal rolls (e.g. 50x30mm, 50x25mm, 58x40mm) and A4 multi-label sheets (e.g. 24, 14, 40 labels per page).
+6. Toggle element visibility (Store name, Product title, Brand/Variant, SKU, Selling Price, Barcode number).
+7. Preview labels live on an interactive scaled canvas matching physical label dimensions.
+8. Print batch jobs directly to thermal or laser printers or export as high-fidelity PDF documents.
+
+### 10.2 Key Invariants & Safeguards
+
+- **Catalogue & Printing Only:** Label generation and printing operations NEVER mutate inventory stock balances (`location_stock_balances`), create movement ledger entries (`inventory_movement_history_v481`), or post accounting vouchers.
+- **Zero Schema Migrations:** Reuses existing production Supabase database objects:
+  - `label_templates_v482` & `label_template_save_v482`
+  - `product_identifiers_v482` & `product_identifier_save_v482`
+  - `product_identifier_generate_v482`
+  - `private.v482_ean13_check_digit`
+- **GS1 In-Store Namespace Guarantee:** Internal EAN-13 generation strictly uses prefix `28` (reserved by GS1 for restricted circulation), guaranteeing zero collisions with external manufacturer barcodes.
+- **Leading Zero Preservation:** All barcodes and SKUs are stored and processed strictly as text strings (e.g. `'0012345678905'`).
+
+### 10.3 Core Barcode Subsystem (`packages/erp_core/lib/src/barcode/`)
+
+- **`barcode_format.dart` (`LabelBarcodeFormat`, `BarcodeValidator`):**
+  - Defines `LabelBarcodeFormat` enum: `code128`, `ean13`, `upcA`, `qrCode`.
+  - Implements EAN-13 modulo-10 check digit calculation with 1/3 alternating weighting.
+  - Implements UPC-A modulo-10 check digit calculation with 3/1 alternating weighting.
+  - Validates Code 128 ASCII range (32 to 126) and length limits.
+  - Validates QR Code alphanumeric content and length.
+- **`barcode_generator.dart` (`BarcodeGenerator`):**
+  - `generateInternalEan13(sequence)`: produces `'28' + pad10(seq) + checkDigit`.
+  - `generateInternalUpcA(sequence)`: produces `'2' + pad10(seq) + checkDigit`.
+  - `generateCode128({required sku, sequence})`: produces sanitized alphanumeric code.
+  - `generateThqQrPayload({required variantId, required codeOrSequence})`: produces structured payload `THQ:PRODUCT:<variant_short_id>:<code_or_seq>`.
+- **`label_models.dart` (`LabelTemplate`, `LabelDimensions`, `LabelPrintItem`, `PaperMode`):**
+  - `PaperMode`: `thermal` (continuous roll, 1 label per page), `a4` (multi-label grid layout).
+  - Built-in presets:
+    - Standard Thermal: 50 × 30 mm
+    - Compact Jewelry / Tag: 50 × 25 mm
+    - Shipping / Box: 58 × 40 mm
+    - A4 Sheet: 24 labels (70 × 37 mm, 3 columns × 8 rows)
+    - A4 Sheet: 14 labels (105 × 42 mm, 2 columns × 7 rows)
+    - A4 Sheet: 40 micro-tags (52.5 × 29.7 mm, 4 columns × 10 rows)
+  - `LabelPrintItem`: item model tracking product identifiers, copies count, and price formatting.
+
+### 10.4 Enhanced Printing Engine (`apps/client_app/lib/services/label_printing_service.dart`)
+
+- Reusable vector PDF compilation using `package:pdf` and `package:printing`.
+- Vector barcode rendering via `pw.BarcodeWidget` for crisp thermal printing at 203 DPI and 300 DPI without pixelation.
+- Supports batch roll rendering (one PDF page per printed label copy) and A4 sheet rendering (items flow into grid cells with row/column boundaries and auto page breaks).
+- 100% backward compatible with legacy single-label `printLabels(...)` invocations.
+
+### 10.5 Interactive Studio UI (`apps/client_app/lib/screens/smart_inventory/tabs/smart_barcode_studio_tab.dart`)
+
+- Embedded as Tab 6 in `SmartInventoryWorkspaceScreen`.
+- Left Pane (Product Catalogue & Selection):
+  - Fast search with debouncing.
+  - Filter chips: `All`, `Missing Barcode`, `Selected`.
+  - Checkbox multi-select, per-item copies stepper, barcode format validation status badge, and individual "Generate" button.
+  - Batch action dropdown: "Set all copies = 1", "Set all copies = 5", "Match stock quantity", "Generate EAN-13 for missing".
+- Right Pane (Studio Designer & Live Preview):
+  - Preset template selector (Standard presets + Custom dimensions).
+  - Barcode symbology selector.
+  - Element toggles (Store, Product, Brand/Variant, SKU, Price, Barcode Number).
+  - Real-time scaled live preview canvas reflecting label aspect ratio and toggles.
+  - Preview pagination through selected products (`Label X of Y`).
+  - Total labels count and paper/sheet estimation.
+  - Direct "Print Labels" action via native printer dialog and "Export PDF" file save.
+- Navigation integration:
+  - Quick action launcher added to `SmartInventoryOverviewTab` linking to Tab 6.
+  - "Barcode Studio" toolbar button added to `InventoryProductsScreen`.
+
+

@@ -3,6 +3,7 @@ import 'package:thq_ui/thq_ui.dart';
 
 import '../../models/client_session.dart';
 import '../../services/location_scope_service.dart';
+import 'tabs/smart_barcode_studio_tab.dart';
 import 'tabs/smart_inventory_bulk_scan_tab.dart';
 import 'tabs/smart_inventory_import_tab.dart';
 import 'tabs/smart_inventory_overview_tab.dart';
@@ -35,9 +36,9 @@ class _SmartInventoryWorkspaceScreenState
   @override
   void initState() {
     super.initState();
-    _activeTabIndex = widget.initialTab.clamp(0, 5);
+    _activeTabIndex = widget.initialTab.clamp(0, 6);
     _tabController = TabController(
-      length: 6,
+      length: 7,
       vsync: this,
       initialIndex: _activeTabIndex,
     );
@@ -55,7 +56,7 @@ class _SmartInventoryWorkspaceScreenState
   }
 
   void _onSelectTab(int index) {
-    if (index >= 0 && index < 6) {
+    if (index >= 0 && index < 7) {
       _tabController.animateTo(index);
       setState(() => _activeTabIndex = index);
     }
@@ -163,6 +164,10 @@ class _SmartInventoryWorkspaceScreenState
                   icon: Icon(Icons.upload_file_outlined, size: 18),
                   text: 'Product Import',
                 ),
+                Tab(
+                  icon: Icon(Icons.print_outlined, size: 18),
+                  text: 'Barcode Studio',
+                ),
               ],
             ),
           ),
@@ -181,6 +186,7 @@ class _SmartInventoryWorkspaceScreenState
                 SmartInventoryBulkScanTab(session: widget.session),
                 SmartInventoryScanHistoryTab(session: widget.session),
                 SmartInventoryImportTab(session: widget.session),
+                SmartBarcodeStudioTab(session: widget.session),
               ],
             ),
           ),

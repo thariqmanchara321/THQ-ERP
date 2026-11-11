@@ -252,3 +252,36 @@ This test plan specifies the verification requirements for all Smart Inventory c
 12. **Downloadable Failure CSV:** Produces an RFC 4180 CSV error report listing row number, product name, SKU, and error reason for failed rows.
 13. **Static Analysis:** Zero issues (`flutter analyze` on `erp_core` and `client_app` passed clean with 0 warnings/errors).
 
+---
+
+## 10. Phase 8 Test Matrix & Execution (Smart Barcode Studio & Label Printing Engine)
+
+| Test Target | Test File | Planned | Executed | Status |
+| :--- | :--- | :--- | :--- | :--- |
+| `BarcodeValidator` EAN-13 Suite | `packages/erp_core/test/barcode_studio_test.dart` | 4 | 4 | **PASSED** |
+| `BarcodeValidator` UPC-A Suite | `packages/erp_core/test/barcode_studio_test.dart` | 2 | 2 | **PASSED** |
+| `BarcodeValidator` Code128 & QR Suite | `packages/erp_core/test/barcode_studio_test.dart` | 2 | 2 | **PASSED** |
+| `BarcodeGenerator` Generation Suite | `packages/erp_core/test/barcode_studio_test.dart` | 4 | 4 | **PASSED** |
+| `LabelTemplate` & Presets Suite | `packages/erp_core/test/barcode_studio_test.dart` | 3 | 3 | **PASSED** |
+| `LabelPrintingService` Batch PDF Suite | `apps/client_app/test/smart_barcode_studio_test.dart` | 3 | 3 | **PASSED** |
+| `SmartBarcodeStudioTab` Widget Suite | `apps/client_app/test/smart_barcode_studio_test.dart` | 3 | 3 | **PASSED** |
+| `SmartInventoryWorkspaceScreen` 7-Tab Suite | `apps/client_app/test/smart_inventory_workspace_test.dart` | 6 | 6 | **PASSED** |
+| `packages/erp_core` Full Suite (Regression) | `packages/erp_core/test/` | 114 | 114 | **PASSED** (Baseline 99 + 15 New) |
+| `packages/thq_ui` Full Suite (Regression) | `packages/thq_ui/test/` | 73 | 73 | **PASSED** |
+| `apps/client_app` Full Suite (Regression) | `apps/client_app/test/` | 261 | 261 | **PASSED** (Baseline 255 + 6 New) |
+| `apps/pos_app` Full Suite (Regression) | `apps/pos_app/test/` | 39 | 39 | **PASSED** |
+| `apps/mobile_pos` Full Suite (Regression) | `apps/mobile_pos/test/` | 17 | 17 | **PASSED** |
+| `apps/client_mobile` Full Suite (Regression) | `apps/client_mobile/test/` | 46 | 46 | **PASSED** |
+
+### Verified Phase 8 Capabilities:
+1. **Modulo-10 Check Digit Calculation:** EAN-13 alternating 1/3 weighting and UPC-A alternating 3/1 weighting verified against known GS1 benchmark barcodes.
+2. **Symbology Validation:** `BarcodeValidator` accurately accepts valid lengths/characters and rejects corrupted or miscalculated check digits.
+3. **In-Store Barcode Generation:** `BarcodeGenerator.generateInternalEan13` produces guaranteed non-colliding barcodes with prefix `28` and correct check digits.
+4. **UPC-A & Code 128 Generation:** In-store UPC-A generation with prefix `2` and sanitized Code 128 formatting verified.
+5. **Structured THQ QR Payload:** `BarcodeGenerator.generateThqQrPayload` formats standardized `THQ:PRODUCT:<variant_short_id>:<sku>` strings.
+6. **Thermal Roll PDF Generation:** `LabelPrintingService` generates 1 page per label copy with vector barcodes, store name, product title, SKU, and price.
+7. **A4 Multi-Label Grid Generation:** Multi-item batches accurately flow across columns and rows with automatic pagination.
+8. **Interactive Studio UI:** Fast search, missing barcode filtering, batch selection, quantity counters, live visual preview, and print actions verified.
+9. **Zero Stock Balance Mutation:** Studio strictly performs catalogue and printing operations without touching live stock or accounting balances.
+
+
