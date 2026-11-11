@@ -27,6 +27,7 @@ export 'src/identification/product_identification_engine.dart';
 
 export 'src/inventory/smart_inventory_session_models.dart';
 export 'src/inventory/stock_count_models.dart';
+export 'src/inventory/purchase_receiving_models.dart';
 
 export 'src/import/smart_import_models.dart';
 export 'src/import/csv_parser.dart';

@@ -193,6 +193,14 @@ class SmartInventoryOverviewTab extends StatelessWidget {
                   buttonText: 'Start Stock Count',
                   onTap: () => onSelectTab(7),
                 ),
+                _ActionCard(
+                  title: 'Purchase Receiving',
+                  subtitle:
+                      'Inward supplier deliveries against purchase orders or direct receipts, verify quantities, and post goods receipts.',
+                  icon: Icons.call_received,
+                  buttonText: 'Receive Goods',
+                  onTap: () => onSelectTab(8),
+                ),
               ];
 
               final width = constraints.maxWidth;

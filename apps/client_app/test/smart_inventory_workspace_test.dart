@@ -195,7 +195,7 @@ void main() {
       ClientSmartInventoryService.instance.setCustomRpc((fn, {params}) async => null);
     });
 
-    testWidgets('SmartInventoryWorkspaceScreen renders header and all 8 tabs', (tester) async {
+    testWidgets('SmartInventoryWorkspaceScreen renders header and all 9 tabs', (tester) async {
       await tester.pumpWidget(
         const MaterialApp(
           home: Scaffold(
@@ -214,6 +214,7 @@ void main() {
       expect(find.widgetWithText(Tab, 'Product Import'), findsOneWidget);
       expect(find.widgetWithText(Tab, 'Barcode Studio'), findsOneWidget);
       expect(find.widgetWithText(Tab, 'Stock Count'), findsOneWidget);
+      expect(find.widgetWithText(Tab, 'Purchase Receiving'), findsOneWidget);
 
       // Overview quick actions are present
       expect(find.text('Open Scan Center'), findsOneWidget);
@@ -222,6 +223,7 @@ void main() {
       expect(find.text('Import Products'), findsOneWidget);
       expect(find.text('Open Barcode Studio'), findsOneWidget);
       expect(find.text('Start Stock Count'), findsOneWidget);
+      expect(find.text('Receive Goods'), findsOneWidget);
     });
 
     testWidgets('Switching to Scan Center displays hardware wedge status and manual input', (tester) async {

@@ -205,4 +205,57 @@ CREATE POLICY inventory_import_batches_tenant ON public.inventory_import_batches
 - All stock balance updates MUST originate from `public.inventory_stock_count_post_v485`, guaranteeing that ledger adjustments, row locks, sync version increments, and audit records are posted in a single atomic database transaction.
 - Client requests MUST provide an RFC 4122 v4 UUID `p_request_id` to guarantee idempotent execution.
 
+---
+
+## 7. Phase 10: Smart Purchase Receiving Database Contracts
+
+### 7.1 Existing Reused Procedures (ZERO Migrations Required)
+Phase 10 requires **ZERO database migrations or schema alterations**. It uses existing, proven, production database procedures:
+
+1. **`public.goods_receipt_create_v484(p_tenant_id uuid, p_purchase_order_id uuid, p_receipt_date date, p_items jsonb, p_supplier_delivery_note text, p_notes text) RETURNS jsonb`**
+   - Validates that the purchase order exists and belongs to `p_tenant_id`.
+   - Generates sequential Goods Receipt Note number: `GRN-YYMMDD-XXXXXX`.
+   - Verifies each item in `p_items`:
+     - Requires `abs(received_quantity - (accepted_quantity + damaged_quantity + rejected_quantity)) <= 0.000001`.
+     - Validates that `received_quantity <= remaining_quantity` on the PO line.
+     - Captures `damage_note`, `rejection_reason`, and `tracking` payloads (batches/serials).
+   - Inserts draft record into `public.goods_receipts_v484` and `public.goods_receipt_items_v484`.
+   - Returns `{ goods_receipt_id: uuid, grn_number: text, status: 'draft' }`.
+
+2. **`public.goods_receipt_post_v484(p_tenant_id uuid, p_goods_receipt_id uuid, p_device_id text) RETURNS jsonb`**
+   - Atomically locks the GRN with `FOR UPDATE`.
+   - Idempotent: if already `'posted'`, returns existing record without re-posting.
+   - For accepted items:
+     - Invokes `public.inventory_adjust_stock` and `private.v4_location_stock_apply`.
+     - Inserts entries into `public.location_stock_movements`.
+     - Updates `public.location_stock_balances` with row-level locks.
+     - Logs damaged items to quarantine/damaged tracking when applicable.
+   - Updates `purchase_order_items_v480.received_quantity` and checks overall completion.
+   - Updates `purchase_orders_v480.status`:
+     - If all lines fully received: `'received'`.
+     - If partially received: `'partially_received'`.
+   - Bumps location sync version for POS and mobile clients.
+   - Returns `{ goods_receipt_id: uuid, status: 'posted', purchase_order_status: text }`.
+
+3. **`public.goods_receipt_list_v484(p_tenant_id uuid, p_location_id uuid DEFAULT NULL, p_status text DEFAULT NULL, p_query text DEFAULT '', p_limit integer DEFAULT 500)`**
+   - Returns historical GRNs for audit review and discrepancy inspection.
+   - Columns: `id`, `grn_number`, `receipt_date`, `status`, `purchase_order_id`, `order_number`, `supplier_id`, `supplier_name`, `location_id`, `location_name`, `line_count`, `received_quantity`, `accepted_quantity`, `damaged_quantity`, `rejected_quantity`, `created_at`.
+
+4. **`public.purchase_order_list_v484(p_tenant_id uuid, p_location_id uuid, p_status text, p_query text, p_limit integer)`**
+   - Retrieves open purchase orders eligible for receiving (status `'approved'`, `'ordered'`, `'confirmed'`, `'partially_received'`).
+
+5. **`public.purchase_order_detail_v484(p_tenant_id uuid, p_purchase_order_id uuid)`**
+   - Retrieves line items with `ordered_quantity`, `received_quantity`, and `remaining_receive_quantity`.
+
+6. **`public.gst_purchase_create_v520(...)` via `PurchaseService.createPurchase`**
+   - Used for Direct Inward receiving when goods arrive without a prior Purchase Order.
+   - Atomically records supplier invoice, tax breakdowns, stock balance additions, and journal entries.
+
+### 7.2 Strict Invariants for Goods Receiving Operations
+- UI code must NEVER directly modify `public.location_stock_balances`.
+- Receiving against Purchase Orders MUST post through `public.goods_receipt_create_v484` and `public.goods_receipt_post_v484`.
+- Under-deliveries properly record partial status; over-deliveries and unexpected items are flagged in the UI for managerial review.
+- All numbers, barcodes, and SKU strings preserve exact leading zeros.
+
+
 

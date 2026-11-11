@@ -315,4 +315,35 @@ This test plan specifies the verification requirements for all Smart Inventory c
 9. **Audit Trail Review:** Lists past counts from `stock_counts_list_v485` displaying count numbers, locations, line counts, status, and variance totals.
 10. **Zero Regression:** All 270 client_app tests, 120 erp_core tests, 73 thq_ui tests, 39 pos_app tests, 17 mobile_pos tests, and 46 client_mobile tests pass with 0 errors.
 
+---
+
+## 12. Phase 10 Test Matrix & Execution (Smart Purchase Receiving & Inventory Inward Engine)
+
+### 12.1 Automated Test Execution Summary
+- **`packages/erp_core/test/purchase_receiving_models_test.dart`:** 6 / 6 tests passing.
+  - `PurchaseReceivingItem`: calculates `remainingExpectedQuantity`, `excessQuantity`, `isFullyReceived`, `isMissing`, and discrepancy flags.
+  - `increment`, `decrement`, and `matchRemaining`: correctly update received counts, accepted balances, and tracking timestamps.
+  - `fromPoItemMap`: correctly deserializes line items from `purchase_order_detail_v484`.
+  - `toGrnItemMap`: formats payload for `goods_receipt_create_v484` with accepted, damaged, and rejected balances.
+  - `PurchaseReceivingSummary`: computes ordered, received, accepted, damaged, rejected, line breakdown, and completion percentage.
+  - `PurchaseReceivingSession`: manages items, scan matching, unresolved scans, and payload formatting.
+- **`apps/client_app/test/smart_purchase_receiving_test.dart`:** 12 / 12 tests passing.
+  - `listReceivablePurchaseOrders`: parses open PO records correctly.
+  - `fetchReceivingItemsForPo`: retrieves line items with remaining expected quantities.
+  - `createGoodsReceipt`: creates draft GRN via RPC `goods_receipt_create_v484`.
+  - `postGoodsReceipt`: posts GRN atomically to ledger via RPC `goods_receipt_post_v484`.
+  - `createAndPostGoodsReceipt`: chains draft creation and posting atomically.
+  - `listPastGoodsReceipts`: retrieves historical GRN audit records.
+  - `renders Setup view`: Open POs tab, Direct Inward tab, and Past GRN subtabs.
+  - `tapping "Receive Goods"`: loads PO items and transitions into active receiving session.
+  - `Receive All button`: matches all line items to remaining expected quantities (100% completion).
+  - `Stepper increment & decrement`: adjusts received quantity line by line.
+  - `Manual barcode entry`: increments matching item count.
+  - `Review & Post Inward dialog`: validates discrepancies, captures delivery note, requires explicit confirmation checkbox, and completes inward receipt atomically.
+- **`apps/client_app/test/smart_inventory_workspace_test.dart`:** 6 / 6 tests passing.
+  - Verifies all 9 tabs rendered: Overview, Scan Center, Product Lookup, Bulk Scanning, Scan History, Product Import, Barcode Studio, Stock Count, Purchase Receiving.
+  - Verifies "Receive Goods" quick action card in Overview tab.
+- **Regression Suite:** All packages and applications pass with 0 errors (583 tests total).
+
+
 

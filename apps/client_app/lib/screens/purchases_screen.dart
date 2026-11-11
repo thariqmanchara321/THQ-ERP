@@ -14,6 +14,7 @@ import '../services/purchase_service.dart';
 import '../services/supplier_service.dart';
 import '../services/transaction_print_service.dart';
 import 'purchase_detail_screen.dart';
+import 'smart_inventory/smart_inventory_workspace_screen.dart';
 import '../widgets/searchable_select.dart';
 
 class PurchasesScreen extends StatefulWidget {
@@ -236,6 +237,22 @@ class _PurchasesScreenState extends State<PurchasesScreen> {
                 ),
                 if (_canManage && !widget.historyOnly && _showStandaloneNew) ...[
                   const SizedBox(width: 4),
+                  OutlinedButton.icon(
+                    onPressed: () async {
+                      await Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => SmartInventoryWorkspaceScreen(
+                            session: widget.session,
+                            initialTab: 8,
+                          ),
+                        ),
+                      );
+                      _refresh();
+                    },
+                    icon: const Icon(Icons.call_received, size: 17),
+                    label: const Text('Receive Goods'),
+                  ),
+                  const SizedBox(width: 4),
                   FilledButton.icon(
                     onPressed: _newPurchase,
                     icon: const Icon(Icons.add, size: 17),
@@ -292,10 +309,30 @@ class _PurchasesScreenState extends State<PurchasesScreen> {
                         ),
                         if (_canManage && !widget.historyOnly && _showStandaloneNew) ...[
                           const SizedBox(height: 10),
-                          FilledButton.icon(
-                            onPressed: _newPurchase,
-                            icon: const Icon(Icons.add),
-                            label: const Text('Create Purchase'),
+                          Wrap(
+                            spacing: 8,
+                            children: [
+                              OutlinedButton.icon(
+                                onPressed: () async {
+                                  await Navigator.of(context).push(
+                                    MaterialPageRoute(
+                                      builder: (_) => SmartInventoryWorkspaceScreen(
+                                        session: widget.session,
+                                        initialTab: 8,
+                                      ),
+                                    ),
+                                  );
+                                  _refresh();
+                                },
+                                icon: const Icon(Icons.call_received),
+                                label: const Text('Receive Goods'),
+                              ),
+                              FilledButton.icon(
+                                onPressed: _newPurchase,
+                                icon: const Icon(Icons.add),
+                                label: const Text('Create Purchase'),
+                              ),
+                            ],
                           ),
                         ],
                       ],

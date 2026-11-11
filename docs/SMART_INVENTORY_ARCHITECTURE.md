@@ -674,4 +674,64 @@ It allows warehouse managers and store operators to:
   - Quick action launcher added to `SmartInventoryOverviewTab` linking to Tab 7.
   - "Stock Count" toolbar button added to `InventoryProductsScreen`.
 
+---
+
+## 12. Phase 10: Smart Purchase Receiving & Inventory Inward Engine Architecture
+
+### 12.1 Purpose & Scope
+The Smart Purchase Receiving & Inventory Inward Engine delivers an industrial receiving workflow within THQ Smart Inventory. It bridges procurement with physical warehouse and store operations by enabling warehouse operators and store staff to receive inward shipments against approved Purchase Orders or direct deliveries, verify delivered quantities through hardware barcode scanning or camera recognition, record damaged or rejected goods, handle delivery discrepancies, and post approved receipts atomically into the inventory ledger without corrupting financial records or mutating live stock balances out-of-band.
+
+### 12.2 Architectural Invariants & Guarantees
+1. **Zero Direct Stock Balance Mutations:** UI screens and services NEVER directly update `public.location_stock_balances`. All stock movements and balance adjustments are posted exclusively through approved, audited database RPCs:
+   - For PO-based receiving: `public.goods_receipt_create_v484` followed by `public.goods_receipt_post_v484`.
+   - For direct supplier receipts: `PurchaseService.createPurchase` (`public.gst_purchase_create_v520`).
+2. **Atomic Inventory & Ledger Posting:** Inward postings create immutable entries in `location_stock_movements`, update line receipts on `purchase_order_items_v480`, transition `purchase_orders_v480.status` (`partially_received` or `received`), and advance the store sync version for offline clients.
+3. **Multi-Identifier Product Resolution:** Inwarded items are identified via the unified `ClientSmartInventoryService` and `ProductIdentificationEngine` across barcodes (EAN-13, UPC-A, Code 128), internal product codes, SKUs, manufacturer part numbers, supplier reference numbers, and custom QR codes.
+4. **Leading-Zero & String Fidelity:** Barcodes and numeric SKUs (e.g., `0012345678905`) are handled strictly as strings, preventing truncation or numeric parsing corruption.
+5. **Multi-Store Location Isolation:** Goods receipts are scoped to the active store/warehouse location (`location_id`), strictly respecting RLS policies and store memberships.
+6. **Role & Permission Encasement:** Posting goods receipts requires `purchases.manage`, `inventory.manage`, or the `owner` role. Staff with read-only permissions can inspect open orders and audit trails but cannot commit ledger adjustments.
+
+### 12.3 Domain Models (`packages/erp_core/lib/src/inventory/purchase_receiving_models.dart`)
+- `ReceivingMode`: Enum distinguishing `purchaseOrder` (against an existing PO) from `directInward` (ad-hoc supplier delivery).
+- `ReceivingItemStatus`: Detailed line state (`pending`, `partial`, `complete`, `excess`, `unexpected`).
+- `PurchaseReceivingItem`: Tracks ordered quantity, previously received balance, current session received count, accepted quantity, damaged quantity, rejected quantity, unit cost, tracking modes (serials/batches), inspection notes, and discrepancy indicators (`isFullyReceived`, `isPartiallyReceived`, `isMissing`, `isUnexpected`, `hasDiscrepancy`).
+- `PurchaseReceivingSummary`: Aggregates session metrics including total ordered, total received, total accepted, total damaged, total rejected, line breakdown (complete, partial, missing, excess, unexpected), unresolved scan count, and completion percentage.
+- `PurchaseReceivingSession`: In-memory session container managing items, scan matching (`recordScanMatch`), unresolvable scan accumulation (`recordUnresolvedScan`), and formatting JSON payloads for `goods_receipt_create_v484` (`toGrnPayload`).
+- `PurchaseOrderSummaryRecord` & `GoodsReceiptSummaryRecord`: Lightweight records deserialized from RPC outputs for responsive listing and auditing.
+
+### 12.4 Service Layer (`apps/client_app/lib/services/purchase_receiving_service.dart`)
+- Singleton `PurchaseReceivingService.instance` coordinating procurement and inventory RPCs:
+  - `listReceivablePurchaseOrders`: Queries `purchase_order_list_v484` for approved, ordered, confirmed, or partially received POs with remaining items.
+  - `fetchReceivingItemsForPo`: Queries `purchase_order_detail_v484` and maps line items to `PurchaseReceivingItem` with remaining expected quantities.
+  - `createGoodsReceipt`: Invokes `goods_receipt_create_v484` to create a draft GRN (`GRN-YYMMDD-XXXXXX`).
+  - `postGoodsReceipt`: Invokes `goods_receipt_post_v484` with device telemetry to atomically update stock balances, movements, and PO status.
+  - `createAndPostGoodsReceipt`: Atomically creates and posts the GRN, returning complete GRN number and ledger status.
+  - `listPastGoodsReceipts`: Queries `goods_receipt_list_v484` for historical GRN audit trails.
+  - `postDirectInwardReceipt`: Integrates with `PurchaseService.createPurchase` for non-PO inward receipts.
+
+### 12.5 UI & Workspace Layer (`SmartPurchaseReceivingTab`)
+- Segmented Setup View:
+  - **Open Purchase Orders:** Displays open orders, supplier names, location, order dates, remaining units vs ordered, and one-click "Receive Goods" launcher.
+  - **Direct Inward:** Ad-hoc receiving form with supplier selection, supplier invoice number, and delivery note fields.
+  - **GRN History:** Historical audit table of posted goods receipts with drill-down and receipt dates.
+- Active Receiving Workspace:
+  - Live hardware wedge listener (`ThqBarcodeWedgeListener`) for high-speed USB/Bluetooth barcode guns.
+  - On-demand camera viewfinder (`ThqSmartScannerView`) for mobile or webcam receiving.
+  - Manual search toolbar with instant auto-increment on enter.
+  - Progress metric chips (Ordered, Received %, Accepted, Complete Lines, Missing Lines, Damaged, Rejected, Excess, Unresolved Scans).
+  - Status filter chips (`All`, `Pending`, `Received`, `Missing`, `Damaged / Rejected`, `Excess / Extra`).
+  - Item rows with `[-] [qty] [+]` steppers, status badges, remaining expected labels, and one-click "Match" button.
+- Review & Approval Dialog:
+  - Full discrepancy breakdown (under-delivery missing lines, excess deliveries, damaged items, rejected items).
+  - Supplier delivery note / challan number and receiving remarks capture.
+  - Accounting guarantee explanation.
+  - Explicit physical inspection confirmation checkbox.
+  - Permission-gated "Confirm & Post Receipt" action.
+- Workspace Navigation:
+  - Embedded as Tab 8 into `SmartInventoryWorkspaceScreen` (length 9).
+  - Quick action card added to `SmartInventoryOverviewTab`.
+  - "Receive Goods" shortcut added to `InventoryProductsScreen`.
+  - "Receive Goods" button added to `PurchasesScreen`.
+
+
 
