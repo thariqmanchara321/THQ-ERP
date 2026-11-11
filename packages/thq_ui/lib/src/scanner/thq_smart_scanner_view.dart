@@ -367,34 +367,35 @@ class _ThqSmartScannerViewState extends State<ThqSmartScannerView>
 
   Widget _buildDesktopFallback(BuildContext context) {
     return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         child: ThqCard(
           child: Padding(
-            padding: const EdgeInsets.all(24),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.qr_code_scanner, size: 48, color: Colors.blueGrey),
-                const SizedBox(height: 16),
+                const Icon(Icons.qr_code_scanner, size: 36, color: Colors.blueGrey),
+                const SizedBox(height: 10),
                 const Text(
                   'Camera Scanner Unavailable on Desktop',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                   textAlign: TextAlign.center,
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 6),
                 const Text(
                   'Windows desktop uses USB or Bluetooth barcode scanners in keyboard-wedge mode. '
                   'Alternatively, pair a mobile device using Phone-to-PC scanning.',
                   textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 13, color: Colors.white70),
+                  style: TextStyle(fontSize: 12, color: Colors.white70),
                 ),
-                const SizedBox(height: 20),
-                if (widget.onClose != null)
+                if (widget.onClose != null) ...[
+                  const SizedBox(height: 12),
                   ThqPrimaryButton(
                     label: 'Close',
                     onPressed: widget.onClose,
                   ),
+                ],
               ],
             ),
           ),

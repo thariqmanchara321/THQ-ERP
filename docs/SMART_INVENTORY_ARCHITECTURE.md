@@ -192,4 +192,79 @@ The Client Smart Inventory Workspace is implemented natively within `apps/client
 3. **Multi-Store Isolation:** All lookup requests explicitly pass the currently selected store location (`LocationScopeService.selectedLocationId`) or fallback to the session's primary location. Store inventory balances remain strictly partitioned.
 4. **POS Decoupling:** `apps/client_app` maintains complete architectural independence from POS offline SQLite tables (`OfflinePosService`), ensuring the client workspace operates seamlessly in both online and standard client environments.
 
+---
+
+## 6. Phase 4: POS Desktop Smart Inventory Integration Architecture
+
+### 6.1 Architectural Overview
+
+Phase 4 embeds the shared Smart Scanning Engine (`SmartScannerController`, `ThqBarcodeWedgeListener`, `ThqSmartScannerView`) and the Smart Product Identification Engine (`ProductIdentificationEngine`) directly into the production POS Desktop billing screen (`apps/pos_app/lib/screens/pos_screen.dart`).
+
+```
++-----------------------------------------------------------------------------------+
+|                        POS Desktop Billing Screen (PosScreen)                     |
+|                                                                                   |
+|  +-----------------------------------------------------------------------------+  |
+|  |             ThqBarcodeWedgeListener (Root Window HID Event Interceptor)      |  |
+|  |   - Captures USB/Bluetooth barcode guns without requiring field focus       |  |
+|  |   - Inter-keystroke timing discrimination (< 50ms per key)                  |  |
+|  |   - Dispatches parsed barcode stream to PosSmartInventoryService             |  |
+|  +-----------------------------------------------------------------------------+  |
+|                                         |                                         |
+|                                         v                                         |
+|  +-----------------------------------------------------------------------------+  |
+|  |              PosSmartInventoryService (Dual-Engine Orchestrator)             |  |
+|  |   - Tier 1: Supabase RPC (inventory_product_lookup_v482)                    |  |
+|  |   - Tier 2: Offline SQLite catalog (OfflinePosService / offline_products)    |  |
+|  |   - Preserves leading zeros and exact raw text integrity                    |  |
+|  +-----------------------------------------------------------------------------+  |
+|                                         |                                         |
+|                  +----------------------+-----------------------+                 |
+|                  |                                              |                 |
+|            [Exact Match]                                   [Ambiguous]            |
+|                  v                                              v                 |
+|        _add(InventoryProduct)                       PosMultipleMatchDialog        |
+|   - Existing cart line lookup                       - Cashier picks exact         |
+|   - Consolidated quantity step                        candidate variant           |
+|   - Scheduled pricing & tax sync                    - Dispatches to _add(p)       |
+|   - Visual feedback banner                                                        |
++-----------------------------------------------------------------------------------+
+```
+
+### 6.2 Key Architectural Components
+
+1. **`PosSmartInventoryService` (`apps/pos_app/lib/services/pos_smart_inventory_service.dart`):**
+   - Singleton service that bridges `ProductIdentificationEngine` with POS environment.
+   - Configures a `DualProductIdentificationRepository`:
+     - Online: `RpcProductIdentificationRepository` using Supabase RPC `inventory_product_lookup_v482`.
+     - Offline: `LocalProductIdentificationRepository` backed by SQLite `OfflinePosService.instance.getDb()`.
+   - Maps `ProductIdentificationMatch` to `InventoryProduct` using existing fast-path `_productByVariantId` cache, falling back to raw payload dictionary reconstruction.
+
+2. **Root Keyboard Wedge Interception:**
+   - Wraps the entire POS billing scaffold with `ThqBarcodeWedgeListener`.
+   - Cashiers can scan items at any time without manually clicking or focusing the barcode text field.
+   - Text fields with active focus ignore wedge intercept unless rapid keystrokes match barcode gun cadence.
+
+3. **Cart Integration (`_add(InventoryProduct)`):**
+   - Strictly routes identified products through the existing `_add(product)` method in `PosScreen`.
+   - Completely preserves existing business logic:
+     - Out of stock warnings for inventory-tracked products.
+     - Automatic quantity step incrementation for repeated scans of the same variant (`line.quantity += line.quantityStep`).
+     - Line pricing, customer price lists, tax rules, and order discounts are recomputed through standard POS commercial pipelines.
+   - Zero database mutation occurs upon scanning: physical stock decreases only when the cashier completes and posts the sale transaction.
+
+4. **Ambiguity Resolution (`PosMultipleMatchDialog`):**
+   - When a master barcode maps to multiple variant candidates (e.g. 10mm vs 12mm steel rods sharing a manufacturer barcode), a compact modal displays candidates with SKU, prices, and available stock.
+   - The cashier makes an explicit disambiguation choice, preventing silent cart misattribution.
+
+5. **Camera Viewfinder Integration:**
+   - Cashiers can toggle an on-demand camera viewfinder (`ThqSmartScannerView`) via the header action button.
+   - Displays live camera preview on tablet/laptop form factors and seamlessly collapses when toggled off.
+
+6. **Scan Feedback Banner:**
+   - Compact, non-disruptive feedback banner rendered below the header.
+   - Displays positive confirmation on item add and informative warnings on unknown codes or offline cache misses.
+   - Automatically dismisses after 4 seconds or on manual close.
+
+
 

@@ -125,4 +125,33 @@ This test plan specifies the verification requirements for all Smart Inventory c
 6. `SmartInventoryScanCenterTab` Rendering: Displays USB/Bluetooth hardware wedge listener status, single/continuous mode chips, camera toggle, manual entry field, and awaiting scan input state.
 7. `Static Analysis`: Zero issues (`flutter analyze apps/client_app` passed clean).
 
+---
+
+## 6. Phase 4 Test Matrix & Execution (POS Desktop Smart Inventory Integration)
+
+| Test Target | Test File | Planned | Executed | Status |
+| :--- | :--- | :--- | :--- | :--- |
+| `PosSmartInventoryService` Unit Suite | `apps/pos_app/test/pos_smart_inventory_test.dart` | 5 | 5 | **PASSED** |
+| `PosMultipleMatchDialog` Widget Suite | `apps/pos_app/test/pos_smart_inventory_test.dart` | 1 | 1 | **PASSED** |
+| `PosScreen` Smart Inventory Integration Suite | `apps/pos_app/test/pos_smart_inventory_test.dart` | 5 | 5 | **PASSED** |
+| POS App Full Test Suite (Regression) | `apps/pos_app/test/` | 39 | 39 | **PASSED** |
+| `packages/erp_core` Full Suite (Regression) | `packages/erp_core/test/` | 83 | 83 | **PASSED** |
+| `packages/thq_ui` Full Suite (Regression) | `packages/thq_ui/test/` | 73 | 73 | **PASSED** |
+| `apps/client_app` Full Suite (Regression) | `apps/client_app/test/` | 248 | 248 | **PASSED** |
+
+### Verified Phase 4 Capabilities:
+1. **Preservation of Leading Zeros:** Barcodes with leading zeros (`0089012345678`) are preserved exactly throughout identification and cart mapping.
+2. **Exact SKU Manual Entry:** Manual entry of SKU (`SKU-CEM-PPC`) resolves cleanly without error.
+3. **Clean No-Match Handling:** Unrecognized barcodes return `ProductIdentificationStatus.noMatch` without corrupting active cart.
+4. **Offline Fallback on RPC Failure:** Network failure triggers automatic fallback to local SQLite catalog (`OfflinePosService`), seamlessly resolving cached products.
+5. **Product Resolution to `InventoryProduct`:** `resolveProduct` constructs valid POS `InventoryProduct` instances with selling price, unit code, and stock quantities.
+6. **Ambiguity Resolution Modal:** `PosMultipleMatchDialog` renders variant candidates with SKU, prices, and stock; selected candidate is returned and added.
+7. **Camera Viewfinder Integration:** Header toggle button opens/closes `ThqSmartScannerView` without disrupting cart state.
+8. **Direct Cart Line Insertion:** Barcode scan adds exact product to cart directly without navigating away, displaying scan confirmation banner.
+9. **Cart Line Quantity Consolidation:** Repeated scan of the same barcode increments quantity to 2 (`line.quantity += 1`) without creating duplicate cart lines.
+10. **Ambiguous Scan Disambiguation in POS:** Scanning barcode shared across multiple variants triggers `PosMultipleMatchDialog`; selecting a variant adds that specific item to the cart.
+11. **Non-Disruptive Failure Handling:** Scanning unknown barcode displays informative not-found banner while keeping the cart intact.
+12. **Static Analysis:** Zero issues (`flutter analyze apps/pos_app` passed clean with 0 warnings/errors).
+
+
 

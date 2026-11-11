@@ -21,8 +21,10 @@ import '../services/invoice_template_service.dart';
 import '../services/offline_pos_service.dart';
 import '../services/offline_pos_sync_service.dart';
 import '../services/offline_receipt_service.dart';
+import '../services/pos_smart_inventory_service.dart';
 import '../widgets/customer_account_dialog.dart';
 import '../widgets/multi_payment_editor.dart';
+import '../widgets/pos_multiple_match_dialog.dart';
 
 class PosScreen extends StatefulWidget {
   final ClientSession session;
@@ -48,6 +50,14 @@ class _PosScreenState extends State<PosScreen> {
   final OfflinePosService _offlineLocal = OfflinePosService.instance;
   final OfflinePosSyncService _offlineSync = OfflinePosSyncService();
   final OfflineReceiptService _offlineReceipt = OfflineReceiptService();
+  final PosSmartInventoryService _smartInventory = PosSmartInventoryService.instance;
+  late final SmartScannerController _scannerController;
+  StreamSubscription<SmartScanResult>? _scannerSubscription;
+  bool _isCameraOpen = false;
+  bool _isScanning = false;
+  String? _lastScanFeedback;
+  bool _lastScanSuccess = true;
+  Timer? _scanFeedbackTimer;
   final TextEditingController _search = TextEditingController();
   final TextEditingController _tendered = TextEditingController();
   final TextEditingController _paymentReference = TextEditingController();
@@ -467,10 +477,21 @@ class _PosScreenState extends State<PosScreen> {
       const Duration(seconds: 45),
       (_) => unawaited(_offlineHeartbeat()),
     );
+    _scannerController = SmartScannerController(
+      configuration: const ScannerConfiguration(
+        mode: ScannerMode.continuous,
+        duplicateSuppressionDuration: Duration(milliseconds: 900),
+      ),
+    );
+    _scannerSubscription = _scannerController.scans.listen(_onSmartScanReceived);
+    _scannerController.start();
   }
 
   @override
   void dispose() {
+    _scanFeedbackTimer?.cancel();
+    _scannerSubscription?.cancel();
+    _scannerController.dispose();
     _offlineSyncTimer?.cancel();
     _searchDebounce?.cancel();
     _commercialQuoteDebounce?.cancel();
@@ -1053,6 +1074,130 @@ class _PosScreenState extends State<PosScreen> {
     });
   }
 
+  void _onSmartScanReceived(SmartScanResult scan) {
+    unawaited(
+      _handleScanCode(
+        scan.rawValue,
+        source: scan.source,
+        format: scan.format,
+      ),
+    );
+  }
+
+  Future<void> _handleScanCode(
+    String rawCode, {
+    ScannerSource source = ScannerSource.manual,
+    SmartBarcodeFormat format = SmartBarcodeFormat.unknown,
+  }) async {
+    final code = rawCode.trim();
+    if (code.isEmpty) return;
+
+    if (_step != 0) {
+      setState(() => _step = 0);
+    }
+
+    setState(() => _isScanning = true);
+
+    try {
+      final result = await _smartInventory.identifyCode(
+        code,
+        session: widget.session,
+        locationId: widget.session.device?.locationId,
+        source: source,
+        forceOffline: _offlineMode,
+      );
+
+      if (!mounted) return;
+
+      if (result.isExact && result.primaryMatch != null) {
+        final match = result.primaryMatch!;
+        final product = _smartInventory.resolveProduct(
+          match,
+          catalogueByVariantId: _productByVariantId,
+        );
+        if (product != null) {
+          _add(product);
+          _setScanFeedback(
+            'Added ${product.productName} (${match.sku})',
+            success: true,
+          );
+        } else {
+          _setScanFeedback(
+            'Product identified (${match.productName}), but catalog details could not be parsed.',
+            success: false,
+          );
+        }
+      } else if (result.isAmbiguous && result.matches.isNotEmpty) {
+        final selectedMatch = await showDialog<ProductIdentificationMatch>(
+          context: context,
+          barrierDismissible: false,
+          builder: (_) => PosMultipleMatchDialog(
+            rawCode: code,
+            matches: result.matches,
+            currencyCode: widget.session.currencyCode,
+          ),
+        );
+        if (selectedMatch != null && mounted) {
+          final product = _smartInventory.resolveProduct(
+            selectedMatch,
+            catalogueByVariantId: _productByVariantId,
+          );
+          if (product != null) {
+            _add(product);
+            _setScanFeedback(
+              'Added ${product.productName} (${selectedMatch.sku})',
+              success: true,
+            );
+          }
+        }
+      } else if (result.isNotFound) {
+        if (result.status == ProductIdentificationStatus.offlineMiss) {
+          _setScanFeedback(
+            'Code "$code" not found in local offline cache.',
+            success: false,
+          );
+        } else {
+          _setScanFeedback(
+            'No product found for code "$code".',
+            success: false,
+          );
+        }
+      } else if (result.hasError) {
+        _setScanFeedback(
+          'Identification error: ${result.errorMessage}',
+          success: false,
+        );
+      } else if (result.status == ProductIdentificationStatus.invalidIdentifier) {
+        _setScanFeedback(
+          'Invalid barcode or identifier: $code',
+          success: false,
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        _setScanFeedback('Scan processing failed: $e', success: false);
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isScanning = false);
+      }
+    }
+  }
+
+  void _setScanFeedback(String message, {required bool success}) {
+    _scanFeedbackTimer?.cancel();
+    if (!mounted) return;
+    setState(() {
+      _lastScanFeedback = message;
+      _lastScanSuccess = success;
+    });
+    _scanFeedbackTimer = Timer(const Duration(seconds: 4), () {
+      if (mounted) {
+        setState(() => _lastScanFeedback = null);
+      }
+    });
+  }
+
   Future<void> _searchSubmitted(String value) async {
     final raw = value.trim();
     final query = raw.toLowerCase();
@@ -1096,7 +1241,11 @@ class _PosScreenState extends State<PosScreen> {
         }
       }
     } catch (_) {}
-    _message('No product or available serial found for "$raw".');
+
+    // Fall back to multi-tier Smart Identification Engine for manual entry
+    await _handleScanCode(raw, source: ScannerSource.manual);
+    _search.clear();
+    if (mounted) setState(() {});
   }
 
   Future<void> _chooseCustomer() async {
@@ -1920,64 +2069,119 @@ class _PosScreenState extends State<PosScreen> {
 
     final scheme = Theme.of(context).colorScheme;
 
-    return Padding(
-      padding: const EdgeInsets.all(6),
-      child: Column(
-        children: [
-          _header(),
-          if (_error != null) ...[
-            const SizedBox(height: 5),
-            Container(
-              width: double.infinity,
-              constraints: const BoxConstraints(minHeight: 34),
-              padding: const EdgeInsets.fromLTRB(9, 4, 4, 4),
-              decoration: BoxDecoration(
-                color: scheme.errorContainer,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: scheme.error.withValues(alpha: .18)),
-              ),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.error_outline,
-                    size: 16,
-                    color: scheme.onErrorContainer,
+    return ThqBarcodeWedgeListener(
+      controller: _scannerController,
+      onScan: (rawCode, source) => _handleScanCode(rawCode, source: source),
+      child: Padding(
+        padding: const EdgeInsets.all(6),
+        child: Column(
+          children: [
+            _header(),
+            if (_lastScanFeedback != null) ...[
+              const SizedBox(height: 5),
+              Container(
+                width: double.infinity,
+                constraints: const BoxConstraints(minHeight: 32),
+                padding: const EdgeInsets.fromLTRB(9, 4, 4, 4),
+                decoration: BoxDecoration(
+                  color: _lastScanSuccess
+                      ? Colors.green.withValues(alpha: 0.12)
+                      : Colors.orange.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: _lastScanSuccess
+                        ? Colors.green.withValues(alpha: 0.3)
+                        : Colors.orange.withValues(alpha: 0.3),
                   ),
-                  const SizedBox(width: 7),
-                  Expanded(
-                    child: Text(
-                      _error!,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: scheme.onErrorContainer,
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      _lastScanSuccess
+                          ? Icons.check_circle_outline
+                          : Icons.error_outline,
+                      size: 16,
+                      color: _lastScanSuccess ? Colors.green : Colors.orange,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        _lastScanFeedback!,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w600,
+                          color: _lastScanSuccess
+                              ? Colors.green[800]
+                              : Colors.orange[900],
+                        ),
                       ),
                     ),
-                  ),
-                  IconButton(
-                    tooltip: 'Dismiss',
-                    visualDensity: VisualDensity.compact,
-                    onPressed: () => setState(() => _error = null),
-                    icon: const Icon(Icons.close, size: 15),
-                  ),
-                ],
+                    IconButton(
+                      tooltip: 'Dismiss',
+                      visualDensity: VisualDensity.compact,
+                      onPressed: () => setState(() => _lastScanFeedback = null),
+                      icon: const Icon(Icons.close, size: 14),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+            if (_error != null) ...[
+              const SizedBox(height: 5),
+              Container(
+                width: double.infinity,
+                constraints: const BoxConstraints(minHeight: 34),
+                padding: const EdgeInsets.fromLTRB(9, 4, 4, 4),
+                decoration: BoxDecoration(
+                  color: scheme.errorContainer,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: scheme.error.withValues(alpha: .18)),
+                ),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.error_outline,
+                      size: 16,
+                      color: scheme.onErrorContainer,
+                    ),
+                    const SizedBox(width: 7),
+                    Expanded(
+                      child: Text(
+                        _error!,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: scheme.onErrorContainer,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      tooltip: 'Dismiss',
+                      visualDensity: VisualDensity.compact,
+                      onPressed: () => setState(() => _error = null),
+                      icon: const Icon(Icons.close, size: 15),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+            const SizedBox(height: 5),
+            Expanded(
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 120),
+                child: switch (_step) {
+                  0 => _productStep(),
+                  1 => _paymentStep(),
+                  _ => _reviewStep(),
+                },
               ),
             ),
           ],
-          const SizedBox(height: 5),
-          Expanded(
-            child: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 120),
-              child: switch (_step) {
-                0 => _productStep(),
-                1 => _paymentStep(),
-                _ => _reviewStep(),
-              },
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -2010,7 +2214,7 @@ class _PosScreenState extends State<PosScreen> {
               ),
               const SizedBox(width: 8),
               SizedBox(
-                width: veryCompact ? 125 : 205,
+                width: veryCompact ? 110 : (compact ? 150 : 185),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -2130,6 +2334,16 @@ class _PosScreenState extends State<PosScreen> {
                 visualDensity: VisualDensity.compact,
                 onPressed: () => _searchFocus.requestFocus(),
                 icon: const Icon(Icons.qr_code_scanner, size: 17),
+              ),
+              IconButton(
+                tooltip: _isCameraOpen ? 'Close camera scanner' : 'Open camera scanner',
+                visualDensity: VisualDensity.compact,
+                onPressed: () => setState(() => _isCameraOpen = !_isCameraOpen),
+                icon: Icon(
+                  _isCameraOpen ? Icons.videocam_off : Icons.camera_alt_outlined,
+                  size: 17,
+                  color: _isCameraOpen ? Colors.amber : null,
+                ),
               ),
               IconButton(
                 tooltip: 'Reload products and customers',
@@ -2790,6 +3004,20 @@ class _PosScreenState extends State<PosScreen> {
       padding: const EdgeInsets.fromLTRB(2, 0, 0, 0),
       child: Column(
         children: [
+          if (_isCameraOpen) ...[
+            ClipRRect(
+              borderRadius: BorderRadius.circular(9),
+              child: SizedBox(
+                height: 220,
+                child: ThqSmartScannerView(
+                  controller: _scannerController,
+                  onScan: (scan) => _onSmartScanReceived(scan),
+                  onClose: () => setState(() => _isCameraOpen = false),
+                ),
+              ),
+            ),
+            const SizedBox(height: 5),
+          ],
           Container(
             constraints: const BoxConstraints(minHeight: 42),
             padding: const EdgeInsets.all(4),
@@ -2808,9 +3036,23 @@ class _PosScreenState extends State<PosScreen> {
                   autofocus: true,
                   onChanged: _searchChanged,
                   onSubmitted: _searchSubmitted,
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     hintText: 'Product, SKU, barcode, QR or code...',
-                    prefixIcon: Icon(Icons.search, size: 17),
+                    prefixIcon: const Icon(Icons.search, size: 17),
+                    suffixIcon: _isScanning
+                        ? const Padding(
+                            padding: EdgeInsets.all(10),
+                            child: SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            ),
+                          )
+                        : IconButton(
+                            tooltip: 'Identify barcode or SKU',
+                            icon: const Icon(Icons.qr_code_scanner, size: 17),
+                            onPressed: () => _searchSubmitted(_search.text),
+                          ),
                   ),
                 );
 

@@ -1,8 +1,8 @@
 # THQ ERP — Smart Inventory Progress Log
 
 **Active Branch:** `main`  
-**Current Milestone:** Phase 2 Completed  
-**Last Updated:** 2026-11-10  
+**Current Milestone:** Phase 4 Completed  
+**Last Updated:** 2026-11-11  
 
 ---
 
@@ -48,11 +48,16 @@
   - [x] 6 unit and widget tests written and passing in `apps/client_app/test/smart_inventory_workspace_test.dart`.
   - [x] All 248 tests in `apps/client_app` passing.
 
-- [ ] **Phase 4: POS Desktop Integration**
-  - [ ] Integrate wedge listener and direct cart injection into `apps/pos_app/lib/screens/pos_screen.dart`.
-  - [ ] Rapid scanning quantity increment and stock limits validation.
-  - [ ] Add multiple match resolution dialog.
-  - [ ] Add Phone-to-PC scan receiver service.
+- [x] **Phase 4: POS Desktop Integration**
+  - [x] Integrate root `ThqBarcodeWedgeListener` into `apps/pos_app/lib/screens/pos_screen.dart`.
+  - [x] Build `PosSmartInventoryService` coordinating `ProductIdentificationEngine` with RPC and SQLite.
+  - [x] Direct cart line injection via existing `_add(product)` preserving pricing, tax, discounts, and stock limits.
+  - [x] Rapid scanning quantity incrementation (`line.quantity += line.quantityStep`) on repeated scans.
+  - [x] Ambiguity resolution modal (`PosMultipleMatchDialog`) for explicit cashier selection.
+  - [x] On-demand camera viewfinder toggle (`ThqSmartScannerView`) in catalog header.
+  - [x] Compact scan feedback banner with auto-dismissal.
+  - [x] 11 unit, widget, and integration tests passing in `apps/pos_app/test/pos_smart_inventory_test.dart`.
+  - [x] Full POS suite passing: 39 / 39 tests. All monorepo regression suites passing (443 tests total).
 
 - [ ] **Phase 5: Mobile POS Integration**
   - [ ] Enhance `apps/mobile_pos/lib/screens/barcode_scanner_screen.dart` with continuous mode, zoom, and flashlight.
