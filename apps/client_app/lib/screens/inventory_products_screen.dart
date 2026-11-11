@@ -358,6 +358,22 @@ class _InventoryProductsScreenState extends State<InventoryProductsScreen> {
                       label: const Text('Barcode Studio'),
                     ),
                     const SizedBox(width: 6),
+                    OutlinedButton.icon(
+                      onPressed: () async {
+                        await Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => SmartInventoryWorkspaceScreen(
+                              session: widget.session,
+                              initialTab: 7,
+                            ),
+                          ),
+                        );
+                        _refresh();
+                      },
+                      icon: const Icon(Icons.inventory_2_outlined, size: 17),
+                      label: const Text('Stock Count'),
+                    ),
+                    const SizedBox(width: 6),
                     FilledButton.icon(
                       onPressed: _addProduct,
                       icon: const Icon(Icons.add, size: 17),

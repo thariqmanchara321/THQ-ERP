@@ -1,7 +1,7 @@
 # THQ ERP — Smart Inventory Progress Log
 
 **Active Branch:** `main`  
-**Current Milestone:** Phase 8 Completed  
+**Current Milestone:** Phase 9 Completed  
 **Last Updated:** 2026-11-11  
 
 ---
@@ -115,9 +115,21 @@
   - [x] All 7 tabs in `apps/client_app/test/smart_inventory_workspace_test.dart` passing.
   - [x] Full monorepo regression suites passing (550 tests total across all projects).
 
-- [ ] **Phase 9: Physical Stock Counting & Reconciliation Engine**
-  - [ ] Integration with `inventory_stock_count_post_v485` and `inventory_adjust_stock_v483`.
-  - [ ] Variance reports, audit approval workflows, and atomic ledger posts.
+- [x] **Phase 9: Physical Stock Counting & Reconciliation Engine**
+  - [x] Domain models in `packages/erp_core/lib/src/inventory/stock_count_models.dart`: `StockCountItem`, `StockCountSummary`, `StockCountSession`, `StockCountAuditRecord`, `StockCountVarianceType`, `StockCountStatus`.
+  - [x] Full stock variance calculation (`Variance = Counted - System`) with categorization (Matched, Shortage, Excess, Not Counted).
+  - [x] Session container tracking expected snapshot balances, counted physical quantities, and unstocked items found in warehouse.
+  - [x] Unresolved scan accumulation preserving raw barcodes, scanner sources, and timestamps.
+  - [x] Stock counting service `StockCountingService` in `apps/client_app` orchestrating snapshot capture via `inventory_stock_count_snapshot_v485`, concurrency checking, audit listing via `stock_counts_list_v485`, and idempotent post via `inventory_stock_count_post_v485`.
+  - [x] Pre-flight concurrent stock movement detection warning operators if live sales or receipts occurred during physical count.
+  - [x] `SmartInventoryStockCountTab` implemented in `apps/client_app` featuring hardware gun wedge listening, camera scanning, manual search, metric badges, discrepancy filter chips, stepper controls, and one-click match.
+  - [x] Review & approval dialog with discrepancy breakdown, net variance summary, reconciliation notes, explicit confirmation checkbox, and role checking (`inventory.stock_count` / `inventory.manage` / `owner`).
+  - [x] Strict accounting invariant enforced: zero direct mutations to `public.location_stock_balances`; all adjustments posted atomically through `public.inventory_stock_count_post_v485` creating audited ledger movements and bumping sync versions.
+  - [x] Integrated as Tab 7 into `SmartInventoryWorkspaceScreen`, added quick action card in `SmartInventoryOverviewTab`, and added toolbar button in `InventoryProductsScreen`.
+  - [x] 6 unit tests passing in `packages/erp_core/test/stock_count_models_test.dart`.
+  - [x] 9 unit and widget tests passing in `apps/client_app/test/smart_stock_count_test.dart`.
+  - [x] Updated `smart_inventory_workspace_test.dart` to verify all 8 tabs.
+  - [x] Full monorepo regression suites passing (565 tests total across all projects).
 
 - [ ] **Phase 10: Complete Monorepo Regression Verification & Final Delivery**
   - [ ] Full end-to-end verification across all 5 applications and 3 packages.

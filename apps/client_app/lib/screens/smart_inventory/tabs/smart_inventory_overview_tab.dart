@@ -144,7 +144,6 @@ class SmartInventoryOverviewTab extends StatelessWidget {
           const SizedBox(height: 12),
           LayoutBuilder(
             builder: (context, constraints) {
-              final isWide = constraints.maxWidth > 900;
               final cards = [
                 _ActionCard(
                   title: 'Scan Center',
@@ -186,17 +185,27 @@ class SmartInventoryOverviewTab extends StatelessWidget {
                   buttonText: 'Open Barcode Studio',
                   onTap: () => onSelectTab(6),
                 ),
+                _ActionCard(
+                  title: 'Stock Counting',
+                  subtitle:
+                      'Perform physical stock audits, reconcile shortages or excess, and post approved count adjustments.',
+                  icon: Icons.inventory_2_outlined,
+                  buttonText: 'Start Stock Count',
+                  onTap: () => onSelectTab(7),
+                ),
               ];
 
-              if (isWide) {
-                return Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+              final width = constraints.maxWidth;
+              final crossAxisCount = width > 1100 ? 3 : (width > 650 ? 2 : 1);
+              if (crossAxisCount > 1) {
+                final cardWidth = (width - ((crossAxisCount - 1) * 12)) / crossAxisCount;
+                return Wrap(
+                  spacing: 12,
+                  runSpacing: 12,
                   children: cards
-                      .map((c) => Expanded(
-                            child: Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 6),
-                              child: c,
-                            ),
+                      .map((c) => SizedBox(
+                            width: cardWidth,
+                            child: c,
                           ))
                       .toList(),
                 );

@@ -591,4 +591,87 @@ It enables business operators to:
   - Quick action launcher added to `SmartInventoryOverviewTab` linking to Tab 6.
   - "Barcode Studio" toolbar button added to `InventoryProductsScreen`.
 
+---
+
+## 11. Phase 9: Physical Stock Counting & Reconciliation Engine Architecture
+
+### 11.1 Objectives & Scope
+
+Phase 9 delivers a physical cycle counting and inventory reconciliation subsystem integrated into the THQ Smart Inventory Workspace.
+It allows warehouse managers and store operators to:
+1. Capture an instantaneous snapshot of system stock balances across all product lines or filtered categories.
+2. Rapidly count inventory using USB/Bluetooth barcode guns, camera viewfinders, or manual SKU search.
+3. Automatically resolve scanned codes into catalogue variants and track scan occurrences in real-time.
+4. Calculate stock variances on the fly:
+   - **Matched:** Counted quantity matches expected system stock (`Variance == 0`).
+   - **Shortage:** Physical count is lower than expected system stock (`Variance < 0`).
+   - **Excess:** Physical count exceeds expected system stock (`Variance > 0`).
+   - **Uncounted:** Products in snapshot that have not yet been physically counted.
+   - **Unstocked:** Scanned items found in the physical store that were not present in the system snapshot.
+5. Filter items by discrepancy type to investigate missing or excess stock.
+6. Detect and warn on concurrent stock movements (sales/receipts) that occurred between snapshot capture and count completion.
+7. Review discrepancy breakdowns and post approved reconciliation adjustments atomically into the double-entry inventory ledger with guaranteed request idempotency.
+8. Maintain a persistent audit trail of past counts and variances.
+
+### 11.2 Key Invariants & Accounting Safeguards
+
+1. **Non-Destructive Accounting & Zero Direct Balance Mutations:**
+   - UI code NEVER directly mutates `public.location_stock_balances` or bypasses ledger integrity.
+   - All approved counts post strictly through the verified PostgreSQL stored procedure `public.inventory_stock_count_post_v485`.
+   - The stored procedure automatically calculates `v_delta := v_counted - v_system` per item, acquires row locks (`FOR UPDATE`), invokes `public.inventory_adjust_stock`, records movement lines in the movement history ledger via `private.v4_location_stock_apply`, and updates store sync versions.
+2. **Zero Schema Migrations:**
+   - Reuses existing production Supabase database objects:
+     - `public.inventory_stock_count_snapshot_v485(p_tenant_id, p_location_id, p_query)`
+     - `public.inventory_stock_count_post_v485(p_tenant_id, p_location_id, p_items, p_notes, p_device_id, p_request_id)`
+     - `public.stock_counts_list_v485(p_tenant_id, p_location_id, p_from, p_to, p_limit)`
+     - `public.stock_count_detail_v485(p_tenant_id, p_count_id)`
+     - Tables: `public.stock_counts`, `public.stock_count_items`.
+3. **Idempotent Posting Guarantee:**
+   - Every session generates a cryptographically secure RFC 4122 v4 UUID `p_request_id`.
+   - Repeated submissions replay the cached response without creating duplicate adjustment vouchers.
+4. **Separation of Permissions:**
+   - Counting and scanning can be performed by store staff (`inventory.view`).
+   - Posting adjustments and approving discrepancies requires `inventory.stock_count`, `inventory.manage`, or `owner` privileges.
+5. **Handling Live Stock Movements:**
+   - Pre-flight concurrent change detection checks fresh stock balances against the snapshot, warning the user if sales or receipts occurred during the counting process.
+
+### 11.3 Core Domain Models (`packages/erp_core/lib/src/inventory/stock_count_models.dart`)
+
+- **`StockCountStatus`:** `draft`, `inProgress`, `review`, `posted`, `cancelled`.
+- **`StockCountVarianceType`:** `matched`, `shortage`, `excess`, `notCounted`.
+- **`StockCountItem`:** Tracks variantId, productId, names, SKU, barcode, unitName, systemQuantity (from snapshot), countedQuantity, trackingMode, trackingPayload, reservedQuantity, damagedQuantity, quarantineQuantity, isCounted, scanCount, and lastScannedAt.
+- **`StockCountSummary`:** Aggregates metrics (totalItems, countedItems, uncountedItems, matchedItems, shortageItems, excessItems, unresolvedCount, totalSystemQuantity, totalCountedQuantity, netVarianceQuantity, completionPercentage).
+- **`StockCountSession`:** Active count session container managing items list, session metadata, unresolved scans, match recording (`recordScanMatch`), and post payload conversion (`toPostPayload`).
+- **`StockCountAuditRecord`:** Immutable model representing historical stock count runs parsed from `stock_counts_list_v485`.
+
+### 11.4 Stock Counting Service (`apps/client_app/lib/services/stock_counting_service.dart`)
+
+- `fetchSnapshot({tenantId, locationId, query})`: Invokes `inventory_stock_count_snapshot_v485` and maps to `StockCountItem` list.
+- `postStockCount({tenantId, locationId, items, notes, deviceId, requestId})`: Invokes `inventory_stock_count_post_v485` with validation and error wrapping.
+- `checkConcurrentStockChanges({tenantId, locationId, originalItems})`: Compares original snapshot with fresh balances to detect concurrent sales or receipts.
+- `listPastCounts({tenantId, locationId, from, to, limit})`: Lists past counts from `stock_counts_list_v485`.
+- `getCountDetail({tenantId, countId})`: Retrieves line-level audit details from `stock_count_detail_v485`.
+- `setCustomRpc(...)`: Dependency injection hook for deterministic testing.
+
+### 11.5 Desktop User Interface (`apps/client_app/lib/screens/smart_inventory/tabs/smart_stock_count_tab.dart`)
+
+- Embedded as Tab 7 in `SmartInventoryWorkspaceScreen`.
+- Key UI Capabilities:
+  - **Session Setup & Historical Review:** Displays location badge, past count audits table with variance summaries, and "Start New Stock Count" action dialog.
+  - **Active Counting Workspace:**
+    - Live barcode scanner integration via `ThqBarcodeWedgeListener` (hardware guns) and optional `ThqSmartScannerView` (camera).
+    - Manual search and SKU input with auto-increment.
+    - Progress metric chips (Expected, Counted %, Matched, Shortages, Excess, Unresolved).
+    - Discrepancy filter chips: `All`, `Pending`, `Shortages`, `Excess`, `Matched`.
+    - Interactive product table with +/- steppers, real-time variance badges, and one-click "Match" button.
+  - **Review & Approval Dialog:**
+    - Discrepancy breakdown cards and net variance calculation.
+    - Concurrent movement warning banner if stock changed during the count.
+    - Reconciliation notes input.
+    - Explicit verification confirmation checkbox.
+    - Permission-checked "Post Adjustments" action.
+- Navigation integration:
+  - Quick action launcher added to `SmartInventoryOverviewTab` linking to Tab 7.
+  - "Stock Count" toolbar button added to `InventoryProductsScreen`.
+
 

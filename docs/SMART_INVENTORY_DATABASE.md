@@ -160,4 +160,49 @@ CREATE POLICY inventory_import_batches_tenant ON public.inventory_import_batches
 - Barcode generation and label printing are strictly catalogue, identification, and presentation operations.
 - They NEVER alter stock counts in `public.location_stock_balances` or create entries in financial accounts.
 
+---
+
+## 6. Phase 9: Physical Stock Counting & Reconciliation Database Contracts
+
+### 6.1 Reused Existing RPCs & Functions
+
+1. **`public.inventory_stock_count_snapshot_v485(p_tenant_id uuid, p_location_id uuid, p_query text DEFAULT NULL) RETURNS jsonb`**
+   - Captures an atomic snapshot of system stock balances for the given business location.
+   - Output per row:
+     - `product_id`, `variant_id`, `product_name`, `variant_name`, `sku`, `barcode`, `unit_name`.
+     - `tracking_mode` (`none`, `serial`, `batch`).
+     - `system_quantity`: Total current stock from `public.location_stock_balances`.
+     - `reserved_quantity`, `damaged_quantity`, `quarantine_quantity`, `available_quantity`.
+     - `tracking`: Tracking details JSON (batches/serials if applicable).
+   - Read-only; acquires no locks and causes zero mutations.
+
+2. **`public.inventory_stock_count_post_v485(p_tenant_id uuid, p_location_id uuid, p_items jsonb, p_notes text DEFAULT NULL, p_device_id text DEFAULT NULL, p_request_id text DEFAULT NULL) RETURNS jsonb`**
+   - Posts and reconciles an approved physical stock count.
+   - Enforces location access permissions (`private.v4_location_access`) and role check (`inventory.stock_count`, `inventory.manage`, or `owner`).
+   - Guarantees idempotency via `p_request_id` (UUID v4): returns cached response if re-posted.
+   - Generates sequential count number: `CNT-YYMMDD-XXXXXX`.
+   - Inserts master record into `public.stock_counts` with status `'posted'`.
+   - Per item in `p_items`:
+     - Locks balance row with `FOR UPDATE`.
+     - Calculates delta: `v_delta := v_counted - v_system`.
+     - If `v_delta != 0`:
+       - Invokes `public.inventory_adjust_stock` with reason `'Physical stock count reconciliation'`.
+       - Applies adjustment atomically to `public.location_stock_balances` and appends movement to `public.inventory_movement_history_v481` via `private.v4_location_stock_apply`.
+     - Inserts line record into `public.stock_count_items`.
+   - Updates `public.stock_counts` with line totals and variance metrics.
+   - Bumps location sync version to ensure POS and mobile terminals synchronize updated balances.
+
+3. **`public.stock_counts_list_v485(p_tenant_id uuid, p_location_id uuid DEFAULT NULL, p_from date DEFAULT NULL, p_to date DEFAULT NULL, p_limit integer DEFAULT 100) RETURNS jsonb`**
+   - Returns paginated list of historical stock count sessions for audit and compliance.
+   - Fields: `id`, `count_number`, `tenant_id`, `location_id`, `location_name`, `status`, `reconciliation_status`, `notes`, `line_count`, `total_system_quantity`, `total_counted_quantity`, `total_variance`, `created_at`, `posted_at`, `created_by`, `posted_by`.
+
+4. **`public.stock_count_detail_v485(p_tenant_id uuid, p_count_id uuid) RETURNS jsonb`**
+   - Returns full line-item details of a specific historical stock count run.
+
+### 6.2 Strict Invariants for Stock Count Operations
+
+- UI code must NEVER directly update `public.location_stock_balances`.
+- All stock balance updates MUST originate from `public.inventory_stock_count_post_v485`, guaranteeing that ledger adjustments, row locks, sync version increments, and audit records are posted in a single atomic database transaction.
+- Client requests MUST provide an RFC 4122 v4 UUID `p_request_id` to guarantee idempotent execution.
+
 

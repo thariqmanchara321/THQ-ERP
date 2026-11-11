@@ -284,4 +284,35 @@ This test plan specifies the verification requirements for all Smart Inventory c
 8. **Interactive Studio UI:** Fast search, missing barcode filtering, batch selection, quantity counters, live visual preview, and print actions verified.
 9. **Zero Stock Balance Mutation:** Studio strictly performs catalogue and printing operations without touching live stock or accounting balances.
 
+---
+
+## 11. Phase 9 Test Matrix & Execution (Physical Stock Counting & Reconciliation Engine)
+
+| Test Target | Test File | Planned | Executed | Status |
+| :--- | :--- | :--- | :--- | :--- |
+| `StockCountItem` Model Suite | `packages/erp_core/test/stock_count_models_test.dart` | 3 | 3 | **PASSED** |
+| `StockCountSummary` Suite | `packages/erp_core/test/stock_count_models_test.dart` | 1 | 1 | **PASSED** |
+| `StockCountSession` Workflow Suite | `packages/erp_core/test/stock_count_models_test.dart` | 2 | 2 | **PASSED** |
+| `StockCountingService` Unit Suite | `apps/client_app/test/smart_stock_count_test.dart` | 3 | 3 | **PASSED** |
+| `SmartInventoryStockCountTab` Widget Suite | `apps/client_app/test/smart_stock_count_test.dart` | 6 | 6 | **PASSED** |
+| `SmartInventoryWorkspaceScreen` 8-Tab Suite | `apps/client_app/test/smart_inventory_workspace_test.dart` | 6 | 6 | **PASSED** |
+| `packages/erp_core` Full Suite (Regression) | `packages/erp_core/test/` | 120 | 120 | **PASSED** (Baseline 114 + 6 New) |
+| `packages/thq_ui` Full Suite (Regression) | `packages/thq_ui/test/` | 73 | 73 | **PASSED** |
+| `apps/client_app` Full Suite (Regression) | `apps/client_app/test/` | 270 | 270 | **PASSED** (Baseline 261 + 9 New) |
+| `apps/pos_app` Full Suite (Regression) | `apps/pos_app/test/` | 39 | 39 | **PASSED** |
+| `apps/mobile_pos` Full Suite (Regression) | `apps/mobile_pos/test/` | 17 | 17 | **PASSED** |
+| `apps/client_mobile` Full Suite (Regression) | `apps/client_mobile/test/` | 46 | 46 | **PASSED** |
+
+### Verified Phase 9 Capabilities:
+1. **Snapshot Capture:** `inventory_stock_count_snapshot_v485` loads current stock balances, tracking modes, reserved, damaged, quarantine, and available quantities without locking or mutating balances.
+2. **Variance Classification:** Calculates `Variance = Counted - System` and accurately tags items as Matched (`== 0`), Shortage (`< 0`), Excess (`> 0`), or Uncounted.
+3. **Session Container & Unstocked Discovery:** `StockCountSession` dynamically accumulates scans, maps to snapshot lines, and captures unstocked items discovered on physical shelves with `systemQuantity = 0.0`.
+4. **Unresolved Scans Tracking:** Scans unresolvable in catalogue are recorded in `unresolvedScans` with raw code, scanner source, and timestamps.
+5. **Interactive Counting Controls:** Desktop stepper `[-] [count] [+]`, manual SKU/barcode search with auto-increment, and one-click "Match" button verified.
+6. **Concurrent Stock Movement Detection:** Pre-flight check warns the operator if sales or purchase receipts occurred during the counting process.
+7. **Discrepancy Review & Separation of Duties:** Review dialog displays discrepancy breakdowns, requires explicit checkbox confirmation, and checks `inventory.stock_count` / `inventory.manage` / `owner` permissions before enabling post actions.
+8. **Idempotent Reconciliation Posting:** Submits adjustments through `public.inventory_stock_count_post_v485` with RFC 4122 v4 UUID `p_request_id`, updating the movement ledger and location balances atomically while preventing duplicate adjustment entries.
+9. **Audit Trail Review:** Lists past counts from `stock_counts_list_v485` displaying count numbers, locations, line counts, status, and variance totals.
+10. **Zero Regression:** All 270 client_app tests, 120 erp_core tests, 73 thq_ui tests, 39 pos_app tests, 17 mobile_pos tests, and 46 client_mobile tests pass with 0 errors.
+
 

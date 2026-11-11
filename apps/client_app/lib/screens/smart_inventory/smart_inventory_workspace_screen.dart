@@ -10,6 +10,7 @@ import 'tabs/smart_inventory_overview_tab.dart';
 import 'tabs/smart_inventory_product_lookup_tab.dart';
 import 'tabs/smart_inventory_scan_center_tab.dart';
 import 'tabs/smart_inventory_scan_history_tab.dart';
+import 'tabs/smart_stock_count_tab.dart';
 
 /// The central Smart Inventory workspace within THQ Client application.
 class SmartInventoryWorkspaceScreen extends StatefulWidget {
@@ -36,9 +37,9 @@ class _SmartInventoryWorkspaceScreenState
   @override
   void initState() {
     super.initState();
-    _activeTabIndex = widget.initialTab.clamp(0, 6);
+    _activeTabIndex = widget.initialTab.clamp(0, 7);
     _tabController = TabController(
-      length: 7,
+      length: 8,
       vsync: this,
       initialIndex: _activeTabIndex,
     );
@@ -56,7 +57,7 @@ class _SmartInventoryWorkspaceScreenState
   }
 
   void _onSelectTab(int index) {
-    if (index >= 0 && index < 7) {
+    if (index >= 0 && index < 8) {
       _tabController.animateTo(index);
       setState(() => _activeTabIndex = index);
     }
@@ -168,6 +169,10 @@ class _SmartInventoryWorkspaceScreenState
                   icon: Icon(Icons.print_outlined, size: 18),
                   text: 'Barcode Studio',
                 ),
+                Tab(
+                  icon: Icon(Icons.inventory_2_outlined, size: 18),
+                  text: 'Stock Count',
+                ),
               ],
             ),
           ),
@@ -187,6 +192,7 @@ class _SmartInventoryWorkspaceScreenState
                 SmartInventoryScanHistoryTab(session: widget.session),
                 SmartInventoryImportTab(session: widget.session),
                 SmartBarcodeStudioTab(session: widget.session),
+                SmartInventoryStockCountTab(session: widget.session),
               ],
             ),
           ),
