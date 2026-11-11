@@ -184,6 +184,39 @@ This test plan specifies the verification requirements for all Smart Inventory c
 12. **Zero Database Mutation on Scan:** Scanning solely manipulates the in-memory cart; database stock records in SQLite and Supabase are untouched until sale completion.
 13. **Static Analysis:** Zero issues (`flutter analyze lib test` in `apps/mobile_pos` passed with 0 warnings/errors).
 
+---
+
+## 8. Phase 6 Test Matrix & Execution (THQ Client Mobile Smart Inventory Integration)
+
+| Test Target | Test File | Planned | Executed | Status |
+| :--- | :--- | :--- | :--- | :--- |
+| `MobileSmartInventoryService` Unit Suite | `apps/client_mobile/test/mobile_smart_inventory_test.dart` | 6 | 6 | **PASSED** |
+| `MobileSmartInventoryWorkspaceScreen` 5 Tabs | `apps/client_mobile/test/mobile_smart_inventory_test.dart` | 1 | 1 | **PASSED** |
+| `MobileManualCodeEntryDialog` & Feedback Card | `apps/client_mobile/test/mobile_smart_inventory_test.dart` | 1 | 1 | **PASSED** |
+| `MobileSmartInventoryMultipleMatchDialog` | `apps/client_mobile/test/mobile_smart_inventory_test.dart` | 1 | 1 | **PASSED** |
+| Cost Price Permission Guarding Modal | `apps/client_mobile/test/mobile_smart_inventory_test.dart` | 1 | 1 | **PASSED** |
+| Bulk Session Staging & History Flow | `apps/client_mobile/test/mobile_smart_inventory_test.dart` | 1 | 1 | **PASSED** |
+| Client Mobile Full Test Suite (Regression) | `apps/client_mobile/test/` | 46 | 46 | **PASSED** (Baseline 35 + 11 New) |
+| `packages/erp_core` Full Suite (Regression) | `packages/erp_core/test/` | 83 | 83 | **PASSED** |
+| `packages/thq_ui` Full Suite (Regression) | `packages/thq_ui/test/` | 73 | 73 | **PASSED** |
+| `apps/client_app` Full Suite (Regression) | `apps/client_app/test/` | 248 | 248 | **PASSED** |
+| `apps/pos_app` Full Suite (Regression) | `apps/pos_app/test/` | 39 | 39 | **PASSED** |
+| `apps/mobile_pos` Full Suite (Regression) | `apps/mobile_pos/test/` | 17 | 17 | **PASSED** |
+
+### Verified Phase 6 Capabilities:
+1. **Exact Barcode Resolution:** `MobileSmartInventoryService.identifyCode` accurately identifies products through Supabase RPC `inventory_product_lookup_v482` and broadcasts to `activityStream`.
+2. **Ambiguity Resolution:** Barcodes mapping to multiple variants return `ProductIdentificationStatus.ambiguous` and display `MobileSmartInventoryMultipleMatchDialog` with touch-friendly selection.
+3. **Clean Unknown Code Handling:** Unregistered identifiers return `isNotFound` cleanly without exceptions or UI stalls.
+4. **Offline Error Transparency:** Network dropouts return a descriptive error informing the user that Client Mobile requires live network access.
+5. **Multi-Field Catalog Search:** `searchCatalog` evaluates queries against name, SKU, barcode, part number, and brand across RPC results.
+6. **In-Memory Bulk Staging Lifecycle:** Starting a session, scanning items with consolidation, logging unresolved scans, and finishing to history operates reliably in-memory.
+7. **Strict Non-Mutating Stock Invariant:** Bulk sessions and scanning operations are purely observational and staging; zero stock adjustments or ledger modifications occur.
+8. **5-Tab Mobile Workspace:** Overview, Scan, Lookup, Bulk, and History tabs render cleanly and navigate smoothly.
+9. **Touch-Optimized Camera Viewfinder:** `ThqSmartScannerView` with continuous/single scan modes, torch toggle, camera flip, and manual entry shortcut.
+10. **Cost Price Protection:** `MobileProductDetailModal` hides cost price behind a restricted banner unless the user is an owner or holds the `inventory.manage` permission.
+11. **Static Analysis:** Zero issues (`flutter analyze` on new Smart Inventory files completed with 0 warnings or errors).
+
+
 
 
 

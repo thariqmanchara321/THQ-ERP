@@ -1,7 +1,7 @@
 # THQ ERP — Smart Inventory Progress Log
 
 **Active Branch:** `main`  
-**Current Milestone:** Phase 5 Completed  
+**Current Milestone:** Phase 6 Completed  
 **Last Updated:** 2026-11-11  
 
 ---
@@ -71,23 +71,33 @@
   - [x] 10 unit, widget, and integration tests passing in `apps/mobile_pos/test/mobile_pos_smart_inventory_test.dart`.
   - [x] Full Mobile POS suite passing: 17 / 17 tests. All monorepo regression suites passing (460 tests total).
 
-- [ ] **Phase 6: Client Mobile Integration**
-  - [ ] Add `mobile_scanner: 7.4.0` to `apps/client_mobile/pubspec.yaml`.
-  - [ ] Integrate camera scanning and stock counting into `MobileInventoryWorkspace`.
+- [x] **Phase 6: Client Mobile Integration**
+  - [x] Pin `mobile_scanner: 7.4.0` in `apps/client_mobile/pubspec.yaml` without version drift.
+  - [x] Promote session models (`SmartScanSession`, `SmartScanSessionItem`, `UnresolvedScanItem`) to `packages/erp_core/lib/src/inventory/smart_inventory_session_models.dart`.
+  - [x] Implement `MobileSmartInventoryService` coordinating `ProductIdentificationEngine` with RPC `inventory_product_lookup_v482` and catalog fallback.
+  - [x] Implement `MobileSmartInventoryWorkspaceScreen` featuring 5 tabs (Overview, Scan, Lookup, Bulk, History).
+  - [x] Integrate root `ThqBarcodeWedgeListener` for hardware/Bluetooth barcode guns.
+  - [x] Implement `ThqSmartScannerView` with continuous/single scanning, torch toggle, and camera flipping.
+  - [x] Implement `MobileSmartInventoryMultipleMatchDialog`, `MobileManualCodeEntryDialog`, and `MobileProductDetailModal`.
+  - [x] Enforce strict cost price security guarding via `session.isOwner || session.hasPermission('inventory.manage')`.
+  - [x] Enforce strict non-mutating staging invariant: zero stock ledger adjustments during bulk scans.
+  - [x] Integrate navigation in `MobileInventoryWorkspace`, `MobileModulesCatalogPage`, and `_MoreTab`.
+  - [x] 11 unit and widget tests passing in `apps/client_mobile/test/mobile_smart_inventory_test.dart`.
+  - [x] Full Client Mobile suite passing: 46 / 46 tests. All monorepo regression suites passing (506 tests total across 6 projects).
 
-- [ ] **Phase 7: Stock Counting & Purchase Receiving**
-  - [ ] Integrate `inventory_stock_count_post_v485` with scanning session UI.
-  - [ ] Implement barcode receiving against purchase orders.
+- [ ] **Phase 7: Excel / CSV Product & Barcode Import Engine**
+  - [ ] Implement `SmartImportEngine` in `packages/erp_core` for CSV & XLSX parsing.
+  - [ ] Auto-column mapping, duplicate detection, and invalid row quarantining.
+  - [ ] Back-office import wizard in `apps/client_app`.
 
-- [ ] **Phase 8: Supabase & Database Hardening**
-  - [ ] Add `inventory_scan_sessions` and `inventory_import_batches` migrations.
-  - [ ] Verify RLS, tenant isolation, and idempotent execution.
+- [ ] **Phase 8: Label Printing & Barcode Generation Engine**
+  - [ ] Shared barcode rendering service (Code 128, EAN-13, QR).
+  - [ ] Thermal label formatting for ESC/POS and TSPL printers.
 
-- [ ] **Phase 9: External Product Information**
-  - [ ] Implement `ExternalProductLookupService` (Open Food Facts / GS1 provider).
-  - [ ] Add result caching and manual review safeguards.
+- [ ] **Phase 9: Physical Stock Counting & Reconciliation Engine**
+  - [ ] Integration with `inventory_stock_count_post_v485` and `inventory_adjust_stock_v483`.
+  - [ ] Variance reports, audit approval workflows, and atomic ledger posts.
 
-- [ ] **Phase 10: Complete Regression Verification & Delivery Report**
-  - [ ] Run complete test suite across all apps and shared packages.
-  - [ ] Verify flutter analyze on all projects.
-  - [ ] Produce final delivery report.
+- [ ] **Phase 10: Complete Monorepo Regression Verification & Final Delivery**
+  - [ ] Full end-to-end verification across all 5 applications and 3 packages.
+  - [ ] Comprehensive final delivery documentation.

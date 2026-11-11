@@ -7,8 +7,10 @@ import '../models/mobile_session.dart';
 import '../services/device_installation_service.dart';
 import '../services/mobile_auth_service.dart';
 import '../services/mobile_client_service.dart';
+import '../services/mobile_smart_inventory_service.dart';
 import '../widgets/mobile_workspace_widgets.dart';
 import 'mobile_entry_screen.dart';
+import 'smart_inventory/mobile_smart_inventory_workspace_screen.dart';
 import 'workspace/mobile_accounting_page.dart';
 import 'workspace/mobile_material_yard_page.dart';
 import 'workspace/mobile_modules_catalog_page.dart';
@@ -951,6 +953,20 @@ class _MoreTab extends StatelessWidget {
         title: 'Search business',
         subtitle: 'Sales, purchases, stock and parties',
         onTap: onSearch,
+      ),
+      _MoreAction(
+        icon: Icons.qr_code_scanner_rounded,
+        title: 'Smart Inventory & Scanning',
+        subtitle: 'Multi-code scanner, catalog lookup and bulk verify',
+        onTap: () => Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => MobileSmartInventoryWorkspaceScreen(
+              session: session,
+              service: MobileSmartInventoryService.instance,
+              locationId: locationId,
+            ),
+          ),
+        ),
       ),
       _MoreAction(
         icon: Icons.shopping_bag_outlined,

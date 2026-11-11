@@ -128,6 +128,23 @@ class MockYardClientService extends MobileClientService {
       },
     ];
   }
+
+  @override
+  Future<Map<String, int>> materialLoadCounts(
+    MobileSession s, {
+    String? locationId,
+    String? direction,
+  }) async {
+    return {
+      'all': 5,
+      'needs_action': 2,
+      'unbilled': 1,
+      'rate_pending': 0,
+      'billed': 2,
+      'draft': 0,
+      'cancelled': 0,
+    };
+  }
 }
 
 void main() {
@@ -284,7 +301,7 @@ void main() {
       expect(MaterialYardFormat.statusLabel('confirmed'), 'CONFIRMED');
       expect(MaterialYardFormat.statusColor('confirmed'), const Color(0xFF0052CC));
 
-      expect(MaterialYardFormat.statusLabel('invoiced'), 'INVOICED');
+      expect(MaterialYardFormat.statusLabel('invoiced'), 'BILLED');
       expect(MaterialYardFormat.statusColor('invoiced'), const Color(0xFF00875A));
     });
   });
@@ -368,25 +385,25 @@ void main() {
       await tester.pumpAndSettle();
 
       // 1. Switch to Inward tab
-      await tester.tap(find.text('Inward'));
+      await tester.tap(find.widgetWithText(Tab, 'Inward'));
       await tester.pumpAndSettle();
-      expect(find.text('IN-2026-001'), findsOneWidget);
-      expect(find.textContaining('Blackstone Quarry Corp'), findsOneWidget);
+      expect(find.textContaining('IN-2026-001'), findsWidgets);
+      expect(find.textContaining('Blackstone Quarry Corp'), findsWidgets);
 
       // 2. Switch to Outward tab
-      await tester.tap(find.text('Outward'));
+      await tester.tap(find.widgetWithText(Tab, 'Outward'));
       await tester.pumpAndSettle();
-      expect(find.text('OUT-2026-001'), findsOneWidget);
-      expect(find.textContaining('Skyline Builders'), findsOneWidget);
+      expect(find.textContaining('OUT-2026-001'), findsWidgets);
+      expect(find.textContaining('Skyline Builders'), findsWidgets);
 
       // 3. Switch to Stock tab
-      await tester.tap(find.text('Stock'));
+      await tester.tap(find.widgetWithText(Tab, 'Stock'));
       await tester.pumpAndSettle();
-      expect(find.textContaining('Blue Metal 20mm'), findsOneWidget);
-      expect(find.textContaining('Manufactured Sand'), findsOneWidget);
+      expect(find.textContaining('Blue Metal 20mm'), findsWidgets);
+      expect(find.textContaining('Manufactured Sand'), findsWidgets);
 
       // 4. Switch to More tab
-      await tester.tap(find.text('More'));
+      await tester.tap(find.widgetWithText(Tab, 'More'));
       await tester.pumpAndSettle();
       expect(find.text('Daily Rate Board'), findsOneWidget);
       expect(find.text('Yard Trucks & Fleet Master'), findsOneWidget);

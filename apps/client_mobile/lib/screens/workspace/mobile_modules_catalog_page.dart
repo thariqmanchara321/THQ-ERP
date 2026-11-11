@@ -5,6 +5,8 @@ import 'package:thq_ui/thq_ui.dart';
 
 import '../../models/mobile_session.dart';
 import '../../services/mobile_client_service.dart';
+import '../../services/mobile_smart_inventory_service.dart';
+import '../smart_inventory/mobile_smart_inventory_workspace_screen.dart';
 import 'mobile_accounting_page.dart';
 import 'mobile_material_yard_page.dart';
 import 'mobile_party_payments_page.dart';
@@ -108,6 +110,19 @@ class _MobileModulesCatalogPageState extends State<MobileModulesCatalogPage> {
       case 'inventory':
       case 'stock':
         widget.onSwitchTab?.call(2);
+        break;
+      case 'smart_inventory':
+      case 'smart_scanning':
+      case 'inventory_scan':
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => MobileSmartInventoryWorkspaceScreen(
+              session: widget.session,
+              service: MobileSmartInventoryService.instance,
+              locationId: widget.locationId,
+            ),
+          ),
+        );
         break;
       case 'purchases':
         Navigator.of(context).push(
@@ -512,6 +527,15 @@ class _MobileModulesCatalogPageState extends State<MobileModulesCatalogPage> {
         label: 'Stock & Inventory',
         metadata: {'category': 'Operations'},
         sortOrder: 20,
+        enabled: true,
+      ),
+      const ThqNavigationNode(
+        id: 'smart_inventory',
+        nodeKey: 'smart_inventory',
+        nodeType: 'module',
+        label: 'Smart Inventory & Scanning',
+        metadata: {'category': 'Operations'},
+        sortOrder: 25,
         enabled: true,
       ),
       const ThqNavigationNode(

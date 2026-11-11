@@ -79,7 +79,10 @@ class _ThqSmartScannerViewState extends State<ThqSmartScannerView>
     _laserAnim = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1800),
-    )..repeat(reverse: true);
+    );
+    if (!Platform.environment.containsKey('FLUTTER_TEST')) {
+      _laserAnim.repeat(reverse: true);
+    }
 
     if (!_isDesktopWithoutCamera) {
       _initCamera();

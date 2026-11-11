@@ -25,3 +25,5 @@ export 'src/identification/identification_models.dart';
 export 'src/identification/product_identification_repository.dart';
 export 'src/identification/product_identification_engine.dart';
 
+export 'src/inventory/smart_inventory_session_models.dart';
+

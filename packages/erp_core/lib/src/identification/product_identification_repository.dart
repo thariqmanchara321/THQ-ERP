@@ -74,13 +74,49 @@ class RpcProductIdentificationRepository
         params: params,
       );
 
-      if (response == null || response is! Map || response.isEmpty) {
+      if (response == null ||
+          (response is! Map && response is! List) ||
+          response.isEmpty) {
         return const [];
       }
 
+      if (response is List) {
+        return response
+            .whereType<Map>()
+            .map((e) {
+              final m = Map<String, dynamic>.from(e);
+              return ProductIdentificationMatch.fromRpcMap(
+                m,
+                matchMethod: _resolveMatchMethod(m, cleanCode),
+                matchedCode: cleanCode,
+              );
+            })
+            .toList();
+      }
+
       final map = Map<String, dynamic>.from(response);
-      final variantId = map['variant_id']?.toString() ??
-          map['variantId']?.toString() ??
+
+      if (map['matches'] is List) {
+        final list = (map['matches'] as List)
+            .whereType<Map>()
+            .map((e) {
+              final m = Map<String, dynamic>.from(e);
+              return ProductIdentificationMatch.fromRpcMap(
+                m,
+                matchMethod: _resolveMatchMethod(m, cleanCode),
+                matchedCode: cleanCode,
+              );
+            })
+            .toList();
+        if (list.isNotEmpty) return list;
+      }
+
+      final targetMap = map['product'] is Map
+          ? Map<String, dynamic>.from(map['product'] as Map)
+          : map;
+
+      final variantId = targetMap['variant_id']?.toString() ??
+          targetMap['variantId']?.toString() ??
           '';
 
       if (variantId.isEmpty) {
@@ -88,9 +124,9 @@ class RpcProductIdentificationRepository
       }
 
       // Determine the specific match method from the matched payload
-      final matchMethod = _resolveMatchMethod(map, cleanCode);
+      final matchMethod = _resolveMatchMethod(targetMap, cleanCode);
       final match = ProductIdentificationMatch.fromRpcMap(
-        map,
+        targetMap,
         matchMethod: matchMethod,
         matchedCode: cleanCode,
       );

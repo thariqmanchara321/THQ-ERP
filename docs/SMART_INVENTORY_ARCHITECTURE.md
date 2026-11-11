@@ -352,6 +352,93 @@ Phase 5 brings the shared Smart Scanning and Identification engines directly to 
    - Displays variant name, SKU, price, and available stock with individual `Select` actions.
    - Requires explicit cashier choice before adding to cart.
 
+---
+
+## 8. THQ Client Mobile Smart Inventory Integration Architecture (Phase 6)
+
+### 8.1 Philosophy and Operational Context
+`apps/client_mobile` serves as the primary mobile back-office, warehouse, yard, and operational management tool for THQ ERP. Unlike POS applications that directly populate sales billing carts, Client Mobile Smart Inventory functions as an **operational verification, product discovery, and staging engine**.
+
+```
++-----------------------------------------------------------------------------------+
+|               THQ Client Mobile — Smart Inventory Architecture                    |
+|                                                                                   |
+|  [Hardware HID Scanner]        [Integrated Camera]        [Manual Code Entry]     |
+|   (ThqBarcodeWedgeListener)   (ThqSmartScannerView)    (MobileManualCodeEntry)    |
+|                \                       |                       /                  |
+|                 +----------------------+----------------------+                   |
+|                                        |                                          |
+|                                        v                                          |
+|                       MobileSmartInventoryService                                 |
+|               (ProductIdentificationEngine + Supabase RPC)                        |
+|                                        |                                          |
+|                     +------------------+------------------+                       |
+|                     |                                     |                       |
+|             [Exact Match]                            [Ambiguous]                  |
+|                     v                                     v                       |
+|         _handleResolvedMatch               MobileSmartInventoryMultipleMatch      |
+|     - Updates Last Scan Card               - Multi-variant disambiguation sheet   |
+|     - Adds to Bulk Session (if active)     - Explicit operator selection          |
+|     - Logs to Activity Stream              - Dispatches to _handleResolvedMatch   |
+|     - Zero Stock Mutation                  - Zero Stock Mutation                  |
++-----------------------------------------------------------------------------------+
+```
+
+### 8.2 Architectural Principles & Invariants
+
+1. **Strict Online Network Model (No Duplicate SQLite):**
+   - Unlike `pos_app` and `mobile_pos`, `apps/client_mobile` does not maintain an offline SQLite database.
+   - Identification relies on `RpcProductIdentificationRepository` calling Supabase RPC `inventory_product_lookup_v482`.
+   - When offline or unreachable (`SocketException`, `TimeoutException`), the service returns a clean `ProductIdentificationResult.error` with user-friendly messaging stating that Client Mobile requires an active network connection.
+
+2. **Session Models Promoted to Shared Foundation:**
+   - Promoted `SmartScanSession`, `SmartScanSessionItem`, and `UnresolvedScanItem` from `apps/client_app` to `packages/erp_core/lib/src/inventory/smart_inventory_session_models.dart`.
+   - Exported through `package:erp_core/erp_core.dart` to establish a shared cross-platform staging standard.
+   - Backward-compatibility re-exports maintained in `apps/client_app/lib/models/smart_inventory_session_models.dart`.
+
+3. **Strict Non-Mutating Operational Staging:**
+   - In accordance with THQ accounting rules, scanning in Client Mobile is strictly observational and staging.
+   - Bulk scan sessions consolidate items, track scan counts, and collect unresolved codes in memory. Finishing a session archives it into historical memory without altering `public.location_stock_balances` or writing ledger entries. Actual physical counts and reconciliation are reserved for Phase 9.
+
+4. **Multi-Tenant & Multi-Location Isolation:**
+   - Lookups and catalog searches pass authenticated `tenantId` and active `locationId` from `MobileSession`.
+   - Location switcher allows seamless location context switching for multi-warehouse managers.
+
+5. **Cost Price Security & Permission Guarding:**
+   - Product detail modals enforce role and permission checks:
+     ```dart
+     final canViewCost = session.isOwner || session.hasPermission('inventory.manage');
+     ```
+   - Unauthorized personnel see a secure restricted notice with no financial data leakage.
+
+### 8.3 Core Components
+
+1. **`MobileSmartInventoryService` (`apps/client_mobile/lib/services/mobile_smart_inventory_service.dart`):**
+   - Manages the singleton `ProductIdentificationEngine` instance with online RPC caller.
+   - Maintains active and completed bulk scanning sessions.
+   - Emits real-time scan activity via a broadcast `activityStream` and maintains a 100-entry rolling memory feed.
+   - Provides `searchCatalog` fallback calling `inventory_list_products_v483` with debounced multi-field fuzzy matching.
+
+2. **`MobileSmartInventoryWorkspaceScreen` (`apps/client_mobile/lib/screens/smart_inventory/mobile_smart_inventory_workspace_screen.dart`):**
+   - 5-tab responsive mobile workspace:
+     - **Overview:** Active location header, quick actions, active session status, and recent scan activity feed.
+     - **Scan:** Full camera viewfinder (`ThqSmartScannerView`), mode toggle (Continuous/Single), flash/camera switches, manual code entry button, and real-time feedback card.
+     - **Lookup:** Debounced multi-field product search by name, SKU, barcode, brand, or part number with quick-tap details.
+     - **Bulk:** Live staging list displaying staged products, consolidated scan counts, unresolved flags, and session finish action.
+     - **History:** Completed session archive displaying item counts, unit totals, timestamps, and detail breakdowns.
+   - Root `ThqBarcodeWedgeListener` capturing external Bluetooth barcode scanners across all tabs.
+
+3. **Dialogs & Modals (`apps/client_mobile/lib/widgets/mobile_smart_inventory_dialogs.dart`):**
+   - `MobileSmartInventoryMultipleMatchDialog`: Disambiguation dialog for ambiguous codes.
+   - `MobileManualCodeEntryDialog`: Quick code typing modal with validation.
+   - `MobileProductDetailModal`: Full product sheet with stock levels, selling price, and permission-guarded cost price.
+
+4. **Navigation Integration:**
+   - Primary Tabs: Tab bar and action card in `MobileInventoryWorkspace`.
+   - Modules Catalog: Listed under Operations in `MobileModulesCatalogPage`.
+   - More Drawer: Quick shortcut in `_MoreTab`.
+
+
 
 
 

@@ -3,7 +3,9 @@ import 'package:thq_ui/thq_ui.dart';
 
 import '../../models/mobile_session.dart';
 import '../../services/mobile_client_service.dart';
+import '../../services/mobile_smart_inventory_service.dart';
 import '../../widgets/mobile_workspace_widgets.dart';
+import '../smart_inventory/mobile_smart_inventory_workspace_screen.dart';
 import 'mobile_party_payments_page.dart';
 import 'mobile_tools_pages.dart';
 
@@ -343,6 +345,20 @@ class _MobileInventoryWorkspaceState extends State<MobileInventoryWorkspace> {
                       },
                     ),
                   ),
+                  const SizedBox(width: 8),
+                  IconButton.filledTonal(
+                    tooltip: 'Smart Inventory & Scanning',
+                    onPressed: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => MobileSmartInventoryWorkspaceScreen(
+                          session: widget.session,
+                          service: MobileSmartInventoryService.instance,
+                          locationId: widget.locationId,
+                        ),
+                      ),
+                    ),
+                    icon: const Icon(Icons.document_scanner_rounded),
+                  ),
                   if (widget.onOpenTraceability != null) ...[
                     const SizedBox(width: 8),
                     IconButton.filledTonal(
@@ -352,6 +368,67 @@ class _MobileInventoryWorkspaceState extends State<MobileInventoryWorkspace> {
                     ),
                   ],
                 ],
+              ),
+              const SizedBox(height: 8),
+              Card(
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  side: BorderSide(
+                    color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.3),
+                  ),
+                ),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(10),
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => MobileSmartInventoryWorkspaceScreen(
+                        session: widget.session,
+                        service: MobileSmartInventoryService.instance,
+                        locationId: widget.locationId,
+                      ),
+                    ),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    child: Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 14,
+                          backgroundColor: Theme.of(context)
+                              .colorScheme
+                              .primary
+                              .withValues(alpha: 0.12),
+                          child: Icon(Icons.qr_code_scanner_rounded,
+                              size: 16,
+                              color: Theme.of(context).colorScheme.primary),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text('Smart Inventory Scanner',
+                                  style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 12.5)),
+                              Text(
+                                'Multi-code scanning, lookup & bulk staging',
+                                style: TextStyle(
+                                  fontSize: 10.5,
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .onSurfaceVariant,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const Icon(Icons.arrow_forward_ios_rounded, size: 12),
+                      ],
+                    ),
+                  ),
+                ),
               ),
               const SizedBox(height: 10),
               Row(
