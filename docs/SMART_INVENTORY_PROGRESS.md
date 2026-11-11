@@ -1,7 +1,7 @@
 # THQ ERP — Smart Inventory Progress Log
 
 **Active Branch:** `main`  
-**Current Milestone:** Phase 6 Completed  
+**Current Milestone:** Phase 7 Completed  
 **Last Updated:** 2026-11-11  
 
 ---
@@ -85,10 +85,21 @@
   - [x] 11 unit and widget tests passing in `apps/client_mobile/test/mobile_smart_inventory_test.dart`.
   - [x] Full Client Mobile suite passing: 46 / 46 tests. All monorepo regression suites passing (506 tests total across 6 projects).
 
-- [ ] **Phase 7: Excel / CSV Product & Barcode Import Engine**
-  - [ ] Implement `SmartImportEngine` in `packages/erp_core` for CSV & XLSX parsing.
-  - [ ] Auto-column mapping, duplicate detection, and invalid row quarantining.
-  - [ ] Back-office import wizard in `apps/client_app`.
+- [x] **Phase 7: Excel / CSV Product & Barcode Import Engine**
+  - [x] Implement RFC 4180 pure Dart `SmartCsvParser` with UTF-8 BOM, multiline strings, escaped quotes, leading zero preservation.
+  - [x] Implement pure Dart `SmartXlsxParser` utilizing `excel: 4.0.6` with multi-sheet enumeration and formatted value extraction.
+  - [x] Implement `SmartColumnMapper` with synonym matching, confidence scoring (high/medium/low/unmapped), manual override, and required field validation.
+  - [x] Implement in-memory `SmartImportValidator` for SKU/Name requirement, numeric bound checks, tax rate validation, and non-mutating opening stock warning.
+  - [x] Implement `SmartDuplicateDetector` distinguishing intra-file duplicate SKUs/barcodes from existing live catalog records.
+  - [x] Implement `SampleTemplateGenerator` creating downloadable UTF-8 CSV with BOM and styled Excel (.xlsx) templates.
+  - [x] Implement `SmartImportEngine` orchestrating file loading, auto-mapping, dry-run validation, batch execution against `inventory_bulk_create_products`, and downloadable failure CSV reports.
+  - [x] Implement `SmartInventoryImportTab` in `apps/client_app` with guided 7-step desktop import workflow.
+  - [x] Integrate Tab 5 into `SmartInventoryWorkspaceScreen`, add Quick Action card in `SmartInventoryOverviewTab`, and add "Import Products" button in `InventoryProductsScreen`.
+  - [x] Strict invariant enforced: ZERO live stock balance mutations during product import.
+  - [x] Strict cost price gating enforced via `inventory.manage` / `owner` role.
+  - [x] 16 unit tests passing in `packages/erp_core/test/smart_import_test.dart`.
+  - [x] 7 widget and workflow tests passing in `apps/client_app/test/smart_inventory_import_test.dart`.
+  - [x] Full monorepo regression suites passing (529 tests total across 6 projects).
 
 - [ ] **Phase 8: Label Printing & Barcode Generation Engine**
   - [ ] Shared barcode rendering service (Code 128, EAN-13, QR).

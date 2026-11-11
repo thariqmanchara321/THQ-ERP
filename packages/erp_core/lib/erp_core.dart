@@ -27,3 +27,12 @@ export 'src/identification/product_identification_engine.dart';
 
 export 'src/inventory/smart_inventory_session_models.dart';
 
+export 'src/import/smart_import_models.dart';
+export 'src/import/csv_parser.dart';
+export 'src/import/xlsx_parser.dart';
+export 'src/import/smart_column_mapper.dart';
+export 'src/import/smart_import_validator.dart';
+export 'src/import/smart_duplicate_detector.dart';
+export 'src/import/sample_template_generator.dart';
+export 'src/import/smart_import_engine.dart';
+

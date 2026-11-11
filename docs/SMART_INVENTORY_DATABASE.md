@@ -104,3 +104,27 @@ CREATE POLICY inventory_import_batches_tenant ON public.inventory_import_batches
     USING (private.erp_user_has_tenant_access(tenant_id))
     WITH CHECK (private.erp_user_has_tenant_access(tenant_id));
 ```
+
+---
+
+## 4. Phase 7: Bulk Import RPCs and Invariant Guarantees
+
+### 4.1 Backend Functions
+
+1. **`public.inventory_bulk_create_products(p_tenant_id uuid, p_rows jsonb) RETURNS jsonb`**
+   - **Access control:** Verified via `private.erp_user_has_tenant_access(p_tenant_id)`.
+   - **Permission check:** Verified via `private.erp_has_permission(p_tenant_id, 'bulk_import.use')` or `'inventory.manage'`.
+   - **Processing:** Iterates through `p_rows` and calls `public.inventory_create_product` with per-row exception safety.
+   - **Audit logging:** Writes audit trail entry to `private.business_audit_write`.
+   - **Output:** Returns JSON object `{ "success_count": ok, "failed_count": failed, "errors": errs }`.
+
+2. **`public.inventory_update_product_v628(...) RETURNS jsonb`**
+   - Invoked when user selects `DuplicateHandlingMode.updateExisting` to update existing product catalog details by `variant_id`.
+
+### 4.2 Non-Mutating Live Stock Invariant
+
+- In according with THQ ERP double-entry inventory integrity:
+  - Product catalogue creation strictly creates catalog rows in `public.inventory_products` and `public.inventory_product_variants`.
+  - It does **NOT** write opening balances or ledger adjustments into `public.location_stock_balances` or stock movement tables.
+  - Opening stock numbers in supplier spreadsheets are informational only; live stock adjustments require approved stock count posts (Phase 9).
+

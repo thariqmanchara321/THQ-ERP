@@ -144,7 +144,7 @@ class SmartInventoryOverviewTab extends StatelessWidget {
           const SizedBox(height: 12),
           LayoutBuilder(
             builder: (context, constraints) {
-              final isWide = constraints.maxWidth > 750;
+              final isWide = constraints.maxWidth > 900;
               final cards = [
                 _ActionCard(
                   title: 'Scan Center',
@@ -169,6 +169,14 @@ class SmartInventoryOverviewTab extends StatelessWidget {
                   icon: Icons.playlist_add_check,
                   buttonText: 'Start Bulk Scan',
                   onTap: () => onSelectTab(3),
+                ),
+                _ActionCard(
+                  title: 'Product Import',
+                  subtitle:
+                      'Batch import product catalogues from Excel (.xlsx) or CSV with intelligent auto-mapping.',
+                  icon: Icons.upload_file_outlined,
+                  buttonText: 'Import Products',
+                  onTap: () => onSelectTab(5),
                 ),
               ];
 

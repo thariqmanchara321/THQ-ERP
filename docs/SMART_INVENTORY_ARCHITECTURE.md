@@ -438,7 +438,77 @@ Phase 5 brings the shared Smart Scanning and Identification engines directly to 
    - Modules Catalog: Listed under Operations in `MobileModulesCatalogPage`.
    - More Drawer: Quick shortcut in `_MoreTab`.
 
+---
 
+## 9. Phase 7: Smart Excel / CSV Product Import Engine Architecture
 
+### 9.1 Objectives & Scope
 
+Phase 7 provides a resilient, professional, and reusable product import capability allowing businesses to bulk import product catalogues into THQ ERP from vendor-provided spreadsheets.
+
+### 9.2 Key Invariants & Safeguards
+
+1. **Zero Live Stock Ledger Mutations:**
+   - Product catalogue import strictly creates and catalogues products and variants.
+   - It does **NOT** write to `public.location_stock_balances` or generate inventory movement records.
+   - Any opening stock column in the source spreadsheet is staged with an explicit informational warning that stock ledger adjustments must be performed through verified stock intake or reconciliation workflows (Phase 9).
+
+2. **Leading Zero & Identifier Integrity:**
+   - Numeric codes like `0012345678905` or `04523` are treated strictly as string tokens throughout the pipeline.
+   - Both CSV and XLSX parsers prevent truncation of leading zeros and eliminate accidental scientific notation conversion.
+
+3. **Non-destructive Dry-Run Validation:**
+   - Full validation pass analyzes data types, required fields (Product Name, SKU), price bounds, and duplicate collisions in-memory prior to any database operation.
+
+4. **Cost Price Protection:**
+   - Cost price columns are hidden and zeroed out for users lacking `inventory.manage` or `owner` privileges.
+
+5. **Idempotent Batch Processing:**
+   - Chunks of 50 rows are batched against backend RPC `inventory_bulk_create_products` with per-row exception capture.
+
+### 9.3 Engine Architecture (`packages/erp_core/lib/src/import/`)
+
+- **`SmartCsvParser` (`csv_parser.dart`):**
+  - Pure Dart RFC 4180 compliant parser.
+  - Auto-detects delimiters (`,`, `;`, `\t`).
+  - Handles UTF-8 BOM, multiline fields, and escaped quotes (`""`).
+
+- **`SmartXlsxParser` (`xlsx_parser.dart`):**
+  - Pure Dart parser utilizing `excel: 4.0.6`.
+  - Multi-sheet discovery and sheet-specific parsing.
+  - Type-safe cell extraction preserving integers and text codes without trailing `.0`.
+
+- **`SmartColumnMapper` (`smart_column_mapper.dart`):**
+  - Multi-synonym matching engine for 17 standard THQ fields.
+  - Assigns confidence scores (`high`, `medium`, `low`, `unmapped`).
+  - Flags missing mandatory fields (`Product Name`, `SKU`).
+
+- **`SmartImportValidator` (`smart_import_validator.dart`):**
+  - In-memory validation verifying mandatory fields, non-negative prices, valid tax rates, and numeric bounds.
+
+- **`SmartDuplicateDetector` (`smart_duplicate_detector.dart`):**
+  - Intra-file duplicate detector (flags repeated SKUs or barcodes within the uploaded file).
+  - Catalog duplicate detector (checks existing live records via `ProductIdentificationRepository`).
+
+- **`SampleTemplateGenerator` (`sample_template_generator.dart`):**
+  - Generates downloadable CSV template with UTF-8 BOM and stylized Excel (.xlsx) templates with sample rows.
+
+- **`SmartImportEngine` (`smart_import_engine.dart`):**
+  - Orchestrates the full import pipeline from file loading to batch execution and error CSV generation.
+
+### 9.4 Desktop User Interface (`apps/client_app`)
+
+- **`SmartInventoryImportTab` (`tabs/smart_inventory_import_tab.dart`):**
+  - Embedded as Tab 5 in `SmartInventoryWorkspaceScreen`.
+  - Guided 7-step desktop import workflow:
+    1. File Upload (drag-and-drop / browse).
+    2. Worksheet Selection (for multi-sheet workbooks).
+    3. Column Mapping (interactive mapping table with confidence indicators & dropdown overrides).
+    4. Validation Dry-Run (non-mutating background check).
+    5. Visual Pre-Import Preview (dense data table with error tooltips and status filters).
+    6. Duplicate Resolution Strategy (`Skip Duplicates`, `Import New Only`, `Update Existing`).
+    7. Batch Import Execution & Failure CSV Export.
+- **Catalog Integration:**
+  - "Import Products" entry point added to `InventoryProductsScreen` toolbar with automatic refresh upon return.
+  - Quick Action launcher added to `SmartInventoryOverviewTab`.
 

@@ -216,7 +216,39 @@ This test plan specifies the verification requirements for all Smart Inventory c
 10. **Cost Price Protection:** `MobileProductDetailModal` hides cost price behind a restricted banner unless the user is an owner or holds the `inventory.manage` permission.
 11. **Static Analysis:** Zero issues (`flutter analyze` on new Smart Inventory files completed with 0 warnings or errors).
 
+---
 
+## 9. Phase 7 Test Matrix & Execution (Smart Excel / CSV Product Import Engine)
 
+| Test Target | Test File | Planned | Executed | Status |
+| :--- | :--- | :--- | :--- | :--- |
+| `SmartCsvParser` Unit Suite | `packages/erp_core/test/smart_import_test.dart` | 4 | 4 | **PASSED** |
+| `SmartXlsxParser` Unit Suite | `packages/erp_core/test/smart_import_test.dart` | 3 | 3 | **PASSED** |
+| `SmartColumnMapper` Unit Suite | `packages/erp_core/test/smart_import_test.dart` | 2 | 2 | **PASSED** |
+| `SmartImportValidator` Unit Suite | `packages/erp_core/test/smart_import_test.dart` | 4 | 4 | **PASSED** |
+| `SmartDuplicateDetector` Unit Suite | `packages/erp_core/test/smart_import_test.dart` | 2 | 2 | **PASSED** |
+| `SmartImportEngine` Lifecycle Suite | `packages/erp_core/test/smart_import_test.dart` | 1 | 1 | **PASSED** |
+| `SmartInventoryImportTab` Widget Suite | `apps/client_app/test/smart_inventory_import_test.dart` | 7 | 7 | **PASSED** |
+| `SmartInventoryWorkspaceScreen` 6-Tab Suite | `apps/client_app/test/smart_inventory_workspace_test.dart` | 6 | 6 | **PASSED** |
+| `packages/erp_core` Full Suite (Regression) | `packages/erp_core/test/` | 99 | 99 | **PASSED** (Baseline 83 + 16 New) |
+| `packages/thq_ui` Full Suite (Regression) | `packages/thq_ui/test/` | 73 | 73 | **PASSED** |
+| `apps/client_app` Full Suite (Regression) | `apps/client_app/test/` | 255 | 255 | **PASSED** (Baseline 248 + 7 New) |
+| `apps/pos_app` Full Suite (Regression) | `apps/pos_app/test/` | 39 | 39 | **PASSED** |
+| `apps/mobile_pos` Full Suite (Regression) | `apps/mobile_pos/test/` | 17 | 17 | **PASSED** |
+| `apps/client_mobile` Full Suite (Regression) | `apps/client_mobile/test/` | 46 | 46 | **PASSED** |
 
+### Verified Phase 7 Capabilities:
+1. **RFC 4180 CSV Parsing:** `SmartCsvParser` successfully parses valid CSVs with UTF-8 BOM, multiline fields, commas in quoted strings, escaped quotes (`""`), and auto-senses delimiters (`,`, `;`, `\t`).
+2. **Pure Dart XLSX Parsing:** `SmartXlsxParser` accurately enumerates worksheets, reads headers and cell data, and preserves integers and text codes without truncation or spurious decimals (`.0`).
+3. **Leading Zero Preservation:** Numerical identifiers with leading zeros (e.g. `0012345678905`) are treated as strict strings without truncation.
+4. **Intelligent Synonym Auto-Mapping:** `SmartColumnMapper` auto-maps supplier columns against 17 destination fields with high confidence for common supplier conventions (`Item Name`, `Product Name`, `SKU`, `Barcode / EAN`, `Sale Price`).
+5. **Required Field Verification:** Accurately flags missing required fields (`Product Name`, `SKU`) and alerts the user.
+6. **In-Memory Validation Dry-Run:** `SmartImportValidator` checks mandatory fields, rejects negative prices, validates tax percentages, and suppresses cost prices for restricted personnel.
+7. **Opening Stock Non-Mutating Warning:** Opening stock columns trigger an explicit non-mutating warning ensuring live stock is never modified.
+8. **Intra-File Duplicate Detection:** Subsequent rows with repeated SKUs or barcodes within the same file are classified as duplicates with detailed reasoning.
+9. **Live Catalog Duplicate Detection:** Checks existing database records via `ProductIdentificationRepository` and marks catalog matches.
+10. **Sample Template Generation:** Generates valid, downloadable UTF-8 CSV with BOM and stylized Excel (.xlsx) templates with formatted headers and sample rows.
+11. **Desktop 7-Step Import UI:** `SmartInventoryImportTab` in `apps/client_app` provides a clean desktop workflow: upload, worksheet selection, column mapping, dry-run validation, visual data table preview with filters, duplicate resolution strategy, and batch import execution.
+12. **Downloadable Failure CSV:** Produces an RFC 4180 CSV error report listing row number, product name, SKU, and error reason for failed rows.
+13. **Static Analysis:** Zero issues (`flutter analyze` on `erp_core` and `client_app` passed clean with 0 warnings/errors).
 

@@ -4,6 +4,7 @@ import 'package:thq_ui/thq_ui.dart';
 import '../../models/client_session.dart';
 import '../../services/location_scope_service.dart';
 import 'tabs/smart_inventory_bulk_scan_tab.dart';
+import 'tabs/smart_inventory_import_tab.dart';
 import 'tabs/smart_inventory_overview_tab.dart';
 import 'tabs/smart_inventory_product_lookup_tab.dart';
 import 'tabs/smart_inventory_scan_center_tab.dart';
@@ -34,9 +35,9 @@ class _SmartInventoryWorkspaceScreenState
   @override
   void initState() {
     super.initState();
-    _activeTabIndex = widget.initialTab.clamp(0, 4);
+    _activeTabIndex = widget.initialTab.clamp(0, 5);
     _tabController = TabController(
-      length: 5,
+      length: 6,
       vsync: this,
       initialIndex: _activeTabIndex,
     );
@@ -54,7 +55,7 @@ class _SmartInventoryWorkspaceScreenState
   }
 
   void _onSelectTab(int index) {
-    if (index >= 0 && index < 5) {
+    if (index >= 0 && index < 6) {
       _tabController.animateTo(index);
       setState(() => _activeTabIndex = index);
     }
@@ -158,6 +159,10 @@ class _SmartInventoryWorkspaceScreenState
                   icon: Icon(Icons.history, size: 18),
                   text: 'Scan History',
                 ),
+                Tab(
+                  icon: Icon(Icons.upload_file_outlined, size: 18),
+                  text: 'Product Import',
+                ),
               ],
             ),
           ),
@@ -175,6 +180,7 @@ class _SmartInventoryWorkspaceScreenState
                 SmartInventoryProductLookupTab(session: widget.session),
                 SmartInventoryBulkScanTab(session: widget.session),
                 SmartInventoryScanHistoryTab(session: widget.session),
+                SmartInventoryImportTab(session: widget.session),
               ],
             ),
           ),

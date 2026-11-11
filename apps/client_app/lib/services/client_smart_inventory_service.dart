@@ -4,7 +4,6 @@ import 'package:erp_core/erp_core.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/client_session.dart';
-import '../models/smart_inventory_session_models.dart';
 
 /// Client application service providing access to the shared [ProductIdentificationEngine],
 /// session management for bulk scanning, and in-memory scan history tracking.
