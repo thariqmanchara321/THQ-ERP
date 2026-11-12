@@ -216,6 +216,7 @@ void main() {
       expect(find.widgetWithText(Tab, 'Barcode Studio'), findsOneWidget);
       expect(find.widgetWithText(Tab, 'Stock Count'), findsOneWidget);
       expect(find.widgetWithText(Tab, 'Purchase Receiving'), findsOneWidget);
+      expect(find.widgetWithText(Tab, 'Product Intelligence'), findsOneWidget);
 
       // Overview quick actions are present
       expect(find.text('Open Scan Center'), findsOneWidget);
@@ -225,6 +226,7 @@ void main() {
       expect(find.text('Open Barcode Studio'), findsOneWidget);
       expect(find.text('Start Stock Count'), findsOneWidget);
       expect(find.text('Receive Goods'), findsOneWidget);
+      expect(find.text('Lookup Intelligence'), findsOneWidget);
     });
 
     testWidgets('Switching to Scan Center displays hardware wedge status and manual input', (tester) async {
@@ -308,6 +310,26 @@ void main() {
       await tester.pump(const Duration(milliseconds: 100));
 
       coordinator.dispose();
+    });
+
+    testWidgets('Switching to Product Intelligence displays search bar, providers, and quick lookups', (tester) async {
+      await tester.pumpWidget(
+        const MaterialApp(
+          home: Scaffold(
+            body: SmartInventoryWorkspaceScreen(
+              session: standardSession,
+              initialTab: 9, // Product Intelligence
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      expect(find.text('Search Intelligence'), findsOneWidget);
+      expect(find.text('External Product Intelligence & GS1 Lookup'), findsOneWidget);
+      expect(find.text('All Providers'), findsOneWidget);
+      expect(find.textContaining('Bru Instant Coffee'), findsOneWidget);
+      expect(find.textContaining('UltraTech Cement 50kg'), findsOneWidget);
     });
   });
 }

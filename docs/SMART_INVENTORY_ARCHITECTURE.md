@@ -786,6 +786,81 @@ Resolves historical issues with mobile camera recognition (glitched frames, drop
 - Floating Desktop Product ACK Banner displaying the product name confirmed by the desktop workstation or duplicate suppression notice.
 - Expandable session scan history drawer.
 
+---
+
+## 14. Phase 12: External Product Intelligence & GS1 Barcode Lookup Architecture
+
+### 14.1 Purpose & Scope
+The External Product Intelligence system empowers operators to rapidly identify unknown products, discover matching candidates from external catalogues, and enrich existing THQ product records with accurate titles, brands, categories, descriptions, images, and technical specifications.
+
+### 14.2 Core Principles & Architectural Guarantees
+1. **Zero Automatic Overwriting:**
+   External suggestions are **NEVER** applied automatically to existing catalogue records. Operators are presented with an interactive side-by-side comparison highlighting discrepancies and must explicitly approve changes on a field-by-field basis.
+2. **Strict Protection of Ledger & Inventory Invariants:**
+   External intelligence cannot alter operational accounting and inventory fields:
+   - Selling Price (protected)
+   - Purchase / Cost Price (protected)
+   - List Price (protected)
+   - Tax Rate (protected)
+   - Stock Quantity / Inventory Balances (protected)
+   - Reorder Levels (protected)
+   These fields are permanently locked with visual protected badges in `ThqCatalogueComparisonView`.
+3. **Format Validation vs. Official GS1 Verification:**
+   - *Mathematical Check Digit Validation:* `BarcodeAccuracyVerifier` checks Modulo 10 check digits locally for EAN-13, UPC-A, and GTIN-14, ensuring camera reads are mathematically valid.
+   - *GS1 Registry Platform (GRP) Licencing:* Format validity does not imply brand ownership. Live validation against GS1 GRP endpoints requires active GS1 Member Organization subscription credentials. When unconfigured, `Gs1RegistryProvider` accurately documents this requirement and returns an informative `unauthorized` status rather than claiming unverified access.
+4. **Resilience & Non-Blocking POS Guarantee:**
+   External lookups enforce a strict 8-second timeout, run asynchronously, and never block POS sales, offline billing, or core ERP workflows. If external services fail or are rate limited (HTTP 429), THQ operations continue uninterrupted.
+5. **Audit Provenance Logging:**
+   Approved enrichments are permanently recorded in `product_variants.custom_fields['external_provenance']`, capturing provider ID, source name, external barcode, approved field list, confidence score, user ID, and timestamp with zero database schema migrations.
+
+### 14.3 Shared Architecture & Components
+
+#### Shared Engine Models (`packages/erp_core/lib/src/intelligence/external_product_models.dart`)
+- `ExternalLookupStatus`: `success`, `noMatch`, `rateLimited`, `providerError`, `offline`, `unauthorized`.
+- `ExternalProductCandidate`: Discovered candidate with exact barcode preservation (leading zero fidelity), symbology, title, brand, manufacturer, category, description, public image URL, key-value specifications, match confidence (0.0–1.0), GS1 verification flag, and raw JSON payload.
+- `ExternalLookupRequest`: Structured query parameters supporting exact barcode lookup or multi-attribute text search.
+- `CatalogueComparisonField`: Represents compared field with current THQ value, external suggestion, conflict flag (`isConflict`), user acceptance toggle (`isAccepted`), and protected invariant flag (`isProtected`).
+- `CatalogueComparison`: Encapsulates side-by-side comparison, conflict detection, field approval states, payload extraction (`buildEnrichmentPayload()`), and audit provenance generation (`buildAuditProvenance(...)`).
+
+#### HTTP Client Abstraction (`packages/erp_core/lib/src/intelligence/product_intelligence_http_client.dart`)
+- `ProductIntelligenceHttpClient`: Clean interface abstracting HTTP operations.
+- `DefaultProductIntelligenceHttpClient`: Production HTTP client with standard `User-Agent: THQ-ERP/1.0`, 8-second timeout enforcement, and HTTP status code translation (404 -> noMatch, 429 -> rateLimited, 401/403 -> unauthorized).
+- `MockProductIntelligenceHttpClient`: Hermetic mock client for deterministic unit testing without outbound network calls.
+
+#### Provider Implementations
+- **`OpenProductFactsProvider` (`open_product_facts_provider.dart`):** Queries Open Food Facts (`https://world.openfoodfacts.org/api/v2/product/{barcode}.json`) under Open Database License (ODbL) terms. Parses product names, brands, categories, manufacturers, packaging, and net quantities.
+- **`Gs1RegistryProvider` (`gs1_registry_provider.dart`):** Validates GTIN format and check digit locally. When configured with GS1 Member API credentials, queries GS1 GRP endpoints (`https://api.gs1.org/grp/v3/products/{gtin14}`). If unconfigured, cleanly returns `unauthorized` with an educational message regarding GS1 subscription requirements.
+- **`MockExternalProductProvider` (`mock_external_product_provider.dart`):** In-memory catalogue pre-seeded with real-world building materials (UltraTech Cement), groceries (Bru Instant Coffee), electrical components (Havells Socket), and stationery (Classmate Notebook). Supports keyword search and simulated network delays.
+
+#### Central Orchestrator Engine (`ExternalProductIntelligenceEngine`)
+- Multi-provider parallel dispatch.
+- In-flight request deduplication (coalesces rapid concurrent queries for the same barcode into a single shared Future).
+- 15-minute in-memory cache to respect provider rate limits and ensure snappy local UX.
+- Direct cache eviction (`clearCache()`).
+
+#### Reusable UI (`packages/thq_ui/lib/src/intelligence/thq_catalogue_comparison_view.dart`)
+- `ThqCatalogueComparisonView`:
+  - Discovered product header card with thumbnail image, source badge, and match confidence pill.
+  - Conflict warning banner and protected accounting invariant alert.
+  - Field selection toolbar ("Accept Non-Conflicting", "Select All", "Clear All").
+  - Side-by-side comparison table (Field, Current Value, External Suggestion, Conflict Badge, Accept Toggle / Lock).
+  - Additional specifications chip container.
+  - Responsive action footer with "Enrich Product", "Create As New Draft", and "Discard" actions.
+
+#### Workspace Integration (`apps/client_app`)
+- **`SmartProductIntelligenceTab` (`apps/client_app/lib/screens/smart_inventory/tabs/smart_product_intelligence_tab.dart`):**
+  - Search bar with hardware wedge barcode scanner (`ThqBarcodeWedgeListener`) and wireless phone scanner (`WirelessScannerCoordinator`) integration.
+  - Provider filter dropdown ("All Providers", "Open Food Facts", "Verified by GS1", "Mock Catalogue").
+  - Quick action chips for sample products.
+  - Multi-candidate selector list and embedded `ThqCatalogueComparisonView`.
+  - Confirmation and execution using `InventoryService.updateProduct` (preserving protected fields) and `InventoryService.createProduct`.
+  - Provenance audit recording in `product_variants.custom_fields`.
+- **`SmartInventoryWorkspaceScreen`:**
+  - Expanded to 10 tabs (TabController length 10).
+  - Tab 10: "Product Intelligence" (`Icons.auto_awesome`).
+  - Added "Product Intelligence" quick workspace card to `SmartInventoryOverviewTab`.
+
+
 
 
 

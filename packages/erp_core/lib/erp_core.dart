@@ -48,3 +48,11 @@ export 'src/barcode/barcode_format.dart';
 export 'src/barcode/barcode_generator.dart';
 export 'src/barcode/label_models.dart';
 
+export 'src/intelligence/external_product_models.dart';
+export 'src/intelligence/product_intelligence_http_client.dart';
+export 'src/intelligence/external_product_intelligence_provider.dart';
+export 'src/intelligence/open_product_facts_provider.dart';
+export 'src/intelligence/gs1_registry_provider.dart';
+export 'src/intelligence/mock_external_product_provider.dart';
+export 'src/intelligence/external_product_intelligence_engine.dart';
+

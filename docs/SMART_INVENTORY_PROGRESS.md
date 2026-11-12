@@ -171,5 +171,26 @@
   - [x] 7 widget tests passing in `apps/client_app/test/smart_inventory_workspace_test.dart`.
   - [x] Full static analysis clean (0 errors across all 6 packages/apps).
 
-- [ ] **Phase 12: External Product Intelligence & GS1 Barcode Lookup (Upcoming Milestone)**
-  - [ ] External GTIN / EAN database resolution for unknown products entering catalogue.
+- [x] **Phase 12: External Product Intelligence & GS1 Barcode Lookup**
+  - [x] Shared domain models in `packages/erp_core/lib/src/intelligence/external_product_models.dart`: `ExternalProductCandidate`, `ExternalLookupStatus`, `ExternalLookupRequest`, `ExternalLookupResult`, `CatalogueComparisonField`, `CatalogueComparison`.
+  - [x] Strict preservation of barcode string values and leading zeros (e.g. `0012345678905`).
+  - [x] Format validation vs GS1 verification distinction: mathematical Modulo 10 check digit verification via `BarcodeAccuracyVerifier` locally; official GS1 Registry Platform (GRP) query requires verified member subscription credentials.
+  - [x] Provider-independent HTTP client abstraction `ProductIntelligenceHttpClient` with production `DefaultProductIntelligenceHttpClient` (timeout 8s, User-Agent `THQ-ERP/1.0`, status code mapping) and hermetic `MockProductIntelligenceHttpClient`.
+  - [x] Public & official provider implementations:
+    - `OpenProductFactsProvider`: Queries Open Food Facts (`https://world.openfoodfacts.org/api/v2/product/{barcode}.json`) under ODbL terms; parses titles, brands, categories, manufacturers, image URLs, and specifications.
+    - `Gs1RegistryProvider`: Official GS1 integration querying GS1 GRP endpoints when configured; returns clear `unauthorized` status explaining subscription requirements when unconfigured.
+    - `MockExternalProductProvider`: Pre-seeded in-memory provider with building materials (UltraTech Cement), groceries (Bru Instant Coffee), electricals (Havells Socket), and stationery (Classmate Notebook) for testing.
+  - [x] Central orchestrator `ExternalProductIntelligenceEngine`: Parallel provider dispatch, 15-minute in-memory caching, in-flight request deduplication, timeout protection (8s), and cache eviction.
+  - [x] Side-by-side comparison engine `CatalogueComparison`: Detects conflicts between THQ values and external values; conflicting fields default to unapproved.
+  - [x] Zero automatic overwriting guarantee: Operator review and explicit field-by-field approval required.
+  - [x] Permanent protection of ledger and operational invariants: Cost price, selling price, list price, tax rate, and stock balances are strictly locked and can never be altered by external intelligence.
+  - [x] Reusable comparison UI `ThqCatalogueComparisonView` in `packages/thq_ui`: Candidate header card, conflict alert banner, protected accounting alert banner, quick approval toolbar ("Accept Non-Conflicting", "Select All", "Clear All"), side-by-side comparison table with conflict badges and locks, specifications container, and action footer.
+  - [x] Workspace integration `SmartProductIntelligenceTab` in `apps/client_app`: Barcode and keyword search, hardware wedge listener integration, wireless phone scanner integration, provider filter dropdown, quick chips, multi-candidate selector, and product update/create execution via `InventoryService`.
+  - [x] Audit provenance logging stored in `product_variants.custom_fields['external_provenance']` with zero database schema migrations.
+  - [x] `SmartInventoryWorkspaceScreen` expanded to 10 tabs (length: 10), adding Tab 10: "Product Intelligence", and added launcher card in `SmartInventoryOverviewTab`.
+  - [x] 12 unit tests passing in `packages/erp_core/test/external_product_intelligence_test.dart`.
+  - [x] 2 widget tests passing in `packages/thq_ui/test/thq_catalogue_comparison_view_test.dart`.
+  - [x] 4 widget tests passing in `apps/client_app/test/smart_product_intelligence_tab_test.dart`.
+  - [x] 8 widget tests passing in `apps/client_app/test/smart_inventory_workspace_test.dart`.
+  - [x] Full static analysis clean (0 errors, 0 warnings across `erp_core`, `thq_ui`, `client_app`, `pos_app`).
+

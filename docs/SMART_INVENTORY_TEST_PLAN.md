@@ -396,6 +396,46 @@ This test plan specifies the verification requirements for all Smart Inventory c
   - Paired phone connection updates header badge to "Phone Scanner".
   - Transmitted scan from phone is received and acknowledged.
 
+---
+
+## 14. Phase 12 Test Matrix & Execution (External Product Intelligence & GS1 Barcode Lookup)
+
+### 14.1 Automated Test Execution Summary
+- **`packages/erp_core/test/external_product_intelligence_test.dart`:** 12 / 12 tests passing.
+  - `ExternalProductCandidate`: Serializes to and from JSON, preserves leading zeros, supports barcode matching with zero-tolerance.
+  - `CatalogueComparison`: Detects value conflicts between existing THQ product and external suggestions; conflicting fields default to unaccepted.
+  - `CatalogueComparison`: Strictly protects operational accounting invariants (cost price, selling price, tax rate, stock quantity); cannot be accepted or exported in enrichment payloads.
+  - `CatalogueComparison`: Generates immutable audit provenance metadata with provider ID, source name, user ID, accepted field list, and raw payload.
+  - `OpenProductFactsProvider`: Parses product name, brand, category, manufacturer, image URL, and specifications under ODbL terms with `MockProductIntelligenceHttpClient`.
+  - `OpenProductFactsProvider`: Gracefully handles 404 / product not found (`ExternalLookupStatus.noMatch`).
+  - `OpenProductFactsProvider`: Gracefully handles 429 rate limit (`ExternalLookupStatus.rateLimited`).
+  - `Gs1RegistryProvider`: Validates GTIN format and Modulo 10 check digits mathematically for EAN-13 and UPC-A barcodes.
+  - `Gs1RegistryProvider`: Returns `unauthorized` status with educational message when GS1 Member Organization credentials are unconfigured.
+  - `Gs1RegistryProvider`: When configured with API credentials, queries GS1 GRP endpoints and maps official GTIN attributes.
+  - `MockExternalProductProvider`: Pre-seeded with building materials (UltraTech Cement), groceries (Bru Instant Coffee), electrical components (Havells Socket), and stationery (Classmate Notebook); supports text queries.
+  - `ExternalProductIntelligenceEngine`: Coalesces in-flight concurrent lookups, caches results in memory for 15 minutes, and supports manual cache eviction.
+- **`packages/thq_ui/test/thq_catalogue_comparison_view_test.dart`:** 2 / 2 tests passing.
+  - `ThqCatalogueComparisonView`: Renders candidate header, verified badge, match confidence, conflict warning banner, and protected accounting invariant notice.
+  - `ThqCatalogueComparisonView`: Protected field rows show "PROTECTED" badges and lock icons.
+  - `ThqCatalogueComparisonView`: "Accept Non-Conflicting" selects empty/non-conflicting fields while leaving conflicting fields unapproved.
+  - `ThqCatalogueComparisonView`: Allows manual checkbox approval of conflicting fields and calls `onApplyEnrichment` with accepted non-protected values.
+- **`apps/client_app/test/smart_product_intelligence_tab_test.dart`:** 4 / 4 tests passing.
+  - `SmartProductIntelligenceTab`: Renders search bar, provider selection dropdown, and quick sample chips.
+  - `SmartProductIntelligenceTab`: Tapping quick chips triggers lookup and transitions to side-by-side comparison view.
+  - `SmartProductIntelligenceTab`: Receives wireless phone scans from `WirelessScannerCoordinator` and initiates automated lookup.
+  - `SmartProductIntelligenceTab`: Evict cache button clears in-memory cache and displays snackbar notification.
+- **`apps/client_app/test/smart_inventory_workspace_test.dart`:** 8 / 8 tests passing.
+  - `SmartInventoryWorkspaceScreen`: Renders all 10 tabs, including Tab 10: "Product Intelligence".
+  - Overview tab displays "Product Intelligence" quick launcher card and navigates directly to Tab 10.
+  - Switching to Tab 10 displays search input, provider filters, and quick chips.
+
+### 14.2 Static Analysis & Quality Verification
+- `packages/erp_core`: 0 errors, 0 warnings (`No issues found!`).
+- `packages/thq_ui`: 0 errors, 0 warnings.
+- `apps/client_app`: 0 errors, 0 warnings (`No issues found!`).
+- `apps/pos_app`: 0 errors, 0 warnings (`No issues found!`).
+
+
 
 
 

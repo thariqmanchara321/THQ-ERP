@@ -15,6 +15,7 @@ import 'tabs/smart_inventory_scan_center_tab.dart';
 import 'tabs/smart_inventory_scan_history_tab.dart';
 import 'tabs/smart_purchase_receiving_tab.dart';
 import 'tabs/smart_stock_count_tab.dart';
+import 'tabs/smart_product_intelligence_tab.dart';
 
 /// The central Smart Inventory workspace within THQ Client application.
 class SmartInventoryWorkspaceScreen extends StatefulWidget {
@@ -48,9 +49,9 @@ class _SmartInventoryWorkspaceScreenState
   @override
   void initState() {
     super.initState();
-    _activeTabIndex = widget.initialTab.clamp(0, 8);
+    _activeTabIndex = widget.initialTab.clamp(0, 9);
     _tabController = TabController(
-      length: 9,
+      length: 10,
       vsync: this,
       initialIndex: _activeTabIndex,
     );
@@ -254,6 +255,10 @@ class _SmartInventoryWorkspaceScreenState
                   icon: Icon(Icons.call_received, size: 18),
                   text: 'Purchase Receiving',
                 ),
+                Tab(
+                  icon: Icon(Icons.auto_awesome, size: 18),
+                  text: 'Product Intelligence',
+                ),
               ],
             ),
           ),
@@ -275,6 +280,10 @@ class _SmartInventoryWorkspaceScreenState
                 SmartBarcodeStudioTab(session: widget.session),
                 SmartInventoryStockCountTab(session: widget.session),
                 SmartPurchaseReceivingTab(session: widget.session),
+                SmartProductIntelligenceTab(
+                  session: widget.session,
+                  wirelessCoordinator: _wirelessScannerCoordinator,
+                ),
               ],
             ),
           ),

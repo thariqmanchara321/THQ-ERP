@@ -269,6 +269,26 @@ Phase 10 requires **ZERO database migrations or schema alterations**. It uses ex
 - **Cryptographic Packet Invariants:** Scan packets are authenticated using ephemeral HMAC-SHA256 signatures generated with short-lived session secrets. Secrets are discarded in memory after 10 minutes or on unpairing.
 - **Inventory & Financial Immutability:** Wireless scans entering POS Desktop or Client Desktop invoke existing, audited business and inventory services (`_handleScanCode`, `PosSmartInventoryService`). No raw database mutations occur outside established double-entry and RLS guardrails.
 
+---
+
+## 9. Phase 12: External Product Intelligence & GS1 Barcode Lookup Database Contracts
+
+### 9.1 Database Impact & Zero-Migration Guarantee
+Phase 12 requires **ZERO database migrations or schema alterations**:
+- **Existing `jsonb` Flexibility:** External data provenance is safely stored within `product_variants.custom_fields['external_provenance']`, capturing provider identifier, source name, verified GTIN flag, accepted field names, operator user ID, and ISO-8601 timestamp.
+- **Reused Production Procedures:**
+  1. **`public.inventory_update_product_v628(p_tenant_id uuid, p_variant_id uuid, p_name text, p_description text, p_category_name text, p_brand_name text, p_sku text, p_barcode text, p_part_number text, p_cost_price numeric, p_selling_price numeric, p_list_price numeric, p_tax_rate numeric, p_reorder_level numeric) RETURNS jsonb`**
+     - Atomically updates catalogue details for the matched variant.
+     - Preserves existing operational financial values (`p_cost_price`, `p_selling_price`, `p_list_price`, `p_tax_rate`, `p_reorder_level`) during enrichment.
+  2. **`public.inventory_create_product_v481(...) RETURNS jsonb`**
+     - Creates new products when operators choose to create product drafts from discovered external candidates.
+
+### 9.2 Strict Database Invariants for Product Intelligence Operations
+1. **Zero Raw Overwrite:** External intelligence APIs are never wired directly to write operations. Only explicit operator-approved fields are forwarded to `inventory_update_product_v628`.
+2. **Ledger Invariant Protection:** Stock balances (`location_stock_balances`), transaction ledgers (`location_stock_movements`), cost prices, selling prices, and tax rates are completely isolated from external intelligence and cannot be altered.
+3. **Multi-Tenant Security & Isolation:** All lookups and catalogue searches strictly enforce `p_tenant_id` scoping under PostgreSQL Row Level Security (RLS).
+
+
 
 
 

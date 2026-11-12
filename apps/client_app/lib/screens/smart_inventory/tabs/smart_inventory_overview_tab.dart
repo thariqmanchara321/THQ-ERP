@@ -201,6 +201,14 @@ class SmartInventoryOverviewTab extends StatelessWidget {
                   buttonText: 'Receive Goods',
                   onTap: () => onSelectTab(8),
                 ),
+                _ActionCard(
+                  title: 'Product Intelligence',
+                  subtitle:
+                      'Lookup products against GS1 Registry and open catalogues, resolve conflicts side-by-side, and enrich catalogue data.',
+                  icon: Icons.auto_awesome,
+                  buttonText: 'Lookup Intelligence',
+                  onTap: () => onSelectTab(9),
+                ),
               ];
 
               final width = constraints.maxWidth;
