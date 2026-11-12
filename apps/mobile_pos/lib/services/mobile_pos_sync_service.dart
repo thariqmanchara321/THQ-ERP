@@ -93,82 +93,93 @@ class MobilePosSyncService {
     );
   }
 
+  static bool _isSyncInProgress = false;
+
   Future<MobileSyncResult> sync(
     PosSession session, {
     bool includeConflicts = false,
     String? only,
   }) async {
-    final syncRpc = await _guard.route(
-      tenantId: session.tenantId,
-      channel: 'mobile_pos',
-      routeKey: 'sale_sync',
-      deviceId: session.deviceId,
-    );
-
-    final statuses = <String>{'pending', 'syncing', 'error'};
-    if (includeConflicts) statuses.add('conflict');
-    var rows = await _local.queue(
-      session.tenantId,
-      session.deviceId,
-      statuses: statuses,
-    );
-    if (only != null) {
-      rows = rows.where((x) => x.requestId == only).toList();
+    if (_isSyncInProgress) {
+      return const MobileSyncResult(0, 0, 0, 0);
     }
+    _isSyncInProgress = true;
 
-    var synced = 0;
-    var conflicts = 0;
-    var pending = 0;
+    try {
+      final syncRpc = await _guard.route(
+        tenantId: session.tenantId,
+        channel: 'mobile_pos',
+        routeKey: 'sale_sync',
+        deviceId: session.deviceId,
+      );
 
-    for (final row in rows.reversed) {
-      if (row.status == 'conflict') await _local.retry(row.requestId);
-      await _local.markSyncing(row.requestId);
-      try {
-        final raw = await _supabase.rpc(
-          syncRpc,
-          params: {
-            'p_tenant_id': session.tenantId,
-            'p_device_id': session.deviceId,
-            'p_location_id': session.locationId,
-            'p_request_id': row.requestId,
-            'p_payload': row.payload,
-          },
-        );
-        final map = raw is Map
-            ? Map<String, dynamic>.from(raw)
-            : <String, dynamic>{};
-
-        if (map['ok'] == false || map['status'] == 'conflict') {
-          await _local.markConflict(
-            row.requestId,
-            map['code']?.toString() ?? 'SERVER_VALIDATION',
-            map['message']?.toString() ?? 'Server rejected invoice.',
-          );
-          conflicts++;
-        } else {
-          if (map['authoritative_gst'] == false ||
-              map['gst_snapshot_id'] == null ||
-              map['gst_journal_id'] == null) {
-            throw StateError(
-              'v5.2 Mobile POS sync is missing GST snapshot/journal evidence.',
-            );
-          }
-          await _local.markSynced(row.requestId, map);
-          synced++;
-        }
-      } catch (error) {
-        await _local.markPending(row.requestId, error.toString());
-        pending++;
-        break;
+      final statuses = <String>{'pending', 'syncing', 'error'};
+      if (includeConflicts) statuses.add('conflict');
+      var rows = await _local.queue(
+        session.tenantId,
+        session.deviceId,
+        statuses: statuses,
+      );
+      if (only != null) {
+        rows = rows.where((x) => x.requestId == only).toList();
       }
-    }
 
-    if (synced > 0) {
-      try {
-        await refreshCatalogue(session);
-      } catch (_) {}
-    }
+      var synced = 0;
+      var conflicts = 0;
+      var pending = 0;
 
-    return MobileSyncResult(rows.length, synced, conflicts, pending);
+      for (final row in rows.reversed) {
+        if (row.status == 'conflict') await _local.retry(row.requestId);
+        await _local.markSyncing(row.requestId);
+        try {
+          final raw = await _supabase.rpc(
+            syncRpc,
+            params: {
+              'p_tenant_id': session.tenantId,
+              'p_device_id': session.deviceId,
+              'p_location_id': session.locationId,
+              'p_request_id': row.requestId,
+              'p_payload': row.payload,
+            },
+          );
+          final map = raw is Map
+              ? Map<String, dynamic>.from(raw)
+              : <String, dynamic>{};
+
+          if (map['ok'] == false || map['status'] == 'conflict') {
+            await _local.markConflict(
+              row.requestId,
+              map['code']?.toString() ?? 'SERVER_VALIDATION',
+              map['message']?.toString() ?? 'Server rejected invoice.',
+            );
+            conflicts++;
+          } else {
+            if (map['authoritative_gst'] == false ||
+                map['gst_snapshot_id'] == null ||
+                map['gst_journal_id'] == null) {
+              throw StateError(
+                'v5.2 Mobile POS sync is missing GST snapshot/journal evidence.',
+              );
+            }
+            await _local.markSynced(row.requestId, map);
+            synced++;
+          }
+        } catch (error) {
+          await _local.markPending(row.requestId, error.toString());
+          pending++;
+          break;
+        }
+      }
+
+      if (synced > 0) {
+        try {
+          await refreshCatalogue(session);
+        } catch (_) {}
+      }
+
+      return MobileSyncResult(rows.length, synced, conflicts, pending);
+    } finally {
+      _isSyncInProgress = false;
+    }
   }
 }

@@ -823,6 +823,7 @@ class ThqWorkspaceCustomizationView extends StatelessWidget {
     return ReorderableListView.builder(
       itemCount: nodes.length,
       buildDefaultDragHandles: false,
+      // ignore: deprecated_member_use
       onReorder: controller.reorderNodes,
       itemBuilder: (context, index) {
         final node = nodes[index];

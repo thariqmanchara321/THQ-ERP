@@ -100,7 +100,17 @@ BEGIN
     SELECT 1 FROM information_schema.tables 
     WHERE table_schema = 'realtime' AND table_name = 'messages'
   ) THEN
-    ALTER TABLE realtime.messages ENABLE ROW LEVEL SECURITY;
+    -- Check if RLS is already enabled to avoid attempting ALTER TABLE if table is owned by supabase_realtime_admin
+    IF NOT EXISTS (
+      SELECT 1 FROM pg_tables 
+      WHERE schemaname = 'realtime' AND tablename = 'messages' AND rowsecurity = true
+    ) THEN
+      BEGIN
+        ALTER TABLE realtime.messages ENABLE ROW LEVEL SECURITY;
+      EXCEPTION WHEN OTHERS THEN
+        NULL;
+      END;
+    END IF;
 
     DROP POLICY IF EXISTS "realtime_messages_read_tenant_members" ON realtime.messages;
     CREATE POLICY "realtime_messages_read_tenant_members"

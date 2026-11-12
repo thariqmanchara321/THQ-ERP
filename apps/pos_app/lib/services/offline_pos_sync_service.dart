@@ -162,6 +162,8 @@ class OfflinePosSyncService {
     return raw is Map && raw.isNotEmpty;
   }
 
+  static bool _isSyncInProgress = false;
+
   Future<OfflineSyncResult> syncPending(
     ClientSession session, {
     bool includeConflicts = false,
@@ -170,91 +172,105 @@ class OfflinePosSyncService {
     final device = session.device;
     if (device == null) throw StateError('POS device context is required.');
 
-    final syncRpc = await _guard.route(
-      tenantId: session.business.id,
-      channel: 'pos_offline',
-      routeKey: 'sale_sync',
-      deviceId: device.deviceId,
-    );
-
-    final statuses = <String>{'pending', 'syncing', 'error'};
-    if (includeConflicts) statuses.add('conflict');
-    var rows = await _local.queue(
-      tenantId: session.business.id,
-      deviceId: device.deviceId,
-      statuses: statuses,
-    );
-    if (onlyRequestId != null) {
-      rows = rows.where((row) => row.requestId == onlyRequestId).toList();
+    if (_isSyncInProgress) {
+      return const OfflineSyncResult(
+        attempted: 0,
+        synced: 0,
+        conflicts: 0,
+        pending: 0,
+      );
     }
+    _isSyncInProgress = true;
 
-    var synced = 0;
-    var conflicts = 0;
-    var pending = 0;
+    try {
+      final syncRpc = await _guard.route(
+        tenantId: session.business.id,
+        channel: 'pos_offline',
+        routeKey: 'sale_sync',
+        deviceId: device.deviceId,
+      );
 
-    for (final record in rows.reversed) {
-      if (record.status == 'conflict') await _local.retry(record.requestId);
-      await _local.markSyncing(record.requestId);
-      try {
-        final result = await _supabase.rpc(
-          syncRpc,
-          params: {
-            'p_tenant_id': session.business.id,
-            'p_device_id': device.deviceId,
-            'p_location_id': device.locationId,
-            'p_request_id': record.requestId,
-            'p_payload': record.payload,
-          },
-        );
-        final map = result is Map
-            ? Map<String, dynamic>.from(result)
-            : <String, dynamic>{};
+      final statuses = <String>{'pending', 'syncing', 'error'};
+      if (includeConflicts) statuses.add('conflict');
+      var rows = await _local.queue(
+        tenantId: session.business.id,
+        deviceId: device.deviceId,
+        statuses: statuses,
+      );
+      if (onlyRequestId != null) {
+        rows = rows.where((row) => row.requestId == onlyRequestId).toList();
+      }
 
-        if (map['status']?.toString() == 'conflict' || map['ok'] == false) {
-          await _local.markConflict(
-            record.requestId,
-            code: map['code']?.toString() ?? 'SERVER_VALIDATION',
-            message:
-                map['message']?.toString() ??
-                'Server rejected the offline invoice.',
+      var synced = 0;
+      var conflicts = 0;
+      var pending = 0;
+
+      for (final record in rows.reversed) {
+        if (record.status == 'conflict') await _local.retry(record.requestId);
+        await _local.markSyncing(record.requestId);
+        try {
+          final result = await _supabase.rpc(
+            syncRpc,
+            params: {
+              'p_tenant_id': session.business.id,
+              'p_device_id': device.deviceId,
+              'p_location_id': device.locationId,
+              'p_request_id': record.requestId,
+              'p_payload': record.payload,
+            },
           );
-          conflicts++;
-        } else {
-          // v5.2 sync is considered complete only when the server has accepted
-          // the sale through the authoritative GST writer.
-          if (map['authoritative_gst'] == false ||
-              map['gst_snapshot_id'] == null ||
-              map['gst_journal_id'] == null) {
-            throw StateError(
-              'v5.2.2 sync response is missing authoritative GST recovery evidence.',
+          final map = result is Map
+              ? Map<String, dynamic>.from(result)
+              : <String, dynamic>{};
+
+          if (map['status']?.toString() == 'conflict' || map['ok'] == false) {
+            await _local.markConflict(
+              record.requestId,
+              code: map['code']?.toString() ?? 'SERVER_VALIDATION',
+              message:
+                  map['message']?.toString() ??
+                  'Server rejected the offline invoice.',
             );
+            conflicts++;
+          } else {
+            // v5.2 sync is considered complete only when the server has accepted
+            // the sale through the authoritative GST writer.
+            if (map['authoritative_gst'] == false ||
+                map['gst_snapshot_id'] == null ||
+                map['gst_journal_id'] == null) {
+              throw StateError(
+                'v5.2.2 sync response is missing authoritative GST recovery evidence.',
+              );
+            }
+            await _local.markSynced(record.requestId, map);
+            synced++;
           }
-          await _local.markSynced(record.requestId, map);
-          synced++;
+        } catch (error) {
+          // Transport/API outage is not a failed sale. Keep the exact immutable
+          // request queued so the next attempt reuses the same request ID.
+          await _local.markPending(record.requestId, message: error.toString());
+          pending++;
+          break;
         }
-      } catch (error) {
-        // Transport/API outage is not a failed sale. Keep the exact immutable
-        // request queued so the next attempt reuses the same request ID.
-        await _local.markPending(record.requestId, message: error.toString());
-        pending++;
-        break;
       }
-    }
 
-    if (synced > 0) {
-      try {
-        await refreshCatalogue(session);
-      } catch (_) {
-        // Queue state is already durable. Cache refresh can wait.
+      if (synced > 0) {
+        try {
+          await refreshCatalogue(session);
+        } catch (_) {
+          // Queue state is already durable. Cache refresh can wait.
+        }
       }
-    }
 
-    return OfflineSyncResult(
-      attempted: rows.length,
-      synced: synced,
-      conflicts: conflicts,
-      pending: pending,
-    );
+      return OfflineSyncResult(
+        attempted: rows.length,
+        synced: synced,
+        conflicts: conflicts,
+        pending: pending,
+      );
+    } finally {
+      _isSyncInProgress = false;
+    }
   }
 
   Future<void> _cacheInvoicePrinter(ClientSession session) async {

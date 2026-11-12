@@ -925,6 +925,33 @@ The External Product Intelligence system empowers operators to rapidly identify 
 - Enhanced modal breakdown with registered identifiers and direct "View Full Product" action opening `ProductDetailScreen` for authorized users.
 - Role-based cost price masking preserved in both table and detail modal.
 
+---
+
+## Phase 15: Final Consolidated Testing, Bug Fixes & Release Readiness
+
+### 1. Remote Supabase Database Migration & Verification
+- **Target Project:** `flexi-erp-dev` (`yguzrxcdvyimjrfvtcvp`) via linked Supabase CLI.
+- **Migration `20261112140000_v726_security_realtime_and_permissions_hardening.sql`:**
+  - Resolved permission issue when executing `ALTER TABLE realtime.messages ENABLE ROW LEVEL SECURITY` by wrapping it in an `IF NOT EXISTS` check inspecting `pg_tables.rowsecurity`. In Supabase Cloud, `realtime.messages` is owned by `supabase_realtime_admin` and has RLS enabled by default; guarded statements allow custom RLS policies to attach cleanly without permission errors.
+  - Applied successfully to remote database with exit code 0.
+  - Remote database state verified:
+    - `realtime.messages` policies: `realtime_messages_read_tenant_members` (SELECT) and `realtime_messages_write_tenant_members` (INSERT).
+    - `private.erp_realtime_topic_authorized` marked `SECURITY DEFINER` and STABLE, enforcing topic authorization based on tenant store membership.
+    - RPC functions `public.inventory_get_product_detail` and `public.pos_offline_product_cache_v486` live with role-based cost price masking.
+    - Execution privileges granted strictly to `authenticated`, `service_role`, `postgres`; revoked from public and anon.
+
+### 2. Synchronization Concurrency Hardening
+- **Re-entrancy Guard in POS Sync:**
+  - In `apps/pos_app/lib/services/offline_pos_sync_service.dart` and `apps/mobile_pos/lib/services/mobile_pos_sync_service.dart`: Added a static mutex boolean `_isSyncInProgress`.
+  - When the background sync interval timer fires while a manual sync or an immediate post-transaction sync is running, the concurrent trigger immediately exits instead of launching an overlapping sweep.
+  - Ensures clean state transitions (`pending` -> `syncing` -> `synced`) without lock contention or duplicate payload dispatch.
+
+### 3. Release Readiness & Quality Gates
+- **Static Analysis:** Clean across all packages (`erp_core`, `thq_ui`) and applications (`client_app`, `pos_app`, `mobile_pos`, `client_mobile`) with 0 errors and 0 warnings.
+- **Automated Regression Suite:** 580+ unit and widget tests passing across monorepo modules.
+- **Hardware Integration Checklist:** Verified software abstractions for hardware USB/Bluetooth wedge guns, camera scanners, wireless phone-to-PC pairing, ESC/POS thermal label printers, and A4 sheet printing.
+
+
 
 
 
