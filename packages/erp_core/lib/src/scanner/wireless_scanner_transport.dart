@@ -37,6 +37,8 @@ abstract class WirelessScannerTransport {
     required WirelessScannerPairingPayload payload,
     required String deviceId,
     required String deviceName,
+    String? currentTenantId,
+    String? currentLocationId,
   });
 
   /// Transmits a scanned barcode from mobile to the paired desktop host.

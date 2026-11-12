@@ -220,9 +220,26 @@ class SupabaseRealtimeScannerTransport implements WirelessScannerTransport {
     required WirelessScannerPairingPayload payload,
     required String deviceId,
     required String deviceName,
+    String? currentTenantId,
+    String? currentLocationId,
   }) async {
     _assertAuthenticated();
     if (payload.isExpired || payload.isConsumed || payload.isRevoked) {
+      _setState(WirelessScannerState.error);
+      return false;
+    }
+    if (currentTenantId != null &&
+        currentTenantId.isNotEmpty &&
+        payload.tenantId.isNotEmpty &&
+        currentTenantId != payload.tenantId) {
+      _setState(WirelessScannerState.error);
+      return false;
+    }
+    if (currentLocationId != null &&
+        currentLocationId.isNotEmpty &&
+        payload.locationId != null &&
+        payload.locationId!.isNotEmpty &&
+        currentLocationId != payload.locationId) {
       _setState(WirelessScannerState.error);
       return false;
     }

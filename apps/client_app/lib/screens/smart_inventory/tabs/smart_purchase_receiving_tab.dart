@@ -71,9 +71,12 @@ class _SmartPurchaseReceivingTabState extends State<SmartPurchaseReceivingTab> {
   List<Map<String, dynamic>> _availableSuppliers = [];
 
   bool get _canReceiveAndPost =>
+      widget.session.hasPermission('purchases.receive') ||
       widget.session.hasPermission('purchases.manage') ||
       widget.session.hasPermission('inventory.manage') ||
-      widget.session.hasRole('owner');
+      widget.session.hasRole('owner') ||
+      widget.session.hasRole('admin') ||
+      widget.session.hasRole('manager');
 
   @override
   void initState() {
@@ -1443,6 +1446,17 @@ class _SmartPurchaseReceivingTabState extends State<SmartPurchaseReceivingTab> {
   }) async {
     final session = _activeSession;
     if (session == null) return;
+
+    if (!_canReceiveAndPost) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Access Denied: purchases.receive, purchases.manage, or inventory.manage permission required to post receipts.',
+          ),
+        ),
+      );
+      return;
+    }
 
     setState(() => _isLoading = true);
 

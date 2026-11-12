@@ -177,7 +177,7 @@ class OfflinePosSyncService {
       deviceId: device.deviceId,
     );
 
-    final statuses = <String>{'pending', 'error'};
+    final statuses = <String>{'pending', 'syncing', 'error'};
     if (includeConflicts) statuses.add('conflict');
     var rows = await _local.queue(
       tenantId: session.business.id,

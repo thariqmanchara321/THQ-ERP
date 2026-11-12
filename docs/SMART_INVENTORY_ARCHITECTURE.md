@@ -860,6 +860,36 @@ The External Product Intelligence system empowers operators to rapidly identify 
   - Tab 10: "Product Intelligence" (`Icons.auto_awesome`).
   - Added "Product Intelligence" quick workspace card to `SmartInventoryOverviewTab`.
 
+---
+
+## Phase 13: Permissions, Security, Offline & Synchronization Hardening
+
+### 1. Supabase Realtime Authorization
+- **Virtual Table Authorization:** Enabled Row Level Security (RLS) on `realtime.messages` with SELECT and INSERT policies for `authenticated` role.
+- **Topic Gatekeeper (`private.erp_realtime_topic_authorized`):** Inspects incoming broadcast and presence topics:
+  - Wireless scanner topics: `thq_scan_<tenantIdHex>_<sessionId>` and `thq_scan_<uuid>_<sessionId>`.
+  - Tenant broadcast topics: `thq_tenant_<uuid>`.
+  - POS terminal topics: `thq_pos_<uuid>`.
+- Converts 32-character hex tenant representations to UUID and validates active membership via `private.erp_user_has_tenant_access(v_tenant_id)`. Unauthenticated users or users not belonging to the tenant are rejected immediately at the Supabase Realtime layer.
+
+### 2. Role & Permission Enforcement
+- **Cost Price Protection:**
+  - Server-side masking in `public.inventory_get_product_detail` and `public.pos_offline_product_cache_v486` (and by extension `public.mobile_pos_product_cache_v520`). If requesting user is not owner and lacks `inventory.view_cost` and `inventory.manage`, `cost_price` and `purchase_cost` are stripped or set to `null`.
+  - Client-side masking across Client Desktop (`ProductDetailScreen`, `InventoryProductsScreen`), POS Desktop (`ProductDetailScreen`), and comparison views (`CatalogueComparison`). Unauthorized users see `• • • • (Restricted)`.
+- **Catalogue & Action Guardrails:**
+  - `SmartProductIntelligenceTab`: Gated `_applyEnrichment` with `inventory.manage` permission check. Disabled button with tooltip for unauthorized users.
+  - `SmartStockCountTab`: Gated `_executePostStockCount` with `_canApproveAndPost` (`inventory.stock_count` or `inventory.manage`).
+  - `SmartPurchaseReceivingTab`: Gated `_executePostReceipt` with `_canReceiveAndPost` (`purchases.receive`, `purchases.manage`, or `inventory.manage`).
+
+### 3. Tenant & Location Isolation
+- **Scanner Session Hardening:** Added explicit `currentTenantId` and `currentLocationId` checks in `WirelessScannerTransport` and `WirelessScannerCoordinator`. Rejects pairing attempts when QR payload does not match active session tenant and assigned location.
+- **Mobile Scanner Screen:** Added `locationId` property to `ThqMobileWirelessScannerScreen` with upfront location validation before initiating WebSocket handshake.
+
+### 4. Offline & Synchronization Hardening
+- **Crash Recovery & Orphan Prevention:** Added `'syncing'` status to offline sync queue queries in `OfflinePosSyncService` (Desktop POS) and `MobilePosSyncService` (Mobile POS). Prevents transactions interrupted by an unexpected application kill or network failure from being permanently orphaned in SQLite/drift.
+- **Idempotency Guarantee:** Permanent UUID `p_request_id` generated on client side is preserved through all retry attempts, guaranteeing that repeated uploads never generate duplicate sales, vouchers, or inventory adjustments on the server.
+
+
 
 
 

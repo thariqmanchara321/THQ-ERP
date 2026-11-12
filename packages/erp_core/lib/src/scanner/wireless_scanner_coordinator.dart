@@ -134,8 +134,23 @@ class WirelessScannerCoordinator {
     required WirelessScannerPairingPayload payload,
     required String deviceId,
     required String deviceName,
+    String? currentTenantId,
+    String? currentLocationId,
   }) async {
     if (payload.isExpired || payload.isConsumed || payload.isRevoked) {
+      return false;
+    }
+    if (currentTenantId != null &&
+        currentTenantId.isNotEmpty &&
+        payload.tenantId.isNotEmpty &&
+        currentTenantId != payload.tenantId) {
+      return false;
+    }
+    if (currentLocationId != null &&
+        currentLocationId.isNotEmpty &&
+        payload.locationId != null &&
+        payload.locationId!.isNotEmpty &&
+        currentLocationId != payload.locationId) {
       return false;
     }
 
@@ -143,6 +158,8 @@ class WirelessScannerCoordinator {
       payload: payload,
       deviceId: deviceId,
       deviceName: deviceName,
+      currentTenantId: currentTenantId,
+      currentLocationId: currentLocationId,
     );
   }
 

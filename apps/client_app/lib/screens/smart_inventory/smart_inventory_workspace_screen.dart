@@ -109,7 +109,7 @@ class _SmartInventoryWorkspaceScreenState
   }
 
   void _onSelectTab(int index) {
-    if (index >= 0 && index < 9) {
+    if (index >= 0 && index < 10) {
       _tabController.animateTo(index);
       setState(() => _activeTabIndex = index);
     }

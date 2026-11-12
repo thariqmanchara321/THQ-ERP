@@ -41,6 +41,12 @@ class _InventoryProductsScreenState extends State<InventoryProductsScreen> {
 
   bool get _canManage => widget.session.hasPermission('inventory.manage');
 
+  bool get _canViewCost =>
+      widget.session.hasRole('owner') ||
+      widget.session.hasRole('admin') ||
+      widget.session.hasPermission('inventory.view_cost') ||
+      widget.session.hasPermission('inventory.manage');
+
   @override
   void initState() {
     super.initState();
@@ -472,10 +478,12 @@ class _InventoryProductsScreenState extends State<InventoryProductsScreen> {
                                         width: (constraints.maxWidth - 6) / 2,
                                         child: _inventoryMetric(
                                           'Value',
-                                          _moneyFor(
-                                            widget.session.currencyCode,
-                                            value,
-                                          ),
+                                          _canViewCost
+                                              ? _moneyFor(
+                                                  widget.session.currencyCode,
+                                                  value,
+                                                )
+                                              : '• • • •',
                                           Icons.account_balance_wallet_outlined,
                                           profile.primary,
                                           subtitle:
@@ -516,10 +524,12 @@ class _InventoryProductsScreenState extends State<InventoryProductsScreen> {
                                       Expanded(
                                         child: _inventoryMetric(
                                           'Inventory value',
-                                          _moneyFor(
-                                            widget.session.currencyCode,
-                                            value,
-                                          ),
+                                          _canViewCost
+                                              ? _moneyFor(
+                                                  widget.session.currencyCode,
+                                                  value,
+                                                )
+                                              : '• • • •',
                                           Icons.account_balance_wallet_outlined,
                                           profile.primary,
                                           subtitle:
@@ -700,6 +710,7 @@ class _InventoryProductsScreenState extends State<InventoryProductsScreen> {
                                                       currencyCode: widget
                                                           .session
                                                           .currencyCode,
+                                                      canViewCost: _canViewCost,
                                                     ),
                                                   ),
                                                 );
@@ -801,8 +812,13 @@ class _InventoryProductsScreenState extends State<InventoryProductsScreen> {
 class _ProductCard extends StatelessWidget {
   final InventoryProduct product;
   final String currencyCode;
+  final bool canViewCost;
 
-  const _ProductCard({required this.product, required this.currencyCode});
+  const _ProductCard({
+    required this.product,
+    required this.currencyCode,
+    this.canViewCost = true,
+  });
 
   String _money(double value) {
     if (currencyCode == 'INR') return '₹${value.toStringAsFixed(2)}';
@@ -1015,7 +1031,7 @@ class _ProductCard extends StatelessWidget {
               Expanded(
                 flex: 2,
                 child: Text(
-                  _money(product.costPrice),
+                  canViewCost ? _money(product.costPrice) : '• • • •',
                   maxLines: 1,
                   textAlign: TextAlign.right,
                   style: const TextStyle(fontSize: 11),

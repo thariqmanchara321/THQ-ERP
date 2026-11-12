@@ -435,6 +435,37 @@ This test plan specifies the verification requirements for all Smart Inventory c
 - `apps/client_app`: 0 errors, 0 warnings (`No issues found!`).
 - `apps/pos_app`: 0 errors, 0 warnings (`No issues found!`).
 
+---
+
+## 15. Phase 13: Permissions, Security, Offline & Synchronization Hardening Test Plan
+
+### 15.1 Focused Security & Synchronization Tests
+- **`packages/erp_core/test/phase13_security_and_hardening_test.dart`:** 4 / 4 tests passing.
+  - `CatalogueComparison masks costPrice when canViewCostPrice is false`: Validates that cost price is masked as `[Restricted]` for unauthorized roles (cashiers, viewers), and that `buildEnrichmentPayload` never includes `costPrice`.
+  - `Wireless scanner rejects cross-tenant pairing`: Verifies `WirelessScannerCoordinator` and transport layer reject pairing attempts where client tenant does not match QR payload tenant.
+  - `Wireless scanner rejects cross-location pairing`: Verifies pairing is rejected when client location does not match QR payload location.
+  - `Wireless scanner accepts matching tenant and location`: Verifies successful pairing when tenant and location match.
+- **`packages/thq_ui/test/thq_catalogue_comparison_view_test.dart`:** 2 / 2 tests passing.
+  - Verifies comparison view respects `canManage` flag and disables enrichment button with permission tooltip when user lacks required permission.
+- **`packages/thq_ui/test/mobile_wireless_scanner_screen_test.dart`:** 6 / 6 tests passing.
+  - Verifies location isolation and transport interaction on mobile scanner.
+- **`apps/client_app/test/smart_stock_count_test.dart`:** 7 / 7 tests passing.
+  - Verifies stock count approval and posting guards.
+- **`apps/client_app/test/smart_purchase_receiving_test.dart`:** 6 / 6 tests passing.
+  - Verifies goods receipt and direct inward posting guards.
+- **`apps/pos_app/test/pos_smart_inventory_test.dart`:** 12 / 12 tests passing.
+  - Verifies POS offline cache fallback, product identification, and phone-to-PC wireless scanning.
+- **`apps/mobile_pos/test/mobile_pos_smart_inventory_test.dart`:** 10 / 10 tests passing.
+  - Verifies Mobile POS offline product cache, multiple match handling, and offline queue resiliency.
+
+### 15.2 Static Analysis & Quality Verification
+- `packages/erp_core`: 0 errors (`No issues found!`).
+- `packages/thq_ui`: 0 errors.
+- `apps/client_app`: 0 errors (`No issues found!`).
+- `apps/pos_app`: 0 errors (`No issues found!`).
+- `apps/mobile_pos`: 0 errors (`No issues found!`).
+
+
 
 
 

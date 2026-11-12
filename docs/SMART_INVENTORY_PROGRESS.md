@@ -194,3 +194,24 @@
   - [x] 8 widget tests passing in `apps/client_app/test/smart_inventory_workspace_test.dart`.
   - [x] Full static analysis clean (0 errors, 0 warnings across `erp_core`, `thq_ui`, `client_app`, `pos_app`).
 
+- [x] **Phase 13: Permissions, Security, Offline & Synchronization Hardening**
+  - [x] Supabase Realtime Authorization: Created `private.erp_realtime_topic_authorized(p_topic text)` and enabled RLS policies on `realtime.messages` for private channels, enforcing tenant isolation so unauthorized users cannot subscribe or broadcast on `thq_scan_*` topics.
+  - [x] Cost Price Security Hardening:
+    - Server-side masking in `public.inventory_get_product_detail`: Returns `cost_price` only if user is owner or has `inventory.view_cost` or `inventory.manage` permission.
+    - Server-side masking in `public.pos_offline_product_cache_v486` (and `mobile_pos_product_cache_v520`): Strips `cost_price` and `purchase_cost` from offline product caches when requested by unauthorized roles.
+    - Client-side masking in POS Desktop (`apps/pos_app/lib/screens/product_detail_screen.dart`), Client Desktop (`apps/client_app/lib/screens/product_detail_screen.dart`), and Products Table (`apps/client_app/lib/screens/inventory_products_screen.dart`). Masks cost prices and inventory valuation totals as `• • • • (Restricted)`.
+    - Catalogue comparison masking in `packages/erp_core`: Added `canViewCostPrice` parameter to `CatalogueComparison.build` to prevent leaking cost price during external product enrichment.
+  - [x] Permission Gates on Sensitive Inventory Operations:
+    - `SmartProductIntelligenceTab`: Gated `_applyEnrichment` with `inventory.manage` check; disabled action button with clear tooltip for unauthorized users.
+    - `SmartStockCountTab`: Gated `_executePostStockCount` with `_canApproveAndPost` (`inventory.stock_count` or `inventory.manage`); disabled confirmation button for unauthorized operators.
+    - `SmartPurchaseReceivingTab`: Gated `_executePostReceipt` with `_canReceiveAndPost` (`purchases.receive`, `purchases.manage`, or `inventory.manage`); disabled confirmation button for unauthorized operators.
+  - [x] Wireless Scanner Tenant & Location Isolation:
+    - In `packages/erp_core` (`WirelessScannerTransport`, `WirelessScannerCoordinator`, `SupabaseRealtimeScannerTransport`, `MockWirelessScannerTransport`): Added `currentTenantId` and `currentLocationId` checks to `joinAsScanner` to prevent cross-tenant and cross-location pairing attempts.
+    - In `packages/thq_ui` (`ThqMobileWirelessScannerScreen`): Added `locationId` property and enforced location validation before connecting to workstation.
+  - [x] Offline Operation & Synchronization Recovery:
+    - POS Desktop (`OfflinePosSyncService`) & Mobile POS (`MobilePosSyncService`): Added `'syncing'` status to recovery sync queue selection (`{'pending', 'syncing', 'error'}`), guaranteeing that any transaction interrupted by an unexpected application crash or network outage during sync is cleanly resumed on restart without being orphaned or duplicated.
+  - [x] Migration `20261112140000_v726_security_realtime_and_permissions_hardening.sql`: Realtime RLS policies, topic authorization function, hardened `inventory_get_product_detail`, and hardened `pos_offline_product_cache_v486`.
+  - [x] 4 focused security unit tests passing in `packages/erp_core/test/phase13_security_and_hardening_test.dart`.
+  - [x] Full static analysis clean across `erp_core`, `thq_ui`, `client_app`, `pos_app`, and `mobile_pos`.
+
+

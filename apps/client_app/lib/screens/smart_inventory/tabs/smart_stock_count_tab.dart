@@ -487,6 +487,15 @@ class _SmartInventoryStockCountTabState
     final session = _activeSession;
     if (session == null) return;
 
+    if (!_canApproveAndPost) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Access Denied: inventory.stock_count or inventory.manage permission required to post stock adjustments.'),
+        ),
+      );
+      return;
+    }
+
     setState(() => _isLoading = true);
     try {
       final payload = session.toPostPayload();

@@ -408,6 +408,7 @@ class CatalogueComparison {
   factory CatalogueComparison.build({
     Map<String, dynamic>? existingProduct,
     required ExternalProductCandidate candidate,
+    bool canViewCostPrice = true,
   }) {
     final curName = existingProduct?['name']?.toString() ?? existingProduct?['product_name']?.toString();
     final curBrand = existingProduct?['brand_name']?.toString() ?? existingProduct?['brand']?.toString();
@@ -416,6 +417,8 @@ class CatalogueComparison {
     final curPartNumber = existingProduct?['part_number']?.toString();
     final curDescription = existingProduct?['description']?.toString();
     final curBarcode = existingProduct?['barcode']?.toString();
+    final curCost = existingProduct?['cost_price']?.toString();
+    final displayCost = canViewCostPrice ? curCost : '[Restricted]';
 
     bool checkConflict(String? cur, String? ext) {
       if (cur == null || cur.trim().isEmpty) return false;
@@ -494,7 +497,7 @@ class CatalogueComparison {
       CatalogueComparisonField(
         fieldKey: 'costPrice',
         fieldLabel: 'Purchase / Cost Price',
-        currentValue: existingProduct?['cost_price']?.toString(),
+        currentValue: displayCost,
         externalValue: null,
         isConflict: false,
         isAccepted: false,

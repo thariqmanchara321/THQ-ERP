@@ -18,6 +18,8 @@ class ThqCatalogueComparisonView extends StatefulWidget {
   final VoidCallback? onDiscard;
   final VoidCallback? onCreateNewDraft;
   final String approvedByUserId;
+  final bool canManage;
+  final String? permissionTooltip;
 
   const ThqCatalogueComparisonView({
     super.key,
@@ -26,6 +28,8 @@ class ThqCatalogueComparisonView extends StatefulWidget {
     this.onDiscard,
     this.onCreateNewDraft,
     this.approvedByUserId = 'admin',
+    this.canManage = true,
+    this.permissionTooltip,
   });
 
   @override
@@ -637,12 +641,17 @@ class _ThqCatalogueComparisonViewState extends State<ThqCatalogueComparisonView>
         ),
 
         // Primary Approval Button
-        ThqPrimaryButton(
-          label: isExisting
-              ? 'Enrich Product ($acceptedCount Selected)'
-              : 'Create Product Draft ($acceptedCount Selected)',
-          icon: Icons.auto_awesome,
-          onPressed: acceptedCount > 0 ? _applyChanges : null,
+        Tooltip(
+          message: !widget.canManage
+              ? (widget.permissionTooltip ?? 'Permission required: inventory.manage')
+              : '',
+          child: ThqPrimaryButton(
+            label: isExisting
+                ? 'Enrich Product ($acceptedCount Selected)'
+                : 'Create Product Draft ($acceptedCount Selected)',
+            icon: Icons.auto_awesome,
+            onPressed: (widget.canManage && acceptedCount > 0) ? _applyChanges : null,
+          ),
         ),
       ],
     );

@@ -288,6 +288,34 @@ Phase 12 requires **ZERO database migrations or schema alterations**:
 2. **Ledger Invariant Protection:** Stock balances (`location_stock_balances`), transaction ledgers (`location_stock_movements`), cost prices, selling prices, and tax rates are completely isolated from external intelligence and cannot be altered.
 3. **Multi-Tenant Security & Isolation:** All lookups and catalogue searches strictly enforce `p_tenant_id` scoping under PostgreSQL Row Level Security (RLS).
 
+---
+
+## 10. Phase 13: Permissions, Security, Realtime Authorization & Offline Hardening Database Contracts
+
+### 10.1 Migration Overview: `20261112140000_v726_security_realtime_and_permissions_hardening.sql`
+
+#### 1. Realtime Authorization (`private.erp_realtime_topic_authorized`)
+- Function: `private.erp_realtime_topic_authorized(p_topic text) RETURNS boolean`
+- Evaluates access to private channels on virtual table `realtime.messages`.
+- Unauthenticated requests are denied immediately (`auth.uid() IS NULL`).
+- Extracts tenant UUID from topics (`thq_scan_<tenantIdHex>_<sessionId>`, `thq_tenant_<uuid>`, `thq_pos_<uuid>`).
+- Validates active membership via `private.erp_user_has_tenant_access(v_tenant_id)`.
+- Applies RLS policies on `realtime.messages`:
+  - `realtime_messages_read_tenant_members` (FOR SELECT TO authenticated)
+  - `realtime_messages_write_tenant_members` (FOR INSERT TO authenticated)
+
+#### 2. Cost Price Protection on `inventory_get_product_detail`
+- Function: `public.inventory_get_product_detail(p_tenant_id uuid, p_variant_id uuid)`
+- Enforces cost privacy server-side:
+  `CASE WHEN (private.erp_user_is_owner(p_tenant_id) OR private.erp_has_permission(p_tenant_id, 'inventory.view_cost') OR private.erp_has_permission(p_tenant_id, 'inventory.manage')) THEN pv.cost_price ELSE NULL END AS cost_price`
+- Prevents cost price leakage over the network to cashiers and read-only viewers.
+
+#### 3. Cost Price Masking on `pos_offline_product_cache_v486`
+- Function: `public.pos_offline_product_cache_v486(p_tenant_id uuid, p_device_id uuid) RETURNS jsonb`
+- Strips `cost_price` and `purchase_cost` from cached product payloads when downloaded by POS devices/users lacking `inventory.view_cost` and `inventory.manage`.
+- Protects offline SQLite/drift databases on POS terminals from storing unauthorized cost data.
+
+
 
 
 

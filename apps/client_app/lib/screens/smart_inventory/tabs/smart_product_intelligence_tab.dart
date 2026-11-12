@@ -55,6 +55,17 @@ class _SmartProductIntelligenceTabState extends State<SmartProductIntelligenceTa
   String? _statusBanner;
   bool _isStatusSuccess = true;
 
+  bool get _canManageInventory =>
+      widget.session.hasRole('owner') ||
+      widget.session.hasRole('admin') ||
+      widget.session.hasPermission('inventory.manage');
+
+  bool get _canViewCostPrice =>
+      widget.session.hasRole('owner') ||
+      widget.session.hasRole('admin') ||
+      widget.session.hasPermission('inventory.view_cost') ||
+      widget.session.hasPermission('inventory.manage');
+
   @override
   void initState() {
     super.initState();
@@ -201,6 +212,7 @@ class _SmartProductIntelligenceTabState extends State<SmartProductIntelligenceTa
     final comparison = CatalogueComparison.build(
       existingProduct: existingProduct,
       candidate: candidate,
+      canViewCostPrice: _canViewCostPrice,
     );
 
     setState(() {
@@ -210,6 +222,13 @@ class _SmartProductIntelligenceTabState extends State<SmartProductIntelligenceTa
   }
 
   Future<void> _applyEnrichment(Map<String, String?> payload) async {
+    if (!_canManageInventory) {
+      setState(() {
+        _statusBanner = 'Access Denied: inventory.manage permission required to update catalogue.';
+        _isStatusSuccess = false;
+      });
+      return;
+    }
     if (_activeComparison == null || _selectedCandidate == null) return;
 
     setState(() {
@@ -644,6 +663,8 @@ class _SmartProductIntelligenceTabState extends State<SmartProductIntelligenceTa
               ? ThqCatalogueComparisonView(
                   comparison: _activeComparison!,
                   approvedByUserId: widget.session.username,
+                  canManage: _canManageInventory,
+                  permissionTooltip: 'Permission required: inventory.manage or owner role',
                   onApplyEnrichment: _applyEnrichment,
                   onDiscard: () {
                     setState(() {

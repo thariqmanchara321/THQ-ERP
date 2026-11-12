@@ -43,6 +43,12 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
 
   bool get _canManage => widget.session.hasPermission('inventory.manage');
 
+  bool get _canViewCost =>
+      widget.session.hasRole('owner') ||
+      widget.session.hasRole('admin') ||
+      widget.session.hasPermission('inventory.view_cost') ||
+      widget.session.hasPermission('inventory.manage');
+
   @override
   void initState() {
     super.initState();
@@ -460,7 +466,10 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
         spacing: 60,
         runSpacing: 20,
         children: [
-          _LargeValue(label: 'Cost Price', value: _money(product.costPrice)),
+          _LargeValue(
+            label: 'Cost Price',
+            value: _canViewCost ? _money(product.costPrice) : '• • • • (Restricted)',
+          ),
 
           _LargeValue(
             label: 'Selling Price',

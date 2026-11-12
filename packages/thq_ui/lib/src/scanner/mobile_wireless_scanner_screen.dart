@@ -22,6 +22,9 @@ class ThqMobileWirelessScannerScreen extends StatefulWidget {
   /// Unique hardware or installation UUID of this mobile device.
   final String deviceId;
 
+  /// Optional assigned location / store ID of this mobile operator.
+  final String? locationId;
+
   /// Optional pre-configured wireless transport. If omitted, uses [SupabaseRealtimeScannerTransport].
   final WirelessScannerTransport? transport;
 
@@ -31,6 +34,7 @@ class ThqMobileWirelessScannerScreen extends StatefulWidget {
   const ThqMobileWirelessScannerScreen({
     super.key,
     required this.tenantId,
+    this.locationId,
     required this.deviceName,
     required this.deviceId,
     this.transport,
@@ -119,6 +123,19 @@ class _ThqMobileWirelessScannerScreenState
       return;
     }
 
+    // Location check (Phase 13 hardening)
+    if (payload.locationId != null &&
+        payload.locationId!.isNotEmpty &&
+        widget.locationId != null &&
+        widget.locationId!.isNotEmpty &&
+        payload.locationId != widget.locationId) {
+      setState(() {
+        _errorMessage =
+            'Location mismatch: This workstation belongs to a different store or warehouse location.';
+      });
+      return;
+    }
+
     if (payload.isExpired) {
       setState(() {
         _errorMessage =
@@ -136,6 +153,8 @@ class _ThqMobileWirelessScannerScreenState
       payload: payload,
       deviceId: widget.deviceId,
       deviceName: widget.deviceName,
+      currentTenantId: widget.tenantId,
+      currentLocationId: widget.locationId,
     );
 
     if (success && mounted) {
