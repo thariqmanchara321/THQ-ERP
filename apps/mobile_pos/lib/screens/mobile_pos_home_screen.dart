@@ -1861,6 +1861,24 @@ class _State extends State<MobilePosHomeScreen> {
                         onTap: () => _moduleQueued('Products', inDrawer),
                       ),
                       _navItem(
+                        icon: Icons.cell_tower_rounded,
+                        label: 'Wireless Scanner (PC)',
+                        onTap: () {
+                          if (inDrawer) Navigator.of(context).pop();
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => ThqMobileWirelessScannerScreen(
+                                tenantId: widget.session.tenantId,
+                                deviceName: widget.session.deviceName.isNotEmpty
+                                    ? widget.session.deviceName
+                                    : 'Mobile POS',
+                                deviceId: widget.session.deviceId,
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                      _navItem(
                         icon: Icons.people_outline_rounded,
                         label: 'Customers',
                         onTap: () {

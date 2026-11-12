@@ -288,6 +288,23 @@ class _MobileSmartInventoryWorkspaceScreenState
           ),
           actions: [
             IconButton(
+              tooltip: 'Wireless Scanner (Phone to PC)',
+              icon: const Icon(Icons.cell_tower_rounded),
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => ThqMobileWirelessScannerScreen(
+                    tenantId: widget.session.tenantId,
+                    deviceName: widget.session.deviceName.isNotEmpty
+                        ? widget.session.deviceName
+                        : (widget.session.username.isNotEmpty
+                            ? '${widget.session.username} (Mobile)'
+                            : 'THQ Mobile Phone'),
+                    deviceId: widget.session.deviceId,
+                  ),
+                ),
+              ),
+            ),
+            IconButton(
               tooltip: 'Enter code manually',
               icon: const Icon(Icons.keyboard_outlined),
               onPressed: _openManualEntry,

@@ -510,5 +510,75 @@ void main() {
       expect(find.text('Scan, search or tap a product'), findsOneWidget);
       expect(find.text('UltraTech Cement 50kg'), findsNothing);
     });
+
+    testWidgets('Wireless Phone-to-PC scan adds product to cart and acknowledges phone', (tester) async {
+      tester.view.physicalSize = const Size(1280, 800);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      final mockTransport = MockWirelessScannerTransport();
+      final coordinator = WirelessScannerCoordinator(transport: mockTransport);
+      addTearDown(() {
+        coordinator.dispose();
+      });
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: PosScreen(
+              session: testSession,
+              wirelessCoordinator: coordinator,
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 1));
+
+      // 1. Verify phone scanner button exists in header
+      expect(find.byIcon(Icons.phone_android_rounded), findsOneWidget);
+
+      // 2. Tap to open pairing dialog
+      await tester.tap(find.byIcon(Icons.phone_android_rounded));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Phone-to-PC Wireless Scanner'), findsOneWidget);
+      expect(find.byType(ThqPairingQrView), findsOneWidget);
+
+      // Close pairing dialog
+      await tester.tap(find.text('Done'));
+      await tester.pumpAndSettle();
+
+      // 3. Connect mock phone
+      final payload = coordinator.currentPayload!;
+      await mockTransport.joinSession(
+        payload: payload,
+        phoneDeviceId: 'phone-galaxy-s22',
+        phoneDeviceName: 'Galaxy S22 (Store Assistant)',
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 50));
+
+      // 4. Send scan for cement barcode from paired phone
+      final scan = WirelessScanMessage.create(
+        sessionId: payload.sessionId,
+        tenantId: tenantId,
+        senderDeviceId: 'phone-galaxy-s22',
+        senderDeviceName: 'Galaxy S22 (Store Assistant)',
+        rawCode: '0089012345678',
+        format: SmartBarcodeFormat.ean13,
+        handshakeSecret: payload.handshakeSecret,
+      );
+
+      mockTransport.simulateIncomingScan(scan);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
+
+      // 5. Product should be added to active cart!
+      expect(find.text('UltraTech Cement 50kg'), findsWidgets);
+
+      coordinator.dispose();
+    });
   });
 }

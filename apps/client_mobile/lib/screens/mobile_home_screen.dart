@@ -969,6 +969,24 @@ class _MoreTab extends StatelessWidget {
         ),
       ),
       _MoreAction(
+        icon: Icons.cell_tower_rounded,
+        title: 'Wireless Scanner (Phone to PC)',
+        subtitle: 'Use camera as real-time wireless scanner for THQ Desktop',
+        onTap: () => Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => ThqMobileWirelessScannerScreen(
+              tenantId: session.tenantId,
+              deviceName: session.deviceName.isNotEmpty
+                  ? session.deviceName
+                  : (session.username.isNotEmpty
+                      ? '${session.username} (Mobile)'
+                      : 'THQ Mobile Phone'),
+              deviceId: session.deviceId,
+            ),
+          ),
+        ),
+      ),
+      _MoreAction(
         icon: Icons.shopping_bag_outlined,
         title: 'Purchases',
         subtitle: 'Recent supplier documents and balances',

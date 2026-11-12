@@ -1,3 +1,6 @@
+import 'dart:async';
+
+import 'package:erp_core/erp_core.dart';
 import 'package:flutter/material.dart';
 import 'package:thq_ui/thq_ui.dart';
 
@@ -17,11 +20,15 @@ import 'tabs/smart_stock_count_tab.dart';
 class SmartInventoryWorkspaceScreen extends StatefulWidget {
   final ClientSession session;
   final int initialTab;
+  final WirelessScannerTransport? wirelessTransport;
+  final WirelessScannerCoordinator? wirelessCoordinator;
 
   const SmartInventoryWorkspaceScreen({
     super.key,
     required this.session,
     this.initialTab = 0,
+    this.wirelessTransport,
+    this.wirelessCoordinator,
   });
 
   @override
@@ -34,6 +41,9 @@ class _SmartInventoryWorkspaceScreenState
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   int _activeTabIndex = 0;
+  late final WirelessScannerCoordinator _wirelessScannerCoordinator;
+  StreamSubscription<WirelessScanMessage>? _wirelessScanSub;
+  StreamSubscription<WirelessScannerState>? _wirelessStateSub;
 
   @override
   void initState() {
@@ -49,10 +59,50 @@ class _SmartInventoryWorkspaceScreenState
         setState(() => _activeTabIndex = _tabController.index);
       }
     });
+
+    if (widget.wirelessCoordinator != null) {
+      _wirelessScannerCoordinator = widget.wirelessCoordinator!;
+    } else {
+      _wirelessScannerCoordinator = WirelessScannerCoordinator(
+        transport: widget.wirelessTransport ?? SupabaseRealtimeScannerTransport(),
+      );
+    }
+
+    _wirelessScanSub =
+        _wirelessScannerCoordinator.scans.listen(_handleIncomingWirelessScan);
+    _wirelessStateSub =
+        _wirelessScannerCoordinator.stateStream.listen((_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  void _handleIncomingWirelessScan(WirelessScanMessage scan) {
+    // Acknowledge receipt
+    _wirelessScannerCoordinator.acknowledgeScan(
+      messageId: scan.messageId,
+      success: true,
+      productName: 'Barcode ${scan.rawCode} received',
+    );
+  }
+
+  void _openWirelessScannerDialog() {
+    final location = LocationScopeService.selectedLocation(widget.session);
+    ThqWirelessScannerDialog.show(
+      context: context,
+      coordinator: _wirelessScannerCoordinator,
+      tenantId: widget.session.business.id,
+      locationId: location?.id,
+      hostDeviceName: 'Client-Desktop (${widget.session.username})',
+    );
   }
 
   @override
   void dispose() {
+    _wirelessScanSub?.cancel();
+    _wirelessStateSub?.cancel();
+    if (widget.wirelessCoordinator == null) {
+      _wirelessScannerCoordinator.dispose();
+    }
     _tabController.dispose();
     super.dispose();
   }
@@ -118,6 +168,32 @@ class _SmartInventoryWorkspaceScreenState
                         overflow: TextOverflow.ellipsis,
                       ),
                     ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Tooltip(
+                  message: _wirelessScannerCoordinator.isConnected
+                      ? 'Wireless Scanner (Connected: ${_wirelessScannerCoordinator.activeDevice?.deviceName ?? "Phone"})'
+                      : 'Pair Wireless Phone Scanner',
+                  child: OutlinedButton.icon(
+                    onPressed: _openWirelessScannerDialog,
+                    icon: Icon(
+                      Icons.phone_android_rounded,
+                      size: 16,
+                      color: _wirelessScannerCoordinator.isConnected
+                          ? Colors.green
+                          : null,
+                    ),
+                    label: Text(
+                      _wirelessScannerCoordinator.isConnected
+                          ? 'Phone Scanner'
+                          : 'Pair Scanner',
+                      style: TextStyle(
+                        color: _wirelessScannerCoordinator.isConnected
+                            ? Colors.green
+                            : null,
+                      ),
+                    ),
                   ),
                 ),
                 const SizedBox(width: 8),

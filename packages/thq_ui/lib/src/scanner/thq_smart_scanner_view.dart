@@ -110,7 +110,17 @@ class _ThqSmartScannerViewState extends State<ThqSmartScannerView>
     for (final barcode in capture.barcodes) {
       final raw = barcode.rawValue?.trim() ?? '';
       if (raw.isNotEmpty) {
-        _handleDetectedBarcode(raw, barcode.format.name);
+        final format = SmartBarcodeFormat.fromRawName(barcode.format.name);
+        final accuracy = BarcodeAccuracyVerifier.verify(
+          rawValue: raw,
+          format: format,
+        );
+        if (!accuracy.isValid) {
+          // Frame read had corrupted check digits or non-printable ASCII; drop glitched frame
+          continue;
+        }
+
+        _handleDetectedBarcode(accuracy.sanitizedCode, barcode.format.name);
         break;
       }
     }

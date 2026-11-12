@@ -4,6 +4,7 @@ import 'package:client_app/services/client_smart_inventory_service.dart';
 import 'package:erp_core/erp_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:thq_ui/thq_ui.dart';
 
 void main() {
   group('ClientSmartInventoryService Tests', () {
@@ -243,6 +244,70 @@ void main() {
       expect(find.text('Manual Barcode / Identifier Entry'), findsOneWidget);
       expect(find.text('Identify'), findsOneWidget);
       expect(find.text('Awaiting Scan Input'), findsOneWidget);
+    });
+
+    testWidgets('Header displays Wireless Phone Scanner button, opens dialog, and accepts scans', (tester) async {
+      final mockTransport = MockWirelessScannerTransport();
+      final coordinator = WirelessScannerCoordinator(transport: mockTransport);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SmartInventoryWorkspaceScreen(
+              session: standardSession,
+              wirelessCoordinator: coordinator,
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      // 1. Check header button
+      expect(find.text('Pair Scanner'), findsOneWidget);
+
+      // 2. Tap to open pairing dialog
+      await tester.tap(find.text('Pair Scanner'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Phone-to-PC Wireless Scanner'), findsOneWidget);
+      expect(find.byType(ThqPairingQrView), findsOneWidget);
+
+      // 3. Connect mock phone
+      final payload = coordinator.currentPayload!;
+      await mockTransport.joinSession(
+        payload: payload,
+        phoneDeviceId: 'phone-galaxy-s22',
+        phoneDeviceName: 'Galaxy S22 Assistant',
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 50));
+
+      expect(find.text('Galaxy S22 Assistant'), findsOneWidget);
+      expect(find.text('Paired and ready to scan'), findsOneWidget);
+
+      // 4. Close dialog
+      await tester.tap(find.text('Done'));
+      await tester.pumpAndSettle();
+
+      // 5. Header updates to connected device label
+      expect(find.text('Phone Scanner'), findsOneWidget);
+
+      // 6. Transmit scan and verify ACK
+      final scan = WirelessScanMessage.create(
+        sessionId: payload.sessionId,
+        tenantId: standardSession.business.id,
+        senderDeviceId: 'phone-galaxy-s22',
+        senderDeviceName: 'Galaxy S22 Assistant',
+        rawCode: '8901234567890',
+        format: SmartBarcodeFormat.ean13,
+        handshakeSecret: payload.handshakeSecret,
+      );
+
+      mockTransport.simulateIncomingScan(scan);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      coordinator.dispose();
     });
   });
 }

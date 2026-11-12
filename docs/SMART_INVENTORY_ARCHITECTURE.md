@@ -733,5 +733,52 @@ The Smart Purchase Receiving & Inventory Inward Engine delivers an industrial re
   - "Receive Goods" shortcut added to `InventoryProductsScreen`.
   - "Receive Goods" button added to `PurchasesScreen`.
 
+---
+
+## 13. Phase 11: Phone-to-PC Wireless Smart Scanner Architecture
+
+### 13.1 Purpose & Scope
+The Phone-to-PC Wireless Smart Scanner enables any Android or iOS device running THQ Mobile (`apps/client_mobile` or `apps/mobile_pos`) to pair wirelessly with a desktop THQ workstation (`apps/pos_app` or `apps/client_app`) and function as a high-performance, real-time wireless barcode scanner. It eliminates the need for expensive dedicated wireless scanning guns while providing live bi-directional feedback, strict cryptographic isolation, check-digit frame verification, and zero permanent credential exposure.
+
+### 13.2 Security, Pairing, & Cryptographic Guarantees
+1. **Zero Permanent Secrets in QR Codes:** Pairing QR codes contain no API keys, Supabase service-role secrets, master passwords, or permanent auth tokens.
+2. **Ephemeral Handshake Secrets:** Pairing payload generates a cryptographically random, short-lived 32-character secret (`handshakeSecret`) valid for 10 minutes.
+3. **HMAC-SHA256 Packet Signatures:** Every scan packet transmitted from phone to PC is authenticated with an HMAC-SHA256 signature (`sessionId:messageId:rawCode`). Packets with invalid signatures or altered barcodes are rejected immediately.
+4. **Tenant-Aware Isolation:** Every pairing payload and message includes the tenant organization UUID. Scans from different organizations cannot cross channels or reach unintended workstations.
+5. **Replay & Duplicate Protection:** Workstations maintain a sliding-window message registry (`_seenMessageIds` and 900ms deduplication) preventing replayed packets or multiple frame triggers.
+6. **Instant Revocation:** Unpairing from either mobile or desktop terminates the broadcast subscription and invalidates the session secret.
+
+### 13.3 Camera Accuracy & Symbology Verification Engine (`BarcodeAccuracyVerifier`)
+Resolves historical issues with mobile camera recognition (glitched frames, dropped bits, or truncated reads):
+- **EAN-13 Check Digit Verification:** Validates Modulo 10 check digit; drops corrupt camera frames before transmission.
+- **UPC-A Check Digit Verification:** Validates Modulo 10 check digit; drops corrupt frames.
+- **Code 128 Character Boundary Checks:** Enforces printable ASCII bounds (32–126).
+- **String Preservation:** Barcodes with leading zeros (e.g. `0012345678905`) are preserved strictly as strings throughout transmission, decoding, and catalog lookup without numeric conversion.
+
+### 13.4 Pluggable Transport Layer
+- `WirelessScannerTransport`: Abstract transport interface defining incoming scans, incoming ACKs, paired device stream, connection state, and hosting/joining lifecycle.
+- `SupabaseRealtimeScannerTransport`: Production cloud relay using authenticated Supabase Realtime Broadcast Channels (`thq_scan_<tenant>_<session>`). Sub-millisecond latency, zero database writes, requires no firewall holes or open local ports, and works across separate Wi-Fi networks and cellular (4G/5G).
+- `MockWirelessScannerTransport`: In-memory transport for lightning-fast, hermetic unit and widget testing with simulated latency, auto-ACKs, and network disruption testing.
+
+### 13.5 Desktop Host Integrations
+- **THQ POS Desktop (`apps/pos_app`):**
+  - Header icon with live status indicator (Grey = Unpaired, Green = Phone Connected).
+  - Tapping opens `ThqWirelessScannerDialog` displaying vector QR, countdown timer, and paired device metadata.
+  - Incoming wireless scans automatically trigger `_handleScanCode(code, source: ScannerSource.remotePhone)`.
+  - Resolved items are added to the active cart (or quantity incremented) and a bi-directional ACK with the resolved product name is transmitted back to the phone.
+- **THQ Client Desktop (`apps/client_app`):**
+  - Integrated into `SmartInventoryWorkspaceScreen` header bar with connection badge.
+  - Incoming scans feed directly into active inventory workflows (Scan Center, Product Lookup, Bulk Staging, Stock Count, Purchase Receiving).
+
+### 13.6 Mobile Scanning Interface (`ThqMobileWirelessScannerScreen`)
+- Embedded in `packages/thq_ui` and accessible across `client_mobile` and `mobile_pos`.
+- Dual operational modes:
+  - **Pairing Mode:** Viewfinder scans desktop QR code, decodes `thq-pair://v1` payload, verifies tenant match, and joins session.
+  - **Active Scan Mode:** Continuous camera scanning with `BarcodeAccuracyVerifier`, torch toggle, zoom scale controls, camera flip, single vs. continuous toggle, and manual barcode entry fallback.
+- Live transmission status banner (Pending / Delivered / Failed).
+- Floating Desktop Product ACK Banner displaying the product name confirmed by the desktop workstation.
+- Expandable session scan history drawer.
+
+
 
 

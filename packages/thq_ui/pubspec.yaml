@@ -13,6 +13,7 @@ dependencies:
   erp_core:
     path: ../erp_core
   mobile_scanner: 7.4.0
+  barcode: ^2.2.7
 
 dev_dependencies:
   flutter_test:

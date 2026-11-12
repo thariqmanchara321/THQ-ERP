@@ -20,6 +20,12 @@ export 'src/erp_update_readiness_service.dart';
 
 export 'src/scanner/scanner_models.dart';
 export 'src/scanner/smart_scanner_controller.dart';
+export 'src/scanner/barcode_accuracy_verifier.dart';
+export 'src/scanner/wireless_scanner_models.dart';
+export 'src/scanner/wireless_scanner_transport.dart';
+export 'src/scanner/mock_wireless_scanner_transport.dart';
+export 'src/scanner/supabase_realtime_scanner_transport.dart';
+export 'src/scanner/wireless_scanner_coordinator.dart';
 
 export 'src/identification/identification_models.dart';
 export 'src/identification/product_identification_repository.dart';

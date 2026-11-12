@@ -28,8 +28,15 @@ import '../widgets/pos_multiple_match_dialog.dart';
 
 class PosScreen extends StatefulWidget {
   final ClientSession session;
+  final WirelessScannerTransport? wirelessTransport;
+  final WirelessScannerCoordinator? wirelessCoordinator;
 
-  const PosScreen({super.key, required this.session});
+  const PosScreen({
+    super.key,
+    required this.session,
+    this.wirelessTransport,
+    this.wirelessCoordinator,
+  });
 
   @override
   State<PosScreen> createState() => _PosScreenState();
@@ -53,6 +60,9 @@ class _PosScreenState extends State<PosScreen> {
   final PosSmartInventoryService _smartInventory = PosSmartInventoryService.instance;
   late final SmartScannerController _scannerController;
   StreamSubscription<SmartScanResult>? _scannerSubscription;
+  late final WirelessScannerCoordinator _wirelessScannerCoordinator;
+  StreamSubscription<WirelessScanMessage>? _wirelessScanSub;
+  StreamSubscription<WirelessScannerState>? _wirelessStateSub;
   bool _isCameraOpen = false;
   bool _isScanning = false;
   String? _lastScanFeedback;
@@ -485,10 +495,27 @@ class _PosScreenState extends State<PosScreen> {
     );
     _scannerSubscription = _scannerController.scans.listen(_onSmartScanReceived);
     _scannerController.start();
+
+    if (widget.wirelessCoordinator != null) {
+      _wirelessScannerCoordinator = widget.wirelessCoordinator!;
+    } else {
+      _wirelessScannerCoordinator = WirelessScannerCoordinator(
+        transport: widget.wirelessTransport ?? SupabaseRealtimeScannerTransport(),
+      );
+    }
+    _wirelessScanSub = _wirelessScannerCoordinator.scans.listen(_handleWirelessScan);
+    _wirelessStateSub = _wirelessScannerCoordinator.stateStream.listen((_) {
+      if (mounted) setState(() {});
+    });
   }
 
   @override
   void dispose() {
+    _wirelessScanSub?.cancel();
+    _wirelessStateSub?.cancel();
+    if (widget.wirelessCoordinator == null) {
+      _wirelessScannerCoordinator.dispose();
+    }
     _scanFeedbackTimer?.cancel();
     _scannerSubscription?.cancel();
     _scannerController.dispose();
@@ -1081,6 +1108,49 @@ class _PosScreenState extends State<PosScreen> {
         source: scan.source,
         format: scan.format,
       ),
+    );
+  }
+
+  Future<void> _handleWirelessScan(WirelessScanMessage scan) async {
+    final code = scan.rawCode.trim();
+    await _handleScanCode(
+      code,
+      source: ScannerSource.remotePhone,
+      format: scan.format,
+    );
+
+    // Provide immediate ACK back to the phone
+    final inCart = _cart.where((l) =>
+        l.product.barcode == code ||
+        l.product.sku == code ||
+        l.product.partNumber == code);
+    if (inCart.isNotEmpty) {
+      final line = inCart.first;
+      await _wirelessScannerCoordinator.acknowledgeScan(
+        messageId: scan.messageId,
+        success: true,
+        productName: line.product.productName,
+        variantName: line.product.variantName,
+        quantity: line.quantity,
+      );
+    } else {
+      await _wirelessScannerCoordinator.acknowledgeScan(
+        messageId: scan.messageId,
+        success: false,
+        errorMessage: 'Product not resolved or not added to cart',
+      );
+    }
+  }
+
+  void _openWirelessScannerDialog() {
+    ThqWirelessScannerDialog.show(
+      context: context,
+      coordinator: _wirelessScannerCoordinator,
+      tenantId: widget.session.business.id,
+      locationId: widget.session.device?.locationId,
+      hostDeviceName: widget.session.device?.deviceCode.isNotEmpty == true
+          ? 'POS-${widget.session.device!.deviceCode}'
+          : 'POS Terminal',
     );
   }
 
@@ -2199,8 +2269,8 @@ class _PosScreenState extends State<PosScreen> {
       ),
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final compact = constraints.maxWidth < 900;
-          final veryCompact = constraints.maxWidth < 820;
+          final compact = constraints.maxWidth < 1350;
+          final veryCompact = constraints.maxWidth < 900;
 
           return Row(
             children: [
@@ -2343,6 +2413,20 @@ class _PosScreenState extends State<PosScreen> {
                   _isCameraOpen ? Icons.videocam_off : Icons.camera_alt_outlined,
                   size: 17,
                   color: _isCameraOpen ? Colors.amber : null,
+                ),
+              ),
+              IconButton(
+                tooltip: _wirelessScannerCoordinator.isConnected
+                    ? 'Wireless Phone Scanner (Connected: ${_wirelessScannerCoordinator.activeDevice?.deviceName ?? "Phone"})'
+                    : 'Pair Wireless Phone Scanner',
+                visualDensity: VisualDensity.compact,
+                onPressed: _openWirelessScannerDialog,
+                icon: Icon(
+                  Icons.phone_android_rounded,
+                  size: 17,
+                  color: _wirelessScannerCoordinator.isConnected
+                      ? Colors.green
+                      : null,
                 ),
               ),
               IconButton(

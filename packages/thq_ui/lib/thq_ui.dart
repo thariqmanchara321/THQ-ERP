@@ -45,4 +45,7 @@ export 'src/audit/thq_audit_widgets.dart';
 
 export 'src/scanner/thq_barcode_wedge_listener.dart';
 export 'src/scanner/thq_smart_scanner_view.dart';
+export 'src/scanner/thq_pairing_qr_view.dart';
+export 'src/scanner/thq_wireless_scanner_dialog.dart';
+export 'src/scanner/mobile_wireless_scanner_screen.dart';
 

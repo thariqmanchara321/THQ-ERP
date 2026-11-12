@@ -345,5 +345,47 @@ This test plan specifies the verification requirements for all Smart Inventory c
   - Verifies "Receive Goods" quick action card in Overview tab.
 - **Regression Suite:** All packages and applications pass with 0 errors (583 tests total).
 
+---
+
+## 13. Phase 11 Test Matrix & Execution (Phone-to-PC Wireless Smart Scanner)
+
+### 13.1 Automated Test Execution Summary
+- **`packages/erp_core/test/wireless_scanner_test.dart`:** 19 / 19 tests passing.
+  - `BarcodeAccuracyVerifier`: Validates EAN-13 check digit via Modulo 10 algorithm and preserves leading zeros.
+  - `BarcodeAccuracyVerifier`: Rejects corrupted/glitched check digits and truncated 11/12-digit frames.
+  - `BarcodeAccuracyVerifier`: Validates UPC-A check digit; rejects corrupted UPC-A barcodes.
+  - `BarcodeAccuracyVerifier`: Validates Code 128 within printable ASCII (32..126); rejects control characters.
+  - `BarcodeAccuracyVerifier`: Validates QR code and Data Matrix payloads without character distortion.
+  - `WirelessScannerPairingPayload`: Serializes to `thq-pair://v1` URI and deserializes accurately.
+  - `WirelessScannerPairingPayload`: Throws `FormatException` on expired or invalid QR strings.
+  - `WirelessScanMessage`: Computes and verifies HMAC-SHA256 signatures; rejects tampered payloads.
+  - `WirelessScannerCoordinator`: Desktop starts hosting session in `pairingPending` state.
+  - `WirelessScannerCoordinator`: Mobile phone joins session transitioning state to `connected`.
+  - `WirelessScannerCoordinator`: Transmitted scan is received with exact string fidelity and leading zero preservation.
+  - `WirelessScannerCoordinator`: Duplicate suppression blocks rapid repeated identical scans within window (900ms).
+  - `WirelessScannerCoordinator`: Replay attack protection rejects duplicated `messageId`.
+  - `WirelessScannerCoordinator`: Desktop acknowledges scan with product name and quantity; phone receives ACK.
+  - `WirelessScannerCoordinator`: Unpair cleanly terminates session and revokes secret.
+- **`packages/thq_ui/test/thq_wireless_scanner_dialog_test.dart`:** 5 / 5 tests passing.
+  - `ThqPairingQrView`: Renders vector QR canvas correctly with pairing payload.
+  - `ThqPairingQrView`: Displays fallback text when data is empty.
+  - `ThqWirelessScannerDialog`: Displays pairing QR, instructions, and countdown timer in `pairingPending` state.
+  - `ThqWirelessScannerDialog`: Transitions to connected view with device metadata when phone pairs.
+  - `ThqWirelessScannerDialog`: Unpair button resets session to fresh pairing state.
+- **`packages/thq_ui/test/mobile_wireless_scanner_screen_test.dart`:** 4 / 4 tests passing.
+  - `ThqMobileWirelessScannerScreen`: Renders in pairing mode with instructions when unpaired.
+  - `ThqMobileWirelessScannerScreen`: Direct payload joins session and displays connected header.
+  - `ThqMobileWirelessScannerScreen`: Manual barcode entry transmits scan through transport with HMAC signature and displays desktop ACK banner.
+  - `ThqMobileWirelessScannerScreen`: Unpair confirmation disconnects cleanly and returns to pairing screen.
+- **`apps/pos_app/test/pos_smart_inventory_test.dart`:** 12 / 12 tests passing.
+  - Phone scanner header icon renders and opens `ThqWirelessScannerDialog`.
+  - Wireless scan received from paired phone executes `_handleScanCode(code, source: ScannerSource.remotePhone)`.
+  - Identified product is added to active POS cart and bi-directional ACK with product name is sent back to phone.
+- **`apps/client_app/test/smart_inventory_workspace_test.dart`:** 7 / 7 tests passing.
+  - Workspace header displays "Pair Scanner" button and opens dialog.
+  - Paired phone connection updates header badge to "Phone Scanner".
+  - Transmitted scan from phone is received and acknowledged.
+
+
 
 

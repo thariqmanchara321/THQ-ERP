@@ -44,6 +44,9 @@ enum SmartBarcodeFormat {
   unknown;
 
   /// Returns a human-friendly display label.
+  String get displayName => label;
+
+  /// Returns a human-friendly display label.
   String get label => switch (this) {
     SmartBarcodeFormat.ean8 => 'EAN-8',
     SmartBarcodeFormat.ean13 => 'EAN-13',

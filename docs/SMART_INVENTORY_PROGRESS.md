@@ -146,5 +146,22 @@
   - [x] Updated `smart_inventory_workspace_test.dart` to verify all 9 tabs.
   - [x] Full monorepo regression suites passing (583 tests total across all projects).
 
-- [ ] **Phase 11: Phone-to-PC Scanning Engine (Upcoming Milestone)**
-  - [ ] Real-time local LAN / WebSocket bridge pairing mobile device cameras as virtual scanners for desktop client.
+- [x] **Phase 11: Phone-to-PC Wireless Smart Scanner**
+  - [x] Security & pairing architecture with ephemeral short-lived secrets, zero permanent secrets/API keys in QR codes, tenant organization isolation, 10-minute expiry, and instant unpair revocation.
+  - [x] Cryptographic HMAC-SHA256 signature verification on every scan message packet (`sessionId:messageId:rawCode`) with sliding-window replay prevention and 900ms duplicate suppression.
+  - [x] High-priority camera accuracy engine `BarcodeAccuracyVerifier` resolving glitched frame reads: Modulo 10 check digit verification on EAN-13 and UPC-A, printable ASCII boundary checks on Code 128, and strict string preservation for barcodes with leading zeros.
+  - [x] Pluggable transport architecture with `WirelessScannerTransport`, production `SupabaseRealtimeScannerTransport` (sub-millisecond WebSocket broadcast, no firewall holes or open ports, operates over store Wi-Fi or cellular 4G/5G), and `MockWirelessScannerTransport` for hermetic testing.
+  - [x] Central coordinator `WirelessScannerCoordinator` managing pairing lifecycle, duplicate suppression, replay protection, and bi-directional ACK dispatch.
+  - [x] Desktop pairing UI `ThqPairingQrView` (crisp vector QR painter) and `ThqWirelessScannerDialog` (modal dialog with countdown timer, device status, and unpair controls).
+  - [x] Mobile scanner screen `ThqMobileWirelessScannerScreen` embedded in `packages/thq_ui`: pairing QR scanner, continuous vs single scanning mode, torch/zoom/flip controls, live delivery status banner, floating desktop ACK banner, manual barcode input, and session scan history.
+  - [x] Mobile app integration: added Wireless Scanner entry points in `apps/client_mobile` (Home screen and Smart Inventory workspace) and `apps/mobile_pos` (POS drawer menu).
+  - [x] Desktop app integration: added Wireless Scanner header icon and dialog in `apps/pos_app` (injects scans directly into active cart via `_handleScanCode` and sends ACK back with product name) and `apps/client_app` (Smart Inventory workspace context routing).
+  - [x] 19 unit tests passing in `packages/erp_core/test/wireless_scanner_test.dart`.
+  - [x] 5 unit and widget tests passing in `packages/thq_ui/test/thq_wireless_scanner_dialog_test.dart`.
+  - [x] 4 widget tests passing in `packages/thq_ui/test/mobile_wireless_scanner_screen_test.dart`.
+  - [x] 12 unit and widget tests passing in `apps/pos_app/test/pos_smart_inventory_test.dart`.
+  - [x] 7 widget tests passing in `apps/client_app/test/smart_inventory_workspace_test.dart`.
+  - [x] Full static analysis clean (0 errors, 0 warnings across all 6 packages/apps).
+
+- [ ] **Phase 12: External Product Intelligence & GS1 Barcode Lookup (Upcoming Milestone)**
+  - [ ] External GTIN / EAN database resolution for unknown products entering catalogue.
