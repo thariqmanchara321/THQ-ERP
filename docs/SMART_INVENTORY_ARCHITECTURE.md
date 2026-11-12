@@ -889,6 +889,43 @@ The External Product Intelligence system empowers operators to rapidly identify 
 - **Crash Recovery & Orphan Prevention:** Added `'syncing'` status to offline sync queue queries in `OfflinePosSyncService` (Desktop POS) and `MobilePosSyncService` (Mobile POS). Prevents transactions interrupted by an unexpected application kill or network failure from being permanently orphaned in SQLite/drift.
 - **Idempotency Guarantee:** Permanent UUID `p_request_id` generated on client side is preserved through all retry attempts, guaranteeing that repeated uploads never generate duplicate sales, vouchers, or inventory adjustments on the server.
 
+---
+
+## Phase 14: Complete UI/UX Refinement & Smart Inventory Control Centre
+
+### 1. Smart Inventory Control Centre Architecture
+- **Control Centre Overview (`SmartInventoryOverviewTab`):**
+  - Transformed from a basic session scanning metric list into an Executive Inventory Control Centre.
+  - Live Catalogue & Stock Health KPIs:
+    - Real-time Product & Variant counts (Active vs Inactive).
+    - Low-stock SKU warning count with direct jump link to Catalogue Lookup.
+    - Out-of-stock SKU alert with critical indicator.
+    - Total on-hand stock units across the active store/warehouse.
+    - Inventory Valuation calculation (`costPrice * stockQuantity`), strictly masked with `• • • • (Restricted)` when the user lacks `inventory.view_cost`, `inventory.manage`, or owner role.
+  - Operations Pipeline:
+    - Active monitoring of open Purchase Orders awaiting inward goods receipt.
+    - Historical stock count audits count with quick navigation.
+    - Missing primary barcode counter alerting operators to un-barcoded SKUs requiring label printing.
+  - Scanning & Session Metrics:
+    - Retains live session counts (Session Scans, Identified Products, Unresolved Scans, Bulk Session state) in a dedicated Hardware & Scan Activity row.
+  - Action Launchers:
+    - 8 quick workspace cards linking directly to Scan Center, Product Lookup, Bulk Scanning, Product Import, Barcode Studio, Stock Count, Purchase Receiving, and Product Intelligence.
+  - On-Demand Refresh:
+    - Integrated refresh button in the Control Centre header allowing operators to reload live metrics on demand.
+
+### 2. Workspace Navigation & Information Architecture
+- **Information Architecture Groupings (`SmartInventoryWorkspaceScreen`):**
+  - Updated header subtitle: "Complete inventory control centre: catalogue, audits, goods receiving, barcode printing & scanning".
+  - Maintained complete backward compatibility with all 10 tab indices (0: Overview, 1: Scan Center, 2: Product Lookup, 3: Bulk Scanning, 4: Scan History, 5: Product Import, 6: Barcode Studio, 7: Stock Count, 8: Purchase Receiving, 9: Product Intelligence).
+  - Responsive header controls adapting gracefully between full desktop and compact displays.
+
+### 3. Product Catalogue & Lookup Improvements (`SmartInventoryProductLookupTab`)
+- Multi-identifier search with debounced typing across Name, SKU, Barcode, QR, and Part Number.
+- Responsive filter chips (`All Identifiers`, `Has Barcode`, `Has SKU`, `Has Mfg Code`, `All Stock`, `In Stock`, `Low / Out of Stock`) using `Wrap` layout to eliminate overflow on compact screens.
+- Enhanced modal breakdown with registered identifiers and direct "View Full Product" action opening `ProductDetailScreen` for authorized users.
+- Role-based cost price masking preserved in both table and detail modal.
+
+
 
 
 

@@ -214,4 +214,26 @@
   - [x] 4 focused security unit tests passing in `packages/erp_core/test/phase13_security_and_hardening_test.dart`.
   - [x] Full static analysis clean across `erp_core`, `thq_ui`, `client_app`, `pos_app`, and `mobile_pos`.
 
+- [x] **Phase 14: Complete UI/UX Refinement & Smart Inventory Control Centre**
+  - [x] Smart Inventory Control Centre Dashboard (`SmartInventoryOverviewTab`):
+    - Converted from a basic session scanning metric screen into a full Executive Inventory Control Centre.
+    - Live Catalogue Health: Total products & variants, active vs inactive count, on-hand total stock units.
+    - Health & Stock Alerts: Low-stock warning count (with alert badge) and out-of-stock count (with critical badge) jumping directly to catalogue filter.
+    - Financial Privacy Protection: Calculated inventory valuation strictly masked (`• • • • (Restricted)`) for unauthorized roles; visible only to owners and authorized inventory accountants.
+    - Operational Pipeline Monitoring: Real-time tracking of pending/open Purchase Orders awaiting goods inward receipt, past stock count audit sessions, and missing primary barcode counts.
+    - On-demand refresh button and visual loading indicator.
+    - Preserved all 8 Quick Workspace Action cards with exact labels and routing.
+    - Hardware wedge and camera session scanning activity feed with status badges.
+  - [x] Information Architecture & Navigation Polish (`SmartInventoryWorkspaceScreen`):
+    - Updated workspace header subtitle to reflect complete inventory scope: "Complete inventory control centre: catalogue, audits, goods receiving, barcode printing & scanning".
+    - Responsive layout preventing horizontal/vertical flex overflow on compact displays.
+    - Preserved 10-tab structure with 100% backward compatibility for all existing tests and deep-links.
+  - [x] Product Catalogue & Lookup Improvements (`SmartInventoryProductLookupTab`):
+    - Responsive filter toolbar with `Wrap` layout covering identifier filters (`All Identifiers`, `Has Barcode`, `Has SKU`, `Has Mfg Code`) and stock status filters (`All Stock`, `In Stock`, `Low / Out of Stock`).
+    - Color-coded stock badges and clean compact data density.
+    - Enhanced product details modal with registered identifiers list and direct "View Full Product" action opening `ProductDetailScreen`.
+  - [x] Verified with focused widget and unit tests in `apps/client_app` (all passing).
+  - [x] Full static analysis clean (0 issues across changed modules).
+
+
 

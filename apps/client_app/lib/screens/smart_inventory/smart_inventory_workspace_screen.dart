@@ -160,7 +160,7 @@ class _SmartInventoryWorkspaceScreenState
                         overflow: TextOverflow.ellipsis,
                       ),
                       Text(
-                        'Multi-identifier hardware scanning and product resolution',
+                        'Complete inventory control centre: catalogue, audits, goods receiving, barcode printing & scanning',
                         style: TextStyle(
                           fontSize: 11,
                           color: colors.onSurfaceVariant,
