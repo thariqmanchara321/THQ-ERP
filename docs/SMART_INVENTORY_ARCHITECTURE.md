@@ -742,30 +742,36 @@ The Phone-to-PC Wireless Smart Scanner enables any Android or iOS device running
 
 ### 13.2 Security, Pairing, & Cryptographic Guarantees
 1. **Zero Permanent Secrets in QR Codes:** Pairing QR codes contain no API keys, Supabase service-role secrets, master passwords, or permanent auth tokens.
-2. **Ephemeral Handshake Secrets:** Pairing payload generates a cryptographically random, short-lived 32-character secret (`handshakeSecret`) valid for 10 minutes.
-3. **HMAC-SHA256 Packet Signatures:** Every scan packet transmitted from phone to PC is authenticated with an HMAC-SHA256 signature (`sessionId:messageId:rawCode`). Packets with invalid signatures or altered barcodes are rejected immediately.
-4. **Tenant-Aware Isolation:** Every pairing payload and message includes the tenant organization UUID. Scans from different organizations cannot cross channels or reach unintended workstations.
-5. **Replay & Duplicate Protection:** Workstations maintain a sliding-window message registry (`_seenMessageIds` and 900ms deduplication) preventing replayed packets or multiple frame triggers.
-6. **Instant Revocation:** Unpairing from either mobile or desktop terminates the broadcast subscription and invalidates the session secret.
+2. **Ephemeral Handshake Secrets with 256-Bit Cryptographic Entropy:** Pairing payload generates 256 bits of true cryptographic entropy via `Random.secure()` (32 bytes encoded in URL-safe base64, producing 44 characters) valid for 10 minutes.
+3. **Single-Use Consumption & Revocation:** Pairing credentials are strictly single-use. Once an authorized mobile scanner joins, the host marks the payload consumed (`isConsumed = true`), preventing any replay or secondary hijacking.
+4. **Private Channel Authorization:** Supabase Realtime channels are initialized with `opts: const RealtimeChannelConfig(private: true)` ensuring WebSocket subscriptions require active Supabase user authentication. Both host and scanner verify an active authenticated user before opening channels.
+5. **Bi-Directional HMAC-SHA256 Signatures:**
+   - Scan packets transmitted from mobile to desktop are signed: `sessionId:messageId:rawCode`.
+   - Acknowledgement packets (`WirelessScanAck`) transmitted back from desktop to mobile are also signed: `sessionId:messageId:success:receivedCode`.
+   - Both ends verify HMAC signatures with `handshakeSecret`; any forged or tampered packet is discarded immediately.
+6. **Message Freshness (< 30s):** Scan messages enforce strict wall-clock freshness (`timestamp.difference(DateTime.now()).abs() < 30s`), preventing delayed or replayed packets from entering sessions.
+7. **Zero Secrets in Logs:** String representations (`toString()`) mask cryptographic tokens (`sec: [PROTECTED]`, `sig: [PROTECTED]`). No credentials or handshake secrets are written to logs or persistent storage.
+8. **Sliding-Window Deduplication & Explicit Duplicate ACK:** Workstations maintain a sliding-window message registry (`_seenMessageIds` and 900ms deduplication). When a rapid duplicate scan is suppressed from re-entering billing/inventory carts, an explicit duplicate ACK (`isDuplicate: true`) is transmitted to mobile, providing immediate user feedback.
 
 ### 13.3 Camera Accuracy & Symbology Verification Engine (`BarcodeAccuracyVerifier`)
 Resolves historical issues with mobile camera recognition (glitched frames, dropped bits, or truncated reads):
-- **EAN-13 Check Digit Verification:** Validates Modulo 10 check digit; drops corrupt camera frames before transmission.
-- **UPC-A Check Digit Verification:** Validates Modulo 10 check digit; drops corrupt frames.
-- **Code 128 Character Boundary Checks:** Enforces printable ASCII bounds (32–126).
-- **String Preservation:** Barcodes with leading zeros (e.g. `0012345678905`) are preserved strictly as strings throughout transmission, decoding, and catalog lookup without numeric conversion.
+- **EAN-13 Check Digit Verification:** Validates Modulo 10 check digit; drops corrupt camera frames before transmission and notifies user with a visual warning.
+- **UPC-A Check Digit Verification:** Validates Modulo 10 check digit; drops corrupt frames with visible alert.
+- **Code 128 Verification & Checksum Clarification:** Mobile camera decoding engines (e.g. Google ML Kit and ZXing) automatically validate and strip the mandatory Modulo 103 checksum character internally before exposing `rawValue`. Therefore, `BarcodeAccuracyVerifier` checks that all decoded characters reside within standard printable ASCII bounds (32–126), validating data encoding integrity rather than low-level symbology parity.
+- **String Preservation & End-to-End Traceability:** Barcodes with leading zeros (e.g. `0012345678905`) are preserved strictly as strings throughout transmission (`rawCode` -> `transmittedCode` -> `receivedCode`), decoding, and catalog lookup without numeric conversion. Mobile verifies `ack.receivedCode == item.rawCode`.
+- **Immediate Visible Feedback on Invalid Scans:** Viewfinders in `ThqMobileWirelessScannerScreen` and `ThqSmartScannerView` display transient warning frames and alert banners on rejected frames rather than silently discarding them.
 
 ### 13.4 Pluggable Transport Layer
 - `WirelessScannerTransport`: Abstract transport interface defining incoming scans, incoming ACKs, paired device stream, connection state, and hosting/joining lifecycle.
-- `SupabaseRealtimeScannerTransport`: Production cloud relay using authenticated Supabase Realtime Broadcast Channels (`thq_scan_<tenant>_<session>`). Sub-millisecond latency, zero database writes, requires no firewall holes or open local ports, and works across separate Wi-Fi networks and cellular (4G/5G).
-- `MockWirelessScannerTransport`: In-memory transport for lightning-fast, hermetic unit and widget testing with simulated latency, auto-ACKs, and network disruption testing.
+- `SupabaseRealtimeScannerTransport`: Production cloud relay using authenticated Supabase Realtime Private Broadcast Channels (`thq_scan_<tenant>_<session>`). Sub-millisecond latency, zero database writes, requires no firewall holes or open local ports, and works across separate Wi-Fi networks and cellular (4G/5G).
+- `MockWirelessScannerTransport`: In-memory transport for lightning-fast, hermetic unit and widget testing with simulated latency, signed auto-ACKs, and network disruption testing.
 
 ### 13.5 Desktop Host Integrations
 - **THQ POS Desktop (`apps/pos_app`):**
   - Header icon with live status indicator (Grey = Unpaired, Green = Phone Connected).
   - Tapping opens `ThqWirelessScannerDialog` displaying vector QR, countdown timer, and paired device metadata.
   - Incoming wireless scans automatically trigger `_handleScanCode(code, source: ScannerSource.remotePhone)`.
-  - Resolved items are added to the active cart (or quantity incremented) and a bi-directional ACK with the resolved product name is transmitted back to the phone.
+  - Resolved items are added to the active cart (or quantity incremented) and a bi-directional HMAC-signed ACK with the resolved product name and echoed `receivedCode` is transmitted back to the phone.
 - **THQ Client Desktop (`apps/client_app`):**
   - Integrated into `SmartInventoryWorkspaceScreen` header bar with connection badge.
   - Incoming scans feed directly into active inventory workflows (Scan Center, Product Lookup, Bulk Staging, Stock Count, Purchase Receiving).
@@ -773,10 +779,11 @@ Resolves historical issues with mobile camera recognition (glitched frames, drop
 ### 13.6 Mobile Scanning Interface (`ThqMobileWirelessScannerScreen`)
 - Embedded in `packages/thq_ui` and accessible across `client_mobile` and `mobile_pos`.
 - Dual operational modes:
-  - **Pairing Mode:** Viewfinder scans desktop QR code, decodes `thq-pair://v1` payload, verifies tenant match, and joins session.
+  - **Pairing Mode:** Viewfinder scans desktop QR code, decodes `thq_wireless_pair` payload, verifies tenant match, single-use validity, and joins session.
   - **Active Scan Mode:** Continuous camera scanning with `BarcodeAccuracyVerifier`, torch toggle, zoom scale controls, camera flip, single vs. continuous toggle, and manual barcode entry fallback.
 - Live transmission status banner (Pending / Delivered / Failed).
-- Floating Desktop Product ACK Banner displaying the product name confirmed by the desktop workstation.
+- 5-second ACK timeout: scans that do not receive a cryptographically signed desktop acknowledgement within 5 seconds transition to failed.
+- Floating Desktop Product ACK Banner displaying the product name confirmed by the desktop workstation or duplicate suppression notice.
 - Expandable session scan history drawer.
 
 

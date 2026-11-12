@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math';
 import 'package:crypto/crypto.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -40,6 +41,20 @@ class SupabaseRealtimeScannerTransport implements WirelessScannerTransport {
     return Supabase.instance.client;
   }
 
+  /// Verifies that an authenticated Supabase user session exists before opening realtime communication.
+  void _assertAuthenticated() {
+    try {
+      final user = _client.auth.currentUser;
+      if (user == null) {
+        throw StateError(
+          'Supabase authentication required: An active authenticated session is required to host or connect a wireless smart scanner.',
+        );
+      }
+    } catch (e) {
+      if (e is StateError) rethrow;
+    }
+  }
+
   @override
   Stream<WirelessScanMessage> get incomingScans => _scanController.stream;
 
@@ -75,11 +90,13 @@ class SupabaseRealtimeScannerTransport implements WirelessScannerTransport {
     required String hostDeviceName,
     Duration expiration = const Duration(minutes: 10),
   }) async {
+    _assertAuthenticated();
     await unpair();
 
     final now = DateTime.now();
-    final randomSeed = utf8.encode('sec-${now.microsecondsSinceEpoch}-${hostDeviceName.hashCode}');
-    final secret = sha256.convert(randomSeed).toString().substring(0, 32);
+    final secureRandom = Random.secure();
+    final randomBytes = List<int>.generate(32, (_) => secureRandom.nextInt(256));
+    final secret = base64Url.encode(randomBytes);
     final sid = 'ws-${now.microsecondsSinceEpoch}';
     final chan = 'thq_scan_${tenantId.replaceAll('-', '')}_$sid';
 
@@ -98,7 +115,10 @@ class SupabaseRealtimeScannerTransport implements WirelessScannerTransport {
     _setState(WirelessScannerState.pairingPending);
 
     try {
-      _channel = _client.channel(chan);
+      _channel = _client.channel(
+        chan,
+        opts: const RealtimeChannelConfig(private: true),
+      );
 
       _channel!.onBroadcast(
         event: 'pairing_join',
@@ -109,10 +129,15 @@ class SupabaseRealtimeScannerTransport implements WirelessScannerTransport {
           final devId = map['deviceId']?.toString() ?? 'phone';
           final devName = map['deviceName']?.toString() ?? 'Android Scanner';
 
+          if (_payload == null || !_payload!.isValid) {
+            return;
+          }
+
           if (sid == _payload?.sessionId) {
             // Verify handshake secret signature
             final expectedSig = sha256.convert(utf8.encode('${_payload!.sessionId}:${_payload!.handshakeSecret}')).toString();
             if (sig == expectedSig) {
+              _payload!.consume(); // Single-use consumption
               _device = WirelessScannerDevice(
                 deviceId: devId,
                 deviceName: devName,
@@ -142,7 +167,18 @@ class SupabaseRealtimeScannerTransport implements WirelessScannerTransport {
           final map = Map<String, dynamic>.from(payload);
           final message = WirelessScanMessage.fromJson(map);
 
-          if (_payload != null && message.sessionId == _payload!.sessionId) {
+          if (_payload != null &&
+              !_payload!.isRevoked &&
+              !_payload!.isExpired &&
+              message.sessionId == _payload!.sessionId &&
+              message.tenantId == _payload!.tenantId &&
+              (_device == null || message.senderDeviceId == _device!.deviceId)) {
+            
+            // Check freshness (< 30s)
+            if (!message.isFresh) {
+              return;
+            }
+
             if (message.verifySignature(_payload!.handshakeSecret)) {
               _device?.lastSeenAt = DateTime.now();
               _device?.scansSent += 1;
@@ -185,7 +221,8 @@ class SupabaseRealtimeScannerTransport implements WirelessScannerTransport {
     required String deviceId,
     required String deviceName,
   }) async {
-    if (payload.isExpired) {
+    _assertAuthenticated();
+    if (payload.isExpired || payload.isConsumed || payload.isRevoked) {
       _setState(WirelessScannerState.error);
       return false;
     }
@@ -197,7 +234,10 @@ class SupabaseRealtimeScannerTransport implements WirelessScannerTransport {
     final completer = Completer<bool>();
 
     try {
-      _channel = _client.channel(payload.channelName);
+      _channel = _client.channel(
+        payload.channelName,
+        opts: const RealtimeChannelConfig(private: true),
+      );
 
       _channel!.onBroadcast(
         event: 'pairing_accept',
@@ -224,7 +264,12 @@ class SupabaseRealtimeScannerTransport implements WirelessScannerTransport {
         callback: (data) {
           final map = Map<String, dynamic>.from(data);
           final ack = WirelessScanAck.fromJson(map);
-          _ackController.add(ack);
+          // Verify ACK signature using the short-lived session secret
+          if (_payload != null &&
+              ack.sessionId == _payload!.sessionId &&
+              ack.verifySignature(_payload!.handshakeSecret)) {
+            _ackController.add(ack);
+          }
         },
       );
 
@@ -301,6 +346,7 @@ class SupabaseRealtimeScannerTransport implements WirelessScannerTransport {
 
   @override
   Future<void> unpair() async {
+    _payload?.revoke();
     if (_channel != null) {
       try {
         await _channel!.sendBroadcastMessage(

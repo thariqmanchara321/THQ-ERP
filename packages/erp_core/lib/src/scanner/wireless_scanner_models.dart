@@ -81,7 +81,19 @@ class WirelessScannerPairingPayload {
   /// Strict wall-clock expiration timestamp.
   final DateTime expiresAt;
 
-  const WirelessScannerPairingPayload({
+  /// Whether this pairing session has surpassed its expiration deadline.
+  bool get isExpired => DateTime.now().isAfter(expiresAt);
+
+  /// Whether this pairing credential is valid, unconsumed, and not revoked.
+  bool get isValid => !isExpired && !isConsumed && !isRevoked;
+
+  /// Single-use state: whether this pairing token has already been consumed by a mobile phone.
+  bool isConsumed;
+
+  /// Whether this session was explicitly terminated or revoked.
+  bool isRevoked;
+
+  WirelessScannerPairingPayload({
     this.version = 1,
     required this.sessionId,
     required this.tenantId,
@@ -91,10 +103,19 @@ class WirelessScannerPairingPayload {
     required this.channelName,
     required this.createdAt,
     required this.expiresAt,
+    this.isConsumed = false,
+    this.isRevoked = false,
   });
 
-  /// Whether this pairing session has surpassed its expiration deadline.
-  bool get isExpired => DateTime.now().isAfter(expiresAt);
+  /// Marks this single-use pairing credential as consumed upon successful handshake.
+  void consume() {
+    isConsumed = true;
+  }
+
+  /// Marks this pairing credential as revoked.
+  void revoke() {
+    isRevoked = true;
+  }
 
   /// Remaining duration before this pairing token expires.
   Duration get remainingDuration {
@@ -183,7 +204,13 @@ class WirelessScannerPairingPayload {
         'channelName': channelName,
         'createdAt': createdAt.toIso8601String(),
         'expiresAt': expiresAt.toIso8601String(),
+        'isConsumed': isConsumed,
+        'isRevoked': isRevoked,
       };
+
+  @override
+  String toString() =>
+      'WirelessScannerPairingPayload(sessionId: $sessionId, tenantId: $tenantId, host: $hostDeviceName, sec: [PROTECTED], expired: $isExpired, consumed: $isConsumed, revoked: $isRevoked)';
 }
 
 /// Barcode packet transmitted from the paired mobile phone to the desktop application.
@@ -214,6 +241,15 @@ class WirelessScanMessage {
 
   /// Cryptographic HMAC-SHA256 signature proving the sender possesses the `handshakeSecret`.
   final String authSignature;
+
+  /// Strict preservation alias for end-to-end traceability verification.
+  String get transmittedCode => rawCode;
+
+  /// Validates message freshness against replay attacks or stale delayed transmission (> 30s).
+  bool get isFresh {
+    final age = DateTime.now().difference(timestamp).abs();
+    return age < const Duration(seconds: 30);
+  }
 
   const WirelessScanMessage({
     required this.messageId,
@@ -307,6 +343,10 @@ class WirelessScanMessage {
       authSignature: map['authSignature']?.toString() ?? '',
     );
   }
+
+  @override
+  String toString() =>
+      'WirelessScanMessage(id: $messageId, sid: $sessionId, tid: $tenantId, dev: $senderDeviceName, code: $rawCode, format: ${format.name}, sig: [PROTECTED], fresh: $isFresh)';
 }
 
 /// Confirmation packet broadcast by the desktop to the phone upon receiving a scan.
@@ -319,6 +359,15 @@ class WirelessScanAck {
 
   /// Whether the scan was successfully processed into the active workflow.
   final bool success;
+
+  /// The exact barcode received on desktop, echoed back for end-to-end verification.
+  final String receivedCode;
+
+  /// Cryptographic HMAC-SHA256 signature proving the desktop host possesses `handshakeSecret`.
+  final String authSignature;
+
+  /// Whether this scan was suppressed on the desktop host as a rapid duplicate.
+  final bool isDuplicate;
 
   /// Optional product name resolved on the desktop (e.g. "UltraTech Cement 50kg").
   final String? productName;
@@ -339,6 +388,9 @@ class WirelessScanAck {
     required this.messageId,
     required this.sessionId,
     required this.success,
+    this.receivedCode = '',
+    this.authSignature = '',
+    this.isDuplicate = false,
     this.productName,
     this.variantName,
     this.updatedQuantity,
@@ -346,10 +398,76 @@ class WirelessScanAck {
     required this.timestamp,
   });
 
+  /// Factory constructor to generate an acknowledgement with a computed HMAC-SHA256 signature.
+  factory WirelessScanAck.create({
+    required String messageId,
+    required String sessionId,
+    required bool success,
+    required String receivedCode,
+    required String handshakeSecret,
+    bool isDuplicate = false,
+    String? productName,
+    String? variantName,
+    double? updatedQuantity,
+    String? errorMessage,
+    DateTime? timestamp,
+  }) {
+    final now = timestamp ?? DateTime.now();
+    final sig = computeSignature(
+      sessionId: sessionId,
+      messageId: messageId,
+      success: success,
+      receivedCode: receivedCode,
+      handshakeSecret: handshakeSecret,
+    );
+    return WirelessScanAck(
+      messageId: messageId,
+      sessionId: sessionId,
+      success: success,
+      receivedCode: receivedCode,
+      authSignature: sig,
+      isDuplicate: isDuplicate,
+      productName: productName,
+      variantName: variantName,
+      updatedQuantity: updatedQuantity,
+      errorMessage: errorMessage,
+      timestamp: now,
+    );
+  }
+
+  /// Computes the HMAC-SHA256 signature for an acknowledgement payload.
+  static String computeSignature({
+    required String sessionId,
+    required String messageId,
+    required bool success,
+    required String receivedCode,
+    required String handshakeSecret,
+  }) {
+    final hmac = Hmac(sha256, utf8.encode(handshakeSecret));
+    final digest = hmac.convert(utf8.encode('$sessionId:$messageId:$success:$receivedCode'));
+    return digest.toString();
+  }
+
+  /// Verifies whether this acknowledgement was signed with the expected session handshake secret.
+  bool verifySignature(String handshakeSecret) {
+    if (authSignature.isEmpty) return false;
+    final expected = computeSignature(
+      sessionId: sessionId,
+      messageId: messageId,
+      success: success,
+      receivedCode: receivedCode,
+      handshakeSecret: handshakeSecret,
+    );
+    return expected == authSignature;
+  }
+
   Map<String, dynamic> toJson() => {
         'messageId': messageId,
         'sessionId': sessionId,
         'success': success,
+        'receivedCode': receivedCode,
+        'authSignature': authSignature,
+        'isDuplicate': isDuplicate,
         if (productName != null) 'productName': productName,
         if (variantName != null) 'variantName': variantName,
         if (updatedQuantity != null) 'updatedQuantity': updatedQuantity,
@@ -362,6 +480,9 @@ class WirelessScanAck {
       messageId: map['messageId']?.toString() ?? '',
       sessionId: map['sessionId']?.toString() ?? '',
       success: map['success'] == true,
+      receivedCode: map['receivedCode']?.toString() ?? '',
+      authSignature: map['authSignature']?.toString() ?? '',
+      isDuplicate: map['isDuplicate'] == true,
       productName: map['productName']?.toString(),
       variantName: map['variantName']?.toString(),
       updatedQuantity: (map['updatedQuantity'] as num?)?.toDouble(),
@@ -369,6 +490,10 @@ class WirelessScanAck {
       timestamp: DateTime.tryParse(map['timestamp']?.toString() ?? '') ?? DateTime.now(),
     );
   }
+
+  @override
+  String toString() =>
+      'WirelessScanAck(id: $messageId, sid: $sessionId, ok: $success, code: $receivedCode, dup: $isDuplicate, prod: $productName, sig: [PROTECTED])';
 }
 
 /// Metadata describing a mobile device paired with the desktop host.

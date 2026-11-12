@@ -23,6 +23,7 @@ class WirelessScannerCoordinator {
   // Deduplication & Replay Prevention
   final Map<String, DateTime> _recentScans = {};
   final Set<String> _seenMessageIds = {};
+  final Map<String, String> _recentScanCodesByMessageId = {};
   Timer? _dedupeCleanupTimer;
   Timer? _expirationTimer;
 
@@ -46,6 +47,7 @@ class WirelessScannerCoordinator {
       _recentScans.removeWhere((_, time) => time.isBefore(cutoff));
       if (_seenMessageIds.length > 500) {
         _seenMessageIds.clear();
+        _recentScanCodesByMessageId.clear();
       }
     });
   }
@@ -109,6 +111,7 @@ class WirelessScannerCoordinator {
     _expirationTimer?.cancel();
     _recentScans.clear();
     _seenMessageIds.clear();
+    _recentScanCodesByMessageId.clear();
 
     final payload = await transport.startHosting(
       tenantId: tenantId,
@@ -132,7 +135,7 @@ class WirelessScannerCoordinator {
     required String deviceId,
     required String deviceName,
   }) async {
-    if (payload.isExpired) {
+    if (payload.isExpired || payload.isConsumed || payload.isRevoked) {
       return false;
     }
 
@@ -144,16 +147,30 @@ class WirelessScannerCoordinator {
   }
 
   void _handleIncomingScan(WirelessScanMessage scan) {
+    // 0. Freshness Check: reject scans older than 30 seconds
+    if (!scan.isFresh) {
+      return;
+    }
+
     // 1. Replay Prevention: reject if messageId was already processed
     if (_seenMessageIds.contains(scan.messageId)) {
       return;
     }
     _seenMessageIds.add(scan.messageId);
+    _recentScanCodesByMessageId[scan.messageId] = scan.rawCode;
 
     // 2. Duplicate Suppression: reject rapid identical scans within suppression window
     final now = DateTime.now();
     final lastTime = _recentScans[scan.rawCode];
     if (lastTime != null && now.difference(lastTime) < duplicateSuppressionDuration) {
+      // Explicit duplicate ACK to mobile so user sees instant feedback
+      acknowledgeScan(
+        messageId: scan.messageId,
+        receivedCode: scan.rawCode,
+        success: true,
+        isDuplicate: true,
+        productName: 'Duplicate scan suppressed',
+      );
       return;
     }
     _recentScans[scan.rawCode] = now;
@@ -166,6 +183,8 @@ class WirelessScannerCoordinator {
   Future<void> acknowledgeScan({
     required String messageId,
     required bool success,
+    String? receivedCode,
+    bool isDuplicate = false,
     String? productName,
     String? variantName,
     double? quantity,
@@ -174,10 +193,15 @@ class WirelessScannerCoordinator {
     final payload = transport.currentPayload;
     if (payload == null) return;
 
-    final ack = WirelessScanAck(
+    final code = receivedCode ?? _recentScanCodesByMessageId[messageId] ?? '';
+
+    final ack = WirelessScanAck.create(
       messageId: messageId,
       sessionId: payload.sessionId,
       success: success,
+      receivedCode: code,
+      handshakeSecret: payload.handshakeSecret,
+      isDuplicate: isDuplicate,
       productName: productName,
       variantName: variantName,
       updatedQuantity: quantity,

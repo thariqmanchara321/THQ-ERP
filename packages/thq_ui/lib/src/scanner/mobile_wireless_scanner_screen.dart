@@ -60,6 +60,10 @@ class _ThqMobileWirelessScannerScreenState
   bool _isContinuousMode = true;
   bool _hasScannedRecently = false;
   String? _errorMessage;
+  String? _scanWarningMessage;
+  Timer? _scanWarningTimer;
+  Timer? _scanCooldownTimer;
+  final Map<String, Timer> _pendingAckTimers = {};
 
   // Scan History & Last ACK
   final List<WirelessScanHistoryItem> _scanHistory = [];
@@ -148,19 +152,53 @@ class _ThqMobileWirelessScannerScreenState
     }
   }
 
+  void _showScanWarning(String warning) {
+    _scanWarningTimer?.cancel();
+    setState(() {
+      _scanWarningMessage = warning;
+    });
+    _scanWarningTimer = Timer(const Duration(seconds: 3), () {
+      if (mounted) {
+        setState(() => _scanWarningMessage = null);
+      }
+    });
+  }
+
   void _handleIncomingAck(WirelessScanAck ack) {
     if (!mounted) return;
+
+    // 1. Cancel pending timeout timer for this messageId
+    _pendingAckTimers.remove(ack.messageId)?.cancel();
+
+    // 2. Cryptographic signature check: verify handshake signature on ACK packet
+    if (_payload != null && !ack.verifySignature(_payload!.handshakeSecret)) {
+      return;
+    }
+
     setState(() {
       _lastAck = ack;
       final index = _scanHistory.indexWhere((h) => h.messageId == ack.messageId);
       if (index != -1) {
-        _scanHistory[index].status = ack.success
-            ? WirelessScanDeliveryStatus.delivered
-            : WirelessScanDeliveryStatus.failed;
-        _scanHistory[index].ack = ack;
+        final item = _scanHistory[index];
+        final isCodeMatching = ack.receivedCode.isEmpty || ack.receivedCode == item.rawCode;
+        if (ack.success && isCodeMatching) {
+          item.status = WirelessScanDeliveryStatus.delivered;
+        } else {
+          item.status = WirelessScanDeliveryStatus.failed;
+          item.errorMessage = ack.errorMessage ?? (isCodeMatching ? 'Desktop rejected scan' : 'Fidelity error: received code mismatch');
+        }
+        item.ack = ack;
       }
     });
-    HapticFeedback.lightImpact();
+
+    if (ack.isDuplicate) {
+      _showScanWarning('Duplicate scan suppressed on desktop');
+      HapticFeedback.lightImpact();
+    } else if (ack.success) {
+      HapticFeedback.lightImpact();
+    } else {
+      HapticFeedback.heavyImpact();
+    }
   }
 
   void _onDetect(BarcodeCapture capture) {
@@ -183,7 +221,9 @@ class _ThqMobileWirelessScannerScreenState
         );
 
         if (!accuracy.isValid) {
-          // Check digit failed or corrupted read; drop glitched camera frame
+          // Check digit failed or corrupted read; notify user immediately
+          _showScanWarning('Corrupted scan rejected: ${accuracy.rejectionReason}');
+          HapticFeedback.heavyImpact();
           continue;
         }
 
@@ -241,15 +281,33 @@ class _ThqMobileWirelessScannerScreenState
       setState(() {
         if (!delivered) {
           historyItem.status = WirelessScanDeliveryStatus.failed;
+          historyItem.errorMessage = 'Network transmission failed';
         }
       });
+    }
+
+    if (delivered) {
+      // 5-second timeout for cryptographically signed desktop acknowledgement
+      final timer = Timer(const Duration(seconds: 5), () {
+        if (mounted) {
+          setState(() {
+            final idx = _scanHistory.indexWhere((h) => h.messageId == scanMessage.messageId);
+            if (idx != -1 && _scanHistory[idx].status == WirelessScanDeliveryStatus.pending) {
+              _scanHistory[idx].status = WirelessScanDeliveryStatus.failed;
+              _scanHistory[idx].errorMessage = 'Desktop acknowledgement timed out (5s)';
+            }
+          });
+        }
+      });
+      _pendingAckTimers[scanMessage.messageId] = timer;
     }
 
     final cooldown = _isContinuousMode
         ? const Duration(milliseconds: 700)
         : const Duration(milliseconds: 1500);
 
-    Future.delayed(cooldown, () {
+    _scanCooldownTimer?.cancel();
+    _scanCooldownTimer = Timer(cooldown, () {
       if (mounted) setState(() => _hasScannedRecently = false);
     });
   }
@@ -359,6 +417,12 @@ class _ThqMobileWirelessScannerScreenState
 
   @override
   void dispose() {
+    _scanWarningTimer?.cancel();
+    _scanCooldownTimer?.cancel();
+    for (final timer in _pendingAckTimers.values) {
+      timer.cancel();
+    }
+    _pendingAckTimers.clear();
     _stateSub?.cancel();
     _ackSub?.cancel();
     _cameraController?.dispose();
@@ -451,8 +515,15 @@ class _ThqMobileWirelessScannerScreenState
                 child: _buildAckBanner(theme, _lastAck!),
               ),
 
-            // 5. Error Banner (if any)
-            if (_errorMessage != null)
+            // 5. Warning / Error Banner (if any)
+            if (_scanWarningMessage != null)
+              Positioned(
+                top: 80,
+                left: 16,
+                right: 16,
+                child: _buildWarningBanner(theme, _scanWarningMessage!),
+              )
+            else if (_errorMessage != null)
               Positioned(
                 top: 80,
                 left: 16,
@@ -533,12 +604,27 @@ class _ThqMobileWirelessScannerScreenState
   }
 
   Widget _buildAckBanner(ThemeData theme, WirelessScanAck ack) {
+    final isDup = ack.isDuplicate;
+    final bgColor = !ack.success
+        ? Colors.red.withAlpha(230)
+        : (isDup
+            ? const Color(0xFF1E3A8A).withAlpha(240)
+            : const Color(0xFF065F46).withAlpha(240));
+
+    final titleText = !ack.success
+        ? 'Scan Not Resolved'
+        : (isDup
+            ? 'Duplicate Scan Suppressed'
+            : (ack.productName ?? 'Product Verified'));
+
+    final icon = !ack.success
+        ? Icons.error_outline
+        : (isDup ? Icons.filter_none : Icons.check_circle);
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
-        color: ack.success
-            ? const Color(0xFF065F46).withAlpha(240)
-            : Colors.red.withAlpha(230),
+        color: bgColor,
         borderRadius: BorderRadius.circular(10),
         boxShadow: const [
           BoxShadow(color: Colors.black45, blurRadius: 8, offset: Offset(0, 3)),
@@ -547,7 +633,7 @@ class _ThqMobileWirelessScannerScreenState
       child: Row(
         children: [
           Icon(
-            ack.success ? Icons.check_circle : Icons.error_outline,
+            icon,
             color: Colors.white,
             size: 20,
           ),
@@ -558,9 +644,7 @@ class _ThqMobileWirelessScannerScreenState
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  ack.success
-                      ? (ack.productName ?? 'Product Verified')
-                      : 'Scan Not Resolved',
+                  titleText,
                   style: const TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.bold,
@@ -571,6 +655,11 @@ class _ThqMobileWirelessScannerScreenState
                   Text(
                     'Quantity in cart: ${ack.updatedQuantity}',
                     style: const TextStyle(color: Colors.white70, fontSize: 11),
+                  )
+                else if (isDup)
+                  const Text(
+                    'Rapid duplicate scan filtered safely',
+                    style: TextStyle(color: Colors.white70, fontSize: 11),
                   ),
               ],
             ),
@@ -578,6 +667,40 @@ class _ThqMobileWirelessScannerScreenState
           IconButton(
             icon: const Icon(Icons.close, color: Colors.white70, size: 16),
             onPressed: () => setState(() => _lastAck = null),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildWarningBanner(ThemeData theme, String warning) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.amber.shade900.withAlpha(240),
+        borderRadius: BorderRadius.circular(8),
+        boxShadow: const [
+          BoxShadow(color: Colors.black45, blurRadius: 8, offset: Offset(0, 3)),
+        ],
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.warning_amber_rounded,
+              color: Colors.white, size: 18),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              warning,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.close, color: Colors.white70, size: 16),
+            onPressed: () => setState(() => _scanWarningMessage = null),
           ),
         ],
       ),

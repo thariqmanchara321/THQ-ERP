@@ -66,6 +66,8 @@ class BarcodeAccuracyResult {
 /// 1. Strict leading-zero preservation — strings are never converted to numeric primitives.
 /// 2. Symbology checksum enforcement — EAN-13 and UPC-A barcodes MUST pass standard Modulo 10 checks.
 /// 3. Character boundary validation — Code 128 barcodes must reside within printable ASCII bounds (32..126).
+///    (Note: Mobile camera decoders such as ML Kit strip the mandatory Modulo 103 checksum internally before
+///    exposing rawValue; printable ASCII validation ensures data encoding integrity).
 /// 4. No silent guessing — if a frame check digit fails, it is rejected immediately with an informative error.
 class BarcodeAccuracyVerifier {
   const BarcodeAccuracyVerifier();
@@ -147,12 +149,18 @@ class BarcodeAccuracyVerifier {
     }
 
     // 4. Code 128 / Alphanumeric linear format verification
+    // NOTE ON CODE 128 CHECK DIGIT:
+    // Mobile camera decoding engines (such as Google ML Kit and ZXing) automatically
+    // validate and strip the mandatory Modulo 103 check character internally before
+    // exposing the decoded `rawValue`. Therefore, verifying that all characters fall within
+    // the standard printable ASCII range (32-126) validates data encoding compliance
+    // rather than low-level symbology check digit parity.
     if (format == SmartBarcodeFormat.code128) {
       if (!BarcodeValidator.isValidCode128(trimmed)) {
         return BarcodeAccuracyResult.rejected(
           rawCode: trimmed,
           format: SmartBarcodeFormat.code128,
-          reason: 'Code 128 payload contains characters outside standard printable ASCII range (32-126)',
+          reason: 'Code 128 data encoding error: contains non-printable characters outside standard printable ASCII range (32-126)',
         );
       }
 

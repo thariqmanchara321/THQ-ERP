@@ -263,7 +263,8 @@ Phase 10 requires **ZERO database migrations or schema alterations**. It uses ex
 
 ### 8.1 Database Impact & Migration Guarantee
 - **Zero Database Migrations Required:** Phase 11 introduces **no new tables, columns, indexes, or stored procedures**.
-- **Ephemeral Broadcast Channels:** Communication between mobile scanners and desktop workstations operates exclusively through in-memory, zero-disk **Supabase Realtime Broadcast Channels** (`thq_scan_<tenant>_<session>`).
+- **Ephemeral Private Broadcast Channels:** Communication between mobile scanners and desktop workstations operates exclusively through in-memory, zero-disk **Supabase Realtime Private Broadcast Channels** (`thq_scan_<tenant>_<session>`), authorized using client JWT credentials.
+- **Single-Use Ephemeral Credentials:** Handshake secrets (256 bits of entropy) are consumed upon phone handshake and fully revoked upon unpairing. Zero secrets are persisted to PostgreSQL tables or client logs.
 - **No Database Polling:** Real-time push notifications occur over authenticated WebSockets. No database records are written or polled during scanning.
 - **Cryptographic Packet Invariants:** Scan packets are authenticated using ephemeral HMAC-SHA256 signatures generated with short-lived session secrets. Secrets are discarded in memory after 10 minutes or on unpairing.
 - **Inventory & Financial Immutability:** Wireless scans entering POS Desktop or Client Desktop invoke existing, audited business and inventory services (`_handleScanCode`, `PosSmartInventoryService`). No raw database mutations occur outside established double-entry and RLS guardrails.

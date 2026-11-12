@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
-import 'package:crypto/crypto.dart';
+import 'dart:math';
 
 import 'wireless_scanner_models.dart';
 import 'wireless_scanner_transport.dart';
@@ -67,8 +67,9 @@ class MockWirelessScannerTransport implements WirelessScannerTransport {
     Duration expiration = const Duration(minutes: 10),
   }) async {
     final now = DateTime.now();
-    final randomBytes = utf8.encode('sec-${now.microsecondsSinceEpoch}');
-    final secret = sha256.convert(randomBytes).toString().substring(0, 32);
+    final secureRandom = Random.secure();
+    final randomBytes = List<int>.generate(32, (_) => secureRandom.nextInt(256));
+    final secret = base64Url.encode(randomBytes);
     final sid = 'session-${now.microsecondsSinceEpoch}';
 
     _payload = WirelessScannerPairingPayload(
@@ -105,11 +106,12 @@ class MockWirelessScannerTransport implements WirelessScannerTransport {
     required String deviceId,
     required String deviceName,
   }) async {
-    if (payload.isExpired) {
+    if (payload.isExpired || payload.isConsumed || payload.isRevoked) {
       _setState(WirelessScannerState.error);
       return false;
     }
 
+    payload.consume();
     _payload = payload;
     _device = WirelessScannerDevice(
       deviceId: deviceId,
@@ -133,6 +135,14 @@ class MockWirelessScannerTransport implements WirelessScannerTransport {
       return false;
     }
 
+    if (!scan.isFresh) {
+      return false;
+    }
+
+    if (scan.sessionId != _payload!.sessionId) {
+      return false;
+    }
+
     if (!scan.verifySignature(_payload!.handshakeSecret)) {
       return false;
     }
@@ -144,10 +154,12 @@ class MockWirelessScannerTransport implements WirelessScannerTransport {
     if (autoAck) {
       Timer(const Duration(milliseconds: 30), () {
         if (_isDisposed || _ackController.isClosed) return;
-        final ack = WirelessScanAck(
+        final ack = WirelessScanAck.create(
           messageId: scan.messageId,
           sessionId: scan.sessionId,
           success: true,
+          receivedCode: scan.rawCode,
+          handshakeSecret: _payload!.handshakeSecret,
           productName: autoAckProductName,
           timestamp: DateTime.now(),
         );
@@ -168,6 +180,7 @@ class MockWirelessScannerTransport implements WirelessScannerTransport {
 
   @override
   Future<void> unpair() async {
+    _payload?.revoke();
     _setState(WirelessScannerState.revoked);
     _device = null;
     if (!_isDisposed && !_deviceController.isClosed) {

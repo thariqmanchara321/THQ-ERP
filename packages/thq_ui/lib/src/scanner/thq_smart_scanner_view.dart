@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:erp_core/erp_core.dart';
@@ -41,10 +42,14 @@ class ThqSmartScannerView extends StatefulWidget {
   /// Optional custom device identifier to attach to scan results.
   final String? deviceId;
 
+  /// Optional callback invoked when a camera frame contains a rejected or corrupted barcode.
+  final void Function(BarcodeAccuracyResult result)? onScanRejected;
+
   const ThqSmartScannerView({
     super.key,
     this.controller,
     this.onScan,
+    this.onScanRejected,
     this.onClose,
     this.instructionText = 'Align barcode or QR code inside the frame',
     this.showControls = true,
@@ -64,6 +69,8 @@ class _ThqSmartScannerViewState extends State<ThqSmartScannerView>
   bool _isTorchOn = false;
   double _zoomFactor = 0.0;
   bool _hasScannedRecently = false;
+  bool _showCorruptFrameWarning = false;
+  Timer? _corruptWarningTimer;
   String? _lastScannedCode;
   String? _errorMessage;
   bool _isPermissionDenied = false;
@@ -99,6 +106,7 @@ class _ThqSmartScannerViewState extends State<ThqSmartScannerView>
 
   @override
   void dispose() {
+    _corruptWarningTimer?.cancel();
     _laserAnim.dispose();
     _cameraController?.dispose();
     super.dispose();
@@ -116,7 +124,13 @@ class _ThqSmartScannerViewState extends State<ThqSmartScannerView>
           format: format,
         );
         if (!accuracy.isValid) {
-          // Frame read had corrupted check digits or non-printable ASCII; drop glitched frame
+          // Frame read had corrupted check digits or non-printable ASCII; notify listeners and flash warning
+          widget.onScanRejected?.call(accuracy);
+          _corruptWarningTimer?.cancel();
+          setState(() => _showCorruptFrameWarning = true);
+          _corruptWarningTimer = Timer(const Duration(milliseconds: 500), () {
+            if (mounted) setState(() => _showCorruptFrameWarning = false);
+          });
           continue;
         }
 
@@ -242,7 +256,9 @@ class _ThqSmartScannerViewState extends State<ThqSmartScannerView>
             size: Size.infinite,
             painter: _ScannerOverlayPainter(
               windowSize: widget.scanWindowSize,
-              borderColor: _hasScannedRecently ? Colors.greenAccent : colorScheme.primary,
+              borderColor: _showCorruptFrameWarning
+                  ? Colors.redAccent
+                  : (_hasScannedRecently ? Colors.greenAccent : colorScheme.primary),
               scanLineFraction: _laserAnim.value,
             ),
           ),

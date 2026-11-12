@@ -239,7 +239,7 @@ void main() {
       expect(coordinator.currentState, WirelessScannerState.pairingPending);
       expect(payload.tenantId, tenantId);
       expect(payload.hostDeviceName, 'POS Counter 1');
-      expect(payload.handshakeSecret.length, 32);
+      expect(payload.handshakeSecret.length, 44); // 256 bits of entropy in base64Url
       expect(payload.isExpired, isFalse);
     });
 
@@ -472,5 +472,192 @@ void main() {
       expect(coordinator.currentState, WirelessScannerState.disconnected);
       expect(coordinator.activeDevice, isNull);
     });
+
+    test('Single-use pairing credential cannot be consumed twice', () async {
+      final payload = await coordinator.startHosting(
+        tenantId: tenantId,
+        hostDeviceName: 'POS Counter 1',
+      );
+
+      final firstJoin = await coordinator.joinAsScanner(
+        payload: payload,
+        deviceId: 'device-phone-1',
+        deviceName: 'Authorized Phone 1',
+      );
+      expect(firstJoin, isTrue);
+      expect(payload.isConsumed, isTrue);
+
+      // Attempting to consume the already-consumed pairing payload with another phone MUST fail
+      final secondJoin = await coordinator.joinAsScanner(
+        payload: payload,
+        deviceId: 'device-phone-2',
+        deviceName: 'Rogue Phone 2',
+      );
+      expect(secondJoin, isFalse);
+    });
+
+    test('Stale or delayed scan messages (> 30s) are rejected for message freshness', () async {
+      final payload = await coordinator.startHosting(
+        tenantId: tenantId,
+        hostDeviceName: 'POS Counter 1',
+      );
+
+      await coordinator.joinAsScanner(
+        payload: payload,
+        deviceId: 'device-1',
+        deviceName: 'Mobile 1',
+      );
+
+      final receivedScans = <WirelessScanMessage>[];
+      coordinator.scans.listen((s) => receivedScans.add(s));
+
+      // Create a stale scan message with timestamp from 45 seconds ago
+      final staleTimestamp = DateTime.now().subtract(const Duration(seconds: 45));
+      const testBarcode = '8901234567890';
+      final staleMsg = WirelessScanMessage(
+        messageId: 'stale-msg-001',
+        sessionId: payload.sessionId,
+        tenantId: tenantId,
+        senderDeviceId: 'device-1',
+        senderDeviceName: 'Mobile 1',
+        rawCode: testBarcode,
+        format: SmartBarcodeFormat.ean13,
+        timestamp: staleTimestamp,
+        authSignature: WirelessScanMessage.computeSignature(
+          sessionId: payload.sessionId,
+          messageId: 'stale-msg-001',
+          rawCode: testBarcode,
+          handshakeSecret: payload.handshakeSecret,
+        ),
+      );
+
+      expect(staleMsg.isFresh, isFalse);
+
+      final sent = await transport.sendScan(staleMsg);
+      expect(sent, isFalse);
+
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+      expect(receivedScans.isEmpty, isTrue);
+    });
+
+    test('Duplicate scan within suppression window replies with explicit duplicate ACK', () async {
+      final payload = await coordinator.startHosting(
+        tenantId: tenantId,
+        hostDeviceName: 'POS Counter 1',
+      );
+
+      await coordinator.joinAsScanner(
+        payload: payload,
+        deviceId: 'device-1',
+        deviceName: 'Mobile 1',
+      );
+
+      final incomingAcks = <WirelessScanAck>[];
+      transport.incomingAcks.listen((a) => incomingAcks.add(a));
+
+      const code = '8901234567890';
+      WirelessScanMessage makeMsg(String id) => WirelessScanMessage(
+            messageId: id,
+            sessionId: payload.sessionId,
+            tenantId: tenantId,
+            senderDeviceId: 'device-1',
+            senderDeviceName: 'Mobile 1',
+            rawCode: code,
+            format: SmartBarcodeFormat.ean13,
+            timestamp: DateTime.now(),
+            authSignature: WirelessScanMessage.computeSignature(
+              sessionId: payload.sessionId,
+              messageId: id,
+              rawCode: code,
+              handshakeSecret: payload.handshakeSecret,
+            ),
+          );
+
+      // Disable autoAck so we only see coordinator's explicit ACKs
+      transport.autoAck = false;
+
+      // First scan: coordinator receives it, but we haven't manually acknowledged yet
+      await transport.sendScan(makeMsg('scan-dup-1'));
+
+      // Second identical scan within 500ms window: coordinator immediately returns duplicate ACK
+      await transport.sendScan(makeMsg('scan-dup-2'));
+      await Future<void>.delayed(const Duration(milliseconds: 15));
+
+      final dupAck = incomingAcks.firstWhere((a) => a.messageId == 'scan-dup-2');
+      expect(dupAck.isDuplicate, isTrue);
+      expect(dupAck.success, isTrue);
+      expect(dupAck.receivedCode, code);
+      expect(dupAck.verifySignature(payload.handshakeSecret), isTrue);
+    });
+
+    test('Cryptographically signed ACK verifies origin and detects tampering', () {
+      const secret = 'handshake-secret-256-bits-test';
+      final ack = WirelessScanAck.create(
+        messageId: 'ack-001',
+        sessionId: 'session-001',
+        success: true,
+        receivedCode: '0089012345678',
+        handshakeSecret: secret,
+        productName: 'Sample Product',
+      );
+
+      expect(ack.verifySignature(secret), isTrue);
+      expect(ack.verifySignature('wrong-secret'), isFalse);
+
+      // Tampered ACK with altered code fails signature
+      final tamperedAck = WirelessScanAck(
+        messageId: ack.messageId,
+        sessionId: ack.sessionId,
+        success: ack.success,
+        receivedCode: '0089012345679', // Modified digit
+        authSignature: ack.authSignature,
+        timestamp: ack.timestamp,
+      );
+      expect(tamperedAck.verifySignature(secret), isFalse);
+    });
+
+    test('Zero secrets logged: toString masks sensitive cryptographic tokens', () {
+      const secret = 'secret-cryptographic-token-32b';
+      final payload = WirelessScannerPairingPayload(
+        version: 1,
+        sessionId: 'ses-1',
+        tenantId: 'ten-1',
+        hostDeviceName: 'Counter',
+        handshakeSecret: secret,
+        channelName: 'chan-1',
+        createdAt: DateTime.now(),
+        expiresAt: DateTime.now().add(const Duration(minutes: 10)),
+      );
+
+      final msg = WirelessScanMessage.create(
+        sessionId: 'ses-1',
+        tenantId: 'ten-1',
+        senderDeviceId: 'dev-1',
+        senderDeviceName: 'Phone',
+        rawCode: '8901234567890',
+        format: SmartBarcodeFormat.ean13,
+        handshakeSecret: secret,
+      );
+
+      final ack = WirelessScanAck.create(
+        messageId: msg.messageId,
+        sessionId: 'ses-1',
+        success: true,
+        receivedCode: '8901234567890',
+        handshakeSecret: secret,
+      );
+
+      expect(payload.toString(), contains('sec: [PROTECTED]'));
+      expect(payload.toString(), isNot(contains(secret)));
+
+      expect(msg.toString(), contains('sig: [PROTECTED]'));
+      expect(msg.toString(), isNot(contains(msg.authSignature)));
+
+      expect(ack.toString(), contains('sig: [PROTECTED]'));
+      expect(ack.toString(), isNot(contains(ack.authSignature)));
+
+      expect(msg.transmittedCode, msg.rawCode);
+    });
   });
 }
+

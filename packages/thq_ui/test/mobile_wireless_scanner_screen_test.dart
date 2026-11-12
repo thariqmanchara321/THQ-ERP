@@ -139,5 +139,93 @@ void main() {
       // Should be back to pairing mode
       expect(find.text('Wireless Scanner Pairing'), findsOneWidget);
     });
+
+    testWidgets('acknowledgement timeout marks pending scan as failed after 5s',
+        (tester) async {
+      // Disable autoAck so the scan stays pending until timeout
+      mockTransport.autoAck = false;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: ThqMobileWirelessScannerScreen(
+            tenantId: 'tenant-demo',
+            deviceName: 'Pixel 8 Pro',
+            deviceId: 'dev-pixel-123',
+            transport: mockTransport,
+            initialPayload: testPayload,
+          ),
+        ),
+      );
+
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 50));
+
+      // Enter a barcode manually
+      await tester.tap(find.byTooltip('Manual Barcode Entry'));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.byType(TextField), '8901234567890');
+      await tester.tap(find.text('Send to PC'));
+      await tester.pumpAndSettle();
+
+      // Fast forward past 5-second ACK timeout
+      await tester.pump(const Duration(seconds: 6));
+
+      // Open history drawer
+      await tester.tap(find.byTooltip('Scan History'));
+      await tester.pumpAndSettle();
+
+      // Status should have transitioned to failed
+      expect(find.text('8901234567890'), findsOneWidget);
+      expect(find.textContaining('failed'), findsOneWidget);
+    });
+
+    testWidgets('duplicate ACK displays duplicate scan suppressed banner',
+        (tester) async {
+      mockTransport.autoAck = false;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: ThqMobileWirelessScannerScreen(
+            tenantId: 'tenant-demo',
+            deviceName: 'Pixel 8 Pro',
+            deviceId: 'dev-pixel-123',
+            transport: mockTransport,
+            initialPayload: testPayload,
+          ),
+        ),
+      );
+
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 50));
+
+      // Enter barcode
+      await tester.tap(find.byTooltip('Manual Barcode Entry'));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.byType(TextField), '8901234567890');
+      await tester.tap(find.text('Send to PC'));
+      await tester.pumpAndSettle();
+
+      // Simulate duplicate ACK received from desktop
+      final dupAck = WirelessScanAck.create(
+        messageId: 'msg-mock-dup',
+        sessionId: testPayload.sessionId,
+        success: true,
+        receivedCode: '8901234567890',
+        handshakeSecret: testPayload.handshakeSecret,
+        isDuplicate: true,
+        productName: 'Duplicate scan suppressed',
+      );
+
+      mockTransport.simulateIncomingAck(dupAck);
+      await tester.pump(const Duration(milliseconds: 50));
+
+      expect(find.text('Duplicate Scan Suppressed'), findsOneWidget);
+
+      // Flush remaining cooldown timer
+      await tester.pump(const Duration(seconds: 1));
+    });
   });
 }
+
