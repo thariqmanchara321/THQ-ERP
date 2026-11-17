@@ -50,4 +50,5 @@ export 'src/scanner/thq_wireless_scanner_dialog.dart';
 export 'src/scanner/mobile_wireless_scanner_screen.dart';
 
 export 'src/intelligence/thq_catalogue_comparison_view.dart';
+export 'src/intelligence/thq_intelligence_widgets.dart';
 

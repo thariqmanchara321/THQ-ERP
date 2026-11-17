@@ -80,6 +80,42 @@ Deno.serve(async (req) => {
         rpc = 'inventory_intelligence_v480'
         params = { ...params, p_location_id: payload.location_id ?? null, p_days: payload.days ?? 30, p_query: payload.query ?? '', p_limit: payload.limit ?? 1000 }
         break
+      case 'operations-intelligence':
+        rpc = 'operations_intelligence_summary_v830'
+        params = { ...params, p_location_id: payload.location_id ?? null, p_days: payload.days ?? 30 }
+        break
+      case 'inventory-intelligence-v830':
+        rpc = 'inventory_intelligence_v830'
+        params = { ...params, p_location_id: payload.location_id ?? null, p_days: payload.days ?? 30, p_query: payload.query ?? '', p_limit: payload.limit ?? 1000 }
+        break
+      case 'intelligence-insights':
+        if (action === 'list') {
+          rpc = 'erp_intelligence_insights_list_v830'
+          params = { ...params, p_location_id: payload.location_id ?? null, p_engine: payload.engine ?? null, p_severity: payload.severity ?? null, p_status: payload.status ?? null, p_query: payload.query ?? '', p_limit: payload.limit ?? 200, p_offset: payload.offset ?? 0 }
+        } else if (action === 'save') {
+          rpc = 'erp_intelligence_insight_save_v830'
+          params = { ...params, p_location_id: payload.location_id ?? null, p_engine: payload.engine ?? 'operations', p_category: payload.category ?? 'general', p_severity: payload.severity ?? 'info', p_priority: payload.priority ?? 'medium', p_title: payload.title, p_description: payload.description ?? '', p_evidence: payload.evidence ?? {}, p_source_references: payload.source_references ?? [], p_confidence: payload.confidence ?? 1.0, p_dedup_key: payload.dedup_key ?? null }
+        } else if (action === 'status') {
+          rpc = 'erp_intelligence_insight_status_v830'
+          params = { ...params, p_insight_id: payload.insight_id, p_status: payload.status, p_resolution_note: payload.resolution_note ?? null }
+        } else {
+          return json({ success: false, error: 'Unsupported intelligence-insights action.' }, 400)
+        }
+        break
+      case 'intelligence-actions':
+        if (action === 'list') {
+          rpc = 'erp_intelligence_actions_list_v830'
+          params = { ...params, p_location_id: payload.location_id ?? null, p_status: payload.status ?? null, p_limit: payload.limit ?? 200 }
+        } else if (action === 'create') {
+          rpc = 'erp_intelligence_action_create_v830'
+          params = { ...params, p_location_id: payload.location_id, p_insight_id: payload.insight_id ?? null, p_action_type: payload.action_type, p_payload: payload.payload ?? {}, p_preview_summary: payload.preview_summary, p_required_permission: payload.required_permission ?? 'inventory.manage' }
+        } else if (action === 'decide') {
+          rpc = 'erp_intelligence_action_decide_v830'
+          params = { ...params, p_action_id: payload.action_id, p_approve: payload.approve ?? false, p_note: payload.note ?? '' }
+        } else {
+          return json({ success: false, error: 'Unsupported intelligence-actions action.' }, 400)
+        }
+        break
       case 'units':
         rpc = 'inventory_units_list_v481'
         params = { ...params, p_active_only: payload.active_only ?? true }

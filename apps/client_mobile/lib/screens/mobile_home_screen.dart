@@ -1,5 +1,6 @@
 import 'package:erp_core/erp_core.dart';
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:thq_logistics/thq_logistics.dart';
 import 'package:thq_ui/thq_ui.dart';
 
@@ -179,6 +180,24 @@ class _MobileHomeScreenState extends State<MobileHomeScreen> {
     );
   }
 
+  void _openAiAssistant() {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (modalContext) => ThqAiAssistantSheet(
+        assistant: ReadOnlyAiBusinessAssistant(
+          repository: RpcOperationsIntelligenceRepository(
+            (fn, {params}) => Supabase.instance.client
+                .rpc(fn, params: params ?? const {}),
+          ),
+        ),
+        tenantId: widget.session.tenantId,
+        locationId: _locationId,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final pages = <Widget>[
@@ -194,6 +213,7 @@ class _MobileHomeScreenState extends State<MobileHomeScreen> {
         onNotifications: widget.session.canViewNotifications
             ? _openNotifications
             : null,
+        onAiAssistant: _openAiAssistant,
         onSales: () => setState(() => _index = 1),
         onInventory: () => setState(() => _index = 2),
         onMoney: () => Navigator.of(context).push(
@@ -467,6 +487,7 @@ class _OverviewTab extends StatelessWidget {
   final VoidCallback? onExpenses;
   final VoidCallback onTraceability;
   final VoidCallback onMaterialYard;
+  final VoidCallback? onAiAssistant;
 
   const _OverviewTab({
     required this.session,
@@ -486,6 +507,7 @@ class _OverviewTab extends StatelessWidget {
     this.onExpenses,
     required this.onTraceability,
     required this.onMaterialYard,
+    this.onAiAssistant,
   });
 
   @override
@@ -760,6 +782,21 @@ class _OverviewTab extends StatelessWidget {
                             subtitle: 'Loads, fleet & quarry',
                             icon: Icons.local_shipping_outlined,
                             onTap: onMaterialYard,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                  if (onAiAssistant != null) ...[
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: WorkspaceQuickAction(
+                            label: 'Operations AI Advisor',
+                            subtitle: 'Read-only business intelligence',
+                            icon: Icons.auto_awesome_rounded,
+                            onTap: onAiAssistant!,
                           ),
                         ),
                       ],

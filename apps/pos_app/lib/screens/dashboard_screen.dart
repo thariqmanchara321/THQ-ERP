@@ -1,4 +1,7 @@
+import 'package:erp_core/erp_core.dart';
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:thq_ui/thq_ui.dart';
 
 import '../models/client_session.dart';
 import '../models/dashboard_data.dart';
@@ -84,6 +87,31 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         ),
                       ),
                     ],
+                  ),
+                ),
+                IconButton(
+                  tooltip: 'Ask Operations AI Assistant',
+                  visualDensity: VisualDensity.compact,
+                  onPressed: () {
+                    showModalBottomSheet<void>(
+                      context: context,
+                      isScrollControlled: true,
+                      backgroundColor: Colors.transparent,
+                      builder: (modalContext) => ThqAiAssistantSheet(
+                        assistant: ReadOnlyAiBusinessAssistant(
+                          repository: RpcOperationsIntelligenceRepository(
+                            (fn, {params}) => Supabase.instance.client
+                                .rpc(fn, params: params ?? const {}),
+                          ),
+                        ),
+                        tenantId: widget.session.business.id,
+                      ),
+                    );
+                  },
+                  icon: const Icon(
+                    Icons.auto_awesome_rounded,
+                    size: 17,
+                    color: Colors.amber,
                   ),
                 ),
                 IconButton(

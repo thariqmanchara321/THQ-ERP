@@ -56,3 +56,22 @@ export 'src/intelligence/gs1_registry_provider.dart';
 export 'src/intelligence/mock_external_product_provider.dart';
 export 'src/intelligence/external_product_intelligence_engine.dart';
 
+export 'src/operations_intelligence/operations_intelligence_models.dart';
+export 'src/operations_intelligence/operations_intelligence_repository.dart';
+export 'src/operations_intelligence/operations_intelligence_collector.dart';
+export 'src/operations_intelligence/engines/executive_health_engine.dart';
+export 'src/operations_intelligence/engines/sales_intelligence_engine.dart';
+export 'src/operations_intelligence/engines/inventory_intelligence_engine.dart';
+export 'src/operations_intelligence/engines/financial_intelligence_engine.dart';
+export 'src/operations_intelligence/engines/customer_intelligence_engine.dart';
+export 'src/operations_intelligence/engines/supplier_intelligence_engine.dart';
+export 'src/operations_intelligence/engines/procurement_intelligence_engine.dart';
+export 'src/operations_intelligence/engines/operational_efficiency_engine.dart';
+export 'src/operations_intelligence/engines/workforce_intelligence_engine.dart';
+export 'src/operations_intelligence/engines/risk_anomaly_engine.dart';
+export 'src/operations_intelligence/engines/predictive_intelligence_engine.dart';
+export 'src/operations_intelligence/engines/business_simulation_engine.dart';
+export 'src/operations_intelligence/ai_assistant/read_only_ai_assistant.dart';
+export 'src/operations_intelligence/action_centre/intelligence_action_centre.dart';
+
+
