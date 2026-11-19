@@ -7,6 +7,7 @@ import '../../models/client_session.dart';
 import '../../services/location_scope_service.dart';
 import 'audit_intelligence_service.dart';
 import 'audit_detail_dialogs.dart';
+import 'evidence_explorer_view.dart';
 import 'transaction_story_dialog.dart';
 
 class AuditIntelligenceScreen extends StatefulWidget {
@@ -48,6 +49,7 @@ class _AuditIntelligenceScreenState extends State<AuditIntelligenceScreen>
       widget.session.hasPermission('audit_center.configure');
   static const _sections = {
     'findings': 'Findings',
+    'evidence': 'Evidence explorer',
     'activity': 'Transaction activity',
     'accounts': 'Account reconciliation',
     'journals': 'All journals',
@@ -117,6 +119,13 @@ class _AuditIntelligenceScreenState extends State<AuditIntelligenceScreen>
   Future<void> _reload() async {
     _debounce?.cancel();
     final request = ++_request;
+    if (_view == 'evidence') {
+      setState(() {
+        _loading = false;
+        _error = null;
+      });
+      return;
+    }
     setState(() {
       _loading = true;
       _error = null;
@@ -266,26 +275,30 @@ class _AuditIntelligenceScreenState extends State<AuditIntelligenceScreen>
               _section,
               width: 235,
             ),
-            OutlinedButton.icon(
-              onPressed: _exporting ? null : _pickPeriod,
-              icon: const Icon(Icons.date_range, size: 16),
-              label: Text(
-                '${auditDate(_from.toIso8601String().substring(0, 10))} – ${auditDate(_to.toIso8601String().substring(0, 10))}',
-                style: const TextStyle(fontSize: 12),
+            if (_view != 'evidence') ...[
+              OutlinedButton.icon(
+                onPressed: _exporting ? null : _pickPeriod,
+                icon: const Icon(Icons.date_range, size: 16),
+                label: Text(
+                  '${auditDate(_from.toIso8601String().substring(0, 10))} – ${auditDate(_to.toIso8601String().substring(0, 10))}',
+                  style: const TextStyle(fontSize: 12),
+                ),
               ),
-            ),
-            IconButton(
-              tooltip: 'Refresh audit',
-              onPressed: _loading ? null : _refresh,
-              icon: const Icon(Icons.refresh, size: 20),
-            ),
+              IconButton(
+                tooltip: 'Refresh audit',
+                onPressed: _loading ? null : _refresh,
+                icon: const Icon(Icons.refresh, size: 20),
+              ),
+            ],
             if (_canConfigure)
               IconButton(
                 tooltip: 'Risk rules',
                 onPressed: () => _guard(_openRiskRules),
                 icon: const Icon(Icons.tune, size: 20),
               ),
-            if (_view != 'explain' && _view != 'profitability')
+            if (_view != 'explain' &&
+                _view != 'profitability' &&
+                _view != 'evidence')
               IconButton(
                 tooltip: 'Export all matching rows to CSV',
                 onPressed: _exporting || _loading ? null : _export,
@@ -351,6 +364,16 @@ class _AuditIntelligenceScreenState extends State<AuditIntelligenceScreen>
           ),
         ),
         Expanded(child: _explanation()),
+      ] else if (_view == 'evidence') ...[
+        Expanded(
+          child: EvidenceExplorerView(
+            session: widget.session,
+            service: _service,
+            from: _from,
+            to: _to,
+            onPickPeriod: _pickPeriod,
+          ),
+        ),
       ] else ...[
         _summary(),
         if (_view == 'accounts')

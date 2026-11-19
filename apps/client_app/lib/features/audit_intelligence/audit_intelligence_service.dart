@@ -5,6 +5,7 @@ import 'package:file_saver/file_saver.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'audit_widgets.dart';
+import 'models/audit_evidence_models.dart';
 
 /// Thin client for the canonical accounting and audit RPCs.
 ///
@@ -385,6 +386,212 @@ class AuditIntelligenceService {
       },
     );
     return _map(raw);
+  }
+
+  /// Loads the dynamic evidence catalog containing available datasets grouped by business area.
+  Future<List<AuditCatalogItem>> evidenceCatalog({
+    required String tenantId,
+    String? locationId,
+  }) async {
+    final raw = await _client.rpc(
+      'audit_catalog_v704',
+      params: {
+        'p_tenant_id': tenantId,
+        'p_location_id': locationId,
+      },
+    );
+    final list = _list(raw);
+    return list.map(AuditCatalogItem.fromJson).toList(growable: false);
+  }
+
+  /// Loads paginated evidence records for a given dataset and active filters.
+  Future<AuditEvidencePage> evidence({
+    required String tenantId,
+    required String dataset,
+    required DateTime from,
+    required DateTime to,
+    String? locationId,
+    String query = '',
+    int offset = 0,
+    int limit = 50,
+  }) async {
+    final raw = await _client.rpc(
+      'audit_evidence_v704',
+      params: {
+        'p_tenant_id': tenantId,
+        'p_dataset': dataset,
+        'p_from': _date(from),
+        'p_to': _date(to),
+        'p_location_id': locationId,
+        'p_query': query,
+        'p_offset': offset,
+        'p_limit': limit,
+      },
+    );
+    return AuditEvidencePage.fromJson(_map(raw));
+  }
+
+  /// Loads full detail of a specific evidence record by its record ID.
+  Future<AuditEvidenceDetail> evidenceDetail({
+    required String tenantId,
+    required String dataset,
+    required String recordId,
+    String? locationId,
+  }) async {
+    final raw = await _client.rpc(
+      'audit_detail_v704',
+      params: {
+        'p_tenant_id': tenantId,
+        'p_dataset': dataset,
+        'p_record_id': recordId,
+        'p_location_id': locationId,
+      },
+    );
+    return AuditEvidenceDetail.fromJson(_map(raw));
+  }
+
+  /// Loads records related to an existing record via a foreign key relation.
+  Future<AuditEvidencePage> relatedEvidence({
+    required String tenantId,
+    required String dataset,
+    required String matchField,
+    required String matchValue,
+    String? locationId,
+    int offset = 0,
+    int limit = 50,
+  }) async {
+    final raw = await _client.rpc(
+      'audit_related_v704',
+      params: {
+        'p_tenant_id': tenantId,
+        'p_dataset': dataset,
+        'p_match_field': matchField,
+        'p_match_value': matchValue,
+        'p_location_id': locationId,
+        'p_offset': offset,
+        'p_limit': limit,
+      },
+    );
+    return AuditEvidencePage.fromJson(_map(raw));
+  }
+
+  /// Exports matching evidence rows to a CSV format with injection protection.
+  Future<Uint8List> evidenceExportCsv({
+    required String tenantId,
+    required String dataset,
+    required DateTime from,
+    required DateTime to,
+    String? locationId,
+    String query = '',
+    Map<String, String>? columnHeaders,
+  }) async {
+    final rows = <AuditEvidenceRecord>[];
+    String? token;
+    int? total;
+    const batchSize = 100;
+
+    do {
+      final raw = await _client.rpc(
+        'audit_evidence_export_v704',
+        params: {
+          'p_tenant_id': tenantId,
+          'p_dataset': dataset,
+          'p_from': _date(from),
+          'p_to': _date(to),
+          'p_location_id': locationId,
+          'p_query': query,
+          'p_offset': rows.length,
+          'p_limit': batchSize,
+        },
+      );
+      final page = AuditEvidencePage.fromJson(_map(raw));
+      if (page.snapshotToken == null ||
+          (token != null &&
+              (token != page.snapshotToken || total != page.totalRows))) {
+        throw StateError(
+          'Evidence data changed during export. Please refresh and try again.',
+        );
+      }
+      token = page.snapshotToken;
+      total = page.totalRows;
+      if (page.rows.isEmpty && rows.length < total) {
+        throw StateError('Incomplete evidence export from server.');
+      }
+      rows.addAll(page.rows);
+    } while (rows.length < total);
+
+    final cols =
+        columnHeaders ??
+        {
+          'reference': 'Reference',
+          'date': 'Date',
+          'party': 'Party / Entity',
+          'status': 'Status',
+          'amount': 'Amount',
+          'quantity': 'Quantity',
+          'location': 'Location',
+          'actor': 'User',
+          'journal_count': 'Linked Journals',
+        };
+
+    String sanitize(dynamic value) {
+      var text = value == null ? '' : value.toString();
+      if (value is String && RegExp(r'^\s*[=+\-@\t\r]').hasMatch(text)) {
+        text = "'$text";
+      }
+      return '"${text.replaceAll('"', '""')}"';
+    }
+
+    dynamic extractVal(AuditEvidenceRecord r, String k) {
+      return switch (k) {
+        'reference' => r.reference,
+        'date' => r.date,
+        'party' => r.party,
+        'status' => r.status,
+        'amount' => r.amount,
+        'quantity' => r.quantity,
+        'location' => r.location,
+        'actor' => r.actor,
+        'journal_count' => r.journalCount,
+        _ => r.record[k] ?? '',
+      };
+    }
+
+    final csv = [
+      cols.values.map(sanitize).join(','),
+      for (final r in rows)
+        cols.keys.map((k) => sanitize(extractVal(r, k))).join(','),
+    ].join('\r\n');
+
+    return Uint8List.fromList([0xef, 0xbb, 0xbf, ...utf8.encode(csv)]);
+  }
+
+  /// Downloads an evidence export file to the user's device.
+  Future<void> exportEvidence({
+    required String tenantId,
+    required String dataset,
+    required String datasetLabel,
+    required DateTime from,
+    required DateTime to,
+    String? locationId,
+    String query = '',
+    Map<String, String>? columnHeaders,
+  }) async {
+    final bytes = await evidenceExportCsv(
+      tenantId: tenantId,
+      dataset: dataset,
+      from: from,
+      to: to,
+      locationId: locationId,
+      query: query,
+      columnHeaders: columnHeaders,
+    );
+    await FileSaver.instance.saveFile(
+      name: 'THQ_Evidence_${dataset}_${_date(from)}_${_date(to)}',
+      bytes: bytes,
+      fileExtension: 'csv',
+      mimeType: MimeType.csv,
+    );
   }
 
   static String _date(DateTime value) {
