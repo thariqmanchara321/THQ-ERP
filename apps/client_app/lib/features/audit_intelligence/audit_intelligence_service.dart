@@ -1,7 +1,7 @@
 import 'dart:convert';
-import 'dart:typed_data';
 
 import 'package:file_saver/file_saver.dart';
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'audit_widgets.dart';
@@ -475,6 +475,33 @@ class AuditIntelligenceService {
     return AuditEvidencePage.fromJson(_map(raw));
   }
 
+  /// Internal RPC call for evidence export, visible for unit testing pagination.
+  @visibleForTesting
+  Future<dynamic> callEvidenceExportRpc({
+    required String tenantId,
+    required String dataset,
+    required DateTime from,
+    required DateTime to,
+    String? locationId,
+    String query = '',
+    int offset = 0,
+    int limit = 100,
+  }) async {
+    return _client.rpc(
+      'audit_evidence_export_v704',
+      params: {
+        'p_tenant_id': tenantId,
+        'p_dataset': dataset,
+        'p_from': _date(from),
+        'p_to': _date(to),
+        'p_location_id': locationId,
+        'p_query': query,
+        'p_offset': offset,
+        'p_limit': limit,
+      },
+    );
+  }
+
   /// Exports matching evidence rows to a CSV format with injection protection.
   Future<Uint8List> evidenceExportCsv({
     required String tenantId,
@@ -491,18 +518,15 @@ class AuditIntelligenceService {
     const batchSize = 100;
 
     do {
-      final raw = await _client.rpc(
-        'audit_evidence_export_v704',
-        params: {
-          'p_tenant_id': tenantId,
-          'p_dataset': dataset,
-          'p_from': _date(from),
-          'p_to': _date(to),
-          'p_location_id': locationId,
-          'p_query': query,
-          'p_offset': rows.length,
-          'p_limit': batchSize,
-        },
+      final raw = await callEvidenceExportRpc(
+        tenantId: tenantId,
+        dataset: dataset,
+        from: from,
+        to: to,
+        locationId: locationId,
+        query: query,
+        offset: rows.length,
+        limit: batchSize,
       );
       final page = AuditEvidencePage.fromJson(_map(raw));
       if (page.snapshotToken == null ||
@@ -514,10 +538,22 @@ class AuditIntelligenceService {
       }
       token = page.snapshotToken;
       total = page.totalRows;
+      if (total < 0) {
+        throw StateError('Invalid evidence total rows from server.');
+      }
       if (page.rows.isEmpty && rows.length < total) {
         throw StateError('Incomplete evidence export from server.');
       }
+      if (page.rows.length < batchSize &&
+          (rows.length + page.rows.length) < total) {
+        throw StateError(
+          'Incomplete evidence export from server: premature end of pages.',
+        );
+      }
       rows.addAll(page.rows);
+      if (rows.length > total) {
+        throw StateError('Export pagination exceeded expected total rows.');
+      }
     } while (rows.length < total);
 
     final cols =
