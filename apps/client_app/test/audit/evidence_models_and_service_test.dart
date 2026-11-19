@@ -37,7 +37,12 @@ class TestRpcAuditEvidenceService extends AuditIntelligenceService {
     capturedOffsets.add(offset);
     final isPage2 = offset == pageSize;
 
-    final token = isPage2 && changeSnapshotOnPage2 ? 'token_b' : 'token_stable';
+    const stableSha256 =
+        'a1b2c3d4e5f67890123456789abcdef0123456789abcdef0123456789abcdef0';
+    const changedSha256 =
+        'f0e1d2c3b4a59876543210fedcba9876543210fedcba9876543210fedcba9876';
+
+    final token = isPage2 && changeSnapshotOnPage2 ? changedSha256 : stableSha256;
     capturedTokens.add(token);
 
     final total = isPage2 && changeTotalOnPage2 ? totalRecords + 10 : totalRecords;
@@ -150,11 +155,44 @@ void main() {
       expect(rec.record['account_name'], 'Operating Account');
     });
 
-    test('AuditEvidencePage parses envelope and pagination metadata', () {
+    test('AuditEvidenceRecord parses composite primary key dataset records', () {
+      final json = {
+        'id': 'stock-balance-pk-loc1-var100',
+        'dataset': 'stock_balances',
+        'reference': 'LOC-01 / VAR-001',
+        'date': '2026-11-19',
+        'status': 'active',
+        'party': null,
+        'amount': null,
+        'quantity': 150.0,
+        'location': 'LOC-01',
+        'actor': 'system',
+        'journal_count': 0,
+        'record': {
+          'tenant_id': '00000000-0000-0000-0000-000000000001',
+          'location_id': 'loc-1',
+          'variant_id': 'var-100',
+          'quantity_on_hand': 150.0,
+          'reorder_point': 20.0,
+        },
+      };
+
+      final rec = AuditEvidenceRecord.fromJson(json);
+      expect(rec.dataset, 'stock_balances');
+      expect(rec.reference, 'LOC-01 / VAR-001');
+      expect(rec.quantity, 150.0);
+      expect(rec.record['location_id'], 'loc-1');
+      expect(rec.record['variant_id'], 'var-100');
+      expect(rec.record['quantity_on_hand'], 150.0);
+    });
+
+    test('AuditEvidencePage parses envelope and 64-character SHA-256 snapshot token', () {
+      const expectedSha256 =
+          'a1b2c3d4e5f67890123456789abcdef0123456789abcdef0123456789abcdef0';
       final json = {
         'dataset': 'Sales invoices',
         'total_rows': 250,
-        'snapshot_token': 'snap_stable_abc',
+        'snapshot_token': expectedSha256,
         'period_basis': 'Selected period, using sale_date',
         'sensitive_values_visible': false,
         'generated_at': '2026-11-19T10:00:00Z',
@@ -172,7 +210,8 @@ void main() {
       final page = AuditEvidencePage.fromJson(json);
       expect(page.dataset, 'Sales invoices');
       expect(page.totalRows, 250);
-      expect(page.snapshotToken, 'snap_stable_abc');
+      expect(page.snapshotToken, expectedSha256);
+      expect(RegExp(r'^[0-9a-f]{64}$').hasMatch(page.snapshotToken!), isTrue);
       expect(page.periodBasis, contains('sale_date'));
       expect(page.sensitiveValuesVisible, isFalse);
       expect(page.rows.length, 1);
@@ -273,8 +312,12 @@ void main() {
       // Verify all pages (0, 100, 200) were requested
       expect(service.capturedOffsets, [0, 100, 200]);
 
-      // Verify every page received a consistent snapshot token
-      expect(service.capturedTokens, ['token_stable', 'token_stable', 'token_stable']);
+      // Verify every page received a consistent 64-character SHA-256 snapshot token
+      expect(service.capturedTokens, [
+        'a1b2c3d4e5f67890123456789abcdef0123456789abcdef0123456789abcdef0',
+        'a1b2c3d4e5f67890123456789abcdef0123456789abcdef0123456789abcdef0',
+        'a1b2c3d4e5f67890123456789abcdef0123456789abcdef0123456789abcdef0',
+      ]);
 
       // Verify formula injection protection on row 0
       expect(csv, contains('"\'=SUM(100,200)"'));
