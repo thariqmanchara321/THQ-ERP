@@ -6,6 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'audit_widgets.dart';
 import 'models/audit_evidence_models.dart';
+import 'models/audit_integrity_models.dart';
 
 /// Thin client for the canonical accounting and audit RPCs.
 ///
@@ -627,6 +628,89 @@ class AuditIntelligenceService {
       bytes: bytes,
       fileExtension: 'csv',
       mimeType: MimeType.csv,
+    );
+  }
+
+  /// Evaluates authoritative domain integrity checks across accounting, inventory,
+  /// sales, purchases, banking, tax and operational subsystems.
+  Future<AuditIntegrityResult> integrityChecks({
+    required String tenantId,
+    required DateTime from,
+    required DateTime to,
+    String? locationId,
+    String? category,
+  }) async {
+    final raw = await callIntegrityChecksRpc(
+      tenantId: tenantId,
+      from: from,
+      to: to,
+      locationId: locationId,
+      category: category,
+    );
+    return AuditIntegrityResult.fromJson(_map(raw));
+  }
+
+  /// Internal RPC call for integrity checks, overridable for testing.
+  @visibleForTesting
+  Future<dynamic> callIntegrityChecksRpc({
+    required String tenantId,
+    required DateTime from,
+    required DateTime to,
+    String? locationId,
+    String? category,
+  }) async {
+    return _client.rpc(
+      'audit_checks_v704',
+      params: {
+        'p_tenant_id': tenantId,
+        'p_from': _date(from),
+        'p_to': _date(to),
+        'p_location_id': locationId,
+        'p_category': _blankToNull(category),
+      },
+    );
+  }
+
+  /// Loads individual affected records for a specific integrity check for evidence drilldown.
+  Future<AuditCheckDrilldownResult> checkDrilldownRecords({
+    required String tenantId,
+    required String checkId,
+    required DateTime from,
+    required DateTime to,
+    String? locationId,
+    int limit = 50,
+  }) async {
+    final raw = await callCheckDrilldownRpc(
+      tenantId: tenantId,
+      checkId: checkId,
+      from: from,
+      to: to,
+      locationId: locationId,
+      limit: limit,
+    );
+    return AuditCheckDrilldownResult.fromJson(_map(raw));
+  }
+
+  /// Internal RPC call for check drilldown records, overridable for testing.
+  @visibleForTesting
+  Future<dynamic> callCheckDrilldownRpc({
+    required String tenantId,
+    required String checkId,
+    required DateTime from,
+    required DateTime to,
+    String? locationId,
+    int limit = 50,
+  }) async {
+    return _client.rpc(
+      'audit_check_records_v704',
+      params: {
+        'p_tenant_id': tenantId,
+        'p_check_id': checkId,
+        'p_from': _date(from),
+        'p_to': _date(to),
+        'p_location_id': locationId,
+        'p_limit': limit,
+      },
     );
   }
 

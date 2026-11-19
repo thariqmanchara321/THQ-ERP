@@ -8,6 +8,7 @@ import '../../services/location_scope_service.dart';
 import 'audit_intelligence_service.dart';
 import 'audit_detail_dialogs.dart';
 import 'evidence_explorer_view.dart';
+import 'integrity_reconciliation_view.dart';
 import 'transaction_story_dialog.dart';
 
 class AuditIntelligenceScreen extends StatefulWidget {
@@ -49,6 +50,7 @@ class _AuditIntelligenceScreenState extends State<AuditIntelligenceScreen>
       widget.session.hasPermission('audit_center.configure');
   static const _sections = {
     'findings': 'Findings',
+    'integrity': 'Integrity & reconciliation',
     'evidence': 'Evidence explorer',
     'activity': 'Transaction activity',
     'accounts': 'Account reconciliation',
@@ -119,7 +121,7 @@ class _AuditIntelligenceScreenState extends State<AuditIntelligenceScreen>
   Future<void> _reload() async {
     _debounce?.cancel();
     final request = ++_request;
-    if (_view == 'evidence') {
+    if (_view == 'evidence' || _view == 'integrity') {
       setState(() {
         _loading = false;
         _error = null;
@@ -364,6 +366,19 @@ class _AuditIntelligenceScreenState extends State<AuditIntelligenceScreen>
           ),
         ),
         Expanded(child: _explanation()),
+      ] else if (_view == 'integrity') ...[
+        Expanded(
+          child: IntegrityReconciliationView(
+            session: widget.session,
+            service: _service,
+            from: _from,
+            to: _to,
+            onPickPeriod: _pickPeriod,
+            onOpenEvidenceExplorer: (dataset, query) {
+              _section('evidence');
+            },
+          ),
+        ),
       ] else if (_view == 'evidence') ...[
         Expanded(
           child: EvidenceExplorerView(
