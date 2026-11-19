@@ -1176,10 +1176,18 @@ class _AppVersionsScreenState extends State<AppVersionsScreen> {
     final onThisVer = _devices.where((d) => d['version'] == manifestVer && (d['build_number'] as num?)?.toInt() == manifestBuild).length;
 
     Color statusBadgeColor = Colors.teal;
-    if (releaseStatus == 'paused') statusBadgeColor = Colors.amber;
-    if (releaseStatus == 'withdrawn') statusBadgeColor = Colors.red;
-    if (releaseStatus == 'stable') statusBadgeColor = Colors.green;
-    if (releaseStatus == 'beta' || releaseStatus == 'published') statusBadgeColor = Colors.blue;
+    if (releaseStatus == 'paused') {
+      statusBadgeColor = Colors.amber;
+    }
+    if (releaseStatus == 'withdrawn') {
+      statusBadgeColor = Colors.red;
+    }
+    if (releaseStatus == 'stable') {
+      statusBadgeColor = Colors.green;
+    }
+    if (releaseStatus == 'beta' || releaseStatus == 'published') {
+      statusBadgeColor = Colors.blue;
+    }
 
     return SingleChildScrollView(
       child: Column(
@@ -1563,10 +1571,20 @@ class _AppVersionsScreenState extends State<AppVersionsScreen> {
 
     // Filter releases
     final filtered = _releases.where((r) {
-      if (_releaseAppFilter != 'all' && r['app_key'] != _releaseAppFilter) return false;
-      if (_releasePlatformFilter != 'all' && r['platform'] != _releasePlatformFilter) return false;
-      if (_releaseChannelFilter != 'all' && r['channel'] != _releaseChannelFilter) return false;
-      if (_releaseStatusFilter != 'all' && r['status'] != _releaseStatusFilter) return false;
+      if (_releaseAppFilter != 'all' && r['app_key'] != _releaseAppFilter) {
+        return false;
+      }
+      if (_releasePlatformFilter != 'all' &&
+          r['platform'] != _releasePlatformFilter) {
+        return false;
+      }
+      if (_releaseChannelFilter != 'all' &&
+          r['channel'] != _releaseChannelFilter) {
+        return false;
+      }
+      if (_releaseStatusFilter != 'all' && r['status'] != _releaseStatusFilter) {
+        return false;
+      }
       if (_releaseSearch.isNotEmpty) {
         final q = _releaseSearch.toLowerCase();
         final v = (r['version']?.toString() ?? '').toLowerCase();
@@ -1703,9 +1721,15 @@ class _AppVersionsScreenState extends State<AppVersionsScreen> {
                             final released = r['released_at'] != null ? r['released_at'].toString().split('T').first : '';
 
                             Color statusColor = Colors.teal;
-                            if (status == 'paused') statusColor = Colors.amber;
-                            if (status == 'withdrawn' || status == 'revoked') statusColor = Colors.red;
-                            if (status == 'beta') statusColor = Colors.blue;
+                            if (status == 'paused') {
+                              statusColor = Colors.amber;
+                            }
+                            if (status == 'withdrawn' || status == 'revoked') {
+                              statusColor = Colors.red;
+                            }
+                            if (status == 'beta') {
+                              statusColor = Colors.blue;
+                            }
 
                             final isSelected = _selectedRelease?['id'] == r['id'];
 
@@ -2135,13 +2159,17 @@ class _AppVersionsScreenState extends State<AppVersionsScreen> {
     final scheme = Theme.of(context).colorScheme;
 
     final filtered = _devices.where((d) {
-      if (_deviceAppFilter != 'all' && d['app_key'] != _deviceAppFilter) return false;
+      if (_deviceAppFilter != 'all' && d['app_key'] != _deviceAppFilter) {
+        return false;
+      }
       if (_deviceSearch.isNotEmpty) {
         final q = _deviceSearch.toLowerCase();
         final dev = (d['device_code']?.toString() ?? '').toLowerCase();
         final biz = (d['business_name']?.toString() ?? '').toLowerCase();
         final loc = (d['location_code']?.toString() ?? '').toLowerCase();
-        if (!dev.contains(q) && !biz.contains(q) && !loc.contains(q)) return false;
+        if (!dev.contains(q) && !biz.contains(q) && !loc.contains(q)) {
+          return false;
+        }
       }
       return true;
     }).toList();
@@ -2293,14 +2321,21 @@ class _AppVersionsScreenState extends State<AppVersionsScreen> {
     final scheme = Theme.of(context).colorScheme;
 
     final filtered = _updateLogs.where((l) {
-      if (_telemetryStatusFilter != 'all' && l['status'] != _telemetryStatusFilter) return false;
-      if (_telemetryAppFilter != 'all' && l['app_key'] != _telemetryAppFilter) return false;
+      if (_telemetryStatusFilter != 'all' &&
+          l['status'] != _telemetryStatusFilter) {
+        return false;
+      }
+      if (_telemetryAppFilter != 'all' && l['app_key'] != _telemetryAppFilter) {
+        return false;
+      }
       if (_telemetrySearch.isNotEmpty) {
         final q = _telemetrySearch.toLowerCase();
         final dev = (l['device_id']?.toString() ?? '').toLowerCase();
         final err = (l['error_message']?.toString() ?? '').toLowerCase();
         final stat = (l['status']?.toString() ?? '').toLowerCase();
-        if (!dev.contains(q) && !err.contains(q) && !stat.contains(q)) return false;
+        if (!dev.contains(q) && !err.contains(q) && !stat.contains(q)) {
+          return false;
+        }
       }
       return true;
     }).toList();
@@ -2470,7 +2505,9 @@ class _AppVersionsScreenState extends State<AppVersionsScreen> {
     final sessionLogs = _updateLogs.where((l) {
       final d = l['details'] is Map ? (l['details'] as Map) : {};
       final aId = d['attempt_id']?.toString() ?? l['attempt_id']?.toString();
-      if (attemptId != null && attemptId.isNotEmpty && aId == attemptId) return true;
+      if (attemptId != null && attemptId.isNotEmpty && aId == attemptId) {
+        return true;
+      }
       if (deviceId != null && deviceId.isNotEmpty && l['device_id']?.toString() == deviceId) {
         return true;
       }

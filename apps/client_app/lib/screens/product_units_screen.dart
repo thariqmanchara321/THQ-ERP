@@ -46,15 +46,15 @@ class _ProductUnitsScreenState extends State<ProductUnitsScreen> {
       _error = null;
     });
     try {
-      final results = await Future.wait([
-        _service.getUnits(tenantId: widget.session.business.id),
-        _service.getProductUnits(
-          tenantId: widget.session.business.id,
-          variantId: widget.variantId,
-        ),
-      ]);
-      final List<InventoryUnit> units = results[0] as List<InventoryUnit>;
-      final List<ProductUnitOption> configured = results[1] as List<ProductUnitOption>;
+      final unitsFuture = _service.getUnits(
+        tenantId: widget.session.business.id,
+      );
+      final configuredFuture = _service.getProductUnits(
+        tenantId: widget.session.business.id,
+        variantId: widget.variantId,
+      );
+      final List<InventoryUnit> units = await unitsFuture;
+      final List<ProductUnitOption> configured = await configuredFuture;
       final base = configured.where((u) => u.isBase).firstOrNull;
       if (!mounted) return;
       setState(() {

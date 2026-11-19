@@ -524,7 +524,9 @@ class _SmartInventoryImportTabState extends State<SmartInventoryImportTab> {
   // ---------------------------------------------------------------------------
 
   Future<void> _exportFailureReport() async {
-    if (_executionSummary == null || _executionSummary!.failures.isEmpty) return;
+    if (_executionSummary == null || _executionSummary!.failures.isEmpty) {
+      return;
+    }
     try {
       final csv = _engine.generateErrorReport(_executionSummary!);
       final bytes = Uint8List.fromList(utf8.encode(csv));

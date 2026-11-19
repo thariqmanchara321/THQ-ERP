@@ -73,7 +73,9 @@ class BusinessService {
         'p_gstin': gstin?.trim().isEmpty == true ? null : gstin?.trim().toUpperCase(),
       },
     );
-    if (result is! Map) throw Exception('Unexpected business creation response.');
+    if (result is! Map) {
+      throw Exception('Unexpected business creation response.');
+    }
     return Map<String, dynamic>.from(result);
   }
 
