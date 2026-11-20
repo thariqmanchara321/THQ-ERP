@@ -124,6 +124,46 @@ class OperationsIntelligenceService {
     return data is Map ? Map<String, dynamic>.from(data) : <String, dynamic>{};
   }
 
+  Future<Map<String, dynamic>> financialIntelligence({
+    required String tenantId,
+    String? locationId,
+    int days = 30,
+    String query = '',
+  }) async {
+    final data = await _api.call(
+      ThqApiRequest(
+        tenantId: tenantId,
+        resource: 'financial-intelligence',
+        payload: {
+          'location_id': locationId,
+          'days': days,
+          'query': query,
+        },
+      ),
+    );
+    return data is Map ? Map<String, dynamic>.from(data) : <String, dynamic>{};
+  }
+
+  Future<Map<String, dynamic>> expenseIntelligence({
+    required String tenantId,
+    String? locationId,
+    int days = 30,
+    String query = '',
+  }) async {
+    final data = await _api.call(
+      ThqApiRequest(
+        tenantId: tenantId,
+        resource: 'expense-intelligence',
+        payload: {
+          'location_id': locationId,
+          'days': days,
+          'query': query,
+        },
+      ),
+    );
+    return data is Map ? Map<String, dynamic>.from(data) : <String, dynamic>{};
+  }
+
   Future<List<Map<String, dynamic>>> inventory({
     required String tenantId,
     String? locationId,

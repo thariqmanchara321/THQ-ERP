@@ -156,6 +156,10 @@ class _OperationsIntelligenceScreenState
       const SectionState(data: []);
   SectionState<List<Map<String, dynamic>>> _rebalancingState =
       const SectionState(data: []);
+  SectionState<Map<String, dynamic>> _financialIntelligenceState =
+      const SectionState(data: {});
+  SectionState<Map<String, dynamic>> _expenseIntelligenceState =
+      const SectionState(data: {});
 
   final Set<String> _selectedReorder = <String>{};
   final Set<String> _selectedProcurement = <String>{};
@@ -171,19 +175,23 @@ class _OperationsIntelligenceScreenState
   String _supplierRiskFilter = 'all';
   String _procurementUrgencyFilter = 'all';
   String _procurementViewMode = 'recommendations';
+  String _financialSubTab = 'overview';
+  String _expenseSubTab = 'categories';
 
   String get _tenantId => widget.session.business.id;
   String? get _locationId => LocationScopeService.selectedLocationId.value;
   bool get _canViewCost =>
       widget.session.hasRole('owner') ||
       widget.session.hasPermission('inventory.view_cost') ||
-      widget.session.hasPermission('inventory.manage');
+      widget.session.hasPermission('inventory.manage') ||
+      widget.session.hasPermission('accounting.view') ||
+      widget.session.hasPermission('reports.view');
   bool get _isMultiLocation => widget.session.locations.length > 1;
 
   @override
   void initState() {
     super.initState();
-    final tabCount = 7;
+    final tabCount = 9;
     final initial = (widget.initialTab ?? 0).clamp(0, tabCount - 1);
     _tabs = TabController(length: tabCount, vsync: this, initialIndex: initial);
     _tabs.addListener(() {
@@ -192,6 +200,17 @@ class _OperationsIntelligenceScreenState
 
     LocationScopeService.selectedLocationId.addListener(_onLocationScopeChanged);
     _loadAll();
+  }
+
+  @override
+  void didUpdateWidget(OperationsIntelligenceScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.initialTab != null && widget.initialTab != oldWidget.initialTab) {
+      final target = widget.initialTab!.clamp(0, _tabs.length - 1);
+      if (_tabs.index != target) {
+        _tabs.animateTo(target);
+      }
+    }
   }
 
   @override
@@ -222,8 +241,46 @@ class _OperationsIntelligenceScreenState
     _loadSupplierPayables(seq);
     _loadReorder(seq);
     _loadPurchaseOrders(seq);
+    _loadFinancialIntelligence(seq);
+    _loadExpenseIntelligence(seq);
     if (_isMultiLocation && _locationId == null) {
       _loadStoreComparison(seq);
+    }
+  }
+
+  Future<void> _loadFinancialIntelligence([int? seq]) async {
+    final currentSeq = seq ?? ++_requestSequence;
+    setState(() => _financialIntelligenceState = _financialIntelligenceState.toLoading());
+    try {
+      final data = await _service.financialIntelligence(
+        tenantId: _tenantId,
+        locationId: _locationId,
+        days: _selectedPeriod.days,
+      );
+      if (!mounted || currentSeq != _requestSequence) return;
+      setState(() => _financialIntelligenceState = _financialIntelligenceState.toSuccess(data));
+    } catch (e) {
+      if (!mounted || currentSeq != _requestSequence) return;
+      setState(() => _financialIntelligenceState = _financialIntelligenceState.toError(e.toString()));
+    }
+  }
+
+  Future<void> _loadExpenseIntelligence([int? seq]) async {
+    final currentSeq = seq ?? ++_requestSequence;
+    setState(() => _expenseIntelligenceState = _expenseIntelligenceState.toLoading());
+    try {
+      final query = _search.text.trim();
+      final data = await _service.expenseIntelligence(
+        tenantId: _tenantId,
+        locationId: _locationId,
+        days: _selectedPeriod.days,
+        query: query,
+      );
+      if (!mounted || currentSeq != _requestSequence) return;
+      setState(() => _expenseIntelligenceState = _expenseIntelligenceState.toSuccess(data));
+    } catch (e) {
+      if (!mounted || currentSeq != _requestSequence) return;
+      setState(() => _expenseIntelligenceState = _expenseIntelligenceState.toError(e.toString()));
     }
   }
 
@@ -620,6 +677,38 @@ class _OperationsIntelligenceScreenState
                 ],
               ),
             ),
+            Tab(
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text('Financial Intelligence'),
+                  if (_financialIntelligenceState.loading) ...[
+                    const SizedBox(width: 6),
+                    const SizedBox(
+                      width: 10,
+                      height: 10,
+                      child: CircularProgressIndicator(strokeWidth: 1.5),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            Tab(
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text('Expense Intelligence'),
+                  if (_expenseIntelligenceState.loading) ...[
+                    const SizedBox(width: 6),
+                    const SizedBox(
+                      width: 10,
+                      height: 10,
+                      child: CircularProgressIndicator(strokeWidth: 1.5),
+                    ),
+                  ],
+                ],
+              ),
+            ),
           ],
         ),
         const Divider(height: 1),
@@ -634,6 +723,8 @@ class _OperationsIntelligenceScreenState
               _supplierIntelligenceTab(),
               _procurementIntelligenceTab(),
               _customerCreditTab(),
+              _financialIntelligenceTab(),
+              _expenseIntelligenceTab(),
             ],
           ),
         ),
@@ -5277,6 +5368,1640 @@ class _OperationsIntelligenceScreenState
         text.isEmpty ? '—' : text.toUpperCase(),
         style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600),
       ),
+    );
+  }
+
+  // =========================================================================
+  // TAB 7: Financial Intelligence (Phase 6)
+  // =========================================================================
+
+  Widget _financialIntelligenceTab() {
+    if (_financialIntelligenceState.loading &&
+        _financialIntelligenceState.data.isEmpty) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (_financialIntelligenceState.hasError &&
+        _financialIntelligenceState.data.isEmpty) {
+      return _sectionError(
+        'Financial Intelligence',
+        _financialIntelligenceState.error,
+        _loadFinancialIntelligence,
+      );
+    }
+
+    final data = _financialIntelligenceState.data;
+    final perf = Map<String, dynamic>.from(data['performance'] as Map? ?? const {});
+    final rev = Map<String, dynamic>.from(perf['revenue'] as Map? ?? const {});
+    final cogs = Map<String, dynamic>.from(perf['cogs'] as Map? ?? const {});
+    final gp = Map<String, dynamic>.from(perf['gross_profit'] as Map? ?? const {});
+    final opex = Map<String, dynamic>.from(perf['operating_expenses'] as Map? ?? const {});
+    final op = Map<String, dynamic>.from(perf['operating_profit'] as Map? ?? const {});
+    final np = Map<String, dynamic>.from(perf['net_profit'] as Map? ?? const {});
+
+    final cashFlow = Map<String, dynamic>.from(data['cash_flow'] as Map? ?? const {});
+    final workingCap = Map<String, dynamic>.from(data['working_capital'] as Map? ?? const {});
+    final tbHealth = Map<String, dynamic>.from(data['trial_balance_health'] as Map? ?? const {});
+    final tax = Map<String, dynamic>.from(data['tax_intelligence'] as Map? ?? const {});
+    final anomalies = (data['anomalies'] as List? ?? const [])
+        .whereType<Map>()
+        .map((e) => Map<String, dynamic>.from(e))
+        .toList();
+    final projections = Map<String, dynamic>.from(data['projections_30d'] as Map? ?? const {});
+
+    final isBalanced = tbHealth['is_balanced'] == true;
+    final netProfitVal = _n(np['current']);
+    final isLoss = netProfitVal < 0;
+
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(18, 14, 18, 24),
+      children: [
+        if (_financialIntelligenceState.hasError)
+          _sectionError(
+            'Financial Intelligence (cached view)',
+            _financialIntelligenceState.error,
+            _loadFinancialIntelligence,
+          ),
+
+        // Sub-navigation ChoiceChips
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: [
+              ChoiceChip(
+                label: const Text('P&L Overview'),
+                selected: _financialSubTab == 'overview',
+                onSelected: (_) => setState(() => _financialSubTab = 'overview'),
+              ),
+              const SizedBox(width: 8),
+              ChoiceChip(
+                label: const Text('Cash Flow'),
+                selected: _financialSubTab == 'cash_flow',
+                onSelected: (_) => setState(() => _financialSubTab = 'cash_flow'),
+              ),
+              const SizedBox(width: 8),
+              ChoiceChip(
+                label: const Text('Working Capital'),
+                selected: _financialSubTab == 'working_capital',
+                onSelected: (_) => setState(() => _financialSubTab = 'working_capital'),
+              ),
+              const SizedBox(width: 8),
+              ChoiceChip(
+                label: const Text('Trial Balance & Ledger'),
+                selected: _financialSubTab == 'trial_balance',
+                onSelected: (_) => setState(() => _financialSubTab = 'trial_balance'),
+              ),
+              const SizedBox(width: 8),
+              ChoiceChip(
+                label: const Text('Tax & GST'),
+                selected: _financialSubTab == 'tax',
+                onSelected: (_) => setState(() => _financialSubTab = 'tax'),
+              ),
+              const SizedBox(width: 8),
+              ChoiceChip(
+                label: Text('Risk & Anomalies (${anomalies.length})'),
+                selected: _financialSubTab == 'anomalies',
+                onSelected: (_) => setState(() => _financialSubTab = 'anomalies'),
+              ),
+              const SizedBox(width: 8),
+              ChoiceChip(
+                label: const Text('30D Projections'),
+                selected: _financialSubTab == 'projections',
+                onSelected: (_) => setState(() => _financialSubTab = 'projections'),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 14),
+
+        // Executive KPI Banner
+        Wrap(
+          spacing: 12,
+          runSpacing: 12,
+          children: [
+            _metricCard(
+              title: 'Operating Revenue',
+              value: _canViewCost ? _money(rev['current']) : '—',
+              icon: Icons.monetization_on_outlined,
+              isRestricted: !_canViewCost,
+              extraLabel: '${_n(rev['growth_pct']).toStringAsFixed(1)}% vs prev',
+            ),
+            _metricCard(
+              title: 'Cost of Goods Sold (COGS)',
+              value: _canViewCost ? _money(cogs['current']) : '—',
+              icon: Icons.inventory_outlined,
+              isRestricted: !_canViewCost,
+              extraLabel: '${_n(cogs['growth_pct']).toStringAsFixed(1)}% vs prev',
+            ),
+            _metricCard(
+              title: 'Gross Profit',
+              value: _canViewCost ? _money(gp['current']) : '—',
+              icon: Icons.trending_up_outlined,
+              isRestricted: !_canViewCost,
+              extraLabel: '${_n(gp['margin_pct']).toStringAsFixed(1)}% margin',
+            ),
+            _metricCard(
+              title: 'Operating Expenses',
+              value: _canViewCost ? _money(opex['current']) : '—',
+              icon: Icons.receipt_long_outlined,
+              isRestricted: !_canViewCost,
+              extraLabel: '${_n(opex['growth_pct']).toStringAsFixed(1)}% vs prev',
+            ),
+            _metricCard(
+              title: 'Operating Profit (EBIT)',
+              value: _canViewCost ? _money(op['current']) : '—',
+              icon: Icons.account_balance_outlined,
+              isRestricted: !_canViewCost,
+              extraLabel: '${_n(op['operating_margin_pct']).toStringAsFixed(1)}% op margin',
+            ),
+            _metricCard(
+              title: 'Net Profit',
+              value: _canViewCost ? _money(np['current']) : '—',
+              icon: isLoss ? Icons.trending_down : Icons.savings_outlined,
+              isWarning: isLoss,
+              isRestricted: !_canViewCost,
+              extraLabel: '${_n(np['net_margin_pct']).toStringAsFixed(1)}% net margin',
+            ),
+            _metricCard(
+              title: 'Trial Balance Health',
+              value: isBalanced ? 'BALANCED' : 'UNBALANCED',
+              icon: isBalanced ? Icons.check_circle_outline : Icons.error_outline,
+              isWarning: !isBalanced,
+              extraLabel: 'Diff: ${_money(tbHealth['difference'])}',
+            ),
+            _metricCard(
+              title: 'Net Working Capital',
+              value: _canViewCost ? _money(workingCap['net_working_capital']) : '—',
+              icon: Icons.balance_outlined,
+              isRestricted: !_canViewCost,
+              extraLabel: 'CR: ${_n(workingCap['current_ratio']).toStringAsFixed(2)}x',
+            ),
+          ],
+        ),
+        const SizedBox(height: 18),
+
+        // Sub-view Body
+        if (_financialSubTab == 'overview') ...[
+          _plStatementCard(perf),
+          const SizedBox(height: 18),
+          _liquiditySummaryCard(cashFlow, workingCap),
+        ] else if (_financialSubTab == 'cash_flow') ...[
+          _cashFlowTabContent(cashFlow),
+        ] else if (_financialSubTab == 'working_capital') ...[
+          _workingCapitalTabContent(workingCap),
+        ] else if (_financialSubTab == 'trial_balance') ...[
+          _trialBalanceTabContent(tbHealth),
+        ] else if (_financialSubTab == 'tax') ...[
+          _taxIntelligenceTabContent(tax),
+        ] else if (_financialSubTab == 'anomalies') ...[
+          _financialAnomaliesTabContent(anomalies),
+        ] else if (_financialSubTab == 'projections') ...[
+          _financialProjectionsTabContent(projections),
+        ],
+      ],
+    );
+  }
+
+  Widget _plStatementCard(Map<String, dynamic> perf) {
+    final rev = Map<String, dynamic>.from(perf['revenue'] as Map? ?? const {});
+    final cogs = Map<String, dynamic>.from(perf['cogs'] as Map? ?? const {});
+    final gp = Map<String, dynamic>.from(perf['gross_profit'] as Map? ?? const {});
+    final opex = Map<String, dynamic>.from(perf['operating_expenses'] as Map? ?? const {});
+    final op = Map<String, dynamic>.from(perf['operating_profit'] as Map? ?? const {});
+    final otherInc = Map<String, dynamic>.from(perf['other_income'] as Map? ?? const {});
+    final otherExp = Map<String, dynamic>.from(perf['other_expenses'] as Map? ?? const {});
+    final np = Map<String, dynamic>.from(perf['net_profit'] as Map? ?? const {});
+
+    final rows = [
+      ['Operating Revenue (Sales)', rev['current'], rev['prior'], rev['growth_pct'], '100.0% of revenue'],
+      ['Cost of Goods Sold (COGS)', cogs['current'], cogs['prior'], cogs['growth_pct'], 'Cost of inventory'],
+      ['Gross Profit', gp['current'], gp['prior'], gp['growth_pct'], '${_n(gp['margin_pct']).toStringAsFixed(1)}% margin'],
+      ['Operating Expenses (Opex)', opex['current'], opex['prior'], opex['growth_pct'], 'General & Admin'],
+      ['Operating Profit (EBIT)', op['current'], op['prior'], op['growth_pct'], '${_n(op['operating_margin_pct']).toStringAsFixed(1)}% margin'],
+      ['Other Income', otherInc['current'], otherInc['prior'], otherInc['growth_pct'], 'Non-operating'],
+      ['Other Expenses', otherExp['current'], otherExp['prior'], otherExp['growth_pct'], 'Financial & other'],
+      ['Net Profit / (Loss)', np['current'], np['prior'], np['growth_pct'], '${_n(np['net_margin_pct']).toStringAsFixed(1)}% margin'],
+    ];
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.table_chart_outlined, size: 20),
+                const SizedBox(width: 8),
+                const Text(
+                  'Profit & Loss Statement (Posted Ledger)',
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                ),
+                const Spacer(),
+                Text(
+                  'Window: ${_selectedPeriod.label}',
+                  style: const TextStyle(fontSize: 12, color: Colors.grey),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: DataTable(
+                columns: const [
+                  DataColumn(label: Text('Line Item', style: TextStyle(fontWeight: FontWeight.w600))),
+                  DataColumn(label: Text('Current Window', style: TextStyle(fontWeight: FontWeight.w600))),
+                  DataColumn(label: Text('Prior Window', style: TextStyle(fontWeight: FontWeight.w600))),
+                  DataColumn(label: Text('Growth %', style: TextStyle(fontWeight: FontWeight.w600))),
+                  DataColumn(label: Text('Margin / Benchmark', style: TextStyle(fontWeight: FontWeight.w600))),
+                ],
+                rows: rows.map((r) {
+                  final label = r[0] as String;
+                  final curVal = r[1];
+                  final priorVal = r[2];
+                  final growth = _n(r[3]);
+                  final notes = r[4] as String;
+                  final isNet = label.startsWith('Net Profit');
+                  final isGross = label.startsWith('Gross Profit');
+
+                  return DataRow(
+                    cells: [
+                      DataCell(Text(
+                        label,
+                        style: TextStyle(
+                          fontWeight: (isNet || isGross) ? FontWeight.bold : FontWeight.normal,
+                          color: isNet && _n(curVal) < 0 ? Theme.of(context).colorScheme.error : null,
+                        ),
+                      )),
+                      DataCell(Text(
+                        _canViewCost ? _money(curVal) : '—',
+                        style: TextStyle(
+                          fontWeight: (isNet || isGross) ? FontWeight.bold : FontWeight.normal,
+                        ),
+                      )),
+                      DataCell(Text(
+                        _canViewCost ? _money(priorVal) : '—',
+                        style: const TextStyle(color: Colors.grey),
+                      )),
+                      DataCell(
+                        _canViewCost
+                            ? Text(
+                                '${growth >= 0 ? '+' : ''}${growth.toStringAsFixed(1)}%',
+                                style: TextStyle(
+                                  color: growth > 0
+                                      ? Colors.green.shade700
+                                      : growth < 0
+                                          ? Colors.red.shade700
+                                          : Colors.grey,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              )
+                            : const Text('—'),
+                      ),
+                      DataCell(Text(notes, style: const TextStyle(fontSize: 12, color: Colors.grey))),
+                    ],
+                  );
+                }).toList(),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _liquiditySummaryCard(Map<String, dynamic> cashFlow, Map<String, dynamic> workingCap) {
+    final cash = Map<String, dynamic>.from(cashFlow['cash'] as Map? ?? const {});
+    final bank = Map<String, dynamic>.from(cashFlow['bank'] as Map? ?? const {});
+    final totalLiquidity = _n(cash['closing_balance']) + _n(bank['closing_balance']);
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Row(
+              children: [
+                Icon(Icons.water_drop_outlined, size: 20),
+                SizedBox(width: 8),
+                Text(
+                  'Liquidity & Balance Sheet Assets',
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              children: [
+                _metricCard(
+                  title: 'Total Cash & Bank Liquidity',
+                  value: _canViewCost ? _money(totalLiquidity) : '—',
+                  icon: Icons.account_balance,
+                  isRestricted: !_canViewCost,
+                  extraLabel: 'Cash: ${_canViewCost ? _money(cash['closing_balance']) : '—'} | Bank: ${_canViewCost ? _money(bank['closing_balance']) : '—'}',
+                ),
+                _metricCard(
+                  title: 'Inventory Asset Valuation',
+                  value: _canViewCost ? _money(workingCap['inventory_valuation']) : '—',
+                  icon: Icons.inventory_2_outlined,
+                  isRestricted: !_canViewCost,
+                ),
+                _metricCard(
+                  title: 'Accounts Receivable (AR)',
+                  value: _canViewCost ? _money(workingCap['accounts_receivable']) : '—',
+                  icon: Icons.call_received_outlined,
+                  isRestricted: !_canViewCost,
+                ),
+                _metricCard(
+                  title: 'Accounts Payable (AP)',
+                  value: _canViewCost ? _money(workingCap['accounts_payable']) : '—',
+                  icon: Icons.call_made_outlined,
+                  isRestricted: !_canViewCost,
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _cashFlowTabContent(Map<String, dynamic> cashFlow) {
+    final cash = Map<String, dynamic>.from(cashFlow['cash'] as Map? ?? const {});
+    final bank = Map<String, dynamic>.from(cashFlow['bank'] as Map? ?? const {});
+    final contra = Map<String, dynamic>.from(cashFlow['contra_transfers'] as Map? ?? const {});
+    final dailyFlow = (cashFlow['daily_flow'] as List? ?? const [])
+        .whereType<Map>()
+        .map((e) => Map<String, dynamic>.from(e))
+        .toList();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Row(
+                  children: [
+                    Icon(Icons.compare_arrows_outlined, size: 20),
+                    SizedBox(width: 8),
+                    Text(
+                      'Cash vs. Bank Flow Analysis',
+                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: DataTable(
+                    columns: const [
+                      DataColumn(label: Text('Account / Channel', style: TextStyle(fontWeight: FontWeight.w600))),
+                      DataColumn(label: Text('Opening Balance', style: TextStyle(fontWeight: FontWeight.w600))),
+                      DataColumn(label: Text('Inflows (Received)', style: TextStyle(fontWeight: FontWeight.w600))),
+                      DataColumn(label: Text('Outflows (Paid)', style: TextStyle(fontWeight: FontWeight.w600))),
+                      DataColumn(label: Text('Net Change', style: TextStyle(fontWeight: FontWeight.w600))),
+                      DataColumn(label: Text('Closing Balance', style: TextStyle(fontWeight: FontWeight.w600))),
+                    ],
+                    rows: [
+                      DataRow(cells: [
+                        const DataCell(Text('Cash on Hand', style: TextStyle(fontWeight: FontWeight.bold))),
+                        DataCell(Text(_canViewCost ? _money(cash['opening_balance']) : '—')),
+                        DataCell(Text(_canViewCost ? _money(cash['received']) : '—', style: TextStyle(color: Colors.green.shade700))),
+                        DataCell(Text(_canViewCost ? _money(cash['paid']) : '—', style: TextStyle(color: Colors.red.shade700))),
+                        DataCell(Text(_canViewCost ? _money(cash['net_change']) : '—', style: const TextStyle(fontWeight: FontWeight.w600))),
+                        DataCell(Text(_canViewCost ? _money(cash['closing_balance']) : '—', style: const TextStyle(fontWeight: FontWeight.bold))),
+                      ]),
+                      DataRow(cells: [
+                        const DataCell(Text('Bank Accounts', style: TextStyle(fontWeight: FontWeight.bold))),
+                        DataCell(Text(_canViewCost ? _money(bank['opening_balance']) : '—')),
+                        DataCell(Text(_canViewCost ? _money(bank['received']) : '—', style: TextStyle(color: Colors.green.shade700))),
+                        DataCell(Text(_canViewCost ? _money(bank['paid']) : '—', style: TextStyle(color: Colors.red.shade700))),
+                        DataCell(Text(_canViewCost ? _money(bank['net_change']) : '—', style: const TextStyle(fontWeight: FontWeight.w600))),
+                        DataCell(Text(_canViewCost ? _money(bank['closing_balance']) : '—', style: const TextStyle(fontWeight: FontWeight.bold))),
+                      ]),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.35),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.sync_alt, size: 16, color: Colors.grey),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Contra Transfers: Cash to Bank: ${_canViewCost ? _money(contra['cash_to_bank']) : '—'} | Bank to Cash: ${_canViewCost ? _money(contra['bank_to_cash']) : '—'} | Net Liquidity Change: ${_canViewCost ? _money(cashFlow['net_liquidity_change']) : '—'}',
+                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 18),
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.calendar_month_outlined, size: 20),
+                    const SizedBox(width: 8),
+                    const Text(
+                      'Daily Cash & Bank Flow Timeline',
+                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                    ),
+                    const Spacer(),
+                    Text(
+                      '${dailyFlow.length} days recorded',
+                      style: const TextStyle(fontSize: 12, color: Colors.grey),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                if (dailyFlow.isEmpty)
+                  const Padding(
+                    padding: EdgeInsets.all(16),
+                    child: Center(child: Text('No daily cash flow entries in this period.', style: TextStyle(color: Colors.grey))),
+                  )
+                else
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: DataTable(
+                      columns: const [
+                        DataColumn(label: Text('Date', style: TextStyle(fontWeight: FontWeight.w600))),
+                        DataColumn(label: Text('Cash In', style: TextStyle(fontWeight: FontWeight.w600))),
+                        DataColumn(label: Text('Cash Out', style: TextStyle(fontWeight: FontWeight.w600))),
+                        DataColumn(label: Text('Bank In', style: TextStyle(fontWeight: FontWeight.w600))),
+                        DataColumn(label: Text('Bank Out', style: TextStyle(fontWeight: FontWeight.w600))),
+                        DataColumn(label: Text('Net Movement', style: TextStyle(fontWeight: FontWeight.w600))),
+                      ],
+                      rows: dailyFlow.map((d) {
+                        final net = _n(d['net']);
+                        return DataRow(cells: [
+                          DataCell(Text(d['date']?.toString() ?? '')),
+                          DataCell(Text(_canViewCost ? _money(d['cash_in']) : '—')),
+                          DataCell(Text(_canViewCost ? _money(d['cash_out']) : '—')),
+                          DataCell(Text(_canViewCost ? _money(d['bank_in']) : '—')),
+                          DataCell(Text(_canViewCost ? _money(d['bank_out']) : '—')),
+                          DataCell(
+                            Text(
+                              _canViewCost ? _money(net) : '—',
+                              style: TextStyle(
+                                color: net > 0
+                                    ? Colors.green.shade700
+                                    : net < 0
+                                        ? Colors.red.shade700
+                                        : null,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ]);
+                      }).toList(),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _workingCapitalTabContent(Map<String, dynamic> workingCap) {
+    final arAging = Map<String, dynamic>.from(workingCap['receivables_aging'] as Map? ?? const {});
+    final apAging = Map<String, dynamic>.from(workingCap['payables_aging'] as Map? ?? const {});
+    final topDebtors = (workingCap['top_debtors'] as List? ?? const [])
+        .whereType<Map>()
+        .map((e) => Map<String, dynamic>.from(e))
+        .toList();
+    final topCreditors = (workingCap['top_creditors'] as List? ?? const [])
+        .whereType<Map>()
+        .map((e) => Map<String, dynamic>.from(e))
+        .toList();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Row(
+                  children: [
+                    Icon(Icons.pie_chart_outline, size: 20),
+                    SizedBox(width: 8),
+                    Text(
+                      'Working Capital Composition',
+                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'Working Capital = Inventory (${_canViewCost ? _money(workingCap['inventory_valuation']) : '—'}) + Accounts Receivable (${_canViewCost ? _money(workingCap['accounts_receivable']) : '—'}) - Accounts Payable (${_canViewCost ? _money(workingCap['accounts_payable']) : '—'})',
+                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Net Working Capital: ${_canViewCost ? _money(workingCap['net_working_capital']) : '—'} | Current Ratio: ${_n(workingCap['current_ratio']).toStringAsFixed(2)}x (Benchmark: ≥ 1.2x)',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: _n(workingCap['current_ratio']) < 1.0 ? Colors.red.shade700 : Colors.grey.shade700,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 18),
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Accounts Receivable (AR) vs. Accounts Payable (AP) Aging Breakdown',
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 14),
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: DataTable(
+                    columns: const [
+                      DataColumn(label: Text('Category', style: TextStyle(fontWeight: FontWeight.w600))),
+                      DataColumn(label: Text('Current (0–30)', style: TextStyle(fontWeight: FontWeight.w600))),
+                      DataColumn(label: Text('31–60 Days', style: TextStyle(fontWeight: FontWeight.w600))),
+                      DataColumn(label: Text('61–90 Days', style: TextStyle(fontWeight: FontWeight.w600))),
+                      DataColumn(label: Text('90+ Days (Critical)', style: TextStyle(fontWeight: FontWeight.w600))),
+                      DataColumn(label: Text('Total Outstanding', style: TextStyle(fontWeight: FontWeight.w600))),
+                    ],
+                    rows: [
+                      DataRow(cells: [
+                        const DataCell(Text('Customer AR (Owed to Us)', style: TextStyle(fontWeight: FontWeight.bold))),
+                        DataCell(Text(_canViewCost ? _money(arAging['days_1_30']) : '—')),
+                        DataCell(Text(_canViewCost ? _money(arAging['days_31_60']) : '—')),
+                        DataCell(Text(_canViewCost ? _money(arAging['days_61_90']) : '—')),
+                        DataCell(Text(
+                          _canViewCost ? _money(arAging['days_90_plus']) : '—',
+                          style: TextStyle(
+                            color: _n(arAging['days_90_plus']) > 0 ? Colors.red.shade700 : null,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        )),
+                        DataCell(Text(_canViewCost ? _money(arAging['total']) : '—', style: const TextStyle(fontWeight: FontWeight.bold))),
+                      ]),
+                      DataRow(cells: [
+                        const DataCell(Text('Supplier AP (We Owe)', style: TextStyle(fontWeight: FontWeight.bold))),
+                        DataCell(Text(_canViewCost ? _money(apAging['days_1_30']) : '—')),
+                        DataCell(Text(_canViewCost ? _money(apAging['days_31_60']) : '—')),
+                        DataCell(Text(_canViewCost ? _money(apAging['days_61_90']) : '—')),
+                        DataCell(Text(
+                          _canViewCost ? _money(apAging['days_90_plus']) : '—',
+                          style: TextStyle(
+                            color: _n(apAging['days_90_plus']) > 0 ? Colors.orange.shade800 : null,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        )),
+                        DataCell(Text(_canViewCost ? _money(apAging['total']) : '—', style: const TextStyle(fontWeight: FontWeight.bold))),
+                      ]),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 18),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Top Customer Debtors',
+                        style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                      ),
+                      const SizedBox(height: 12),
+                      if (topDebtors.isEmpty)
+                        const Text('No debtors with outstanding balance.', style: TextStyle(color: Colors.grey))
+                      else
+                        SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: DataTable(
+                            columns: const [
+                              DataColumn(label: Text('Customer')),
+                              DataColumn(label: Text('Balance')),
+                              DataColumn(label: Text('Share %')),
+                            ],
+                            rows: topDebtors.map((d) => DataRow(cells: [
+                              DataCell(Text(d['name']?.toString() ?? '')),
+                              DataCell(Text(_canViewCost ? _money(d['balance']) : '—')),
+                              DataCell(Text('${_n(d['share_pct']).toStringAsFixed(1)}%')),
+                            ])).toList(),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Top Supplier Creditors',
+                        style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                      ),
+                      const SizedBox(height: 12),
+                      if (topCreditors.isEmpty)
+                        const Text('No creditors with outstanding balance.', style: TextStyle(color: Colors.grey))
+                      else
+                        SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: DataTable(
+                            columns: const [
+                              DataColumn(label: Text('Supplier')),
+                              DataColumn(label: Text('Balance')),
+                              DataColumn(label: Text('Share %')),
+                            ],
+                            rows: topCreditors.map((c) => DataRow(cells: [
+                              DataCell(Text(c['name']?.toString() ?? '')),
+                              DataCell(Text(_canViewCost ? _money(c['balance']) : '—')),
+                              DataCell(Text('${_n(c['share_pct']).toStringAsFixed(1)}%')),
+                            ])).toList(),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _trialBalanceTabContent(Map<String, dynamic> tbHealth) {
+    final groups = (tbHealth['account_groups'] as List? ?? const [])
+        .whereType<Map>()
+        .map((e) => Map<String, dynamic>.from(e))
+        .toList();
+    final isBalanced = tbHealth['is_balanced'] == true;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(
+                      isBalanced ? Icons.verified : Icons.warning_amber_rounded,
+                      color: isBalanced ? Colors.green.shade700 : Theme.of(context).colorScheme.error,
+                      size: 24,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Double-Entry Trial Balance Verification: ${isBalanced ? "BALANCED" : "UNBALANCED"}',
+                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 12,
+                  children: [
+                    _metricCard(
+                      title: 'Total Debits',
+                      value: _canViewCost ? _money(tbHealth['total_debits']) : '—',
+                      icon: Icons.add_circle_outline,
+                      isRestricted: !_canViewCost,
+                    ),
+                    _metricCard(
+                      title: 'Total Credits',
+                      value: _canViewCost ? _money(tbHealth['total_credits']) : '—',
+                      icon: Icons.remove_circle_outline,
+                      isRestricted: !_canViewCost,
+                    ),
+                    _metricCard(
+                      title: 'Debit / Credit Difference',
+                      value: _canViewCost ? _money(tbHealth['difference']) : '—',
+                      icon: Icons.compare_arrows,
+                      isWarning: !isBalanced,
+                      isRestricted: !_canViewCost,
+                    ),
+                    _metricCard(
+                      title: 'Posted Journal Entries',
+                      value: ((tbHealth['posted_entry_count'] as num?)?.toInt() ?? 0).toString(),
+                      icon: Icons.receipt_long,
+                      extraLabel: 'Status = posted',
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 18),
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Account Groups Trial Balance Summary',
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 14),
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: DataTable(
+                    columns: const [
+                      DataColumn(label: Text('Group Type', style: TextStyle(fontWeight: FontWeight.w600))),
+                      DataColumn(label: Text('Total Debits', style: TextStyle(fontWeight: FontWeight.w600))),
+                      DataColumn(label: Text('Total Credits', style: TextStyle(fontWeight: FontWeight.w600))),
+                      DataColumn(label: Text('Net Balance', style: TextStyle(fontWeight: FontWeight.w600))),
+                      DataColumn(label: Text('Active Accounts', style: TextStyle(fontWeight: FontWeight.w600))),
+                    ],
+                    rows: groups.map((g) => DataRow(cells: [
+                      DataCell(Text(g['type']?.toString().toUpperCase() ?? '', style: const TextStyle(fontWeight: FontWeight.bold))),
+                      DataCell(Text(_canViewCost ? _money(g['debit_total']) : '—')),
+                      DataCell(Text(_canViewCost ? _money(g['credit_total']) : '—')),
+                      DataCell(Text(_canViewCost ? _money(g['net_balance']) : '—', style: const TextStyle(fontWeight: FontWeight.w600))),
+                      DataCell(Text(g['count']?.toString() ?? '0')),
+                    ])).toList(),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _taxIntelligenceTabContent(Map<String, dynamic> tax) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Row(
+                  children: [
+                    Icon(Icons.receipt, size: 20),
+                    SizedBox(width: 8),
+                    Text(
+                      'GST & Tax Position Analysis',
+                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 12,
+                  children: [
+                    _metricCard(
+                      title: 'Output Tax (Collected)',
+                      value: _canViewCost ? _money(tax['output_tax']) : '—',
+                      icon: Icons.call_made,
+                      isRestricted: !_canViewCost,
+                      extraLabel: 'From taxable sales',
+                    ),
+                    _metricCard(
+                      title: 'Input Tax / ITC (Paid)',
+                      value: _canViewCost ? _money(tax['input_tax_itc']) : '—',
+                      icon: Icons.call_received,
+                      isRestricted: !_canViewCost,
+                      extraLabel: 'From purchases & expenses',
+                    ),
+                    _metricCard(
+                      title: 'Net Tax Liability',
+                      value: _canViewCost ? _money(tax['net_tax_liability']) : '—',
+                      icon: Icons.account_balance,
+                      isRestricted: !_canViewCost,
+                      isWarning: _n(tax['net_tax_liability']) > 0,
+                      extraLabel: _n(tax['net_tax_liability']) > 0 ? 'Payable to govt' : 'ITC credit forward',
+                    ),
+                    _metricCard(
+                      title: 'ITC Balance Carried Forward',
+                      value: _canViewCost ? _money(tax['itc_balance']) : '—',
+                      icon: Icons.savings,
+                      isRestricted: !_canViewCost,
+                      extraLabel: 'Available credit',
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _financialAnomaliesTabContent(List<Map<String, dynamic>> anomalies) {
+    if (anomalies.isEmpty) {
+      return const Card(
+        child: Padding(
+          padding: EdgeInsets.all(24),
+          child: Center(
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.check_circle_outline, color: Colors.green),
+                SizedBox(width: 10),
+                Text(
+                  'No financial anomalies or ledger imbalances detected in this period.',
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Column(
+      children: anomalies.map((a) {
+        final severity = a['severity']?.toString() ?? 'medium';
+        final isCritical = severity == 'critical';
+        final isHigh = severity == 'high';
+        final badgeColor = isCritical
+            ? Theme.of(context).colorScheme.error
+            : isHigh
+                ? Colors.orange.shade800
+                : Theme.of(context).colorScheme.primary;
+
+        return Card(
+          margin: const EdgeInsets.only(bottom: 12),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: badgeColor.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: badgeColor.withValues(alpha: 0.4)),
+                      ),
+                      child: Text(
+                        severity.toUpperCase(),
+                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: badgeColor),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        a['title']?.toString() ?? '',
+                        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    if (a['impacted_amount'] != null && _n(a['impacted_amount']) > 0)
+                      Text(
+                        'Impact: ${_canViewCost ? _money(a['impacted_amount']) : '—'}',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                          color: Theme.of(context).colorScheme.error,
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  a['description']?.toString() ?? '',
+                  style: const TextStyle(fontSize: 13),
+                ),
+                if (a['recommendation'] != null) ...[
+                  const SizedBox(height: 8),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Icon(Icons.lightbulb_outline, size: 16, color: Colors.amber),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          a['recommendation']?.toString() ?? '',
+                          style: TextStyle(fontSize: 12, color: Colors.grey.shade700, fontStyle: FontStyle.italic),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ],
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  Widget _financialProjectionsTabContent(Map<String, dynamic> projections) {
+    final runRate = Map<String, dynamic>.from(projections['run_rate_basis'] as Map? ?? const {});
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Row(
+                  children: [
+                    Icon(Icons.online_prediction_outlined, size: 20),
+                    SizedBox(width: 8),
+                    Text(
+                      '30-Day Financial Projections (Deterministic Run-Rate)',
+                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 12,
+                  children: [
+                    _metricCard(
+                      title: 'Expected AR Collections (30D)',
+                      value: _canViewCost ? _money(projections['expected_collections']) : '—',
+                      icon: Icons.trending_up,
+                      isRestricted: !_canViewCost,
+                      extraLabel: 'From current & 1–30D receivables',
+                    ),
+                    _metricCard(
+                      title: 'Expected AP Payments (30D)',
+                      value: _canViewCost ? _money(projections['expected_payables']) : '—',
+                      icon: Icons.trending_down,
+                      isRestricted: !_canViewCost,
+                      extraLabel: 'Due to suppliers in next 30 days',
+                    ),
+                    _metricCard(
+                      title: 'Projected Monthly Expense Burn',
+                      value: _canViewCost ? _money(projections['projected_monthly_burn']) : '—',
+                      icon: Icons.local_fire_department_outlined,
+                      isRestricted: !_canViewCost,
+                      extraLabel: 'Based on 30-day operating opex',
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 18),
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Daily Run-Rate Baseline Parameters',
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 14),
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: DataTable(
+                    columns: const [
+                      DataColumn(label: Text('Metric')),
+                      DataColumn(label: Text('Daily Average')),
+                      DataColumn(label: Text('Description')),
+                    ],
+                    rows: [
+                      DataRow(cells: [
+                        const DataCell(Text('Average Daily Revenue', style: TextStyle(fontWeight: FontWeight.bold))),
+                        DataCell(Text(_canViewCost ? _money(runRate['avg_daily_revenue']) : '—')),
+                        const DataCell(Text('Calculated as net revenue / period days')),
+                      ]),
+                      DataRow(cells: [
+                        const DataCell(Text('Average Daily Operating Expense', style: TextStyle(fontWeight: FontWeight.bold))),
+                        DataCell(Text(_canViewCost ? _money(runRate['avg_daily_expense']) : '—')),
+                        const DataCell(Text('Calculated as opex / period days')),
+                      ]),
+                      DataRow(cells: [
+                        const DataCell(Text('Net Daily Cash Flow Rate', style: TextStyle(fontWeight: FontWeight.bold))),
+                        DataCell(Text(_canViewCost ? _money(runRate['net_daily_cashflow']) : '—')),
+                        const DataCell(Text('Daily cash inflow minus outflow')),
+                      ]),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // =========================================================================
+  // TAB 8: Expense Intelligence (Phase 6)
+  // =========================================================================
+
+  Widget _expenseIntelligenceTab() {
+    if (_expenseIntelligenceState.loading &&
+        _expenseIntelligenceState.data.isEmpty) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (_expenseIntelligenceState.hasError &&
+        _expenseIntelligenceState.data.isEmpty) {
+      return _sectionError(
+        'Expense Intelligence',
+        _expenseIntelligenceState.error,
+        _loadExpenseIntelligence,
+      );
+    }
+
+    final data = _expenseIntelligenceState.data;
+    final summary = Map<String, dynamic>.from(data['summary'] as Map? ?? const {});
+    final byCat = (data['by_category'] as List? ?? const [])
+        .whereType<Map>()
+        .map((e) => Map<String, dynamic>.from(e))
+        .toList();
+    final trends = Map<String, dynamic>.from(data['trends'] as Map? ?? const {});
+    final dailyTrends = (trends['daily'] as List? ?? const [])
+        .whereType<Map>()
+        .map((e) => Map<String, dynamic>.from(e))
+        .toList();
+    final byPayee = (data['by_payee'] as List? ?? const [])
+        .whereType<Map>()
+        .map((e) => Map<String, dynamic>.from(e))
+        .toList();
+    final byLoc = (data['by_location'] as List? ?? const [])
+        .whereType<Map>()
+        .map((e) => Map<String, dynamic>.from(e))
+        .toList();
+    final recurring = (data['recurring_expenses'] as List? ?? const [])
+        .whereType<Map>()
+        .map((e) => Map<String, dynamic>.from(e))
+        .toList();
+    final anomalies = (data['anomalies'] as List? ?? const [])
+        .whereType<Map>()
+        .map((e) => Map<String, dynamic>.from(e))
+        .toList();
+
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(18, 14, 18, 24),
+      children: [
+        if (_expenseIntelligenceState.hasError)
+          _sectionError(
+            'Expense Intelligence (cached view)',
+            _expenseIntelligenceState.error,
+            _loadExpenseIntelligence,
+          ),
+
+        // Sub-navigation ChoiceChips
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: [
+              ChoiceChip(
+                label: Text('By Category (${byCat.length})'),
+                selected: _expenseSubTab == 'categories',
+                onSelected: (_) => setState(() => _expenseSubTab = 'categories'),
+              ),
+              const SizedBox(width: 8),
+              ChoiceChip(
+                label: Text('Daily Trends (${dailyTrends.length})'),
+                selected: _expenseSubTab == 'trends',
+                onSelected: (_) => setState(() => _expenseSubTab = 'trends'),
+              ),
+              const SizedBox(width: 8),
+              ChoiceChip(
+                label: Text('Payees & Vendors (${byPayee.length})'),
+                selected: _expenseSubTab == 'payees',
+                onSelected: (_) => setState(() => _expenseSubTab = 'payees'),
+              ),
+              const SizedBox(width: 8),
+              ChoiceChip(
+                label: Text('Locations (${byLoc.length})'),
+                selected: _expenseSubTab == 'locations',
+                onSelected: (_) => setState(() => _expenseSubTab = 'locations'),
+              ),
+              const SizedBox(width: 8),
+              ChoiceChip(
+                label: Text('Recurring Expenses (${recurring.length})'),
+                selected: _expenseSubTab == 'recurring',
+                onSelected: (_) => setState(() => _expenseSubTab = 'recurring'),
+              ),
+              const SizedBox(width: 8),
+              ChoiceChip(
+                label: Text('Anomalies (${anomalies.length})'),
+                selected: _expenseSubTab == 'anomalies',
+                onSelected: (_) => setState(() => _expenseSubTab = 'anomalies'),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 14),
+
+        // Executive KPI Banner
+        Wrap(
+          spacing: 12,
+          runSpacing: 12,
+          children: [
+            _metricCard(
+              title: 'Total Expenses',
+              value: _canViewCost ? _money(summary['total_expenses']) : '—',
+              icon: Icons.receipt_long,
+              isRestricted: !_canViewCost,
+              extraLabel: '${_n(summary['growth_pct']).toStringAsFixed(1)}% vs prev',
+            ),
+            _metricCard(
+              title: 'Expense Transactions',
+              value: ((summary['transaction_count'] as num?)?.toInt() ?? 0).toString(),
+              icon: Icons.credit_card,
+            ),
+            _metricCard(
+              title: 'Average Daily Expense',
+              value: _canViewCost ? _money(summary['average_daily_expense']) : '—',
+              icon: Icons.calendar_today,
+              isRestricted: !_canViewCost,
+            ),
+            _metricCard(
+              title: 'Average Transaction Size',
+              value: _canViewCost ? _money(summary['average_transaction_size']) : '—',
+              icon: Icons.query_stats,
+              isRestricted: !_canViewCost,
+            ),
+            _metricCard(
+              title: 'Active Expense Categories',
+              value: ((summary['active_categories_count'] as num?)?.toInt() ?? 0).toString(),
+              icon: Icons.category,
+            ),
+          ],
+        ),
+        const SizedBox(height: 18),
+
+        // Sub-view Body
+        if (_expenseSubTab == 'categories') ...[
+          _expenseCategoriesCard(byCat),
+        ] else if (_expenseSubTab == 'trends') ...[
+          _expenseTrendsCard(dailyTrends),
+        ] else if (_expenseSubTab == 'payees') ...[
+          _expensePayeesCard(byPayee),
+        ] else if (_expenseSubTab == 'locations') ...[
+          _expenseLocationsCard(byLoc),
+        ] else if (_expenseSubTab == 'recurring') ...[
+          _expenseRecurringCard(recurring),
+        ] else if (_expenseSubTab == 'anomalies') ...[
+          _expenseAnomaliesCard(anomalies),
+        ],
+      ],
+    );
+  }
+
+  Widget _expenseCategoriesCard(List<Map<String, dynamic>> byCat) {
+    if (byCat.isEmpty) {
+      return const Card(
+        child: Padding(
+          padding: EdgeInsets.all(24),
+          child: Center(child: Text('No expenses recorded for this period.', style: TextStyle(color: Colors.grey))),
+        ),
+      );
+    }
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Expense Breakdown by Category',
+              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 14),
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: DataTable(
+                columns: const [
+                  DataColumn(label: Text('Category', style: TextStyle(fontWeight: FontWeight.w600))),
+                  DataColumn(label: Text('Current Spend', style: TextStyle(fontWeight: FontWeight.w600))),
+                  DataColumn(label: Text('Share %', style: TextStyle(fontWeight: FontWeight.w600))),
+                  DataColumn(label: Text('Transactions', style: TextStyle(fontWeight: FontWeight.w600))),
+                  DataColumn(label: Text('Prior Spend', style: TextStyle(fontWeight: FontWeight.w600))),
+                  DataColumn(label: Text('Growth %', style: TextStyle(fontWeight: FontWeight.w600))),
+                ],
+                rows: byCat.map((c) {
+                  final growth = _n(c['growth_pct']);
+                  return DataRow(cells: [
+                    DataCell(Text(c['category_name']?.toString() ?? '', style: const TextStyle(fontWeight: FontWeight.bold))),
+                    DataCell(Text(_canViewCost ? _money(c['current_spend']) : '—')),
+                    DataCell(Text('${_n(c['share_pct']).toStringAsFixed(1)}%')),
+                    DataCell(Text(c['transaction_count']?.toString() ?? '0')),
+                    DataCell(Text(_canViewCost ? _money(c['prior_spend']) : '—', style: const TextStyle(color: Colors.grey))),
+                    DataCell(
+                      _canViewCost
+                          ? Text(
+                              '${growth >= 0 ? '+' : ''}${growth.toStringAsFixed(1)}%',
+                              style: TextStyle(
+                                color: growth > 0 ? Colors.red.shade700 : Colors.green.shade700,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            )
+                          : const Text('—'),
+                    ),
+                  ]);
+                }).toList(),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _expenseTrendsCard(List<Map<String, dynamic>> dailyTrends) {
+    if (dailyTrends.isEmpty) {
+      return const Card(
+        child: Padding(
+          padding: EdgeInsets.all(24),
+          child: Center(child: Text('No daily expense records found.', style: TextStyle(color: Colors.grey))),
+        ),
+      );
+    }
+
+    final maxVal = dailyTrends.fold<double>(
+      0.0,
+      (max, d) => math.max(max, _n(d['expense_amount'])),
+    );
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.bar_chart, size: 20),
+                const SizedBox(width: 8),
+                const Text(
+                  'Daily Expense Trend Timeline',
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                ),
+                const Spacer(),
+                Text(
+                  'Peak Day: ${_canViewCost ? _money(maxVal) : '—'}',
+                  style: const TextStyle(fontSize: 12, color: Colors.grey),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              height: 140,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: dailyTrends.map((d) {
+                  final amount = _n(d['expense_amount']);
+                  final count = (d['transaction_count'] as num?)?.toInt() ?? 0;
+                  final heightFactor = maxVal > 0 ? (amount / maxVal).clamp(0.05, 1.0) : 0.05;
+
+                  return Expanded(
+                    child: Tooltip(
+                      message: '${d['date']}\nExpense: ${_canViewCost ? _money(amount) : '—'}\nTransactions: $count',
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 1.5),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            Container(
+                              height: 100 * heightFactor,
+                              decoration: BoxDecoration(
+                                color: amount > 0
+                                    ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.8)
+                                    : Theme.of(context).colorScheme.surfaceContainerHighest,
+                                borderRadius: const BorderRadius.vertical(top: Radius.circular(3)),
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              (d['date']?.toString() ?? '').split('-').last,
+                              style: const TextStyle(fontSize: 9, color: Colors.grey),
+                              maxLines: 1,
+                              overflow: TextOverflow.clip,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
+            const SizedBox(height: 16),
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: DataTable(
+                columns: const [
+                  DataColumn(label: Text('Date', style: TextStyle(fontWeight: FontWeight.w600))),
+                  DataColumn(label: Text('Expense Amount', style: TextStyle(fontWeight: FontWeight.w600))),
+                  DataColumn(label: Text('Transactions', style: TextStyle(fontWeight: FontWeight.w600))),
+                ],
+                rows: dailyTrends.map((d) => DataRow(cells: [
+                  DataCell(Text(d['date']?.toString() ?? '')),
+                  DataCell(Text(_canViewCost ? _money(d['expense_amount']) : '—')),
+                  DataCell(Text(d['transaction_count']?.toString() ?? '0')),
+                ])).toList(),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _expensePayeesCard(List<Map<String, dynamic>> byPayee) {
+    if (byPayee.isEmpty) {
+      return const Card(
+        child: Padding(
+          padding: EdgeInsets.all(24),
+          child: Center(child: Text('No payee records found.', style: TextStyle(color: Colors.grey))),
+        ),
+      );
+    }
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Top Payees & Vendors by Spend',
+              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 14),
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: DataTable(
+                columns: const [
+                  DataColumn(label: Text('Payee / Vendor', style: TextStyle(fontWeight: FontWeight.w600))),
+                  DataColumn(label: Text('Total Spend', style: TextStyle(fontWeight: FontWeight.w600))),
+                  DataColumn(label: Text('Transactions', style: TextStyle(fontWeight: FontWeight.w600))),
+                  DataColumn(label: Text('Share %', style: TextStyle(fontWeight: FontWeight.w600))),
+                ],
+                rows: byPayee.map((p) => DataRow(cells: [
+                  DataCell(Text(p['payee']?.toString() ?? 'Unknown', style: const TextStyle(fontWeight: FontWeight.bold))),
+                  DataCell(Text(_canViewCost ? _money(p['total_spend']) : '—')),
+                  DataCell(Text(p['transaction_count']?.toString() ?? '0')),
+                  DataCell(Text('${_n(p['share_pct']).toStringAsFixed(1)}%')),
+                ])).toList(),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _expenseLocationsCard(List<Map<String, dynamic>> byLoc) {
+    if (byLoc.isEmpty) {
+      return const Card(
+        child: Padding(
+          padding: EdgeInsets.all(24),
+          child: Center(child: Text('No location expense data found.', style: TextStyle(color: Colors.grey))),
+        ),
+      );
+    }
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Expenses by Store / Location',
+              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 14),
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: DataTable(
+                columns: const [
+                  DataColumn(label: Text('Location', style: TextStyle(fontWeight: FontWeight.w600))),
+                  DataColumn(label: Text('Total Spend', style: TextStyle(fontWeight: FontWeight.w600))),
+                  DataColumn(label: Text('Transactions', style: TextStyle(fontWeight: FontWeight.w600))),
+                  DataColumn(label: Text('Share %', style: TextStyle(fontWeight: FontWeight.w600))),
+                ],
+                rows: byLoc.map((l) => DataRow(cells: [
+                  DataCell(Text(l['location_name']?.toString() ?? 'All Locations', style: const TextStyle(fontWeight: FontWeight.bold))),
+                  DataCell(Text(_canViewCost ? _money(l['total_spend']) : '—')),
+                  DataCell(Text(l['transaction_count']?.toString() ?? '0')),
+                  DataCell(Text('${_n(l['share_pct']).toStringAsFixed(1)}%')),
+                ])).toList(),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _expenseRecurringCard(List<Map<String, dynamic>> recurring) {
+    if (recurring.isEmpty) {
+      return const Card(
+        child: Padding(
+          padding: EdgeInsets.all(24),
+          child: Center(
+            child: Text(
+              'No recurring expenses detected (minimum 2 transactions per payee).',
+              style: TextStyle(color: Colors.grey),
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Recurring Expenses & Estimated Monthly Spend',
+              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 14),
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: DataTable(
+                columns: const [
+                  DataColumn(label: Text('Payee', style: TextStyle(fontWeight: FontWeight.w600))),
+                  DataColumn(label: Text('Transactions', style: TextStyle(fontWeight: FontWeight.w600))),
+                  DataColumn(label: Text('Total Spend', style: TextStyle(fontWeight: FontWeight.w600))),
+                  DataColumn(label: Text('Avg Txn Size', style: TextStyle(fontWeight: FontWeight.w600))),
+                  DataColumn(label: Text('Est. Monthly Burn', style: TextStyle(fontWeight: FontWeight.w600))),
+                  DataColumn(label: Text('First Seen', style: TextStyle(fontWeight: FontWeight.w600))),
+                  DataColumn(label: Text('Last Seen', style: TextStyle(fontWeight: FontWeight.w600))),
+                ],
+                rows: recurring.map((r) => DataRow(cells: [
+                  DataCell(Text(r['payee']?.toString() ?? '', style: const TextStyle(fontWeight: FontWeight.bold))),
+                  DataCell(Text(r['transaction_count']?.toString() ?? '0')),
+                  DataCell(Text(_canViewCost ? _money(r['total_spend']) : '—')),
+                  DataCell(Text(_canViewCost ? _money(r['avg_transaction_size']) : '—')),
+                  DataCell(Text(_canViewCost ? _money(r['estimated_monthly_spend']) : '—', style: const TextStyle(fontWeight: FontWeight.w600))),
+                  DataCell(Text(r['first_seen']?.toString() ?? '', style: const TextStyle(fontSize: 11, color: Colors.grey))),
+                  DataCell(Text(r['last_seen']?.toString() ?? '', style: const TextStyle(fontSize: 11, color: Colors.grey))),
+                ])).toList(),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _expenseAnomaliesCard(List<Map<String, dynamic>> anomalies) {
+    if (anomalies.isEmpty) {
+      return const Card(
+        child: Padding(
+          padding: EdgeInsets.all(24),
+          child: Center(
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.check_circle_outline, color: Colors.green),
+                SizedBox(width: 10),
+                Text(
+                  'No expense spikes, unusual sizes, or duplicate entries detected.',
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Column(
+      children: anomalies.map((a) {
+        final severity = a['severity']?.toString() ?? 'medium';
+        final isCritical = severity == 'critical';
+        final isHigh = severity == 'high';
+        final badgeColor = isCritical
+            ? Theme.of(context).colorScheme.error
+            : isHigh
+                ? Colors.orange.shade800
+                : Theme.of(context).colorScheme.primary;
+
+        return Card(
+          margin: const EdgeInsets.only(bottom: 12),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: badgeColor.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: badgeColor.withValues(alpha: 0.4)),
+                      ),
+                      child: Text(
+                        severity.toUpperCase(),
+                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: badgeColor),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        a['title']?.toString() ?? '',
+                        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    if (a['amount'] != null && _n(a['amount']) > 0)
+                      Text(
+                        'Amount: ${_canViewCost ? _money(a['amount']) : '—'}',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                          color: Theme.of(context).colorScheme.error,
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  a['description']?.toString() ?? '',
+                  style: const TextStyle(fontSize: 13),
+                ),
+                if (a['recommendation'] != null) ...[
+                  const SizedBox(height: 8),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Icon(Icons.lightbulb_outline, size: 16, color: Colors.amber),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          a['recommendation']?.toString() ?? '',
+                          style: TextStyle(fontSize: 12, color: Colors.grey.shade700, fontStyle: FontStyle.italic),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ],
+            ),
+          ),
+        );
+      }).toList(),
     );
   }
 }
