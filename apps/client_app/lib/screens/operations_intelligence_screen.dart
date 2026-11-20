@@ -160,6 +160,8 @@ class _OperationsIntelligenceScreenState
       const SectionState(data: {});
   SectionState<Map<String, dynamic>> _expenseIntelligenceState =
       const SectionState(data: {});
+  SectionState<Map<String, dynamic>> _operationalEfficiencyState =
+      const SectionState(data: {});
   SectionState<Map<String, dynamic>> _actionCentreState =
       const SectionState(data: {});
 
@@ -179,6 +181,8 @@ class _OperationsIntelligenceScreenState
   String _procurementViewMode = 'recommendations';
   String _financialSubTab = 'overview';
   String _expenseSubTab = 'categories';
+  String _operationalEfficiencySubTab = 'overview';
+  bool _isEfficiencyScanning = false;
   String _actionCentreSeverityFilter = 'all';
   String _actionCentreEngineFilter = 'all';
   String _actionCentreStatusFilter = 'unresolved';
@@ -198,7 +202,7 @@ class _OperationsIntelligenceScreenState
   @override
   void initState() {
     super.initState();
-    final tabCount = 10;
+    final tabCount = 11;
     final initial = (widget.initialTab ?? 0).clamp(0, tabCount - 1);
     _tabs = TabController(length: tabCount, vsync: this, initialIndex: initial);
     _tabs.addListener(() {
@@ -250,9 +254,62 @@ class _OperationsIntelligenceScreenState
     _loadPurchaseOrders(seq);
     _loadFinancialIntelligence(seq);
     _loadExpenseIntelligence(seq);
+    _loadOperationalEfficiency(seq);
     _loadActionCentre(seq);
     if (_isMultiLocation && _locationId == null) {
       _loadStoreComparison(seq);
+    }
+  }
+
+  Future<void> _loadOperationalEfficiency([int? seq]) async {
+    final currentSeq = seq ?? ++_requestSequence;
+    setState(() => _operationalEfficiencyState = _operationalEfficiencyState.toLoading());
+    try {
+      final data = await _service.operationalEfficiency(
+        tenantId: _tenantId,
+        locationId: _locationId,
+        days: _selectedPeriod.days,
+      );
+      if (!mounted || currentSeq != _requestSequence) return;
+      setState(() => _operationalEfficiencyState = _operationalEfficiencyState.toSuccess(data));
+    } catch (e) {
+      if (!mounted || currentSeq != _requestSequence) return;
+      setState(() => _operationalEfficiencyState = _operationalEfficiencyState.toError(e.toString()));
+    }
+  }
+
+  Future<void> _runOperationalEfficiencyScan() async {
+    if (_isEfficiencyScanning) return;
+    setState(() => _isEfficiencyScanning = true);
+    try {
+      final res = await _service.operationalEfficiencyScan(
+        tenantId: _tenantId,
+        locationId: _locationId,
+      );
+      if (!mounted) return;
+      final total = res['total_detected'] ?? 0;
+      final inserted = res['inserted'] ?? 0;
+      final updated = res['updated'] ?? 0;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Operational diagnostic scan complete: $total bottlenecks detected ($inserted new, $updated refreshed in Action Centre).',
+          ),
+          backgroundColor: Colors.teal.shade800,
+        ),
+      );
+      await _loadOperationalEfficiency();
+      await _loadActionCentre();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Operational diagnostic scan failed: $e'),
+          backgroundColor: Colors.red.shade800,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isEfficiencyScanning = false);
     }
   }
 
@@ -856,6 +913,22 @@ class _OperationsIntelligenceScreenState
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  const Text('Operational Efficiency'),
+                  if (_operationalEfficiencyState.loading || _isEfficiencyScanning) ...[
+                    const SizedBox(width: 6),
+                    const SizedBox(
+                      width: 10,
+                      height: 10,
+                      child: CircularProgressIndicator(strokeWidth: 1.5),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            Tab(
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
                   const Text('Action & Risk Centre'),
                   if (_actionCentreState.loading || _isScanning) ...[
                     const SizedBox(width: 6),
@@ -884,6 +957,7 @@ class _OperationsIntelligenceScreenState
               _customerCreditTab(),
               _financialIntelligenceTab(),
               _expenseIntelligenceTab(),
+              _operationalEfficiencyTab(),
               _actionCentreTab(),
             ],
           ),
@@ -7166,7 +7240,998 @@ class _OperationsIntelligenceScreenState
   }
 
   // ---------------------------------------------------------------------------
-  // TAB 9: ACTION & RISK CENTRE
+  // TAB 9: OPERATIONAL EFFICIENCY INTELLIGENCE
+  // ---------------------------------------------------------------------------
+  Widget _operationalEfficiencyTab() {
+    if (_operationalEfficiencyState.loading && _operationalEfficiencyState.data.isEmpty) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (_operationalEfficiencyState.hasError && _operationalEfficiencyState.data.isEmpty) {
+      return _sectionError(
+        'Operational Efficiency',
+        _operationalEfficiencyState.error,
+        _loadOperationalEfficiency,
+      );
+    }
+
+    final data = _operationalEfficiencyState.data;
+    final summary = Map<String, dynamic>.from(data['summary'] as Map? ?? const {});
+    final salesBilling = Map<String, dynamic>.from(data['sales_billing'] as Map? ?? const {});
+    final procurement = Map<String, dynamic>.from(data['procurement'] as Map? ?? const {});
+    final invOps = Map<String, dynamic>.from(data['inventory_operations'] as Map? ?? const {});
+    final custOps = Map<String, dynamic>.from(data['customer_operations'] as Map? ?? const {});
+    final syncOps = Map<String, dynamic>.from(data['system_sync'] as Map? ?? const {});
+    final rawBottlenecks = (data['bottlenecks'] as List? ?? const [])
+        .whereType<Map>()
+        .map((e) => Map<String, dynamic>.from(e))
+        .toList();
+    final branchComparisons = (data['branch_comparisons'] as List? ?? const [])
+        .whereType<Map>()
+        .map((e) => Map<String, dynamic>.from(e))
+        .toList();
+    final freshness = Map<String, dynamic>.from(data['data_freshness'] as Map? ?? const {});
+
+    final bottlenecks = rawBottlenecks.where((b) {
+      if (_operationalEfficiencySubTab == 'sales') return b['affected_process'] == 'sales_billing';
+      if (_operationalEfficiencySubTab == 'procurement') return b['affected_process'] == 'procurement';
+      if (_operationalEfficiencySubTab == 'transfers') {
+        return ['transfers', 'stock_adjustments', 'pos_sync'].contains(b['affected_process']);
+      }
+      return true;
+    }).toList();
+
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(18, 14, 18, 24),
+      children: [
+        if (_operationalEfficiencyState.hasError)
+          _sectionError(
+            'Operational Efficiency (cached view)',
+            _operationalEfficiencyState.error,
+            _loadOperationalEfficiency,
+          ),
+
+        // Header & Diagnostic Scan Action Row
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Operational Efficiency Intelligence',
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Algorithm-first process benchmarking, workflow lead times, sync health, and bottleneck detection.',
+                    style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 12),
+            FilledButton.icon(
+              onPressed: _isEfficiencyScanning ? null : _runOperationalEfficiencyScan,
+              icon: _isEfficiencyScanning
+                  ? const SizedBox(
+                      width: 14,
+                      height: 14,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                    )
+                  : const Icon(Icons.radar, size: 16),
+              label: Text(_isEfficiencyScanning ? 'Scanning...' : 'Run Operational Scan'),
+              style: FilledButton.styleFrom(
+                backgroundColor: Colors.teal.shade800,
+                foregroundColor: Colors.white,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+
+        // Overall Score & Headline KPI Card
+        _efficiencyScoreCard(summary),
+        const SizedBox(height: 16),
+
+        // Sub-navigation ChoiceChips
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: [
+              _efficiencyChoiceChip('overview', 'Overview', Icons.dashboard_outlined),
+              const SizedBox(width: 8),
+              _efficiencyChoiceChip('sales', 'Sales & Billing', Icons.point_of_sale_outlined),
+              const SizedBox(width: 8),
+              _efficiencyChoiceChip('procurement', 'Procurement', Icons.local_shipping_outlined),
+              const SizedBox(width: 8),
+              _efficiencyChoiceChip('transfers', 'Transfers & Stock', Icons.swap_horiz_outlined),
+              const SizedBox(width: 8),
+              _efficiencyChoiceChip('benchmarks', 'Branch Benchmarks', Icons.storefront_outlined),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+
+        // Process Bottlenecks Section
+        _efficiencyBottlenecksSection(bottlenecks),
+        const SizedBox(height: 20),
+
+        // Domain-specific Process Deep Dives
+        if (_operationalEfficiencySubTab == 'overview' || _operationalEfficiencySubTab == 'sales') ...[
+          _efficiencySalesSection(salesBilling),
+          const SizedBox(height: 20),
+        ],
+
+        if (_operationalEfficiencySubTab == 'overview' || _operationalEfficiencySubTab == 'procurement') ...[
+          _efficiencyProcurementSection(procurement),
+          const SizedBox(height: 20),
+        ],
+
+        if (_operationalEfficiencySubTab == 'overview' || _operationalEfficiencySubTab == 'transfers') ...[
+          _efficiencyTransfersSection(invOps, syncOps, custOps),
+          const SizedBox(height: 20),
+        ],
+
+        if (_operationalEfficiencySubTab == 'overview' || _operationalEfficiencySubTab == 'benchmarks') ...[
+          _efficiencyBenchmarksSection(branchComparisons),
+          const SizedBox(height: 20),
+        ],
+
+        // Data Freshness & Transparency Footnote
+        _efficiencyFreshnessFooter(freshness),
+      ],
+    );
+  }
+
+  Widget _efficiencyChoiceChip(String key, String label, IconData icon) {
+    final isSelected = _operationalEfficiencySubTab == key;
+    return ChoiceChip(
+      selected: isSelected,
+      label: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: isSelected ? Colors.white : Colors.grey.shade700),
+          const SizedBox(width: 6),
+          Text(label),
+        ],
+      ),
+      onSelected: (_) => setState(() => _operationalEfficiencySubTab = key),
+      selectedColor: Colors.teal.shade800,
+      labelStyle: TextStyle(
+        fontSize: 12.5,
+        fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+        color: isSelected ? Colors.white : Colors.grey.shade800,
+      ),
+    );
+  }
+
+  Widget _efficiencyScoreCard(Map<String, dynamic> summary) {
+    final score = (summary['overall_efficiency_score'] as num?)?.toDouble() ?? 100.0;
+    final health = summary['health_status']?.toString() ?? 'optimal';
+    final activeBottlenecks = summary['active_bottlenecks_count'] ?? 0;
+    final poHours = summary['avg_po_cycle_hours'] ?? 0;
+    final grnDays = summary['avg_grn_lead_time_days'] ?? 0;
+    final transferHours = summary['avg_transfer_hours'] ?? 0;
+    final throughput = summary['avg_daily_throughput'] ?? 0;
+    final syncRel = summary['sync_reliability_pct'] ?? 100;
+
+    final healthCol = _healthColor(health);
+    final healthTxt = _healthLabel(health);
+
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: healthCol.withValues(alpha: 0.3), width: 1.5),
+      ),
+      color: healthCol.withValues(alpha: 0.04),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                // Score Circle / Box
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: healthCol.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: healthCol.withValues(alpha: 0.4)),
+                  ),
+                  child: Column(
+                    children: [
+                      Text(
+                        score.toStringAsFixed(1),
+                        style: TextStyle(
+                          fontSize: 28,
+                          fontWeight: FontWeight.bold,
+                          color: healthCol,
+                        ),
+                      ),
+                      const Text(
+                        'Efficiency Score',
+                        style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: healthCol,
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              healthTxt,
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                          const Spacer(),
+                          Text(
+                            '$activeBottlenecks Active Bottlenecks',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: activeBottlenecks > 0 ? Colors.red.shade700 : Colors.teal.shade700,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Operational lead times and process health are evaluated continuously against deterministic ERP SLAs.',
+                        style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const Divider(height: 24),
+            // KPI Summary Row
+            Row(
+              children: [
+                Expanded(child: _efficiencyKpiTile('PO Cycle', '$poHours hrs', Icons.timer_outlined)),
+                Expanded(child: _efficiencyKpiTile('GRN Lead Time', '$grnDays days', Icons.inventory_2_outlined)),
+                Expanded(child: _efficiencyKpiTile('Transfer Transit', '$transferHours hrs', Icons.local_shipping_outlined)),
+                Expanded(child: _efficiencyKpiTile('Daily Throughput', '$throughput txns', Icons.speed)),
+                Expanded(child: _efficiencyKpiTile('Sync Reliability', '$syncRel%', Icons.cloud_done_outlined)),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _efficiencyKpiTile(String label, String value, IconData icon) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Icon(icon, size: 16, color: Colors.teal.shade800),
+        const SizedBox(height: 4),
+        Text(
+          value,
+          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          label,
+          style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+          textAlign: TextAlign.center,
+        ),
+      ],
+    );
+  }
+
+  Color _healthColor(String status) {
+    switch (status.toLowerCase()) {
+      case 'optimal':
+        return Colors.teal.shade700;
+      case 'acceptable':
+        return Colors.blue.shade700;
+      case 'needs_attention':
+        return Colors.orange.shade800;
+      case 'critical_delay':
+        return Colors.red.shade700;
+      default:
+        return Colors.grey.shade700;
+    }
+  }
+
+  String _healthLabel(String status) {
+    switch (status.toLowerCase()) {
+      case 'optimal':
+        return 'Optimal';
+      case 'acceptable':
+        return 'Acceptable';
+      case 'needs_attention':
+        return 'Needs Attention';
+      case 'critical_delay':
+        return 'Critical Delay';
+      default:
+        return status.toUpperCase();
+    }
+  }
+
+  Widget _efficiencyBottlenecksSection(List<Map<String, dynamic>> bottlenecks) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Icon(Icons.warning_amber_rounded, size: 18, color: Colors.orange),
+            const SizedBox(width: 8),
+            Text(
+              'Process Bottlenecks & Inefficiencies (${bottlenecks.length})',
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        if (bottlenecks.isEmpty)
+          Card(
+            elevation: 0,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+              side: BorderSide(color: Colors.teal.withValues(alpha: 0.3)),
+            ),
+            color: Colors.teal.withValues(alpha: 0.05),
+            child: const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              child: Row(
+                children: [
+                  Icon(Icons.check_circle_outline, color: Colors.teal, size: 20),
+                  SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'No Active Operational Bottlenecks: Monitored workflows (PO approvals, GRN receipts, transit transfers, sync latencies) are operating within normal SLA thresholds.',
+                      style: TextStyle(fontSize: 12.5, color: Colors.teal),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          )
+        else
+          ...bottlenecks.map((b) => _efficiencyBottleneckCard(b)),
+      ],
+    );
+  }
+
+  Widget _efficiencyBottleneckCard(Map<String, dynamic> b) {
+    final severity = b['severity']?.toString() ?? 'warning';
+    final title = b['title']?.toString() ?? 'Operational Bottleneck';
+    final ruleCode = b['rule_code']?.toString() ?? '';
+    final description = b['description']?.toString() ?? '';
+    final recommendation = b['recommendation']?.toString() ?? '';
+    final route = b['route']?.toString() ?? '';
+    final evidence = Map<String, dynamic>.from(b['evidence'] as Map? ?? const {});
+
+    Color sevColor;
+    if (severity == 'critical') {
+      sevColor = Colors.red.shade700;
+    } else if (severity == 'warning') {
+      sevColor = Colors.orange.shade800;
+    } else {
+      sevColor = Colors.blue.shade700;
+    }
+
+    return Card(
+      elevation: 0,
+      margin: const EdgeInsets.only(bottom: 12),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(10),
+        side: BorderSide(color: sevColor.withValues(alpha: 0.4), width: 1.2),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: sevColor,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    severity.toUpperCase(),
+                    style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    title,
+                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    ruleCode,
+                    style: TextStyle(fontSize: 10.5, fontFamily: 'monospace', color: Colors.grey.shade700),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(description, style: TextStyle(fontSize: 12.5, color: Colors.grey.shade800)),
+            if (evidence.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 4,
+                children: evidence.entries.map((entry) {
+                  return Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      '${entry.key}: ${entry.value}',
+                      style: TextStyle(fontSize: 11, color: Colors.grey.shade700),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ],
+            if (recommendation.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.amber.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: Colors.amber.withValues(alpha: 0.3)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.lightbulb_outline, size: 16, color: Colors.amber),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        recommendation,
+                        style: TextStyle(fontSize: 12, color: Colors.amber.shade900),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+            const SizedBox(height: 10),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                OutlinedButton.icon(
+                  onPressed: () {
+                    _tabs.animateTo(10); // Go to Action & Risk Centre
+                  },
+                  icon: const Icon(Icons.rule_folder_outlined, size: 14),
+                  label: const Text('View in Action Centre', style: TextStyle(fontSize: 11.5)),
+                  style: OutlinedButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                    foregroundColor: Colors.teal.shade800,
+                  ),
+                ),
+                if (route.isNotEmpty) ...[
+                  const SizedBox(width: 8),
+                  FilledButton.icon(
+                    onPressed: () {
+                      final cleanRoute = route.startsWith('/') ? route.substring(1) : route;
+                      ClientNavigationScope.navigate(context, cleanRoute);
+                    },
+                    icon: const Icon(Icons.open_in_new, size: 14),
+                    label: Text('Open $route', style: const TextStyle(fontSize: 11.5)),
+                    style: FilledButton.styleFrom(
+                      visualDensity: VisualDensity.compact,
+                      backgroundColor: Colors.teal.shade800,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _efficiencySalesSection(Map<String, dynamic> sales) {
+    final total = sales['total_sales'] ?? 0;
+    final completed = sales['completed_sales'] ?? 0;
+    final cancelled = sales['cancelled_sales'] ?? 0;
+    final cancelRate = (sales['cancellation_rate_pct'] as num?)?.toDouble() ?? 0.0;
+    final throughput = sales['avg_daily_throughput'] ?? 0;
+    final held = sales['held_sales_count'] ?? 0;
+    final peakHours = (sales['peak_hours'] as List? ?? const []).whereType<Map>().toList();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Icon(Icons.point_of_sale_outlined, size: 18, color: Colors.teal),
+            const SizedBox(width: 8),
+            const Text(
+              'Sales & Billing Operations',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        Row(
+          children: [
+            Expanded(child: _efficiencyMetricCard('Total Sales', '$total', Icons.receipt_long, Colors.blue)),
+            const SizedBox(width: 8),
+            Expanded(child: _efficiencyMetricCard('Completed', '$completed', Icons.check_circle, Colors.green)),
+            const SizedBox(width: 8),
+            Expanded(child: _efficiencyMetricCard('Cancelled / Void', '$cancelled', Icons.cancel, cancelRate > 5 ? Colors.red : Colors.grey)),
+            const SizedBox(width: 8),
+            Expanded(child: _efficiencyMetricCard('Cancel Rate', '${cancelRate.toStringAsFixed(1)}%', Icons.percent, cancelRate > 5 ? Colors.red : Colors.teal)),
+            const SizedBox(width: 8),
+            Expanded(child: _efficiencyMetricCard('Daily Velocity', '$throughput txns/day', Icons.speed, Colors.purple)),
+            const SizedBox(width: 8),
+            Expanded(child: _efficiencyMetricCard('Held Sales', '$held', Icons.pause_circle_outline, Colors.amber)),
+          ],
+        ),
+        if (peakHours.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          Card(
+            elevation: 0,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+              side: BorderSide(color: Colors.grey.withValues(alpha: 0.2)),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Peak Billing Hours',
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 6,
+                    children: peakHours.map((ph) {
+                      final hr = ph['hour_of_day'] ?? 0;
+                      final txns = ph['transactions'] ?? 0;
+                      return Chip(
+                        label: Text(
+                          '${hr.toString().padLeft(2, '0')}:00 — $txns txns',
+                          style: const TextStyle(fontSize: 11),
+                        ),
+                        backgroundColor: Colors.teal.withValues(alpha: 0.08),
+                        visualDensity: VisualDensity.compact,
+                      );
+                    }).toList(),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _efficiencyProcurementSection(Map<String, dynamic> proc) {
+    final total = proc['total_pos'] ?? 0;
+    final pending = proc['pending_approval_pos'] ?? 0;
+    final completed = proc['completed_pos'] ?? 0;
+    final approvalHours = proc['avg_approval_hours'] ?? 0;
+    final grnLeadDays = proc['avg_grn_lead_time_days'] ?? 0;
+    final overdue = proc['overdue_pos'] ?? 0;
+    final delayRate = (proc['supplier_delay_rate_pct'] as num?)?.toDouble() ?? 0.0;
+    final delayedOrders = (proc['delayed_orders'] as List? ?? const []).whereType<Map>().toList();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Icon(Icons.local_shipping_outlined, size: 18, color: Colors.indigo),
+            const SizedBox(width: 8),
+            const Text(
+              'Procurement & Order Lead Times',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        Row(
+          children: [
+            Expanded(child: _efficiencyMetricCard('Total POs', '$total ($completed done)', Icons.assignment, Colors.blue)),
+            const SizedBox(width: 8),
+            Expanded(child: _efficiencyMetricCard('Pending Approval', '$pending', Icons.pending_actions, Colors.orange)),
+            const SizedBox(width: 8),
+            Expanded(child: _efficiencyMetricCard('Avg Approval', '$approvalHours hrs', Icons.timer, Colors.teal)),
+            const SizedBox(width: 8),
+            Expanded(child: _efficiencyMetricCard('GRN Lead Time', '$grnLeadDays days', Icons.inventory_2, Colors.purple)),
+            const SizedBox(width: 8),
+            Expanded(child: _efficiencyMetricCard('Overdue POs', '$overdue', Icons.error_outline, overdue > 0 ? Colors.red : Colors.green)),
+            const SizedBox(width: 8),
+            Expanded(child: _efficiencyMetricCard('Supplier Delay Rate', '${delayRate.toStringAsFixed(1)}%', Icons.local_shipping, delayRate > 15 ? Colors.red : Colors.teal)),
+          ],
+        ),
+        if (delayedOrders.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          Card(
+            elevation: 0,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+              side: BorderSide(color: Colors.red.withValues(alpha: 0.3)),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.warning, size: 16, color: Colors.red),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Delayed Purchase Orders (${delayedOrders.length})',
+                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.red),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  ...delayedOrders.map((order) {
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      child: Row(
+                        children: [
+                          Text(
+                            'PO #${order['po_number'] ?? 'N/A'}',
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              'Supplier: ${order['supplier_name'] ?? 'Unknown'}',
+                              style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: Colors.red.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              '${order['overdue_days'] ?? 0} days overdue',
+                              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.red),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _efficiencyTransfersSection(
+    Map<String, dynamic> inv,
+    Map<String, dynamic> sync,
+    Map<String, dynamic> cust,
+  ) {
+    final totalTransfers = inv['total_transfers'] ?? 0;
+    final avgTransferHours = inv['avg_transfer_hours'] ?? 0;
+    final delayedTransfersCount = inv['delayed_transfers_count'] ?? 0;
+    final transferCancelRate = (inv['transfer_cancellation_rate_pct'] as num?)?.toDouble() ?? 0.0;
+    final totalAdj = inv['total_adjustments'] ?? 0;
+    final pendingAdj = inv['pending_adjustments'] ?? 0;
+    final delayedTransfers = (inv['delayed_transfers'] as List? ?? const []).whereType<Map>().toList();
+
+    final syncSuccessRate = (sync['sync_success_rate_pct'] as num?)?.toDouble() ?? 100.0;
+    final failedSync = sync['failed_sync_count'] ?? 0;
+    final syncLatency = sync['avg_sync_delay_minutes'] ?? 0;
+
+    final returnsCount = cust['total_returns'] ?? 0;
+    final returnRate = (cust['return_rate_pct'] as num?)?.toDouble() ?? 0.0;
+    final pendingRefunds = cust['pending_refunds'] ?? 0;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Icon(Icons.swap_horiz_outlined, size: 18, color: Colors.teal),
+            const SizedBox(width: 8),
+            const Text(
+              'Transfers, Stock Operations & Offline Sync Health',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        Row(
+          children: [
+            Expanded(child: _efficiencyMetricCard('Transfers', '$totalTransfers', Icons.swap_horiz, Colors.blue)),
+            const SizedBox(width: 8),
+            Expanded(child: _efficiencyMetricCard('Avg Transit', '$avgTransferHours hrs', Icons.timer, Colors.teal)),
+            const SizedBox(width: 8),
+            Expanded(child: _efficiencyMetricCard('Delayed Transit', '$delayedTransfersCount (${transferCancelRate.toStringAsFixed(1)}% can)', Icons.alarm_off, delayedTransfersCount > 0 ? Colors.red : Colors.green)),
+            const SizedBox(width: 8),
+            Expanded(child: _efficiencyMetricCard('Adjustment Requests', '$totalAdj ($pendingAdj pend)', Icons.tune, Colors.orange)),
+            const SizedBox(width: 8),
+            Expanded(child: _efficiencyMetricCard('Sync Success', '${syncSuccessRate.toStringAsFixed(1)}% (${syncLatency}m)', Icons.sync, failedSync > 0 ? Colors.red : Colors.teal)),
+            const SizedBox(width: 8),
+            Expanded(child: _efficiencyMetricCard('Returns & Refunds', '$returnsCount ($pendingRefunds pend)', Icons.replay, returnRate > 5 ? Colors.red : Colors.grey)),
+          ],
+        ),
+        if (delayedTransfers.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          Card(
+            elevation: 0,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+              side: BorderSide(color: Colors.orange.withValues(alpha: 0.3)),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.schedule, size: 16, color: Colors.orange),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Delayed In-Transit Transfers (${delayedTransfers.length})',
+                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.orange),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  ...delayedTransfers.map((dt) {
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      child: Row(
+                        children: [
+                          Text(
+                            'Transfer #${dt['transfer_number'] ?? 'N/A'}',
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              '${dt['from_location_name'] ?? 'Origin'} → ${dt['to_location_name'] ?? 'Dest'}',
+                              style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: Colors.orange.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              '${dt['elapsed_hours'] ?? 0} hrs in transit',
+                              style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.orange.shade900),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _efficiencyBenchmarksSection(List<Map<String, dynamic>> branches) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Icon(Icons.storefront_outlined, size: 18, color: Colors.blue),
+            const SizedBox(width: 8),
+            const Text(
+              'Store-to-Store Operational Benchmarks',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(
+            color: Colors.blue.withValues(alpha: 0.06),
+            borderRadius: BorderRadius.circular(6),
+            border: Border.all(color: Colors.blue.withValues(alpha: 0.2)),
+          ),
+          child: Row(
+            children: [
+              const Icon(Icons.info_outline, size: 14, color: Colors.blue),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  'Fair Benchmarking Qualification: Locations with fewer than 5 operations are marked "Low Volume" to avoid statistical distortion from small sample sizes.',
+                  style: TextStyle(fontSize: 11.5, color: Colors.blue.shade900),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+        if (branches.isEmpty)
+          const Padding(
+            padding: EdgeInsets.all(16),
+            child: Text('No store location benchmarks available for this tenant.'),
+          )
+        else
+          Card(
+            elevation: 0,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+              side: BorderSide(color: Colors.grey.withValues(alpha: 0.2)),
+            ),
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: DataTable(
+                headingRowHeight: 40,
+                dataRowMinHeight: 44,
+                dataRowMaxHeight: 52,
+                columns: const [
+                  DataColumn(label: Text('Branch Name', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
+                  DataColumn(label: Text('Code', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
+                  DataColumn(label: Text('Transfers', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
+                  DataColumn(label: Text('Avg Transit', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
+                  DataColumn(label: Text('Delayed', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
+                  DataColumn(label: Text('POs', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
+                  DataColumn(label: Text('Overdue POs', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
+                  DataColumn(label: Text('Sync Events', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
+                  DataColumn(label: Text('Sync Errors', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
+                  DataColumn(label: Text('Data Sufficiency', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
+                ],
+                rows: branches.map((b) {
+                  final sufficiency = b['data_sufficiency']?.toString() ?? 'low_volume';
+                  final isSufficient = sufficiency == 'sufficient';
+
+                  return DataRow(
+                    cells: [
+                      DataCell(Text(b['location_name']?.toString() ?? 'Unknown', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12))),
+                      DataCell(Text(b['location_code']?.toString() ?? '-', style: const TextStyle(fontSize: 11, fontFamily: 'monospace'))),
+                      DataCell(Text('${b['total_transfers'] ?? 0}', style: const TextStyle(fontSize: 12))),
+                      DataCell(Text('${b['avg_transfer_hours'] ?? 0} hrs', style: const TextStyle(fontSize: 12))),
+                      DataCell(Text('${b['delayed_transfers'] ?? 0}', style: TextStyle(fontSize: 12, color: (b['delayed_transfers'] ?? 0) > 0 ? Colors.red : null))),
+                      DataCell(Text('${b['total_pos'] ?? 0}', style: const TextStyle(fontSize: 12))),
+                      DataCell(Text('${b['overdue_pos'] ?? 0}', style: TextStyle(fontSize: 12, color: (b['overdue_pos'] ?? 0) > 0 ? Colors.red : null))),
+                      DataCell(Text('${b['sync_events'] ?? 0}', style: const TextStyle(fontSize: 12))),
+                      DataCell(Text('${b['sync_errors'] ?? 0}', style: TextStyle(fontSize: 12, color: (b['sync_errors'] ?? 0) > 0 ? Colors.red : null))),
+                      DataCell(
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: isSufficient ? Colors.green.withValues(alpha: 0.12) : Colors.amber.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            isSufficient ? 'Sufficient' : 'Low Volume',
+                            style: TextStyle(
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.bold,
+                              color: isSufficient ? Colors.green.shade800 : Colors.amber.shade900,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  );
+                }).toList(),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _efficiencyMetricCard(String title, String value, IconData icon, Color color) {
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(8),
+        side: BorderSide(color: Colors.grey.withValues(alpha: 0.2)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(icon, size: 14, color: color),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: 10.5, color: Colors.grey.shade600),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Text(
+              value,
+              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _efficiencyFreshnessFooter(Map<String, dynamic> freshness) {
+    final asOf = freshness['as_of']?.toString() ?? '';
+    final evaluatedDays = freshness['evaluated_days'] ?? _selectedPeriod.days;
+    final salesEval = freshness['total_sales_evaluated'] ?? 0;
+    final posEval = freshness['total_pos_evaluated'] ?? 0;
+    final transfersEval = freshness['total_transfers_evaluated'] ?? 0;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.grey.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.grey.withValues(alpha: 0.15)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.schedule, size: 14, color: Colors.grey),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              'Evaluated Window: Last $evaluatedDays days | $salesEval sales, $posEval POs, $transfersEval transfers | As of: $asOf | Engine: Operations v8.3.0',
+              style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // TAB 10: ACTION & RISK CENTRE
   // ---------------------------------------------------------------------------
   Widget _actionCentreTab() {
     if (_actionCentreState.loading && _actionCentreState.data.isEmpty) {

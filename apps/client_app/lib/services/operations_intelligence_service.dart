@@ -425,6 +425,40 @@ class OperationsIntelligenceService {
     return _rows(data);
   }
 
+  Future<Map<String, dynamic>> operationalEfficiency({
+    required String tenantId,
+    String? locationId,
+    int days = 30,
+  }) async {
+    final data = await _api.call(
+      ThqApiRequest(
+        tenantId: tenantId,
+        resource: 'operational-efficiency',
+        payload: {
+          'location_id': locationId,
+          'days': days,
+        },
+      ),
+    );
+    return data is Map ? Map<String, dynamic>.from(data) : <String, dynamic>{};
+  }
+
+  Future<Map<String, dynamic>> operationalEfficiencyScan({
+    required String tenantId,
+    String? locationId,
+  }) async {
+    final data = await _api.call(
+      ThqApiRequest(
+        tenantId: tenantId,
+        resource: 'operational-efficiency-scan',
+        payload: {
+          'location_id': locationId,
+        },
+      ),
+    );
+    return data is Map ? Map<String, dynamic>.from(data) : <String, dynamic>{};
+  }
+
   List<Map<String, dynamic>> _rows(dynamic data) => (data as List? ?? const [])
       .whereType<Map>()
       .map((row) => Map<String, dynamic>.from(row))

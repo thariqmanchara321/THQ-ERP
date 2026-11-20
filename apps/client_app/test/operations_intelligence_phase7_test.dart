@@ -515,7 +515,7 @@ void main() {
           body: OperationsIntelligenceScreen(
             session: session,
             service: service,
-            initialTab: 9, // Tab 9: Action & Risk Centre
+            initialTab: 10, // Tab 10: Action & Risk Centre
           ),
         ),
       ));
@@ -564,7 +564,7 @@ void main() {
           body: OperationsIntelligenceScreen(
             session: session,
             service: service,
-            initialTab: 9,
+            initialTab: 10,
           ),
         ),
       ));
@@ -593,7 +593,7 @@ void main() {
           body: OperationsIntelligenceScreen(
             session: session,
             service: service,
-            initialTab: 9,
+            initialTab: 10,
           ),
         ),
       ));
@@ -623,7 +623,7 @@ void main() {
           body: OperationsIntelligenceScreen(
             session: session,
             service: service,
-            initialTab: 9,
+            initialTab: 10,
           ),
         ),
       ));
@@ -662,7 +662,7 @@ void main() {
           body: OperationsIntelligenceScreen(
             session: session,
             service: service,
-            initialTab: 9,
+            initialTab: 10,
           ),
         ),
       ));
@@ -700,7 +700,7 @@ void main() {
           body: OperationsIntelligenceScreen(
             session: session,
             service: service,
-            initialTab: 9,
+            initialTab: 10,
           ),
         ),
       ));
@@ -730,7 +730,7 @@ void main() {
             child: OperationsIntelligenceScreen(
               session: session,
               service: service,
-              initialTab: 9,
+              initialTab: 10,
             ),
           ),
         ),
@@ -759,7 +759,7 @@ void main() {
           body: OperationsIntelligenceScreen(
             session: session,
             service: service,
-            initialTab: 9,
+            initialTab: 10,
           ),
         ),
       ));
@@ -781,7 +781,7 @@ void main() {
           body: OperationsIntelligenceScreen(
             session: session,
             service: service,
-            initialTab: 9,
+            initialTab: 10,
           ),
         ),
       ));

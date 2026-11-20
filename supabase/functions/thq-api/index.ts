@@ -146,6 +146,23 @@ Deno.serve(async (req) => {
           p_finding_id: payload.finding_id,
         }
         break
+      case 'operational-efficiency':
+      case 'operational-efficiency-v830':
+        rpc = 'operational_efficiency_intelligence_v830'
+        params = {
+          ...params,
+          p_location_id: payload.location_id ?? null,
+          p_days: payload.days ?? 30,
+        }
+        break
+      case 'operational-efficiency-scan':
+      case 'operational-efficiency-scan-v830':
+        rpc = 'operational_efficiency_diagnostic_scan_v830'
+        params = {
+          ...params,
+          p_location_id: payload.location_id ?? null,
+        }
+        break
       case 'runtime-health':
         rpc = 'erp_runtime_health_v489'
         break
