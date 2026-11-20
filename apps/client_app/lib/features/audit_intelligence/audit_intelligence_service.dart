@@ -7,6 +7,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'audit_widgets.dart';
 import 'models/audit_evidence_models.dart';
 import 'models/audit_integrity_models.dart';
+import 'models/audit_review_models.dart';
 
 /// Thin client for the canonical accounting and audit RPCs.
 ///
@@ -712,6 +713,132 @@ class AuditIntelligenceService {
         'p_limit': limit,
       },
     );
+  }
+
+  /// Retrieves summary metrics for the Professional Audit Review Dashboard.
+  Future<AuditReviewDashboardSummary> reviewDashboard({
+    required String tenantId,
+    required DateTime from,
+    required DateTime to,
+    String? locationId,
+  }) async {
+    final raw = await _client.rpc(
+      'audit_review_dashboard_v704',
+      params: {
+        'p_tenant_id': tenantId,
+        'p_from': _date(from),
+        'p_to': _date(to),
+        'p_location_id': locationId,
+      },
+    );
+    return AuditReviewDashboardSummary.fromJson(_map(raw));
+  }
+
+  /// Lists eligible team members within tenant who can be assigned audit findings.
+  Future<List<AuditAssignableUser>> assignableUsers({
+    required String tenantId,
+  }) async {
+    final raw = await _client.rpc(
+      'audit_assignable_users_v704',
+      params: {'p_tenant_id': tenantId},
+    );
+    return _list(raw).map((u) => AuditAssignableUser.fromJson(u)).toList();
+  }
+
+  /// Retrieves rich audit finding details including notes, history, and duplicate cluster.
+  Future<AuditFindingReviewDetail> findingDetailV704({
+    required String tenantId,
+    required String findingId,
+  }) async {
+    final raw = await _client.rpc(
+      'audit_finding_detail_v704',
+      params: {'p_tenant_id': tenantId, 'p_finding_id': findingId},
+    );
+    return AuditFindingReviewDetail.fromJson(_map(raw));
+  }
+
+  /// Assigns or reassigns an audit finding to a team member.
+  Future<Map<String, dynamic>> assignFinding({
+    required String tenantId,
+    required String findingId,
+    required String? assignTo,
+    String? priority,
+    DateTime? dueDate,
+    String? reason,
+  }) async {
+    final raw = await _client.rpc(
+      'audit_finding_assign_v704',
+      params: {
+        'p_tenant_id': tenantId,
+        'p_finding_id': findingId,
+        'p_assign_to': assignTo,
+        'p_priority': priority,
+        'p_due_date': dueDate != null ? _date(dueDate) : null,
+        'p_reason': reason,
+      },
+    );
+    return _map(raw);
+  }
+
+  /// Transitions a finding through the review workflow lifecycle.
+  Future<Map<String, dynamic>> updateFindingStatus({
+    required String tenantId,
+    required String findingId,
+    required String status,
+    required String note,
+    String? resolutionNote,
+  }) async {
+    final raw = await _client.rpc(
+      'audit_finding_status_v704',
+      params: {
+        'p_tenant_id': tenantId,
+        'p_finding_id': findingId,
+        'p_status': status,
+        'p_note': note.trim(),
+        'p_resolution_note': resolutionNote?.trim(),
+      },
+    );
+    return _map(raw);
+  }
+
+  /// Appends an investigation note and optional evidence references to a finding.
+  Future<Map<String, dynamic>> addFindingNote({
+    required String tenantId,
+    required String findingId,
+    required String note,
+    String noteType = 'investigation',
+    List<Map<String, dynamic>> evidenceRefs = const [],
+  }) async {
+    final raw = await _client.rpc(
+      'audit_finding_add_note_v704',
+      params: {
+        'p_tenant_id': tenantId,
+        'p_finding_id': findingId,
+        'p_note': note.trim(),
+        'p_note_type': noteType,
+        'p_evidence_refs': evidenceRefs,
+      },
+    );
+    return _map(raw);
+  }
+
+  /// Scans transactional records in period to detect advanced risks and duplicate patterns.
+  Future<Map<String, dynamic>> scanPeriodRisk({
+    required String tenantId,
+    required DateTime from,
+    required DateTime to,
+    String? locationId,
+  }) async {
+    final raw = await _client.rpc(
+      'audit_risk_scan_period_v704',
+      params: {
+        'p_tenant_id': tenantId,
+        'p_from': _date(from),
+        'p_to': _date(to),
+        'p_location_id': locationId,
+      },
+    );
+    return _map(raw);
   }
 
   static String _date(DateTime value) {

@@ -9,6 +9,7 @@ import 'audit_intelligence_service.dart';
 import 'audit_detail_dialogs.dart';
 import 'evidence_explorer_view.dart';
 import 'integrity_reconciliation_view.dart';
+import 'models/audit_review_models.dart';
 import 'transaction_story_dialog.dart';
 
 class AuditIntelligenceScreen extends StatefulWidget {
@@ -37,7 +38,9 @@ class _AuditIntelligenceScreenState extends State<AuditIntelligenceScreen>
   bool _descending = true,
       _loading = false,
       _exporting = false,
+      _scanningRisk = false,
       _foreground = true;
+  AuditReviewDashboardSummary? _reviewDashboard;
   int _offset = 0, _request = 0;
   Map<String, dynamic> _data = {};
   String? _error;
@@ -134,7 +137,33 @@ class _AuditIntelligenceScreenState extends State<AuditIntelligenceScreen>
     });
     try {
       Map<String, dynamic> data;
-      if (_view == 'profitability') {
+      if (_view == 'findings') {
+        AuditReviewDashboardSummary? dashboard;
+        try {
+          dashboard = await _service.reviewDashboard(
+            tenantId: _tenantId,
+            from: _from,
+            to: _to,
+            locationId: _locationId,
+          );
+        } catch (_) {
+          dashboard = null;
+        }
+        data = await _service.workspace(
+          tenantId: _tenantId,
+          view: _view,
+          from: _from,
+          to: _to,
+          locationId: _locationId,
+          query: _search.text,
+          severity: _severity,
+          status: _status,
+          sort: _sort,
+          descending: _descending,
+          offset: _offset,
+        );
+        _reviewDashboard = dashboard;
+      } else if (_view == 'profitability') {
         final rows = await _service.profitability(
           tenantId: _tenantId,
           from: _from,
@@ -196,6 +225,29 @@ class _AuditIntelligenceScreenState extends State<AuditIntelligenceScreen>
     }
   }
 
+  Future<void> _runRiskScan() async {
+    setState(() => _scanningRisk = true);
+    try {
+      final res = await _service.scanPeriodRisk(
+        tenantId: _tenantId,
+        from: _from,
+        to: _to,
+        locationId: _locationId,
+      );
+      if (mounted) {
+        ThqNotify.success(
+          context,
+          'Risk scan complete. Scanned period: ${res['scanned_period']}. Flagged: ${res['detected_count']} risks.',
+        );
+        _reload();
+      }
+    } catch (e) {
+      if (mounted) ThqNotify.error(context, 'Risk scan failed: $e');
+    } finally {
+      if (mounted) setState(() => _scanningRisk = false);
+    }
+  }
+
   Future<void> _pickPeriod() async {
     final picked = await showDateRangePicker(
       context: context,
@@ -215,6 +267,7 @@ class _AuditIntelligenceScreenState extends State<AuditIntelligenceScreen>
     _offset = 0;
     _search.clear();
     _data = {};
+    _reviewDashboard = null;
     _sort = value == 'accounts' ? 'account_name' : 'date';
     _descending = value != 'accounts';
     _reload();
@@ -292,6 +345,21 @@ class _AuditIntelligenceScreenState extends State<AuditIntelligenceScreen>
                 icon: const Icon(Icons.refresh, size: 20),
               ),
             ],
+            if (_view == 'findings')
+              OutlinedButton.icon(
+                onPressed: _scanningRisk || _loading ? null : _runRiskScan,
+                icon: _scanningRisk
+                    ? const SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.radar, size: 16),
+                label: Text(
+                  _scanningRisk ? 'Scanning…' : 'Run risk scan',
+                  style: const TextStyle(fontSize: 12),
+                ),
+              ),
             if (_canConfigure)
               IconButton(
                 tooltip: 'Risk rules',
@@ -474,12 +542,14 @@ class _AuditIntelligenceScreenState extends State<AuditIntelligenceScreen>
           ),
           if (_view == 'findings') ...[
             _select(
-              'Risk',
+              'Risk severity',
               _severity,
               const {
                 '': 'All risks',
+                'critical': 'Critical risk',
                 'high_risk': 'High risk',
                 'needs_review': 'Needs review',
+                'low_risk': 'Low risk',
               },
               (v) {
                 _severity = v;
@@ -489,16 +559,20 @@ class _AuditIntelligenceScreenState extends State<AuditIntelligenceScreen>
               width: 140,
             ),
             _select(
-              'Status',
+              'Review status',
               _status,
               const {
                 'active': 'Needs attention',
                 '': 'All statuses',
+                'unassigned': 'Unassigned',
+                'overdue': 'Overdue',
                 'open': 'Open',
+                'assigned': 'Assigned',
                 'under_review': 'Under review',
+                'awaiting_info': 'Awaiting info',
+                'escalated': 'Escalated',
                 'explained': 'Explained',
                 'resolved': 'Resolved',
-                'escalated': 'Escalated',
                 'dismissed': 'Dismissed',
               },
               (v) {
@@ -513,7 +587,15 @@ class _AuditIntelligenceScreenState extends State<AuditIntelligenceScreen>
             _select(
               'Sort',
               _sort,
-              _view == 'accounts'
+              _view == 'findings'
+                  ? const {
+                      'date': 'Detected date',
+                      'priority': 'Priority',
+                      'financial_exposure': 'Financial exposure',
+                      'due_date': 'Due date',
+                      'reference': 'Reference',
+                    }
+                  : _view == 'accounts'
                   ? const {
                       'account_name': 'Account',
                       'closing': 'Closing balance',
@@ -563,6 +645,25 @@ class _AuditIntelligenceScreenState extends State<AuditIntelligenceScreen>
   );
   Widget _summary() {
     if (_data.isEmpty) return const SizedBox.shrink();
+    if (_view == 'findings' && _reviewDashboard != null) {
+      final d = _reviewDashboard!;
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+        child: AuditMetrics({
+          'Open findings': '${d.totalOpen}',
+          'Critical / High': '${d.criticalPriority + d.highPriority}',
+          'Unassigned': '${d.unassigned}',
+          'Under review': '${d.underReview}',
+          'Awaiting info': '${d.awaitingInfo}',
+          'Overdue': '${d.overdue}',
+          'Resolved in period': '${d.resolvedInPeriod}',
+          'Total exposure': auditMoney(
+            d.totalExposure,
+            widget.session.currencyCode,
+          ),
+        }),
+      );
+    }
     final summary = auditMap(_data['summary']),
         checks = auditMap(_data['checks']),
         totals = auditMap(_data['account_totals']);
@@ -632,13 +733,15 @@ class _AuditIntelligenceScreenState extends State<AuditIntelligenceScreen>
       ),
     ],
     _ => const [
-      AuditColumn('date', 'Detected', compact: false),
-      AuditColumn('reference', 'Reference'),
+      AuditColumn('priority', 'Priority', flex: 2),
+      AuditColumn('reference', 'Reference', flex: 2),
       AuditColumn('title', 'Finding', flex: 4),
-      AuditColumn('severity', 'Risk'),
-      AuditColumn('status', 'Status', compact: false),
-      AuditColumn('actor', 'User', compact: false),
-      AuditColumn('location', 'Store', compact: false),
+      AuditColumn('financial_exposure', 'Exposure', numeric: true),
+      AuditColumn('severity', 'Risk', compact: false),
+      AuditColumn('assigned_name', 'Assignee', compact: false),
+      AuditColumn('due_date', 'Due date', compact: false),
+      AuditColumn('status', 'Status'),
+      AuditColumn('date', 'Detected', compact: false),
     ],
   };
   Widget _pager() {

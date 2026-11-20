@@ -62,7 +62,7 @@ class AuditBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final bad = ['high_risk', 'Unbalanced', 'escalated'].contains(value);
+    final bad = ['critical', 'high_risk', 'Unbalanced', 'escalated'].contains(value);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
       decoration: BoxDecoration(
@@ -141,7 +141,7 @@ class AuditTable extends StatelessWidget {
                           fontSize: 11,
                         ),
                       )
-                    : ['severity', 'status', 'balance_status'].contains(c.key)
+                    : ['severity', 'status', 'balance_status', 'priority'].contains(c.key)
                     ? Align(
                         alignment: Alignment.centerLeft,
                         child: AuditBadge(auditText(row[c.key])),
