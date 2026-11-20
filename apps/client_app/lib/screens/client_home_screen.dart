@@ -60,6 +60,7 @@ import 'support_screen.dart';
 import 'team_access_screen.dart';
 import 'transport_logistics_hub_screen.dart';
 import 'smart_inventory/smart_inventory_workspace_screen.dart';
+import '../services/client_navigation_scope.dart';
 
 class ClientHomeScreen extends StatefulWidget {
   final ClientSession session;
@@ -101,10 +102,29 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
   final Set<String> _expandedGroups = <String>{};
 
   String? _selectedModuleKey;
+  int? _moduleInitialTab;
+  dynamic _moduleArgs;
   bool _navCollapsed = false;
   String _menuQuery = '';
 
   List<ClientModule> get _modules => _moduleCache;
+
+  void _navigateToModule(String moduleKey, {int? tabIndex, dynamic args}) {
+    final key = moduleKey.trim().toLowerCase();
+    final match = _modules.cast<ClientModule?>().firstWhere(
+      (m) => m?.key.toLowerCase() == key,
+      orElse: () => _modules.cast<ClientModule?>().firstWhere(
+        (m) => m?.key.toLowerCase().contains(key) ?? false,
+        orElse: () => null,
+      ),
+    );
+    setState(() {
+      _selectedModuleKey = match?.key ?? key;
+      _moduleInitialTab = tabIndex;
+      _moduleArgs = args;
+      _contentGeneration++;
+    });
+  }
 
   void _rebuildSessionCaches() {
     const transportKeys = <String>{
@@ -595,13 +615,17 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
           profile: profile,
           child: Theme(
             data: _themeFor(profile),
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                if (constraints.maxWidth >= 900) {
-                  return _desktop(selected, profile);
-                }
-                return _mobile(selected, profile);
-              },
+            child: ClientNavigationScope(
+              navigateTo: _navigateToModule,
+              currentModuleKey: selected.key,
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  if (constraints.maxWidth >= 900) {
+                    return _desktop(selected, profile);
+                  }
+                  return _mobile(selected, profile);
+                },
+              ),
             ),
           ),
         );
@@ -731,6 +755,8 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
                                     child: _ModulePage(
                                       module: selected,
                                       session: _session,
+                                      initialTab: _moduleInitialTab,
+                                      args: _moduleArgs,
                                       onSettingsSaved: _onSettingsSaved,
                                       onBack: () => setState(
                                         () => _selectedModuleKey =
@@ -853,6 +879,8 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
                 child: _ModulePage(
                   module: selected,
                   session: _session,
+                  initialTab: _moduleInitialTab,
+                  args: _moduleArgs,
                   onSettingsSaved: _onSettingsSaved,
                   onBack: () => setState(
                     () => _selectedModuleKey = _preferredLandingModuleKey(
@@ -1325,7 +1353,11 @@ class _ClientHomeScreenState extends State<ClientHomeScreen> {
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: () {
-          setState(() => _selectedModuleKey = module.key);
+          setState(() {
+            _selectedModuleKey = module.key;
+            _moduleInitialTab = null;
+            _moduleArgs = null;
+          });
           if (closeDrawer) Navigator.of(context).pop();
         },
         child: SizedBox(
@@ -1726,12 +1758,16 @@ class _ModulePage extends StatelessWidget {
   final ClientSession session;
   final VoidCallback? onBack;
   final ValueChanged<Map<String, dynamic>>? onSettingsSaved;
+  final int? initialTab;
+  final dynamic args;
 
   const _ModulePage({
     required this.module,
     required this.session,
     this.onBack,
     this.onSettingsSaved,
+    this.initialTab,
+    this.args,
   });
 
   @override
@@ -1742,9 +1778,13 @@ class _ModulePage extends StatelessWidget {
       'aggregate_yard' => AggregateYardScreen(session: session),
       'operations_intelligence' => OperationsIntelligenceScreen(
         session: session,
+        initialTab: initialTab,
       ),
       'inventory' => InventoryProductsScreen(session: session),
-      'smart_inventory' => SmartInventoryWorkspaceScreen(session: session),
+      'smart_inventory' => SmartInventoryWorkspaceScreen(
+        session: session,
+        initialTab: initialTab ?? 0,
+      ),
       'inventory_reports' => ReportsCenterV500Screen(
         session: session,
         initialCategory: 'Inventory',

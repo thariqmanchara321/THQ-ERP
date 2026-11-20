@@ -13,6 +13,7 @@ import 'inventory_movement_history_screen.dart';
 import 'inventory_reports_screen.dart';
 import 'product_detail_screen.dart';
 import 'smart_inventory/smart_inventory_workspace_screen.dart';
+import '../services/client_navigation_scope.dart';
 
 class InventoryProductsScreen extends StatefulWidget {
   final ClientSession session;
@@ -308,13 +309,17 @@ class _InventoryProductsScreenState extends State<InventoryProductsScreen> {
                       icon: const Icon(Icons.analytics_outlined),
                     ),
                   OutlinedButton.icon(
-                    onPressed: () => Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => SmartInventoryWorkspaceScreen(
-                          session: widget.session,
-                        ),
-                      ),
-                    ),
+                    onPressed: () {
+                      if (!ClientNavigationScope.navigate(context, 'smart_inventory')) {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => SmartInventoryWorkspaceScreen(
+                              session: widget.session,
+                            ),
+                          ),
+                        );
+                      }
+                    },
                     icon: const Icon(Icons.qr_code_scanner, size: 17),
                     label: const Text('Smart Inventory'),
                   ),
@@ -334,15 +339,17 @@ class _InventoryProductsScreenState extends State<InventoryProductsScreen> {
                     const SizedBox(width: 6),
                     OutlinedButton.icon(
                       onPressed: () async {
-                        await Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => SmartInventoryWorkspaceScreen(
-                              session: widget.session,
-                              initialTab: 5,
+                        if (!ClientNavigationScope.navigate(context, 'smart_inventory', tabIndex: 5)) {
+                          await Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => SmartInventoryWorkspaceScreen(
+                                session: widget.session,
+                                initialTab: 5,
+                              ),
                             ),
-                          ),
-                        );
-                        _refresh();
+                          );
+                          _refresh();
+                        }
                       },
                       icon: const Icon(Icons.upload_file_outlined, size: 17),
                       label: const Text('Import Products'),
@@ -350,15 +357,17 @@ class _InventoryProductsScreenState extends State<InventoryProductsScreen> {
                     const SizedBox(width: 6),
                     OutlinedButton.icon(
                       onPressed: () async {
-                        await Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => SmartInventoryWorkspaceScreen(
-                              session: widget.session,
-                              initialTab: 6,
+                        if (!ClientNavigationScope.navigate(context, 'smart_inventory', tabIndex: 6)) {
+                          await Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => SmartInventoryWorkspaceScreen(
+                                session: widget.session,
+                                initialTab: 6,
+                              ),
                             ),
-                          ),
-                        );
-                        _refresh();
+                          );
+                          _refresh();
+                        }
                       },
                       icon: const Icon(Icons.print_outlined, size: 17),
                       label: const Text('Barcode Studio'),
@@ -366,15 +375,17 @@ class _InventoryProductsScreenState extends State<InventoryProductsScreen> {
                     const SizedBox(width: 6),
                     OutlinedButton.icon(
                       onPressed: () async {
-                        await Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => SmartInventoryWorkspaceScreen(
-                              session: widget.session,
-                              initialTab: 7,
+                        if (!ClientNavigationScope.navigate(context, 'smart_inventory', tabIndex: 7)) {
+                          await Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => SmartInventoryWorkspaceScreen(
+                                session: widget.session,
+                                initialTab: 7,
+                              ),
                             ),
-                          ),
-                        );
-                        _refresh();
+                          );
+                          _refresh();
+                        }
                       },
                       icon: const Icon(Icons.inventory_2_outlined, size: 17),
                       label: const Text('Stock Count'),
@@ -382,15 +393,17 @@ class _InventoryProductsScreenState extends State<InventoryProductsScreen> {
                     const SizedBox(width: 6),
                     OutlinedButton.icon(
                       onPressed: () async {
-                        await Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (_) => SmartInventoryWorkspaceScreen(
-                              session: widget.session,
-                              initialTab: 8,
+                        if (!ClientNavigationScope.navigate(context, 'smart_inventory', tabIndex: 8)) {
+                          await Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => SmartInventoryWorkspaceScreen(
+                                session: widget.session,
+                                initialTab: 8,
+                              ),
                             ),
-                          ),
-                        );
-                        _refresh();
+                          );
+                          _refresh();
+                        }
                       },
                       icon: const Icon(Icons.call_received, size: 17),
                       label: const Text('Receive Goods'),

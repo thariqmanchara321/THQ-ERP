@@ -15,6 +15,7 @@ import '../services/supplier_service.dart';
 import '../services/transaction_print_service.dart';
 import 'purchase_detail_screen.dart';
 import 'smart_inventory/smart_inventory_workspace_screen.dart';
+import '../services/client_navigation_scope.dart';
 import '../widgets/searchable_select.dart';
 
 class PurchasesScreen extends StatefulWidget {
@@ -239,15 +240,17 @@ class _PurchasesScreenState extends State<PurchasesScreen> {
                   const SizedBox(width: 4),
                   OutlinedButton.icon(
                     onPressed: () async {
-                      await Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => SmartInventoryWorkspaceScreen(
-                            session: widget.session,
-                            initialTab: 8,
+                      if (!ClientNavigationScope.navigate(context, 'smart_inventory', tabIndex: 8)) {
+                        await Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => SmartInventoryWorkspaceScreen(
+                              session: widget.session,
+                              initialTab: 8,
+                            ),
                           ),
-                        ),
-                      );
-                      _refresh();
+                        );
+                        _refresh();
+                      }
                     },
                     icon: const Icon(Icons.call_received, size: 17),
                     label: const Text('Receive Goods'),
@@ -314,15 +317,17 @@ class _PurchasesScreenState extends State<PurchasesScreen> {
                             children: [
                               OutlinedButton.icon(
                                 onPressed: () async {
-                                  await Navigator.of(context).push(
-                                    MaterialPageRoute(
-                                      builder: (_) => SmartInventoryWorkspaceScreen(
-                                        session: widget.session,
-                                        initialTab: 8,
+                                  if (!ClientNavigationScope.navigate(context, 'smart_inventory', tabIndex: 8)) {
+                                    await Navigator.of(context).push(
+                                      MaterialPageRoute(
+                                        builder: (_) => SmartInventoryWorkspaceScreen(
+                                          session: widget.session,
+                                          initialTab: 8,
+                                        ),
                                       ),
-                                    ),
-                                  );
-                                  _refresh();
+                                    );
+                                    _refresh();
+                                  }
                                 },
                                 icon: const Icon(Icons.call_received),
                                 label: const Text('Receive Goods'),

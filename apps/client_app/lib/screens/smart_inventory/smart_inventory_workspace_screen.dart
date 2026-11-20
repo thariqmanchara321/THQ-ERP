@@ -120,8 +120,9 @@ class _SmartInventoryWorkspaceScreenState
     final colors = Theme.of(context).colorScheme;
     final location = LocationScopeService.selectedLocation(widget.session);
 
-    return Scaffold(
-      body: Column(
+    return Material(
+      color: Colors.transparent,
+      child: Column(
         children: [
           // Workspace Header Bar
           Container(
