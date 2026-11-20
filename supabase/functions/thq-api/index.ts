@@ -66,7 +66,12 @@ Deno.serve(async (req) => {
         rpc = 'thq_sync_versions_v480'
         break
       case 'attention':
-        rpc = 'business_attention_summary_v480'
+        rpc = payload.version === 'v830' ? 'operations_intelligence_summary_v830' : 'business_attention_summary_v480'
+        params = { ...params, p_location_id: payload.location_id ?? null, p_days: payload.days ?? 30 }
+        break
+      case 'operations-summary':
+      case 'operations-intelligence-summary':
+        rpc = 'operations_intelligence_summary_v830'
         params = { ...params, p_location_id: payload.location_id ?? null, p_days: payload.days ?? 30 }
         break
       case 'runtime-health':
@@ -77,7 +82,11 @@ Deno.serve(async (req) => {
         params = { ...params, p_location_id: payload.location_id ?? null, p_device_id: payload.device_id ?? null }
         break
       case 'inventory-intelligence':
-        rpc = 'inventory_intelligence_v480'
+        rpc = (payload.version === 'v830' || payload.use_v830) ? 'inventory_intelligence_v830' : 'inventory_intelligence_v480'
+        params = { ...params, p_location_id: payload.location_id ?? null, p_days: payload.days ?? 30, p_query: payload.query ?? '', p_limit: payload.limit ?? 1000 }
+        break
+      case 'inventory-intelligence-v830':
+        rpc = 'inventory_intelligence_v830'
         params = { ...params, p_location_id: payload.location_id ?? null, p_days: payload.days ?? 30, p_query: payload.query ?? '', p_limit: payload.limit ?? 1000 }
         break
       case 'units':

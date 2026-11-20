@@ -9,11 +9,31 @@ class OperationsIntelligenceService {
     required String tenantId,
     String? locationId,
     int days = 30,
+    String? version,
   }) async {
     final data = await _api.call(
       ThqApiRequest(
         tenantId: tenantId,
         resource: 'attention',
+        payload: {
+          'location_id': locationId,
+          'days': days,
+          'version': ?version,
+        },
+      ),
+    );
+    return data is Map ? Map<String, dynamic>.from(data) : <String, dynamic>{};
+  }
+
+  Future<Map<String, dynamic>> operationsSummary({
+    required String tenantId,
+    String? locationId,
+    int days = 30,
+  }) async {
+    final data = await _api.call(
+      ThqApiRequest(
+        tenantId: tenantId,
+        resource: 'operations-summary',
         payload: {'location_id': locationId, 'days': days},
       ),
     );
@@ -25,12 +45,18 @@ class OperationsIntelligenceService {
     String? locationId,
     int days = 30,
     String query = '',
+    bool useV830 = false,
   }) async => _rows(
     await _api.call(
       ThqApiRequest(
         tenantId: tenantId,
         resource: 'inventory-intelligence',
-        payload: {'location_id': locationId, 'days': days, 'query': query},
+        payload: {
+          'location_id': locationId,
+          'days': days,
+          'query': query,
+          if (useV830) 'version': 'v830',
+        },
       ),
     ),
   );
