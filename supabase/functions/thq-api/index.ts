@@ -104,6 +104,48 @@ Deno.serve(async (req) => {
         rpc = 'expense_intelligence_v830'
         params = { ...params, p_location_id: payload.location_id ?? null, p_days: payload.days ?? 30, p_query: payload.query ?? '' }
         break
+      case 'action-centre':
+      case 'action-centre-v830':
+        rpc = 'erp_intelligence_action_centre_v830'
+        params = {
+          ...params,
+          p_location_id: payload.location_id ?? null,
+          p_engine: payload.engine ?? null,
+          p_severity: payload.severity ?? null,
+          p_status: payload.status ?? null,
+          p_category: payload.category ?? null,
+          p_query: payload.query ?? '',
+          p_limit: payload.limit ?? 100,
+          p_offset: payload.offset ?? 0,
+        }
+        break
+      case 'action-centre-scan':
+      case 'action-centre-scan-v830':
+        rpc = 'erp_intelligence_scan_and_sync_v830'
+        params = {
+          ...params,
+          p_location_id: payload.location_id ?? null,
+        }
+        break
+      case 'finding-transition':
+      case 'finding-transition-v830':
+        rpc = 'erp_intelligence_finding_transition_v830'
+        params = {
+          ...params,
+          p_finding_id: payload.finding_id,
+          p_to_status: payload.to_status,
+          p_review_notes: payload.review_notes ?? '',
+          p_assigned_to: payload.assigned_to ?? null,
+        }
+        break
+      case 'finding-reviews':
+      case 'finding-reviews-v830':
+        rpc = 'erp_intelligence_finding_reviews_v830'
+        params = {
+          ...params,
+          p_finding_id: payload.finding_id,
+        }
+        break
       case 'runtime-health':
         rpc = 'erp_runtime_health_v489'
         break

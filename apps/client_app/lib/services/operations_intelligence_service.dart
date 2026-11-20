@@ -341,6 +341,90 @@ class OperationsIntelligenceService {
     );
   }
 
+  Future<Map<String, dynamic>> actionCentre({
+    required String tenantId,
+    String? locationId,
+    String? engine,
+    String? severity,
+    String? status,
+    String? category,
+    String query = '',
+    int limit = 100,
+    int offset = 0,
+  }) async {
+    final data = await _api.call(
+      ThqApiRequest(
+        tenantId: tenantId,
+        resource: 'action-centre',
+        payload: {
+          'location_id': locationId,
+          'engine': engine,
+          'severity': severity,
+          'status': status,
+          'category': category,
+          'query': query,
+          'limit': limit,
+          'offset': offset,
+        },
+      ),
+    );
+    return data is Map ? Map<String, dynamic>.from(data) : <String, dynamic>{};
+  }
+
+  Future<Map<String, dynamic>> actionCentreScan({
+    required String tenantId,
+    String? locationId,
+  }) async {
+    final data = await _api.call(
+      ThqApiRequest(
+        tenantId: tenantId,
+        resource: 'action-centre-scan',
+        payload: {
+          'location_id': locationId,
+        },
+      ),
+    );
+    return data is Map ? Map<String, dynamic>.from(data) : <String, dynamic>{};
+  }
+
+  Future<Map<String, dynamic>> transitionFinding({
+    required String tenantId,
+    required String findingId,
+    required String toStatus,
+    String reviewNotes = '',
+    String? assignedTo,
+  }) async {
+    final data = await _api.call(
+      ThqApiRequest(
+        tenantId: tenantId,
+        resource: 'finding-transition',
+        payload: {
+          'finding_id': findingId,
+          'to_status': toStatus,
+          'review_notes': reviewNotes,
+          'assigned_to': assignedTo,
+        },
+      ),
+    );
+    return data is Map ? Map<String, dynamic>.from(data) : <String, dynamic>{};
+  }
+
+  Future<List<Map<String, dynamic>>> findingReviews({
+    required String tenantId,
+    required String findingId,
+  }) async {
+    final data = await _api.call(
+      ThqApiRequest(
+        tenantId: tenantId,
+        resource: 'finding-reviews',
+        payload: {
+          'finding_id': findingId,
+        },
+      ),
+    );
+    return _rows(data);
+  }
+
   List<Map<String, dynamic>> _rows(dynamic data) => (data as List? ?? const [])
       .whereType<Map>()
       .map((row) => Map<String, dynamic>.from(row))

@@ -160,6 +160,8 @@ class _OperationsIntelligenceScreenState
       const SectionState(data: {});
   SectionState<Map<String, dynamic>> _expenseIntelligenceState =
       const SectionState(data: {});
+  SectionState<Map<String, dynamic>> _actionCentreState =
+      const SectionState(data: {});
 
   final Set<String> _selectedReorder = <String>{};
   final Set<String> _selectedProcurement = <String>{};
@@ -177,6 +179,11 @@ class _OperationsIntelligenceScreenState
   String _procurementViewMode = 'recommendations';
   String _financialSubTab = 'overview';
   String _expenseSubTab = 'categories';
+  String _actionCentreSeverityFilter = 'all';
+  String _actionCentreEngineFilter = 'all';
+  String _actionCentreStatusFilter = 'unresolved';
+  String _actionCentreSubTab = 'all';
+  bool _isScanning = false;
 
   String get _tenantId => widget.session.business.id;
   String? get _locationId => LocationScopeService.selectedLocationId.value;
@@ -191,7 +198,7 @@ class _OperationsIntelligenceScreenState
   @override
   void initState() {
     super.initState();
-    final tabCount = 9;
+    final tabCount = 10;
     final initial = (widget.initialTab ?? 0).clamp(0, tabCount - 1);
     _tabs = TabController(length: tabCount, vsync: this, initialIndex: initial);
     _tabs.addListener(() {
@@ -243,8 +250,144 @@ class _OperationsIntelligenceScreenState
     _loadPurchaseOrders(seq);
     _loadFinancialIntelligence(seq);
     _loadExpenseIntelligence(seq);
+    _loadActionCentre(seq);
     if (_isMultiLocation && _locationId == null) {
       _loadStoreComparison(seq);
+    }
+  }
+
+  Future<void> _loadActionCentre([int? seq]) async {
+    final currentSeq = seq ?? ++_requestSequence;
+    setState(() => _actionCentreState = _actionCentreState.toLoading());
+    try {
+      final query = _search.text.trim();
+      final data = await _service.actionCentre(
+        tenantId: _tenantId,
+        locationId: _locationId,
+        engine: _actionCentreEngineFilter == 'all' ? null : _actionCentreEngineFilter,
+        severity: _actionCentreSeverityFilter == 'all' ? null : _actionCentreSeverityFilter,
+        status: _actionCentreStatusFilter == 'all'
+            ? null
+            : (_actionCentreStatusFilter == 'unresolved' ? null : _actionCentreStatusFilter),
+        query: query,
+        limit: 200,
+      );
+      if (!mounted || currentSeq != _requestSequence) return;
+      setState(() => _actionCentreState = _actionCentreState.toSuccess(data));
+    } catch (e) {
+      if (!mounted || currentSeq != _requestSequence) return;
+      setState(() => _actionCentreState = _actionCentreState.toError(e.toString()));
+    }
+  }
+
+  Future<void> _runDiagnosticScan() async {
+    if (_isScanning) return;
+    setState(() => _isScanning = true);
+    try {
+      final res = await _service.actionCentreScan(
+        tenantId: _tenantId,
+        locationId: _locationId,
+      );
+      if (!mounted) return;
+      final total = res['total_detected'] ?? 0;
+      final inserted = res['inserted'] ?? 0;
+      final updated = res['updated'] ?? 0;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Diagnostic scan complete: $total findings analyzed ($inserted new, $updated refreshed).',
+          ),
+          backgroundColor: Colors.teal.shade800,
+        ),
+      );
+      await _loadActionCentre();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Diagnostic scan failed: $e'),
+          backgroundColor: Colors.red.shade800,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isScanning = false);
+    }
+  }
+
+  Future<void> _openTransitionDialog(Map<String, dynamic> finding, String toStatus) async {
+    final noteController = TextEditingController();
+    final statusLabel = toStatus.toUpperCase().replaceAll('_', ' ');
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Transition Finding to $statusLabel'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Finding: ${finding['title'] ?? 'Unknown'}',
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: noteController,
+              maxLines: 3,
+              decoration: const InputDecoration(
+                labelText: 'Review Notes / Justification',
+                hintText: 'Enter reason or action taken for audit trail...',
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Confirm'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      try {
+        final res = await _service.transitionFinding(
+          tenantId: _tenantId,
+          findingId: finding['id'].toString(),
+          toStatus: toStatus,
+          reviewNotes: noteController.text.trim(),
+        );
+        if (!mounted) return;
+        if (res['success'] == true) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Finding moved to $statusLabel.'),
+              backgroundColor: Colors.green.shade800,
+            ),
+          );
+          _loadActionCentre();
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Failed transition: ${res['error'] ?? 'Unknown error'}'),
+              backgroundColor: Colors.red.shade800,
+            ),
+          );
+        }
+      } catch (e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Transition error: $e'),
+            backgroundColor: Colors.red.shade800,
+          ),
+        );
+      }
     }
   }
 
@@ -709,6 +852,22 @@ class _OperationsIntelligenceScreenState
                 ],
               ),
             ),
+            Tab(
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text('Action & Risk Centre'),
+                  if (_actionCentreState.loading || _isScanning) ...[
+                    const SizedBox(width: 6),
+                    const SizedBox(
+                      width: 10,
+                      height: 10,
+                      child: CircularProgressIndicator(strokeWidth: 1.5),
+                    ),
+                  ],
+                ],
+              ),
+            ),
           ],
         ),
         const Divider(height: 1),
@@ -725,6 +884,7 @@ class _OperationsIntelligenceScreenState
               _customerCreditTab(),
               _financialIntelligenceTab(),
               _expenseIntelligenceTab(),
+              _actionCentreTab(),
             ],
           ),
         ),
@@ -7002,6 +7162,1071 @@ class _OperationsIntelligenceScreenState
           ),
         );
       }).toList(),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // TAB 9: ACTION & RISK CENTRE
+  // ---------------------------------------------------------------------------
+  Widget _actionCentreTab() {
+    if (_actionCentreState.loading && _actionCentreState.data.isEmpty) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (_actionCentreState.hasError && _actionCentreState.data.isEmpty) {
+      return _sectionError(
+        'Action & Risk Centre',
+        _actionCentreState.error,
+        _loadActionCentre,
+      );
+    }
+
+    final data = _actionCentreState.data;
+    final summary = Map<String, dynamic>.from(data['summary'] as Map? ?? const {});
+    final rawFindings = (data['findings'] as List? ?? const [])
+        .whereType<Map>()
+        .map((e) => Map<String, dynamic>.from(e))
+        .toList();
+
+    final findings = rawFindings.where((f) {
+      if (_actionCentreSubTab == 'pending') {
+        final s = f['status']?.toString() ?? 'new';
+        return ['new', 'under_review', 'accepted', 'approved'].contains(s);
+      }
+      if (_actionCentreSubTab == 'cross_engine') {
+        return f['is_cross_engine'] == true || f['engine'] == 'cross_engine';
+      }
+      return true;
+    }).toList();
+
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(18, 14, 18, 24),
+      children: [
+        if (_actionCentreState.hasError)
+          _sectionError(
+            'Action & Risk Centre (cached view)',
+            _actionCentreState.error,
+            _loadActionCentre,
+          ),
+
+        // Header & Diagnostic Scan Action Row
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Centralized Action & Risk Centre',
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Shared intelligence framework connecting risk findings from all 8 operational engines with deterministic prioritization.',
+                    style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 12),
+            FilledButton.icon(
+              onPressed: _isScanning ? null : _runDiagnosticScan,
+              icon: _isScanning
+                  ? const SizedBox(
+                      width: 14,
+                      height: 14,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                    )
+                  : const Icon(Icons.radar, size: 16),
+              label: Text(_isScanning ? 'Scanning...' : 'Run Diagnostic Scan'),
+              style: FilledButton.styleFrom(
+                backgroundColor: Colors.teal.shade800,
+                foregroundColor: Colors.white,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+
+        // Summary Metric Cards
+        Row(
+          children: [
+            Expanded(
+              child: _actionCentreKpiCard(
+                'Active Findings',
+                summary['total_findings']?.toString() ?? '0',
+                Icons.rule_folder_outlined,
+                Colors.blue.shade700,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: _actionCentreKpiCard(
+                'Critical Severity',
+                summary['critical_count']?.toString() ?? '0',
+                Icons.error_outline,
+                Colors.red.shade700,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: _actionCentreKpiCard(
+                'High Severity',
+                summary['high_count']?.toString() ?? '0',
+                Icons.warning_amber_rounded,
+                Colors.orange.shade800,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: _actionCentreKpiCard(
+                'Unresolved',
+                summary['unresolved_count']?.toString() ?? '0',
+                Icons.pending_actions_outlined,
+                Colors.amber.shade800,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: _actionCentreKpiCard(
+                'Resolved / Closed',
+                summary['resolved_count']?.toString() ?? '0',
+                Icons.task_alt,
+                Colors.green.shade700,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: _actionCentreKpiCard(
+                'Total Impact Exposure',
+                _canViewCost ? _money(summary['total_impacted_amount']) : '—',
+                Icons.account_balance_wallet_outlined,
+                Colors.purple.shade700,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+
+        // Filter and SubTab Navigation Toolbar
+        Card(
+          elevation: 0,
+          color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.35),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            child: Wrap(
+              spacing: 12,
+              runSpacing: 8,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                // SubTabs
+                ChoiceChip(
+                  label: Text('All Findings (${rawFindings.length})'),
+                  selected: _actionCentreSubTab == 'all',
+                  onSelected: (val) {
+                    if (val) setState(() => _actionCentreSubTab = 'all');
+                  },
+                ),
+                ChoiceChip(
+                  label: Text(
+                    'Pending Action (${rawFindings.where((f) => ['new', 'under_review', 'accepted', 'approved'].contains(f['status'])).length})',
+                  ),
+                  selected: _actionCentreSubTab == 'pending',
+                  onSelected: (val) {
+                    if (val) setState(() => _actionCentreSubTab = 'pending');
+                  },
+                ),
+                ChoiceChip(
+                  label: Text(
+                    'Cross-Engine (${rawFindings.where((f) => f['is_cross_engine'] == true || f['engine'] == 'cross_engine').length})',
+                  ),
+                  selected: _actionCentreSubTab == 'cross_engine',
+                  onSelected: (val) {
+                    if (val) setState(() => _actionCentreSubTab = 'cross_engine');
+                  },
+                ),
+
+                const SizedBox(width: 10),
+
+                // Severity Filter
+                DropdownButton<String>(
+                  value: _actionCentreSeverityFilter,
+                  isDense: true,
+                  underline: const SizedBox.shrink(),
+                  items: const [
+                    DropdownMenuItem(value: 'all', child: Text('Severity: All')),
+                    DropdownMenuItem(value: 'critical', child: Text('Critical Only')),
+                    DropdownMenuItem(value: 'high', child: Text('High Only')),
+                    DropdownMenuItem(value: 'medium', child: Text('Medium Only')),
+                    DropdownMenuItem(value: 'low', child: Text('Low Only')),
+                  ],
+                  onChanged: (val) {
+                    if (val != null && val != _actionCentreSeverityFilter) {
+                      setState(() => _actionCentreSeverityFilter = val);
+                      _loadActionCentre();
+                    }
+                  },
+                ),
+
+                // Engine Filter
+                DropdownButton<String>(
+                  value: _actionCentreEngineFilter,
+                  isDense: true,
+                  underline: const SizedBox.shrink(),
+                  items: const [
+                    DropdownMenuItem(value: 'all', child: Text('Engine: All Engines')),
+                    DropdownMenuItem(value: 'cross_engine', child: Text('Cross-Engine Correlated')),
+                    DropdownMenuItem(value: 'sales', child: Text('Sales Intelligence')),
+                    DropdownMenuItem(value: 'inventory', child: Text('Inventory Intelligence')),
+                    DropdownMenuItem(value: 'rebalancing', child: Text('Inter-Store Rebalancing')),
+                    DropdownMenuItem(value: 'procurement', child: Text('Procurement Intelligence')),
+                    DropdownMenuItem(value: 'supplier', child: Text('Supplier Intelligence')),
+                    DropdownMenuItem(value: 'customer_credit', child: Text('Customer Credit')),
+                    DropdownMenuItem(value: 'financial', child: Text('Financial Intelligence')),
+                    DropdownMenuItem(value: 'expense', child: Text('Expense Intelligence')),
+                  ],
+                  onChanged: (val) {
+                    if (val != null && val != _actionCentreEngineFilter) {
+                      setState(() => _actionCentreEngineFilter = val);
+                      _loadActionCentre();
+                    }
+                  },
+                ),
+
+                // Status Filter
+                DropdownButton<String>(
+                  value: _actionCentreStatusFilter,
+                  isDense: true,
+                  underline: const SizedBox.shrink(),
+                  items: const [
+                    DropdownMenuItem(value: 'unresolved', child: Text('Status: Unresolved')),
+                    DropdownMenuItem(value: 'all', child: Text('Status: All Statuses')),
+                    DropdownMenuItem(value: 'new', child: Text('New Only')),
+                    DropdownMenuItem(value: 'under_review', child: Text('Under Review')),
+                    DropdownMenuItem(value: 'accepted', child: Text('Accepted')),
+                    DropdownMenuItem(value: 'approved', child: Text('Approved')),
+                    DropdownMenuItem(value: 'completed', child: Text('Completed')),
+                    DropdownMenuItem(value: 'resolved', child: Text('Resolved')),
+                    DropdownMenuItem(value: 'dismissed', child: Text('Dismissed')),
+                  ],
+                  onChanged: (val) {
+                    if (val != null && val != _actionCentreStatusFilter) {
+                      setState(() => _actionCentreStatusFilter = val);
+                      _loadActionCentre();
+                    }
+                  },
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 14),
+
+        // Findings List
+        if (findings.isEmpty)
+          Card(
+            margin: const EdgeInsets.symmetric(vertical: 24),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            child: Padding(
+              padding: const EdgeInsets.all(36),
+              child: Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.check_circle_outline, size: 48, color: Colors.teal.shade400),
+                    const SizedBox(height: 12),
+                    const Text(
+                      'No Active Risks or Action Items',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'No intelligence findings match the selected filters. Click "Run Diagnostic Scan" above to run live rule checks across all ERP data.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          )
+        else
+          ...findings.map((f) => _actionCentreFindingCard(f)),
+      ],
+    );
+  }
+
+  Widget _actionCentreKpiCard(String title, String value, IconData icon, Color color) {
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(10),
+        side: BorderSide(color: Colors.grey.withValues(alpha: 0.2)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(icon, size: 16, color: color),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Text(
+              value,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: color),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _actionCentreFindingCard(Map<String, dynamic> f) {
+    final severity = (f['severity']?.toString() ?? 'medium').toLowerCase();
+    final status = (f['status']?.toString() ?? 'new').toLowerCase();
+    final engine = (f['engine']?.toString() ?? 'operations').toLowerCase();
+    final isCross = f['is_cross_engine'] == true || engine == 'cross_engine';
+
+    Color sevColor;
+    switch (severity) {
+      case 'critical':
+        sevColor = Colors.red.shade700;
+        break;
+      case 'high':
+        sevColor = Colors.orange.shade800;
+        break;
+      case 'medium':
+        sevColor = Colors.amber.shade700;
+        break;
+      default:
+        sevColor = Colors.blue.shade600;
+    }
+
+    Color statusColor;
+    switch (status) {
+      case 'new':
+        statusColor = Colors.blue.shade700;
+        break;
+      case 'under_review':
+        statusColor = Colors.purple.shade700;
+        break;
+      case 'accepted':
+        statusColor = Colors.indigo.shade700;
+        break;
+      case 'approved':
+        statusColor = Colors.cyan.shade800;
+        break;
+      case 'completed':
+        statusColor = Colors.teal.shade700;
+        break;
+      case 'resolved':
+        statusColor = Colors.green.shade700;
+        break;
+      case 'dismissed':
+        statusColor = Colors.grey.shade600;
+        break;
+      case 'rejected':
+        statusColor = Colors.red.shade600;
+        break;
+      default:
+        statusColor = Colors.blueGrey;
+    }
+
+    final occurrences = (f['occurrence_count'] as num?)?.toInt() ?? 1;
+    final priorityScore = _n(f['priority_score']);
+    final priorityReason = f['priority_reason']?.toString() ?? 'Priority score';
+    final recAction = f['recommended_action'] is Map ? Map<String, dynamic>.from(f['recommended_action'] as Map) : null;
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(10),
+        side: BorderSide(color: sevColor.withValues(alpha: 0.4), width: 1.2),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Top badges row
+            Row(
+              children: [
+                // Priority Score
+                Tooltip(
+                  message: priorityReason,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: Colors.amber.shade900.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: Colors.amber.shade700.withValues(alpha: 0.5)),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.bolt, size: 13, color: Colors.amber),
+                        const SizedBox(width: 4),
+                        Text(
+                          'Score: ${priorityScore.toStringAsFixed(1)}',
+                          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.amber),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+
+                // Severity
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: sevColor.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: sevColor.withValues(alpha: 0.5)),
+                  ),
+                  child: Text(
+                    severity.toUpperCase(),
+                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: sevColor),
+                  ),
+                ),
+                const SizedBox(width: 8),
+
+                // Engine
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: (isCross ? Colors.purple : Colors.teal).withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: (isCross ? Colors.purple : Colors.teal).withValues(alpha: 0.4)),
+                  ),
+                  child: Text(
+                    isCross ? 'CROSS-ENGINE' : engine.toUpperCase().replaceAll('_', ' '),
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: isCross ? Colors.purple.shade700 : Colors.teal.shade800,
+                    ),
+                  ),
+                ),
+
+                if (occurrences > 1) ...[
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      'Detected ${occurrences}x',
+                      style: TextStyle(fontSize: 10.5, color: Colors.grey.shade700, fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ],
+
+                const Spacer(),
+
+                // Status Pill
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: statusColor.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: statusColor.withValues(alpha: 0.6)),
+                  ),
+                  child: Text(
+                    status.toUpperCase().replaceAll('_', ' '),
+                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: statusColor),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+
+            // Title & Description
+            Text(
+              f['title']?.toString() ?? '',
+              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              f['description']?.toString() ?? '',
+              style: const TextStyle(fontSize: 13),
+            ),
+            const SizedBox(height: 10),
+
+            // Entity, Rule Code and Impact
+            Wrap(
+              spacing: 16,
+              runSpacing: 4,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                if (f['affected_record_ref'] != null || f['affected_entity_id'] != null)
+                  Text(
+                    'Entity: ${f['affected_entity_type'] ?? 'record'} • ${f['affected_record_ref'] ?? f['affected_entity_id']}',
+                    style: TextStyle(fontSize: 12, color: Colors.grey.shade700, fontWeight: FontWeight.w500),
+                  ),
+                if (f['rule_code'] != null)
+                  Text(
+                    'Rule: ${f['rule_code']}',
+                    style: TextStyle(fontSize: 11.5, color: Colors.grey.shade600),
+                  ),
+                if (f['impacted_amount'] != null && _n(f['impacted_amount']) > 0)
+                  Text(
+                    'Exposure: ${_canViewCost ? _money(f['impacted_amount']) : '—'}',
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: sevColor),
+                  ),
+                if (f['confidence'] != null)
+                  Text(
+                    '${(_n(f['confidence']) * 100).toStringAsFixed(0)}% confidence',
+                    style: TextStyle(fontSize: 11.5, color: Colors.grey.shade600),
+                  ),
+              ],
+            ),
+
+            if (recAction != null) ...[
+              const SizedBox(height: 10),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                decoration: BoxDecoration(
+                  color: Colors.amber.shade900.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: Colors.amber.shade700.withValues(alpha: 0.3)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.lightbulb_outline, size: 16, color: Colors.amber),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        recAction['label']?.toString() ?? 'Recommended resolution action available.',
+                        style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w500),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+
+            const SizedBox(height: 12),
+            const Divider(height: 1),
+            const SizedBox(height: 8),
+
+            // Action Buttons Row
+            Row(
+              children: [
+                OutlinedButton.icon(
+                  onPressed: () => _showFindingDetailsDialog(f),
+                  icon: const Icon(Icons.manage_search, size: 15),
+                  label: const Text('Inspect & Review', style: TextStyle(fontSize: 12)),
+                  style: OutlinedButton.styleFrom(visualDensity: VisualDensity.compact),
+                ),
+                const SizedBox(width: 8),
+
+                // Safe ERP Route Navigation Handoff
+                if (recAction != null && recAction['route'] != null) ...[
+                  TextButton.icon(
+                    onPressed: () {
+                      final rawRoute = recAction['route'].toString();
+                      final cleanRoute = rawRoute.replaceAll('/', '').trim();
+                      ClientNavigationScope.navigate(context, cleanRoute);
+                    },
+                    icon: const Icon(Icons.open_in_new, size: 14),
+                    label: Text(
+                      'Open in ${recAction['route']}',
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                    style: TextButton.styleFrom(visualDensity: VisualDensity.compact),
+                  ),
+                  const SizedBox(width: 8),
+                ],
+
+                const Spacer(),
+
+                // Quick Transition Buttons
+                if (status == 'new')
+                  FilledButton(
+                    onPressed: () => _openTransitionDialog(f, 'under_review'),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: Colors.purple.shade700,
+                      visualDensity: VisualDensity.compact,
+                    ),
+                    child: const Text('Start Review', style: TextStyle(fontSize: 12)),
+                  )
+                else if (status == 'under_review') ...[
+                  OutlinedButton(
+                    onPressed: () => _openTransitionDialog(f, 'rejected'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.red.shade700,
+                      visualDensity: VisualDensity.compact,
+                    ),
+                    child: const Text('Reject', style: TextStyle(fontSize: 12)),
+                  ),
+                  const SizedBox(width: 6),
+                  FilledButton(
+                    onPressed: () => _openTransitionDialog(f, 'accepted'),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: Colors.indigo.shade700,
+                      visualDensity: VisualDensity.compact,
+                    ),
+                    child: const Text('Accept', style: TextStyle(fontSize: 12)),
+                  ),
+                ] else if (status == 'accepted')
+                  FilledButton(
+                    onPressed: () => _openTransitionDialog(f, 'approved'),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: Colors.cyan.shade800,
+                      visualDensity: VisualDensity.compact,
+                    ),
+                    child: const Text('Approve', style: TextStyle(fontSize: 12)),
+                  )
+                else if (status == 'approved')
+                  FilledButton(
+                    onPressed: () => _openTransitionDialog(f, 'completed'),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: Colors.teal.shade700,
+                      visualDensity: VisualDensity.compact,
+                    ),
+                    child: const Text('Mark Completed', style: TextStyle(fontSize: 12)),
+                  )
+                else if (status == 'completed')
+                  FilledButton(
+                    onPressed: () => _openTransitionDialog(f, 'resolved'),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: Colors.green.shade700,
+                      visualDensity: VisualDensity.compact,
+                    ),
+                    child: const Text('Resolve', style: TextStyle(fontSize: 12)),
+                  )
+                else if (status == 'resolved' || status == 'dismissed')
+                  TextButton.icon(
+                    onPressed: () => _openTransitionDialog(f, 'new'),
+                    icon: const Icon(Icons.refresh, size: 14),
+                    label: const Text('Reopen', style: TextStyle(fontSize: 12)),
+                    style: TextButton.styleFrom(visualDensity: VisualDensity.compact),
+                  ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showFindingDetailsDialog(Map<String, dynamic> f) {
+    final findingId = f['id']?.toString() ?? '';
+    final severity = (f['severity']?.toString() ?? 'medium').toLowerCase();
+    final status = (f['status']?.toString() ?? 'new').toLowerCase();
+    final evidence = f['evidence'] is Map ? Map<String, dynamic>.from(f['evidence'] as Map) : <String, dynamic>{};
+    final recAction = f['recommended_action'] is Map ? Map<String, dynamic>.from(f['recommended_action'] as Map) : null;
+    final priorityScore = _n(f['priority_score']);
+    final priorityReason = f['priority_reason']?.toString() ?? 'Transparent priority formula';
+
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return Dialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 720, maxHeight: 800),
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Dialog Header
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: Colors.amber.shade900.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: Colors.amber.shade700.withValues(alpha: 0.5)),
+                        ),
+                        child: Text(
+                          'Score: ${priorityScore.toStringAsFixed(1)}',
+                          style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold, color: Colors.amber),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        severity.toUpperCase(),
+                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        '• Status: ${status.toUpperCase().replaceAll('_', ' ')}',
+                        style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+                      ),
+                      const Spacer(),
+                      IconButton(
+                        icon: const Icon(Icons.close, size: 20),
+                        onPressed: () => Navigator.of(ctx).pop(),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+
+                  Text(
+                    f['title']?.toString() ?? '',
+                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    f['description']?.toString() ?? '',
+                    style: const TextStyle(fontSize: 13.5),
+                  ),
+                  const SizedBox(height: 12),
+                  const Divider(height: 1),
+                  const SizedBox(height: 12),
+
+                  // Scrollable Body: Explanation, Evidence, Action Handoff, Review Audit
+                  Expanded(
+                    child: ListView(
+                      children: [
+                        // Detection Rule & Priority Calculation
+                        Card(
+                          elevation: 0,
+                          color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          child: Padding(
+                            padding: const EdgeInsets.all(12),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'DETECTION RULE & PRIORITY CALCULATION',
+                                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey),
+                                ),
+                                const SizedBox(height: 6),
+                                Text(
+                                  f['detection_rule']?.toString() ?? 'Deterministic rule check on ERP transactional records.',
+                                  style: const TextStyle(fontSize: 13),
+                                ),
+                                const SizedBox(height: 6),
+                                Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Icon(Icons.calculate_outlined, size: 15, color: Colors.amber),
+                                    const SizedBox(width: 6),
+                                    Expanded(
+                                      child: Text(
+                                        'Formula breakdown: $priorityReason',
+                                        style: TextStyle(fontSize: 12, color: Colors.grey.shade700, fontStyle: FontStyle.italic),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+
+                        // Structured Evidence
+                        const Text(
+                          'Structured Diagnostic Evidence',
+                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 6),
+                        if (evidence.isEmpty)
+                          Text('No structured evidence recorded.', style: TextStyle(fontSize: 12.5, color: Colors.grey.shade600))
+                        else
+                          Container(
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: Colors.grey.withValues(alpha: 0.25)),
+                            ),
+                            child: Table(
+                              columnWidths: const {
+                                0: IntrinsicColumnWidth(),
+                                1: FlexColumnWidth(),
+                              },
+                              children: evidence.entries.map((e) {
+                                final isFinancialKey = e.key.contains('amount') || e.key.contains('capital') || e.key.contains('spend') || e.key.contains('balance');
+                                final valStr = isFinancialKey && !_canViewCost
+                                    ? '—'
+                                    : (e.value is num && isFinancialKey ? _money(e.value) : e.value.toString());
+                                return TableRow(
+                                  decoration: BoxDecoration(
+                                    border: Border(bottom: BorderSide(color: Colors.grey.withValues(alpha: 0.15))),
+                                  ),
+                                  children: [
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                      child: Text(
+                                        e.key.replaceAll('_', ' ').toUpperCase(),
+                                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.grey.shade700),
+                                      ),
+                                    ),
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                      child: Text(
+                                        valStr,
+                                        style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w500),
+                                      ),
+                                    ),
+                                  ],
+                                );
+                              }).toList(),
+                            ),
+                          ),
+                        const SizedBox(height: 16),
+
+                        // Recommended Action & Safe Navigation Handoff
+                        if (recAction != null) ...[
+                          const Text(
+                            'Recommended Action & Safe ERP Handoff',
+                            style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                          ),
+                          const SizedBox(height: 6),
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Colors.amber.shade900.withValues(alpha: 0.08),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: Colors.amber.shade700.withValues(alpha: 0.3)),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  recAction['label']?.toString() ?? 'Action Recommendation',
+                                  style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.bold),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  'Action Type: ${recAction['action_type'] ?? 'inspection'} • Target Module: ${recAction['route'] ?? 'Manual'}',
+                                  style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+                                ),
+                                const SizedBox(height: 8),
+                                if (recAction['route'] != null)
+                                  FilledButton.icon(
+                                    onPressed: () {
+                                      Navigator.of(ctx).pop();
+                                      final rawRoute = recAction['route'].toString();
+                                      final cleanRoute = rawRoute.replaceAll('/', '').trim();
+                                      ClientNavigationScope.navigate(context, cleanRoute);
+                                    },
+                                    icon: const Icon(Icons.open_in_new, size: 14),
+                                    label: Text('Open ${recAction['route']} in ERP Shell'),
+                                    style: FilledButton.styleFrom(
+                                      backgroundColor: Colors.teal.shade800,
+                                      visualDensity: VisualDensity.compact,
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                        ],
+
+                        // Audit Review History Timeline
+                        const Text(
+                          'Traceable Review & Audit Trail',
+                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 6),
+                        FutureBuilder<List<Map<String, dynamic>>>(
+                          future: _service.findingReviews(
+                            tenantId: _tenantId,
+                            findingId: findingId,
+                          ),
+                          builder: (context, snapshot) {
+                            if (snapshot.connectionState == ConnectionState.waiting) {
+                              return const Center(child: Padding(padding: EdgeInsets.all(12), child: CircularProgressIndicator()));
+                            }
+                            final reviews = snapshot.data ?? const [];
+                            if (reviews.isEmpty) {
+                              return Text(
+                                'No review actions recorded yet for this finding.',
+                                style: TextStyle(fontSize: 12.5, color: Colors.grey.shade600, fontStyle: FontStyle.italic),
+                              );
+                            }
+                            return ListView.separated(
+                              shrinkWrap: true,
+                              physics: const NeverScrollableScrollPhysics(),
+                              itemCount: reviews.length,
+                              separatorBuilder: (_, _) => const Divider(height: 12),
+                              itemBuilder: (context, i) {
+                                final rev = reviews[i];
+                                final dt = DateTime.tryParse(rev['created_at']?.toString() ?? '');
+                                final dateStr = dt != null
+                                    ? '${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')} ${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}'
+                                    : rev['created_at']?.toString() ?? '';
+                                return Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Icon(Icons.history, size: 16, color: Colors.teal),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Row(
+                                            children: [
+                                              Text(
+                                                '${rev['from_status'] ?? 'new'} → ${rev['to_status'] ?? ''}',
+                                                style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold),
+                                              ),
+                                              const SizedBox(width: 8),
+                                              Expanded(
+                                                child: Text(
+                                                  'by ${rev['reviewer_name'] ?? 'Authorized User'}',
+                                                  style: TextStyle(fontSize: 11.5, color: Colors.grey.shade600),
+                                                  overflow: TextOverflow.ellipsis,
+                                                ),
+                                              ),
+                                              const SizedBox(width: 8),
+                                              Text(
+                                                dateStr,
+                                                style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+                                              ),
+                                            ],
+                                          ),
+                                          if (rev['review_notes'] != null && rev['review_notes'].toString().isNotEmpty) ...[
+                                            const SizedBox(height: 3),
+                                            Text(
+                                              rev['review_notes'].toString(),
+                                              style: const TextStyle(fontSize: 12),
+                                            ),
+                                          ],
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                );
+                              },
+                            );
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 12),
+                  const Divider(height: 1),
+                  const SizedBox(height: 12),
+
+                  // Dialog Footer: State Transition Controls
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      Text(
+                        'Change Finding Status:',
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.grey.shade700),
+                      ),
+                      const SizedBox(width: 4),
+
+                      if (status == 'new') ...[
+                        OutlinedButton(
+                          onPressed: () {
+                            Navigator.of(ctx).pop();
+                            _openTransitionDialog(f, 'dismissed');
+                          },
+                          child: const Text('Dismiss', style: TextStyle(fontSize: 11.5)),
+                        ),
+                        FilledButton(
+                          onPressed: () {
+                            Navigator.of(ctx).pop();
+                            _openTransitionDialog(f, 'under_review');
+                          },
+                          style: FilledButton.styleFrom(backgroundColor: Colors.purple.shade700),
+                          child: const Text('Start Review', style: TextStyle(fontSize: 11.5)),
+                        ),
+                      ] else if (status == 'under_review') ...[
+                        OutlinedButton(
+                          onPressed: () {
+                            Navigator.of(ctx).pop();
+                            _openTransitionDialog(f, 'rejected');
+                          },
+                          style: OutlinedButton.styleFrom(foregroundColor: Colors.red.shade700),
+                          child: const Text('Reject', style: TextStyle(fontSize: 11.5)),
+                        ),
+                        FilledButton(
+                          onPressed: () {
+                            Navigator.of(ctx).pop();
+                            _openTransitionDialog(f, 'accepted');
+                          },
+                          style: FilledButton.styleFrom(backgroundColor: Colors.indigo.shade700),
+                          child: const Text('Accept', style: TextStyle(fontSize: 11.5)),
+                        ),
+                      ] else if (status == 'accepted') ...[
+                        OutlinedButton(
+                          onPressed: () {
+                            Navigator.of(ctx).pop();
+                            _openTransitionDialog(f, 'rejected');
+                          },
+                          style: OutlinedButton.styleFrom(foregroundColor: Colors.red.shade700),
+                          child: const Text('Reject', style: TextStyle(fontSize: 11.5)),
+                        ),
+                        FilledButton(
+                          onPressed: () {
+                            Navigator.of(ctx).pop();
+                            _openTransitionDialog(f, 'approved');
+                          },
+                          style: FilledButton.styleFrom(backgroundColor: Colors.cyan.shade800),
+                          child: const Text('Approve', style: TextStyle(fontSize: 11.5)),
+                        ),
+                      ] else if (status == 'approved') ...[
+                        FilledButton(
+                          onPressed: () {
+                            Navigator.of(ctx).pop();
+                            _openTransitionDialog(f, 'completed');
+                          },
+                          style: FilledButton.styleFrom(backgroundColor: Colors.teal.shade700),
+                          child: const Text('Mark Completed', style: TextStyle(fontSize: 11.5)),
+                        ),
+                      ] else if (status == 'completed') ...[
+                        FilledButton(
+                          onPressed: () {
+                            Navigator.of(ctx).pop();
+                            _openTransitionDialog(f, 'resolved');
+                          },
+                          style: FilledButton.styleFrom(backgroundColor: Colors.green.shade700),
+                          child: const Text('Verify & Resolve', style: TextStyle(fontSize: 11.5)),
+                        ),
+                      ] else if (status == 'resolved' || status == 'dismissed' || status == 'rejected') ...[
+                        FilledButton(
+                          onPressed: () {
+                            Navigator.of(ctx).pop();
+                            _openTransitionDialog(f, 'new');
+                          },
+                          style: FilledButton.styleFrom(backgroundColor: Colors.blue.shade700),
+                          child: const Text('Reopen Finding', style: TextStyle(fontSize: 11.5)),
+                        ),
+                      ],
+
+                      TextButton(
+                        onPressed: () => Navigator.of(ctx).pop(),
+                        child: const Text('Close'),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }
