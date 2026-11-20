@@ -134,6 +134,8 @@ class _OperationsIntelligenceScreenState
       const SectionState(data: {});
   SectionState<Map<String, dynamic>> _prevOverviewState =
       const SectionState(data: {});
+  SectionState<Map<String, dynamic>> _salesIntelligenceState =
+      const SectionState(data: {});
   SectionState<List<Map<String, dynamic>>> _inventoryState =
       const SectionState(data: []);
   SectionState<List<Map<String, dynamic>>> _customerCreditState =
@@ -150,6 +152,9 @@ class _OperationsIntelligenceScreenState
   final Set<String> _selectedReorder = <String>{};
   String _stockFilter = 'all';
   String _orderStatusFilter = 'all';
+  String _salesProductTab = 'best_selling';
+  String _trendViewMode = 'daily';
+  String _customerSegmentFilter = 'all';
 
   String get _tenantId => widget.session.business.id;
   String? get _locationId => LocationScopeService.selectedLocationId.value;
@@ -162,7 +167,7 @@ class _OperationsIntelligenceScreenState
   @override
   void initState() {
     super.initState();
-    final tabCount = 6;
+    final tabCount = 7;
     final initial = (widget.initialTab ?? 0).clamp(0, tabCount - 1);
     _tabs = TabController(length: tabCount, vsync: this, initialIndex: initial);
     _tabs.addListener(() {
@@ -191,6 +196,7 @@ class _OperationsIntelligenceScreenState
   void _loadAll({bool force = false}) {
     final seq = ++_requestSequence;
     _loadOverview(seq);
+    _loadSalesIntelligence(seq);
     _loadInventory(seq);
     _loadCustomerCredit(seq);
     _loadSupplierPayables(seq);
@@ -198,6 +204,25 @@ class _OperationsIntelligenceScreenState
     _loadPurchaseOrders(seq);
     if (_isMultiLocation && _locationId == null) {
       _loadStoreComparison(seq);
+    }
+  }
+
+  Future<void> _loadSalesIntelligence([int? seq]) async {
+    final currentSeq = seq ?? ++_requestSequence;
+    setState(() => _salesIntelligenceState = _salesIntelligenceState.toLoading());
+    try {
+      final query = _search.text.trim();
+      final data = await _service.salesIntelligence(
+        tenantId: _tenantId,
+        locationId: _locationId,
+        days: _selectedPeriod.days,
+        query: query,
+      );
+      if (!mounted || currentSeq != _requestSequence) return;
+      setState(() => _salesIntelligenceState = _salesIntelligenceState.toSuccess(data));
+    } catch (e) {
+      if (!mounted || currentSeq != _requestSequence) return;
+      setState(() => _salesIntelligenceState = _salesIntelligenceState.toError(e.toString()));
     }
   }
 
@@ -405,6 +430,22 @@ class _OperationsIntelligenceScreenState
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  const Text('Sales Intelligence'),
+                  if (_salesIntelligenceState.loading) ...[
+                    const SizedBox(width: 6),
+                    const SizedBox(
+                      width: 10,
+                      height: 10,
+                      child: CircularProgressIndicator(strokeWidth: 1.5),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            Tab(
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
                   const Text('Stock Intelligence'),
                   if (_inventoryState.loading) ...[
                     const SizedBox(width: 6),
@@ -489,6 +530,7 @@ class _OperationsIntelligenceScreenState
             controller: _tabs,
             children: [
               _overviewTab(),
+              _salesIntelligenceTab(),
               _stockTab(),
               _customerCreditTab(),
               _supplierPayablesTab(),
@@ -1275,7 +1317,1059 @@ class _OperationsIntelligenceScreenState
   }
 
   // ==========================================================================
-  // TAB 1: STOCK INTELLIGENCE
+  // TAB 1: SALES & CUSTOMER PURCHASING INTELLIGENCE
+  // ==========================================================================
+
+  Widget _salesIntelligenceTab() {
+    if (_salesIntelligenceState.loading && _salesIntelligenceState.data.isEmpty) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (_salesIntelligenceState.hasError && _salesIntelligenceState.data.isEmpty) {
+      return _sectionError(
+        'Sales Intelligence',
+        _salesIntelligenceState.error,
+        _loadSalesIntelligence,
+      );
+    }
+
+    final data = _salesIntelligenceState.data;
+    final perf = data['performance'] as Map<String, dynamic>? ?? const {};
+    final curPerf = perf['current'] as Map<String, dynamic>? ?? const {};
+    final prevPerf = perf['previous'] as Map<String, dynamic>? ?? const {};
+
+    final trends = data['trends'] as Map<String, dynamic>? ?? const {};
+    final dailyTrends =
+        (trends['daily'] as List?)?.map((e) => Map<String, dynamic>.from(e as Map)).toList() ??
+            const [];
+    final weeklyTrends =
+        (trends['weekly'] as List?)?.map((e) => Map<String, dynamic>.from(e as Map)).toList() ??
+            const [];
+    final monthlyTrends =
+        (trends['monthly'] as List?)?.map((e) => Map<String, dynamic>.from(e as Map)).toList() ??
+            const [];
+
+    final products = data['products'] as Map<String, dynamic>? ?? const {};
+    final bestSelling =
+        (products['best_selling'] as List?)?.map((e) => Map<String, dynamic>.from(e as Map)).toList() ??
+            const [];
+    final highestVolume =
+        (products['highest_volume'] as List?)?.map((e) => Map<String, dynamic>.from(e as Map)).toList() ??
+            const [];
+    final growingProducts =
+        (products['growing_products'] as List?)?.map((e) => Map<String, dynamic>.from(e as Map)).toList() ??
+            const [];
+    final decliningProducts =
+        (products['declining_products'] as List?)?.map((e) => Map<String, dynamic>.from(e as Map)).toList() ??
+            const [];
+
+    final categories =
+        (data['categories'] as List?)?.map((e) => Map<String, dynamic>.from(e as Map)).toList() ??
+            const [];
+
+    final customerIntel = data['customer_intelligence'] as Map<String, dynamic>? ?? const {};
+    final custSummary = customerIntel['summary'] as Map<String, dynamic>? ?? const {};
+    final custSegments =
+        (customerIntel['segments'] as List?)?.map((e) => Map<String, dynamic>.from(e as Map)).toList() ??
+            const [];
+    final topCustomers =
+        (customerIntel['top_customers'] as List?)?.map((e) => Map<String, dynamic>.from(e as Map)).toList() ??
+            const [];
+
+    final anomalies =
+        (data['anomalies'] as List?)?.map((e) => Map<String, dynamic>.from(e as Map)).toList() ??
+            const [];
+
+    final grossSales = ComparisonMetric.calculate(_n(curPerf['gross_sales']), _n(prevPerf['gross_sales']));
+    final netSales = ComparisonMetric.calculate(_n(curPerf['net_sales']), _n(prevPerf['net_sales']));
+    final returns = ComparisonMetric.calculate(_n(curPerf['returns']), _n(prevPerf['returns']));
+    final orders = ComparisonMetric.calculate(_n(curPerf['order_count']), _n(prevPerf['order_count']));
+    final aov = ComparisonMetric.calculate(_n(curPerf['aov']), _n(prevPerf['aov']));
+    final units = ComparisonMetric.calculate(_n(curPerf['units_sold']), _n(prevPerf['units_sold']));
+    final grossProfit = ComparisonMetric.calculate(_n(curPerf['gross_profit']), _n(prevPerf['gross_profit']));
+
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(18, 14, 18, 24),
+      children: [
+        if (_salesIntelligenceState.hasError)
+          _sectionError(
+            'Sales Intelligence (showing cached figures)',
+            _salesIntelligenceState.error,
+            _loadSalesIntelligence,
+          ),
+
+        // 1. Sales Performance & Commercial Flow Metrics
+        _sectionHeader(
+          'Sales Performance',
+          Icons.trending_up,
+          subtitle:
+              'Analysis window: ${_selectedPeriod.label} (${data['from_date'] ?? ''} to ${data['to_date'] ?? ''}) vs preceding window (${data['prev_from_date'] ?? ''} to ${data['prev_to_date'] ?? ''})',
+          action: !_canViewCost
+              ? _statusBadge('Cost Restricted', isWarning: true)
+              : null,
+        ),
+        const SizedBox(height: 10),
+        Wrap(
+          spacing: 12,
+          runSpacing: 12,
+          children: [
+            _metricCard(
+              title: 'Gross Sales',
+              value: _money(grossSales.current),
+              icon: Icons.point_of_sale,
+              metric: grossSales,
+            ),
+            _metricCard(
+              title: 'Net Sales',
+              value: _money(netSales.current),
+              icon: Icons.payments_outlined,
+              metric: netSales,
+            ),
+            _metricCard(
+              title: 'Sales Returns',
+              value: _money(returns.current),
+              icon: Icons.assignment_return_outlined,
+              metric: returns,
+              invertTrend: true,
+            ),
+            _metricCard(
+              title: 'Completed Transactions',
+              value: orders.current.toInt().toString(),
+              icon: Icons.receipt_long,
+              metric: orders,
+            ),
+            _metricCard(
+              title: 'Average Order Value (AOV)',
+              value: _money(aov.current),
+              icon: Icons.query_stats,
+              metric: aov,
+            ),
+            _metricCard(
+              title: 'Total Units Sold',
+              value: _qty(units.current),
+              icon: Icons.inventory_2_outlined,
+              metric: units,
+            ),
+            _metricCard(
+              title: 'Gross Profit',
+              value: _canViewCost ? _money(grossProfit.current) : null,
+              icon: Icons.savings_outlined,
+              metric: _canViewCost ? grossProfit : null,
+              isRestricted: !_canViewCost,
+            ),
+            _metricCard(
+              title: 'Gross Margin',
+              value: _canViewCost
+                  ? '${_n(curPerf['gross_margin_pct']).toStringAsFixed(1)}%'
+                  : null,
+              icon: Icons.pie_chart_outline,
+              isRestricted: !_canViewCost,
+            ),
+          ],
+        ),
+        const SizedBox(height: 24),
+
+        // 2. Sales Anomaly & Health Indicators
+        _sectionHeader(
+          'Sales Anomaly & Integrity Indicators',
+          Icons.notification_important_outlined,
+          subtitle: 'Automated signals for revenue drop, spikes, margin shifts, and return surges',
+        ),
+        const SizedBox(height: 10),
+        _salesAnomaliesSection(anomalies),
+        const SizedBox(height: 24),
+
+        // 3. Sales Trends
+        _sectionHeader(
+          'Sales Trends',
+          Icons.auto_graph,
+          subtitle: 'Continuous daily series, trailing weekly trends, and trailing monthly volume',
+          action: SegmentedButton<String>(
+            segments: [
+              ButtonSegment(
+                value: 'daily',
+                label: Text('Daily (${dailyTrends.length}d)', style: const TextStyle(fontSize: 11)),
+              ),
+              ButtonSegment(
+                value: 'weekly',
+                label: Text('Weekly (${weeklyTrends.length}w)', style: const TextStyle(fontSize: 11)),
+              ),
+              ButtonSegment(
+                value: 'monthly',
+                label: Text('Monthly (${monthlyTrends.length}m)', style: const TextStyle(fontSize: 11)),
+              ),
+            ],
+            selected: {_trendViewMode},
+            onSelectionChanged: (set) {
+              if (set.isNotEmpty) setState(() => _trendViewMode = set.first);
+            },
+            showSelectedIcon: false,
+            style: const ButtonStyle(
+              visualDensity: VisualDensity.compact,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        _salesTrendsSection(dailyTrends, weeklyTrends, monthlyTrends),
+        const SizedBox(height: 24),
+
+        // 4. Category Performance
+        _sectionHeader(
+          'Category Performance',
+          Icons.category_outlined,
+          subtitle: 'Revenue contribution %, units sold, and period-over-period growth by category',
+        ),
+        const SizedBox(height: 10),
+        _categoryPerformanceSection(categories),
+        const SizedBox(height: 24),
+
+        // 5. Product Performance
+        _sectionHeader(
+          'Product Performance',
+          Icons.inventory_outlined,
+          subtitle: 'Identify top revenue drivers, volume leaders, growing products, and declining items',
+          action: SegmentedButton<String>(
+            segments: [
+              ButtonSegment(
+                value: 'best_selling',
+                label: Text('Best Selling (${bestSelling.length})', style: const TextStyle(fontSize: 11)),
+              ),
+              ButtonSegment(
+                value: 'highest_volume',
+                label: Text('High Volume (${highestVolume.length})', style: const TextStyle(fontSize: 11)),
+              ),
+              ButtonSegment(
+                value: 'growing',
+                label: Text('Growing (${growingProducts.length})', style: const TextStyle(fontSize: 11)),
+              ),
+              ButtonSegment(
+                value: 'declining',
+                label: Text('Declining (${decliningProducts.length})', style: const TextStyle(fontSize: 11)),
+              ),
+            ],
+            selected: {_salesProductTab},
+            onSelectionChanged: (set) {
+              if (set.isNotEmpty) setState(() => _salesProductTab = set.first);
+            },
+            showSelectedIcon: false,
+            style: const ButtonStyle(
+              visualDensity: VisualDensity.compact,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+          ),
+        ),
+        const SizedBox(height: 10),
+        _productPerformanceSection(
+          bestSelling: bestSelling,
+          highestVolume: highestVolume,
+          growing: growingProducts,
+          declining: decliningProducts,
+        ),
+        const SizedBox(height: 24),
+
+        // 6. Customer Purchasing Intelligence & RFM
+        _sectionHeader(
+          'Customer Purchasing & RFM Intelligence',
+          Icons.people_outline,
+          subtitle: 'Acquisition, repeat purchasing, retention, and behavioral segmentation',
+        ),
+        const SizedBox(height: 10),
+        _customerIntelligenceSection(
+          summary: custSummary,
+          segments: custSegments,
+          topCustomers: topCustomers,
+        ),
+      ],
+    );
+  }
+
+  Widget _salesAnomaliesSection(List<Map<String, dynamic>> anomalies) {
+    if (anomalies.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: Colors.green.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.check_circle_outline, color: Colors.green.shade700, size: 20),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Text(
+                'No sales anomalies detected for this analysis window. Revenue, return ratios, category stability, and repeat customer retention are within normal operational thresholds.',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Column(
+      children: anomalies.map((a) {
+        final severity = a['severity']?.toString() ?? 'info';
+        final isCrit = severity == 'critical';
+        final isWarn = severity == 'warning';
+        final color = isCrit
+            ? Colors.red.shade700
+            : (isWarn ? Colors.orange.shade800 : Colors.blue.shade700);
+        final bg = isCrit
+            ? Colors.red.withValues(alpha: 0.06)
+            : (isWarn ? Colors.orange.withValues(alpha: 0.06) : Colors.blue.withValues(alpha: 0.06));
+
+        return Container(
+          margin: const EdgeInsets.only(bottom: 8),
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: bg,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: color.withValues(alpha: 0.35)),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(
+                isCrit
+                    ? Icons.error_outline
+                    : (isWarn ? Icons.warning_amber_rounded : Icons.info_outline),
+                color: color,
+                size: 20,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: color,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            severity.toUpperCase(),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 9.5,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            a['title']?.toString() ?? 'Anomaly Alert',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                              color: color,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      a['description']?.toString() ?? '',
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                    if (a['recommended_action'] != null) ...[
+                      const SizedBox(height: 6),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Icon(Icons.lightbulb_outline, size: 14, color: Colors.blueGrey),
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: Text(
+                              'Recommendation: ${a['recommended_action']}',
+                              style: const TextStyle(
+                                fontSize: 11.5,
+                                fontStyle: FontStyle.italic,
+                                color: Colors.blueGrey,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  Widget _salesTrendsSection(
+    List<Map<String, dynamic>> dailyTrends,
+    List<Map<String, dynamic>> weeklyTrends,
+    List<Map<String, dynamic>> monthlyTrends,
+  ) {
+    if (_trendViewMode == 'weekly') {
+      return _weeklyTrendsTable(weeklyTrends);
+    } else if (_trendViewMode == 'monthly') {
+      return _monthlyTrendsTable(monthlyTrends);
+    }
+    return _dailyTrendVisualizer(dailyTrends);
+  }
+
+  Widget _dailyTrendVisualizer(List<Map<String, dynamic>> dailyTrends) {
+    if (dailyTrends.isEmpty) {
+      return const Text('No daily sales recorded.');
+    }
+
+    final maxNet = dailyTrends.fold<double>(0.0, (m, d) => math.max(m, _n(d['net_sales'])));
+    final totalNet = dailyTrends.fold<double>(0.0, (s, d) => s + _n(d['net_sales']));
+    final avgNet = dailyTrends.isNotEmpty ? totalNet / dailyTrends.length : 0.0;
+    final zeroDays = dailyTrends.where((d) => _n(d['net_sales']) == 0).length;
+    final theme = Theme.of(context);
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: theme.colorScheme.outlineVariant.withValues(alpha: 0.6)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(
+                'Daily Revenue Series (${dailyTrends.length} continuous days)',
+                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+              ),
+              const Spacer(),
+              Text(
+                'Avg: ${_money(avgNet)}/day  •  Active: ${dailyTrends.length - zeroDays}d  •  Peak: ${_money(maxNet)}',
+                style: TextStyle(fontSize: 11.5, color: theme.colorScheme.onSurfaceVariant),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          SizedBox(
+            height: 140,
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: dailyTrends.map((d) {
+                  final net = _n(d['net_sales']);
+                  final orders = _n(d['order_count']).toInt();
+                  final heightPct = maxNet > 0 ? (net / maxNet) : 0.0;
+                  final barHeight = (heightPct * 95.0).clamp(net > 0 ? 6.0 : 2.0, 95.0);
+                  final hasSales = net > 0;
+                  final dayStr = d['day_date']?.toString().split('-').last ?? '';
+
+                  return Tooltip(
+                    message:
+                        '${d['day_date']} (${d['label']})\nNet Sales: ${_money(net)}\nOrders: $orders\nReturns: ${_money(d['returns'])}',
+                    child: Container(
+                      width: 22,
+                      margin: const EdgeInsets.symmetric(horizontal: 2),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          if (hasSales && barHeight > 25)
+                            Text(
+                              orders.toString(),
+                              style: TextStyle(
+                                fontSize: 8.5,
+                                fontWeight: FontWeight.bold,
+                                color: theme.colorScheme.primary,
+                              ),
+                            ),
+                          const SizedBox(height: 2),
+                          Container(
+                            height: barHeight,
+                            width: 14,
+                            decoration: BoxDecoration(
+                              color: hasSales
+                                  ? theme.colorScheme.primary
+                                  : theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
+                              borderRadius: BorderRadius.circular(3),
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            dayStr,
+                            style: TextStyle(
+                              fontSize: 9,
+                              color: hasSales ? theme.colorScheme.onSurface : Colors.grey,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _weeklyTrendsTable(List<Map<String, dynamic>> weeklyTrends) {
+    if (weeklyTrends.isEmpty) {
+      return const Text('No weekly trend data available.');
+    }
+
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: DataTable(
+        columnSpacing: 24,
+        columns: const [
+          DataColumn(label: Text('Week Starting')),
+          DataColumn(label: Text('Net Sales')),
+          DataColumn(label: Text('Gross Sales')),
+          DataColumn(label: Text('Orders')),
+          DataColumn(label: Text('AOV')),
+        ],
+        rows: weeklyTrends.map((w) {
+          final net = _n(w['net_sales']);
+          final gross = _n(w['gross_sales']);
+          final orders = _n(w['order_count']).toInt();
+          final aov = orders > 0 ? net / orders : 0.0;
+
+          return DataRow(
+            cells: [
+              DataCell(Text(w['label']?.toString() ?? w['week_start']?.toString() ?? '')),
+              DataCell(Text(_money(net), style: const TextStyle(fontWeight: FontWeight.w600))),
+              DataCell(Text(_money(gross))),
+              DataCell(Text(orders.toString())),
+              DataCell(Text(_money(aov))),
+            ],
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  Widget _monthlyTrendsTable(List<Map<String, dynamic>> monthlyTrends) {
+    if (monthlyTrends.isEmpty) {
+      return const Text('No monthly trend data available.');
+    }
+
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: DataTable(
+        columnSpacing: 24,
+        columns: const [
+          DataColumn(label: Text('Month')),
+          DataColumn(label: Text('Net Sales')),
+          DataColumn(label: Text('Gross Sales')),
+          DataColumn(label: Text('Orders')),
+          DataColumn(label: Text('AOV')),
+        ],
+        rows: monthlyTrends.map((m) {
+          final net = _n(m['net_sales']);
+          final gross = _n(m['gross_sales']);
+          final orders = _n(m['order_count']).toInt();
+          final aov = orders > 0 ? net / orders : 0.0;
+
+          return DataRow(
+            cells: [
+              DataCell(Text(m['label']?.toString() ?? m['month_start']?.toString() ?? '')),
+              DataCell(Text(_money(net), style: const TextStyle(fontWeight: FontWeight.w600))),
+              DataCell(Text(_money(gross))),
+              DataCell(Text(orders.toString())),
+              DataCell(Text(_money(aov))),
+            ],
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  Widget _categoryPerformanceSection(List<Map<String, dynamic>> categories) {
+    if (categories.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.all(12),
+        child: Text('No category sales recorded in this period.'),
+      );
+    }
+
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: DataTable(
+        columnSpacing: 20,
+        columns: [
+          const DataColumn(label: Text('Category')),
+          const DataColumn(label: Text('Revenue')),
+          const DataColumn(label: Text('Contribution %')),
+          const DataColumn(label: Text('Units Sold')),
+          const DataColumn(label: Text('Growth vs Prev')),
+          if (_canViewCost) const DataColumn(label: Text('Gross Margin %')),
+        ],
+        rows: categories.map((cat) {
+          final rev = _n(cat['revenue']);
+          final contrib = _n(cat['contribution_pct']);
+          final growth = cat['growth_pct'] != null ? _n(cat['growth_pct']) : null;
+          final margin = cat['gross_margin_pct'] != null ? _n(cat['gross_margin_pct']) : null;
+
+          return DataRow(
+            cells: [
+              DataCell(Text(cat['category_name']?.toString() ?? 'Uncategorized',
+                  style: const TextStyle(fontWeight: FontWeight.w600))),
+              DataCell(Text(_money(rev))),
+              DataCell(
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    SizedBox(
+                      width: 60,
+                      child: LinearProgressIndicator(
+                        value: (contrib / 100.0).clamp(0.0, 1.0),
+                        backgroundColor: Colors.grey.shade200,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text('${contrib.toStringAsFixed(1)}%'),
+                  ],
+                ),
+              ),
+              DataCell(Text(_qty(cat['units_sold']))),
+              DataCell(
+                growth != null
+                    ? _trendBadge(growth)
+                    : const Text('New', style: TextStyle(fontSize: 10, color: Colors.blueGrey)),
+              ),
+              if (_canViewCost)
+                DataCell(
+                  Text(
+                    margin != null ? '${margin.toStringAsFixed(1)}%' : '—',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      color: margin != null && margin < 15 ? Colors.orange.shade800 : null,
+                    ),
+                  ),
+                ),
+            ],
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  Widget _productPerformanceSection({
+    required List<Map<String, dynamic>> bestSelling,
+    required List<Map<String, dynamic>> highestVolume,
+    required List<Map<String, dynamic>> growing,
+    required List<Map<String, dynamic>> declining,
+  }) {
+    List<Map<String, dynamic>> list;
+    switch (_salesProductTab) {
+      case 'highest_volume':
+        list = highestVolume;
+        break;
+      case 'growing':
+        list = growing;
+        break;
+      case 'declining':
+        list = declining;
+        break;
+      case 'best_selling':
+      default:
+        list = bestSelling;
+        break;
+    }
+
+    if (list.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.all(12),
+        child: Text('No products match this criterion for the selected period.'),
+      );
+    }
+
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: DataTable(
+        columnSpacing: 18,
+        columns: [
+          const DataColumn(label: Text('Product & Variant')),
+          const DataColumn(label: Text('Category')),
+          const DataColumn(label: Text('Units Sold')),
+          const DataColumn(label: Text('Revenue')),
+          const DataColumn(label: Text('Contribution %')),
+          const DataColumn(label: Text('Growth vs Prev')),
+          if (_canViewCost) const DataColumn(label: Text('Gross Profit')),
+          if (_canViewCost) const DataColumn(label: Text('Margin %')),
+        ],
+        rows: list.map((p) {
+          final prodName = p['product_name']?.toString() ?? '';
+          final varName = p['variant_name']?.toString() ?? '';
+          final sku = p['sku']?.toString() ?? '';
+          final displayName = varName.isNotEmpty && varName != prodName
+              ? '$prodName ($varName)'
+              : prodName;
+          final growth = p['growth_pct'] != null ? _n(p['growth_pct']) : null;
+          final margin = p['margin_pct'] != null ? _n(p['margin_pct']) : null;
+
+          return DataRow(
+            cells: [
+              DataCell(
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(displayName, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12)),
+                    if (sku.isNotEmpty)
+                      Text(sku, style: const TextStyle(fontSize: 10, color: Colors.grey)),
+                  ],
+                ),
+              ),
+              DataCell(Text(p['category_name']?.toString() ?? '')),
+              DataCell(Text(_qty(p['sold_qty']))),
+              DataCell(Text(_money(p['revenue']))),
+              DataCell(Text('${_n(p['contribution_pct']).toStringAsFixed(1)}%')),
+              DataCell(
+                growth != null
+                    ? _trendBadge(growth)
+                    : const Text('New', style: TextStyle(fontSize: 10, color: Colors.blueGrey)),
+              ),
+              if (_canViewCost) DataCell(Text(_money(p['gross_profit']))),
+              if (_canViewCost)
+                DataCell(
+                  Text(
+                    margin != null ? '${margin.toStringAsFixed(1)}%' : '—',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      color: margin != null && margin < 15 ? Colors.orange.shade800 : null,
+                    ),
+                  ),
+                ),
+            ],
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  Widget _customerIntelligenceSection({
+    required Map<String, dynamic> summary,
+    required List<Map<String, dynamic>> segments,
+    required List<Map<String, dynamic>> topCustomers,
+  }) {
+    final active = _n(summary['total_active_customers']).toInt();
+    final newCust = _n(summary['new_customers']).toInt();
+    final repeatCust = _n(summary['repeat_customers']).toInt();
+    final repeatRate = _n(summary['repeat_rate_pct']);
+    final avgSpend = _n(summary['average_customer_spend']);
+    final avgFreq = _n(summary['average_purchase_frequency']);
+    final atRisk = _n(summary['at_risk_customers']).toInt();
+    final dormant = _n(summary['dormant_customers']).toInt();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // A. Customer Summary KPI Cards
+        Wrap(
+          spacing: 12,
+          runSpacing: 12,
+          children: [
+            _metricCard(
+              title: 'Active Purchasing Customers',
+              value: active.toString(),
+              icon: Icons.people_outline,
+            ),
+            _metricCard(
+              title: 'New Customers',
+              value: newCust.toString(),
+              icon: Icons.person_add_alt_1_outlined,
+              extraLabel: 'First purchase ever in period',
+            ),
+            _metricCard(
+              title: 'Repeat Customers',
+              value: repeatCust.toString(),
+              icon: Icons.repeat,
+              extraLabel: '>= 2 orders or returning buyer',
+            ),
+            _metricCard(
+              title: 'Repeat Purchase Rate',
+              value: '${repeatRate.toStringAsFixed(1)}%',
+              icon: Icons.loyalty_outlined,
+            ),
+            _metricCard(
+              title: 'Average Customer Spend',
+              value: _money(avgSpend),
+              icon: Icons.account_balance_wallet_outlined,
+            ),
+            _metricCard(
+              title: 'Purchase Frequency',
+              value: '${avgFreq.toStringAsFixed(2)} orders/cust',
+              icon: Icons.shopping_bag_outlined,
+            ),
+            _metricCard(
+              title: 'At-Risk Customers',
+              value: atRisk.toString(),
+              icon: Icons.person_off_outlined,
+              isWarning: atRisk > 0,
+              extraLabel: 'Recency 61–120 days',
+            ),
+            _metricCard(
+              title: 'Dormant Customers',
+              value: dormant.toString(),
+              icon: Icons.snooze_outlined,
+              extraLabel: 'Recency > 120 days',
+            ),
+          ],
+        ),
+        const SizedBox(height: 20),
+
+        // B. RFM Segmentation Cards
+        Row(
+          children: [
+            const Text(
+              'RFM Behavioral Segments',
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(width: 8),
+            if (_customerSegmentFilter != 'all') ...[
+              Text(
+                '(Filtered: $_customerSegmentFilter)',
+                style: const TextStyle(fontSize: 12, color: Colors.blue),
+              ),
+              const SizedBox(width: 6),
+              TextButton(
+                onPressed: () => setState(() => _customerSegmentFilter = 'all'),
+                child: const Text('Show All', style: TextStyle(fontSize: 11)),
+              ),
+            ],
+          ],
+        ),
+        const SizedBox(height: 8),
+        _rfmSegmentsGrid(segments),
+        const SizedBox(height: 20),
+
+        // C. Top Customers Table
+        Row(
+          children: [
+            const Text(
+              'Top Customers Ranking',
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+            ),
+            const Spacer(),
+            Text(
+              'Showing top buyers by spend',
+              style: TextStyle(fontSize: 11.5, color: Theme.of(context).colorScheme.onSurfaceVariant),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        _topCustomersTable(topCustomers),
+      ],
+    );
+  }
+
+  Widget _rfmSegmentsGrid(List<Map<String, dynamic>> segments) {
+    if (segments.isEmpty) {
+      return const Text('No customer segments available.');
+    }
+
+    final theme = Theme.of(context);
+
+    return Wrap(
+      spacing: 10,
+      runSpacing: 10,
+      children: segments.map((s) {
+        final name = s['segment']?.toString() ?? '';
+        final count = _n(s['count']).toInt();
+        final spend = _n(s['spend']);
+        final pct = _n(s['pct_of_customers']);
+        final criteria = s['criteria']?.toString() ?? '';
+        final isSelected = _customerSegmentFilter == name;
+
+        IconData icon;
+        Color color;
+        switch (name) {
+          case 'Champions':
+            icon = Icons.emoji_events;
+            color = Colors.amber.shade700;
+            break;
+          case 'Loyal Customers':
+            icon = Icons.verified;
+            color = Colors.teal.shade700;
+            break;
+          case 'Potential Loyalists':
+            icon = Icons.trending_up;
+            color = Colors.blue.shade700;
+            break;
+          case 'New Customers':
+            icon = Icons.star_outline;
+            color = Colors.indigo.shade600;
+            break;
+          case 'At Risk':
+            icon = Icons.warning_amber_rounded;
+            color = Colors.orange.shade800;
+            break;
+          case 'Dormant':
+            icon = Icons.bedtime_outlined;
+            color = Colors.purple.shade700;
+            break;
+          default:
+            icon = Icons.shopping_cart_outlined;
+            color = Colors.grey.shade700;
+            break;
+        }
+
+        return InkWell(
+          onTap: () {
+            setState(() {
+              _customerSegmentFilter = isSelected ? 'all' : name;
+            });
+          },
+          borderRadius: BorderRadius.circular(8),
+          child: Container(
+            width: 235,
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: isSelected
+                  ? color.withValues(alpha: 0.12)
+                  : theme.colorScheme.surface,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: isSelected ? color : theme.colorScheme.outlineVariant.withValues(alpha: 0.6),
+                width: isSelected ? 1.5 : 1.0,
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(icon, size: 16, color: color),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        name,
+                        style: TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.bold,
+                          color: color,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: color.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        '$count (${pct.toStringAsFixed(0)}%)',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          color: color,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Spend: ${_money(spend)}',
+                  style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  criteria,
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  Widget _topCustomersTable(List<Map<String, dynamic>> customers) {
+    var filtered = customers;
+    if (_customerSegmentFilter != 'all') {
+      filtered = customers
+          .where((c) => c['segment']?.toString() == _customerSegmentFilter)
+          .toList();
+    }
+
+    if (filtered.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.all(12),
+        child: Text(
+          _customerSegmentFilter == 'all'
+              ? 'No customer transaction records found.'
+              : 'No customers in segment "$_customerSegmentFilter".',
+        ),
+      );
+    }
+
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: DataTable(
+        columnSpacing: 18,
+        columns: const [
+          DataColumn(label: Text('Customer')),
+          DataColumn(label: Text('Segment')),
+          DataColumn(label: Text('Recency')),
+          DataColumn(label: Text('Period Orders / Spend')),
+          DataColumn(label: Text('Lifetime Orders / Spend')),
+          DataColumn(label: Text('AOV')),
+        ],
+        rows: filtered.map((c) {
+          final name = c['customer_name']?.toString() ?? 'Direct Client';
+          final phone = c['phone']?.toString() ?? '';
+          final segment = c['segment']?.toString() ?? 'Occasional';
+          final recency = _n(c['recency_days']).toInt();
+          final pOrders = _n(c['period_orders']).toInt();
+          final pSpend = _n(c['period_spend']);
+          final lOrders = _n(c['lifetime_orders']).toInt();
+          final lSpend = _n(c['lifetime_spend']);
+          final aov = _n(c['aov']);
+
+          return DataRow(
+            cells: [
+              DataCell(
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(name, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12)),
+                    if (phone.isNotEmpty)
+                      Text(phone, style: const TextStyle(fontSize: 10, color: Colors.grey)),
+                  ],
+                ),
+              ),
+              DataCell(_statusBadge(segment)),
+              DataCell(Text('${recency}d ago')),
+              DataCell(Text('$pOrders orders • ${_money(pSpend)}')),
+              DataCell(Text('$lOrders orders • ${_money(lSpend)}')),
+              DataCell(Text(_money(aov))),
+            ],
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  // ==========================================================================
+  // TAB 2: STOCK INTELLIGENCE
   // ==========================================================================
 
   Widget _stockTab() {
