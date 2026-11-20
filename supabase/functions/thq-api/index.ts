@@ -79,6 +79,21 @@ Deno.serve(async (req) => {
         rpc = 'sales_intelligence_v830'
         params = { ...params, p_location_id: payload.location_id ?? null, p_days: payload.days ?? 30, p_query: payload.query ?? '' }
         break
+      case 'purchase-intelligence':
+      case 'purchase-intelligence-v830':
+        rpc = 'purchase_intelligence_v830'
+        params = { ...params, p_location_id: payload.location_id ?? null, p_days: payload.days ?? 30, p_query: payload.query ?? '' }
+        break
+      case 'supplier-intelligence':
+      case 'supplier-intelligence-v830':
+        rpc = 'supplier_intelligence_v830'
+        params = { ...params, p_location_id: payload.location_id ?? null, p_days: payload.days ?? 30, p_query: payload.query ?? '', p_limit: payload.limit ?? 200 }
+        break
+      case 'procurement-intelligence':
+      case 'procurement-intelligence-v830':
+        rpc = 'procurement_intelligence_v830'
+        params = { ...params, p_location_id: payload.location_id ?? null, p_days: payload.days ?? 30, p_query: payload.query ?? '', p_limit: payload.limit ?? 500 }
+        break
       case 'runtime-health':
         rpc = 'erp_runtime_health_v489'
         break

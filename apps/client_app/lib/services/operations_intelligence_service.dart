@@ -60,6 +60,70 @@ class OperationsIntelligenceService {
     return data is Map ? Map<String, dynamic>.from(data) : <String, dynamic>{};
   }
 
+  Future<Map<String, dynamic>> purchaseIntelligence({
+    required String tenantId,
+    String? locationId,
+    int days = 30,
+    String query = '',
+  }) async {
+    final data = await _api.call(
+      ThqApiRequest(
+        tenantId: tenantId,
+        resource: 'purchase-intelligence',
+        payload: {
+          'location_id': locationId,
+          'days': days,
+          'query': query,
+        },
+      ),
+    );
+    return data is Map ? Map<String, dynamic>.from(data) : <String, dynamic>{};
+  }
+
+  Future<Map<String, dynamic>> supplierIntelligence({
+    required String tenantId,
+    String? locationId,
+    int days = 30,
+    String query = '',
+    int limit = 200,
+  }) async {
+    final data = await _api.call(
+      ThqApiRequest(
+        tenantId: tenantId,
+        resource: 'supplier-intelligence',
+        payload: {
+          'location_id': locationId,
+          'days': days,
+          'query': query,
+          'limit': limit,
+        },
+      ),
+    );
+    return data is Map ? Map<String, dynamic>.from(data) : <String, dynamic>{};
+  }
+
+  Future<Map<String, dynamic>> procurementIntelligence({
+    required String tenantId,
+    String? locationId,
+    int days = 30,
+    String query = '',
+    int limit = 500,
+  }) async {
+    final data = await _api.call(
+      ThqApiRequest(
+        tenantId: tenantId,
+        resource: 'procurement-intelligence',
+        payload: {
+          'location_id': locationId,
+          'days': days,
+          'query': query,
+          'limit': limit,
+        },
+      ),
+    );
+    return data is Map ? Map<String, dynamic>.from(data) : <String, dynamic>{};
+  }
+
   Future<List<Map<String, dynamic>>> inventory({
     required String tenantId,
     String? locationId,

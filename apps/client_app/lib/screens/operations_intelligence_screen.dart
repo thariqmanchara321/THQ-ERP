@@ -138,6 +138,12 @@ class _OperationsIntelligenceScreenState
       const SectionState(data: {});
   SectionState<List<Map<String, dynamic>>> _inventoryState =
       const SectionState(data: []);
+  SectionState<Map<String, dynamic>> _purchaseIntelligenceState =
+      const SectionState(data: {});
+  SectionState<Map<String, dynamic>> _supplierIntelligenceState =
+      const SectionState(data: {});
+  SectionState<Map<String, dynamic>> _procurementIntelligenceState =
+      const SectionState(data: {});
   SectionState<List<Map<String, dynamic>>> _customerCreditState =
       const SectionState(data: []);
   SectionState<List<Map<String, dynamic>>> _supplierPayablesState =
@@ -152,6 +158,7 @@ class _OperationsIntelligenceScreenState
       const SectionState(data: []);
 
   final Set<String> _selectedReorder = <String>{};
+  final Set<String> _selectedProcurement = <String>{};
   String _stockFilter = 'all';
   String _abcFilter = 'all';
   String _movementFilter = 'all';
@@ -160,6 +167,10 @@ class _OperationsIntelligenceScreenState
   String _salesProductTab = 'best_selling';
   String _trendViewMode = 'daily';
   String _customerSegmentFilter = 'all';
+  String _purchaseSubTab = 'overview';
+  String _supplierRiskFilter = 'all';
+  String _procurementUrgencyFilter = 'all';
+  String _procurementViewMode = 'recommendations';
 
   String get _tenantId => widget.session.business.id;
   String? get _locationId => LocationScopeService.selectedLocationId.value;
@@ -204,12 +215,74 @@ class _OperationsIntelligenceScreenState
     _loadSalesIntelligence(seq);
     _loadInventory(seq);
     _loadRebalancing(seq);
+    _loadPurchaseIntelligence(seq);
+    _loadSupplierIntelligence(seq);
+    _loadProcurementIntelligence(seq);
     _loadCustomerCredit(seq);
     _loadSupplierPayables(seq);
     _loadReorder(seq);
     _loadPurchaseOrders(seq);
     if (_isMultiLocation && _locationId == null) {
       _loadStoreComparison(seq);
+    }
+  }
+
+  Future<void> _loadPurchaseIntelligence([int? seq]) async {
+    final currentSeq = seq ?? ++_requestSequence;
+    setState(() => _purchaseIntelligenceState = _purchaseIntelligenceState.toLoading());
+    try {
+      final query = _search.text.trim();
+      final data = await _service.purchaseIntelligence(
+        tenantId: _tenantId,
+        locationId: _locationId,
+        days: _selectedPeriod.days,
+        query: query,
+      );
+      if (!mounted || currentSeq != _requestSequence) return;
+      setState(() => _purchaseIntelligenceState = _purchaseIntelligenceState.toSuccess(data));
+    } catch (e) {
+      if (!mounted || currentSeq != _requestSequence) return;
+      setState(() => _purchaseIntelligenceState = _purchaseIntelligenceState.toError(e.toString()));
+    }
+  }
+
+  Future<void> _loadSupplierIntelligence([int? seq]) async {
+    final currentSeq = seq ?? ++_requestSequence;
+    setState(() => _supplierIntelligenceState = _supplierIntelligenceState.toLoading());
+    try {
+      final query = _search.text.trim();
+      final data = await _service.supplierIntelligence(
+        tenantId: _tenantId,
+        locationId: _locationId,
+        days: _selectedPeriod.days,
+        query: query,
+        limit: 200,
+      );
+      if (!mounted || currentSeq != _requestSequence) return;
+      setState(() => _supplierIntelligenceState = _supplierIntelligenceState.toSuccess(data));
+    } catch (e) {
+      if (!mounted || currentSeq != _requestSequence) return;
+      setState(() => _supplierIntelligenceState = _supplierIntelligenceState.toError(e.toString()));
+    }
+  }
+
+  Future<void> _loadProcurementIntelligence([int? seq]) async {
+    final currentSeq = seq ?? ++_requestSequence;
+    setState(() => _procurementIntelligenceState = _procurementIntelligenceState.toLoading());
+    try {
+      final query = _search.text.trim();
+      final data = await _service.procurementIntelligence(
+        tenantId: _tenantId,
+        locationId: _locationId,
+        days: _selectedPeriod.days,
+        query: query,
+        limit: 500,
+      );
+      if (!mounted || currentSeq != _requestSequence) return;
+      setState(() => _procurementIntelligenceState = _procurementIntelligenceState.toSuccess(data));
+    } catch (e) {
+      if (!mounted || currentSeq != _requestSequence) return;
+      setState(() => _procurementIntelligenceState = _procurementIntelligenceState.toError(e.toString()));
     }
   }
 
@@ -487,56 +560,56 @@ class _OperationsIntelligenceScreenState
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  const Text('Purchase Intelligence'),
+                  if (_purchaseIntelligenceState.loading) ...[
+                    const SizedBox(width: 6),
+                    const SizedBox(
+                      width: 10,
+                      height: 10,
+                      child: CircularProgressIndicator(strokeWidth: 1.5),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            Tab(
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text('Supplier Intelligence'),
+                  if (_supplierIntelligenceState.loading) ...[
+                    const SizedBox(width: 6),
+                    const SizedBox(
+                      width: 10,
+                      height: 10,
+                      child: CircularProgressIndicator(strokeWidth: 1.5),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            Tab(
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text('Procurement Intelligence'),
+                  if (_procurementIntelligenceState.loading) ...[
+                    const SizedBox(width: 6),
+                    const SizedBox(
+                      width: 10,
+                      height: 10,
+                      child: CircularProgressIndicator(strokeWidth: 1.5),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            Tab(
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
                   const Text('Customer Credit'),
                   if (_customerCreditState.loading) ...[
-                    const SizedBox(width: 6),
-                    const SizedBox(
-                      width: 10,
-                      height: 10,
-                      child: CircularProgressIndicator(strokeWidth: 1.5),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            Tab(
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Text('Supplier Payables'),
-                  if (_supplierPayablesState.loading) ...[
-                    const SizedBox(width: 6),
-                    const SizedBox(
-                      width: 10,
-                      height: 10,
-                      child: CircularProgressIndicator(strokeWidth: 1.5),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            Tab(
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Text('Purchase Planning'),
-                  if (_reorderState.loading) ...[
-                    const SizedBox(width: 6),
-                    const SizedBox(
-                      width: 10,
-                      height: 10,
-                      child: CircularProgressIndicator(strokeWidth: 1.5),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            Tab(
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Text('Purchase Orders'),
-                  if (_ordersState.loading) ...[
                     const SizedBox(width: 6),
                     const SizedBox(
                       width: 10,
@@ -557,10 +630,10 @@ class _OperationsIntelligenceScreenState
               _overviewTab(),
               _salesIntelligenceTab(),
               _stockTab(),
+              _purchaseIntelligenceTab(),
+              _supplierIntelligenceTab(),
+              _procurementIntelligenceTab(),
               _customerCreditTab(),
-              _supplierPayablesTab(),
-              _planningTab(),
-              _purchaseOrdersTab(),
             ],
           ),
         ),
@@ -3335,146 +3408,1372 @@ class _OperationsIntelligenceScreenState
   }
 
   // ==========================================================================
-  // TAB 3: SUPPLIER PAYABLES
+  // TAB 3: PURCHASE INTELLIGENCE
   // ==========================================================================
 
-  Widget _supplierPayablesTab() {
-    if (_supplierPayablesState.loading && _supplierPayablesState.data.isEmpty) {
+  Widget _purchaseIntelligenceTab() {
+    if (_purchaseIntelligenceState.loading &&
+        _purchaseIntelligenceState.data.isEmpty) {
       return const Center(child: CircularProgressIndicator());
     }
-    if (_supplierPayablesState.hasError && _supplierPayablesState.data.isEmpty) {
+    if (_purchaseIntelligenceState.hasError &&
+        _purchaseIntelligenceState.data.isEmpty) {
       return _sectionError(
-        'Supplier Payables',
-        _supplierPayablesState.error,
-        _loadSupplierPayables,
+        'Purchase Intelligence',
+        _purchaseIntelligenceState.error,
+        _loadPurchaseIntelligence,
       );
     }
 
-    return Column(
+    final data = _purchaseIntelligenceState.data;
+    final summary = Map<String, dynamic>.from(data['summary'] as Map? ?? const {});
+    final cur = Map<String, dynamic>.from(summary['current'] as Map? ?? const {});
+    final growth = Map<String, dynamic>.from(summary['growth'] as Map? ?? const {});
+    final concentration = Map<String, dynamic>.from(summary['concentration'] as Map? ?? const {});
+    final poPerf = Map<String, dynamic>.from(data['po_performance'] as Map? ?? const {});
+    final bySup = (data['by_supplier'] as List? ?? const [])
+        .whereType<Map>()
+        .map((e) => Map<String, dynamic>.from(e))
+        .toList();
+    final byCat = (data['by_category'] as List? ?? const [])
+        .whereType<Map>()
+        .map((e) => Map<String, dynamic>.from(e))
+        .toList();
+    final byProd = (data['by_product'] as List? ?? const [])
+        .whereType<Map>()
+        .map((e) => Map<String, dynamic>.from(e))
+        .toList();
+    final priceChanges = (data['price_changes'] as List? ?? const [])
+        .whereType<Map>()
+        .map((e) => Map<String, dynamic>.from(e))
+        .toList();
+    final dailyTrends = ((data['trends'] as Map?)?['daily'] as List? ?? const [])
+        .whereType<Map>()
+        .map((e) => Map<String, dynamic>.from(e))
+        .toList();
+
+    final grossPurchases = _n(cur['gross_purchases']);
+    final purchaseReturns = _n(cur['purchase_returns']);
+    final netPurchases = _n(cur['net_purchases']);
+    final orderCount = (cur['order_count'] as num?)?.toInt() ?? 0;
+    final aov = _n(cur['average_order_value']);
+    final units = _n(cur['units_purchased']);
+    final activeSuppliers = (cur['active_suppliers_count'] as num?)?.toInt() ?? 0;
+    final top3Share = _n(concentration['top3_share_pct']);
+
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(18, 14, 18, 24),
       children: [
-        if (_supplierPayablesState.hasError)
+        if (_purchaseIntelligenceState.hasError)
           _sectionError(
-            'Supplier Payables (cached view)',
-            _supplierPayablesState.error,
-            _loadSupplierPayables,
+            'Purchase Intelligence (cached view)',
+            _purchaseIntelligenceState.error,
+            _loadPurchaseIntelligence,
           ),
-        Expanded(
-          child: _table(
-            columns: const [
-              'Supplier',
-              'Phone',
-              'Outstanding',
-              'Current',
-              '1–30',
-              '31–60',
-              '61–90',
-              '90+',
-              'Status',
-            ],
-            rows: _supplierPayablesState.data.map((r) => [
-              r['supplier_name'],
-              r['phone'],
-              _money(r['total_outstanding']),
-              _money(r['current_amount']),
-              _money(r['days_1_30']),
-              _money(r['days_31_60']),
-              _money(r['days_61_90']),
-              _money(r['days_90_plus']),
-              _status(r['status']),
-            ]).toList(),
-          ),
+
+        // Sub-navigation bar
+        Row(
+          children: [
+            ChoiceChip(
+              label: const Text('Purchases & Trends'),
+              selected: _purchaseSubTab == 'overview',
+              onSelected: (_) => setState(() => _purchaseSubTab = 'overview'),
+            ),
+            const SizedBox(width: 8),
+            ChoiceChip(
+              label: Text('Price Intelligence (${priceChanges.length})'),
+              selected: _purchaseSubTab == 'price_intelligence',
+              onSelected: (_) => setState(() => _purchaseSubTab = 'price_intelligence'),
+            ),
+            const SizedBox(width: 8),
+            ChoiceChip(
+              label: const Text('PO Performance'),
+              selected: _purchaseSubTab == 'po_performance',
+              onSelected: (_) => setState(() => _purchaseSubTab = 'po_performance'),
+            ),
+          ],
         ),
+        const SizedBox(height: 14),
+
+        // KPI Banner
+        Wrap(
+          spacing: 12,
+          runSpacing: 12,
+          children: [
+            _metricCard(
+              title: 'Gross Purchases',
+              value: _canViewCost ? _money(grossPurchases) : '—',
+              icon: Icons.shopping_bag_outlined,
+            ),
+            _metricCard(
+              title: 'Purchase Returns',
+              value: _canViewCost ? _money(purchaseReturns) : '—',
+              icon: Icons.assignment_return_outlined,
+              isWarning: purchaseReturns > 0,
+            ),
+            _metricCard(
+              title: 'Net Purchases',
+              value: _canViewCost ? _money(netPurchases) : '—',
+              icon: Icons.account_balance_wallet_outlined,
+              extraLabel: '${_n(growth['net_purchases_pct']).toStringAsFixed(1)}% vs prev period',
+            ),
+            _metricCard(
+              title: 'Purchase Orders',
+              value: orderCount.toString(),
+              icon: Icons.receipt_long_outlined,
+              extraLabel: 'AOV: ${_canViewCost ? _money(aov) : '—'}',
+            ),
+            _metricCard(
+              title: 'Units Purchased',
+              value: _qty(units),
+              icon: Icons.inventory_2_outlined,
+            ),
+            _metricCard(
+              title: 'Active Suppliers',
+              value: activeSuppliers.toString(),
+              icon: Icons.storefront_outlined,
+              extraLabel: 'Top 3 Spend: $top3Share%',
+            ),
+          ],
+        ),
+        const SizedBox(height: 18),
+
+        if (_purchaseSubTab == 'overview') ...[
+          _purchaseDailyTrendsCard(dailyTrends),
+          const SizedBox(height: 18),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(child: _purchaseTopSuppliersCard(bySup, grossPurchases)),
+              const SizedBox(width: 14),
+              Expanded(child: _purchaseCategoryBreakdownCard(byCat, grossPurchases)),
+            ],
+          ),
+          const SizedBox(height: 18),
+          _purchaseTopProductsCard(byProd),
+        ] else if (_purchaseSubTab == 'price_intelligence') ...[
+          _priceIntelligenceCard(priceChanges),
+        ] else if (_purchaseSubTab == 'po_performance') ...[
+          _poPerformanceCard(poPerf),
+        ],
       ],
     );
   }
 
-  // ==========================================================================
-  // TAB 4: PURCHASE PLANNING (REORDER SUGGESTIONS)
-  // ==========================================================================
-
-  Widget _planningTab() {
-    if (_reorderState.loading && _reorderState.data.isEmpty) {
-      return const Center(child: CircularProgressIndicator());
-    }
-    if (_reorderState.hasError && _reorderState.data.isEmpty) {
-      return _sectionError(
-        'Purchase Planning',
-        _reorderState.error,
-        _loadReorder,
+  Widget _purchaseDailyTrendsCard(List<Map<String, dynamic>> dailyTrends) {
+    if (dailyTrends.isEmpty) {
+      return Card(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Center(
+            child: Text(
+              'No purchase records found in this ${_selectedPeriod.label} window.',
+              style: const TextStyle(color: Colors.grey),
+            ),
+          ),
+        ),
       );
     }
 
-    final reorder = _reorderState.data;
+    final maxVal = dailyTrends.fold<double>(
+      0.0,
+      (max, d) => math.max(max, _n(d['net_purchases'])),
+    );
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.bar_chart, size: 20),
+                const SizedBox(width: 8),
+                const Text(
+                  'Daily Net Purchases Trend',
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                ),
+                const Spacer(),
+                Text(
+                  'Peak Day: ${_canViewCost ? _money(maxVal) : '—'}',
+                  style: const TextStyle(fontSize: 12, color: Colors.grey),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              height: 140,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: dailyTrends.map((d) {
+                  final net = _n(d['net_purchases']);
+                  final orders = (d['order_count'] as num?)?.toInt() ?? 0;
+                  final heightFactor = maxVal > 0 ? (net / maxVal).clamp(0.05, 1.0) : 0.05;
+
+                  return Expanded(
+                    child: Tooltip(
+                      message: '${d['label'] ?? d['day_date']}\nNet: ${_canViewCost ? _money(net) : '—'}\nOrders: $orders',
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 1.5),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            Container(
+                              height: 100 * heightFactor,
+                              decoration: BoxDecoration(
+                                color: net > 0
+                                    ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.8)
+                                    : Theme.of(context).colorScheme.surfaceContainerHighest,
+                                borderRadius: const BorderRadius.vertical(top: Radius.circular(3)),
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              (d['label']?.toString() ?? '').split(',').first,
+                              style: const TextStyle(fontSize: 9, color: Colors.grey),
+                              maxLines: 1,
+                              overflow: TextOverflow.clip,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _purchaseTopSuppliersCard(List<Map<String, dynamic>> bySup, double grossPurchases) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.storefront, size: 18),
+                SizedBox(width: 8),
+                Text('Top Suppliers by Spend', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+              ],
+            ),
+            const SizedBox(height: 12),
+            if (bySup.isEmpty)
+              const Padding(
+                padding: EdgeInsets.all(16),
+                child: Center(child: Text('No supplier purchase data for period.')),
+              )
+            else
+              ...bySup.take(6).map((s) {
+                final spend = _n(s['spend']);
+                final share = _n(s['share_pct']);
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              s['supplier_name']?.toString() ?? 'Supplier',
+                              style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 13),
+                            ),
+                          ),
+                          Text(
+                            _canViewCost ? _money(spend) : '—',
+                            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12.5),
+                          ),
+                          const SizedBox(width: 8),
+                          Text('$share%', style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                        ],
+                      ),
+                      const SizedBox(height: 3),
+                      LinearProgressIndicator(
+                        value: (share / 100.0).clamp(0.0, 1.0),
+                        minHeight: 4,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ],
+                  ),
+                );
+              }),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _purchaseCategoryBreakdownCard(List<Map<String, dynamic>> byCat, double grossPurchases) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.category_outlined, size: 18),
+                SizedBox(width: 8),
+                Text('Purchase by Category', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+              ],
+            ),
+            const SizedBox(height: 12),
+            if (byCat.isEmpty)
+              const Padding(
+                padding: EdgeInsets.all(16),
+                child: Center(child: Text('No category purchase data for period.')),
+              )
+            else
+              ...byCat.take(6).map((c) {
+                final spend = _n(c['spend']);
+                final share = _n(c['share_pct']);
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              c['category_name']?.toString() ?? 'Category',
+                              style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 13),
+                            ),
+                          ),
+                          Text(
+                            _canViewCost ? _money(spend) : '—',
+                            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12.5),
+                          ),
+                          const SizedBox(width: 8),
+                          Text('$share%', style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                        ],
+                      ),
+                      const SizedBox(height: 3),
+                      LinearProgressIndicator(
+                        value: (share / 100.0).clamp(0.0, 1.0),
+                        minHeight: 4,
+                        borderRadius: BorderRadius.circular(2),
+                        color: Theme.of(context).colorScheme.secondary,
+                      ),
+                    ],
+                  ),
+                );
+              }),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _purchaseTopProductsCard(List<Map<String, dynamic>> byProd) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.list_alt, size: 18),
+                SizedBox(width: 8),
+                Text('Top Purchased Products', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+              ],
+            ),
+            const SizedBox(height: 12),
+            if (byProd.isEmpty)
+              const Padding(
+                padding: EdgeInsets.all(16),
+                child: Center(child: Text('No product purchase records for period.')),
+              )
+            else
+              _table(
+                columns: const [
+                  'Product',
+                  'SKU',
+                  'Category',
+                  'Units Purchased',
+                  'Total Spend',
+                  'Avg Unit Cost',
+                  'Latest Price',
+                ],
+                sourceRows: byProd,
+                rowBuilder: (p) => [
+                  p['product_name'],
+                  p['sku'],
+                  p['category_name'],
+                  _qty(p['units']),
+                  _canViewCost ? _money(p['total_spend']) : '—',
+                  _canViewCost ? _money(p['avg_unit_cost']) : '—',
+                  _canViewCost ? _money(p['latest_price']) : '—',
+                ],
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _priceIntelligenceCard(List<Map<String, dynamic>> priceChanges) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.price_change_outlined, size: 20),
+                SizedBox(width: 8),
+                Text(
+                  'Price Intelligence & Cost Shift Analysis',
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            const Text(
+              'Tracks purchase price shifts (>= 2% variance) comparing current window average purchase costs against the previous window baseline.',
+              style: TextStyle(fontSize: 12, color: Colors.grey),
+            ),
+            const SizedBox(height: 16),
+            if (priceChanges.isEmpty)
+              const Padding(
+                padding: EdgeInsets.all(24),
+                child: Center(
+                  child: Text(
+                    'No significant price shifts (>= 2%) detected across purchase items in this period.',
+                    style: TextStyle(color: Colors.grey),
+                  ),
+                ),
+              )
+            else
+              _table(
+                columns: const [
+                  'Product',
+                  'SKU',
+                  'Previous Avg Cost',
+                  'Current Avg Cost',
+                  'Price Change %',
+                  'Direction',
+                ],
+                sourceRows: priceChanges,
+                rowBuilder: (pc) {
+                  final change = _n(pc['price_change_pct']);
+                  final isInc = pc['is_increase'] == true;
+                  final theme = Theme.of(context);
+                  return [
+                    pc['product_name'],
+                    pc['sku'],
+                    _canViewCost ? _money(pc['previous_price']) : '—',
+                    _canViewCost ? _money(pc['latest_price']) : '—',
+                    Text(
+                      '${change > 0 ? '+' : ''}${change.toStringAsFixed(2)}%',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: isInc ? theme.colorScheme.error : context.thqSemanticColors.success,
+                      ),
+                    ),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          isInc ? Icons.arrow_upward : Icons.arrow_downward,
+                          size: 14,
+                          color: isInc ? theme.colorScheme.error : context.thqSemanticColors.success,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(isInc ? 'Increased' : 'Decreased'),
+                      ],
+                    ),
+                  ];
+                },
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _poPerformanceCard(Map<String, dynamic> poPerf) {
+    final fulfillmentRate = _n(poPerf['fulfillment_rate_pct']);
+    final avgLeadTime = _n(poPerf['avg_lead_time_days']);
+    final delayedOrders = (poPerf['delayed_orders_count'] as num?)?.toInt() ?? 0;
+    final totalOrders = (poPerf['total_orders'] as num?)?.toInt() ?? 0;
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.speed_outlined, size: 20),
+                SizedBox(width: 8),
+                Text(
+                  'Purchase Order Fulfillment & Lead Times',
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Wrap(
+              spacing: 12,
+              runSpacing: 10,
+              children: [
+                _metricChip('Fulfillment Rate', '${fulfillmentRate.toStringAsFixed(1)}%', Icons.check_circle_outline),
+                _metricChip('Avg Delivery Lead Time', '${avgLeadTime.toStringAsFixed(1)} days', Icons.schedule),
+                _metricChip('Delayed Orders', delayedOrders.toString(), Icons.warning_amber_rounded, isAlert: delayedOrders > 0),
+                _metricChip('Total Orders Placed', totalOrders.toString(), Icons.receipt_long),
+                _metricChip('Ordered Quantity', _qty(poPerf['total_ordered_qty']), Icons.inventory_2),
+                _metricChip('Received Quantity', _qty(poPerf['total_received_qty']), Icons.done_all),
+              ],
+            ),
+            const SizedBox(height: 16),
+            const Divider(),
+            const SizedBox(height: 8),
+            const Text('Orders Status Distribution', style: TextStyle(fontWeight: FontWeight.w600)),
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                _statusCountChip('Draft', poPerf['draft_count']),
+                _statusCountChip('Submitted', poPerf['submitted_count']),
+                _statusCountChip('Approved', poPerf['approved_count']),
+                _statusCountChip('Ordered', poPerf['ordered_count']),
+                _statusCountChip('Partially Received', poPerf['partially_received_count']),
+                _statusCountChip('Received', poPerf['received_count']),
+                _statusCountChip('Cancelled', poPerf['cancelled_count']),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _statusCountChip(String label, dynamic count) {
+    final c = (count as num?)?.toInt() ?? 0;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.5)),
+      ),
+      child: Text('$label: $c', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
+    );
+  }
+
+  // ==========================================================================
+  // TAB 4: SUPPLIER INTELLIGENCE
+  // ==========================================================================
+
+  Widget _supplierIntelligenceTab() {
+    if (_supplierIntelligenceState.loading &&
+        _supplierIntelligenceState.data.isEmpty) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (_supplierIntelligenceState.hasError &&
+        _supplierIntelligenceState.data.isEmpty) {
+      return _sectionError(
+        'Supplier Intelligence',
+        _supplierIntelligenceState.error,
+        _loadSupplierIntelligence,
+      );
+    }
+
+    final data = _supplierIntelligenceState.data;
+    final summary = Map<String, dynamic>.from(data['summary'] as Map? ?? const {});
+    final allSuppliers = (data['suppliers'] as List? ?? const [])
+        .whereType<Map>()
+        .map((e) => Map<String, dynamic>.from(e))
+        .toList();
+
+    final filtered = allSuppliers.where((s) {
+      if (_supplierRiskFilter == 'all') return true;
+      return s['risk_score'] == _supplierRiskFilter;
+    }).toList();
+
+    final totalSuppliers = (summary['total_suppliers_count'] as num?)?.toInt() ?? 0;
+    final activeSuppliers = (summary['active_suppliers_count'] as num?)?.toInt() ?? 0;
+    final totalSpend = _n(summary['total_spend']);
+    final totalPayable = _n(summary['total_outstanding_payable']);
+    final highRiskCount = (summary['high_risk_suppliers_count'] as num?)?.toInt() ?? 0;
+    final avgFulfillment = _n(summary['avg_fulfillment_rate']);
+    final avgLeadTime = _n(summary['avg_lead_time_days']);
 
     return Column(
       children: [
-        if (_reorderState.hasError)
+        if (_supplierIntelligenceState.hasError)
           _sectionError(
-            'Purchase Planning (cached view)',
-            _reorderState.error,
-            _loadReorder,
+            'Supplier Intelligence (cached view)',
+            _supplierIntelligenceState.error,
+            _loadSupplierIntelligence,
           ),
+
+        // KPI Banner
         Padding(
-          padding: const EdgeInsets.fromLTRB(18, 12, 18, 4),
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+          child: Wrap(
+            spacing: 12,
+            runSpacing: 10,
+            children: [
+              _metricChip('Total Suppliers', totalSuppliers.toString(), Icons.contacts_outlined),
+              _metricChip('Active in Window', activeSuppliers.toString(), Icons.check_circle_outline),
+              _metricChip('Total Spend', _canViewCost ? _money(totalSpend) : '—', Icons.account_balance_wallet_outlined),
+              _metricChip('Outstanding Debt', _money(totalPayable), Icons.pending_actions_outlined),
+              _metricChip('High Risk', highRiskCount.toString(), Icons.warning_amber_rounded, isAlert: highRiskCount > 0),
+              _metricChip('Avg Fulfillment', '${avgFulfillment.toStringAsFixed(1)}%', Icons.task_alt),
+              _metricChip('Avg Lead Time', '${avgLeadTime.toStringAsFixed(1)} d', Icons.local_shipping_outlined),
+            ],
+          ),
+        ),
+
+        // Filter chips bar
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
           child: Row(
             children: [
-              Expanded(
-                child: Text(
-                  '${reorder.length} reorder suggestions • ${_selectedReorder.length} selected',
-                  style: const TextStyle(fontWeight: FontWeight.w600),
-                ),
+              ChoiceChip(
+                label: Text('All (${allSuppliers.length})'),
+                selected: _supplierRiskFilter == 'all',
+                onSelected: (_) => setState(() => _supplierRiskFilter = 'all'),
               ),
-              FilledButton.icon(
-                onPressed: _selectedReorder.isEmpty
-                    ? null
-                    : _createSelectedPurchaseOrders,
-                icon: const Icon(Icons.add_shopping_cart, size: 16),
-                label: const Text('Create PO from selected'),
+              const SizedBox(width: 8),
+              ChoiceChip(
+                label: Text('High Risk (${allSuppliers.where((s) => s['risk_score'] == 'high').length})'),
+                selected: _supplierRiskFilter == 'high',
+                onSelected: (_) => setState(() => _supplierRiskFilter = 'high'),
+              ),
+              const SizedBox(width: 8),
+              ChoiceChip(
+                label: Text('Medium Risk (${allSuppliers.where((s) => s['risk_score'] == 'medium').length})'),
+                selected: _supplierRiskFilter == 'medium',
+                onSelected: (_) => setState(() => _supplierRiskFilter = 'medium'),
+              ),
+              const SizedBox(width: 8),
+              ChoiceChip(
+                label: Text('Low Risk (${allSuppliers.where((s) => s['risk_score'] == 'low').length})'),
+                selected: _supplierRiskFilter == 'low',
+                onSelected: (_) => setState(() => _supplierRiskFilter = 'low'),
+              ),
+              const Spacer(),
+              Text(
+                '${filtered.length} suppliers shown • Tap row for profile details',
+                style: const TextStyle(fontSize: 12, color: Colors.grey),
               ),
             ],
           ),
         ),
+
+        // Supplier Table
         Expanded(
-          child: _table(
-            leading: true,
-            columns: const [
-              'Store',
-              'Product',
-              'SKU',
-              'Stock',
-              'Reorder',
-              'Avg/day',
-              'Cover',
-              'Suggested',
-              'Last supplier',
-              'Last cost',
-            ],
-            sourceRows: reorder,
-            rowBuilder: (r) => [
-              r['location_name'],
-              r['product_name'],
-              r['sku'],
-              _qty(r['current_stock']),
-              _qty(r['reorder_level']),
-              _qty(r['avg_daily_sales']),
-              r['days_cover'] == null
-                  ? '—'
-                  : '${_n(r['days_cover']).toStringAsFixed(1)} d',
-              _qty(r['suggested_quantity']),
-              r['last_supplier_name'] ?? 'No supplier history',
-              _canViewCost ? _money(r['last_unit_cost']) : '—',
-            ],
-          ),
+          child: filtered.isEmpty
+              ? const Center(child: Text('No suppliers match the selected risk criteria.'))
+              : _supplierDataTable(filtered),
         ),
       ],
     );
   }
 
+  Widget _supplierDataTable(List<Map<String, dynamic>> suppliers) {
+    return Scrollbar(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: DataTable(
+            showCheckboxColumn: false,
+            columns: const [
+              DataColumn(label: Text('Supplier', style: TextStyle(fontWeight: FontWeight.w600))),
+              DataColumn(label: Text('Spend & Share', style: TextStyle(fontWeight: FontWeight.w600))),
+              DataColumn(label: Text('Orders', style: TextStyle(fontWeight: FontWeight.w600))),
+              DataColumn(label: Text('Fulfillment', style: TextStyle(fontWeight: FontWeight.w600))),
+              DataColumn(label: Text('On-Time', style: TextStyle(fontWeight: FontWeight.w600))),
+              DataColumn(label: Text('Lead Time', style: TextStyle(fontWeight: FontWeight.w600))),
+              DataColumn(label: Text('Quality', style: TextStyle(fontWeight: FontWeight.w600))),
+              DataColumn(label: Text('Outstanding', style: TextStyle(fontWeight: FontWeight.w600))),
+              DataColumn(label: Text('Aging', style: TextStyle(fontWeight: FontWeight.w600))),
+              DataColumn(label: Text('Risk Score', style: TextStyle(fontWeight: FontWeight.w600))),
+              DataColumn(label: Text('Risk Indicators / Factors', style: TextStyle(fontWeight: FontWeight.w600))),
+              DataColumn(label: Text('Sufficiency', style: TextStyle(fontWeight: FontWeight.w600))),
+            ],
+            rows: suppliers.map((s) {
+              final risk = s['risk_score']?.toString() ?? 'low';
+              final indicators = (s['risk_indicators'] as List? ?? const []).map((e) => e.toString()).toList();
+              return DataRow(
+                onSelectChanged: (_) => _showSupplierDetailDialog(s),
+                cells: [
+                  DataCell(
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(s['supplier_name']?.toString() ?? '—', style: const TextStyle(fontWeight: FontWeight.w600)),
+                        if ((s['phone']?.toString() ?? '').isNotEmpty)
+                          Text(s['phone'].toString(), style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                      ],
+                    ),
+                  ),
+                  DataCell(
+                    Text(
+                      _canViewCost ? '${_money(s['spend'])} (${_n(s['share_pct']).toStringAsFixed(1)}%)' : '—',
+                    ),
+                  ),
+                  DataCell(Text('${s['order_count'] ?? 0}')),
+                  DataCell(Text('${_n(s['fulfillment_rate_pct']).toStringAsFixed(1)}%')),
+                  DataCell(Text('${_n(s['on_time_delivery_pct']).toStringAsFixed(1)}%')),
+                  DataCell(Text('${_n(s['avg_lead_time_days']).toStringAsFixed(1)} d')),
+                  DataCell(
+                    Text(
+                      '${_n(s['damaged_rejected_pct']).toStringAsFixed(1)}% reject',
+                      style: TextStyle(color: _n(s['damaged_rejected_pct']) > 5 ? Theme.of(context).colorScheme.error : null),
+                    ),
+                  ),
+                  DataCell(Text(_money(s['outstanding_payable']))),
+                  DataCell(_status(s['aging_status'])),
+                  DataCell(_riskBadge(risk)),
+                  DataCell(
+                    indicators.isEmpty
+                        ? const Text('None detected', style: TextStyle(fontSize: 11, color: Colors.grey))
+                        : Wrap(
+                            spacing: 4,
+                            children: indicators.map((ind) => Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: Theme.of(context).colorScheme.errorContainer.withValues(alpha: 0.5),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(ind, style: TextStyle(fontSize: 10, color: Theme.of(context).colorScheme.error, fontWeight: FontWeight.w500)),
+                            )).toList(),
+                          ),
+                  ),
+                  DataCell(_sufficiencyChip(s['data_sufficiency']?.toString() ?? 'sufficient')),
+                ],
+              );
+            }).toList(),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showSupplierDetailDialog(Map<String, dynamic> s) async {
+    final theme = Theme.of(context);
+    final riskScore = s['risk_score']?.toString() ?? 'low';
+    final riskIndicators = (s['risk_indicators'] as List? ?? const []).map((e) => e.toString()).toList();
+
+    await showThqDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Row(
+          children: [
+            const Icon(Icons.business_outlined),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(s['supplier_name']?.toString() ?? 'Supplier Profile'),
+            ),
+            _riskBadge(riskScore),
+          ],
+        ),
+        content: SizedBox(
+          width: 600,
+          child: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 6,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    if ((s['phone']?.toString() ?? '').isNotEmpty)
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.phone, size: 14, color: Colors.grey),
+                          const SizedBox(width: 4),
+                          Text(s['phone'].toString(), style: const TextStyle(fontSize: 12)),
+                        ],
+                      ),
+                    if ((s['email']?.toString() ?? '').isNotEmpty)
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.email, size: 14, color: Colors.grey),
+                          const SizedBox(width: 4),
+                          Text(s['email'].toString(), style: const TextStyle(fontSize: 12)),
+                        ],
+                      ),
+                    _sufficiencyChip(s['data_sufficiency']?.toString() ?? 'sufficient'),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                const Divider(),
+
+                const Text('Operational Performance', style: TextStyle(fontWeight: FontWeight.w600)),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(child: _kpiTile('Spend', _canViewCost ? _money(s['spend']) : '—')),
+                    Expanded(child: _kpiTile('Wallet Share', '${_n(s['share_pct']).toStringAsFixed(1)}%')),
+                    Expanded(child: _kpiTile('Orders', '${s['order_count'] ?? 0}')),
+                    Expanded(child: _kpiTile('Coverage', '${s['product_coverage_count'] ?? 0} SKUs')),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(child: _kpiTile('Fulfillment', '${_n(s['fulfillment_rate_pct']).toStringAsFixed(1)}%')),
+                    Expanded(child: _kpiTile('On-Time', '${_n(s['on_time_delivery_pct']).toStringAsFixed(1)}%')),
+                    Expanded(child: _kpiTile('Lead Time', '${_n(s['avg_lead_time_days']).toStringAsFixed(1)} d')),
+                    Expanded(child: _kpiTile('Damaged/Reject', '${_n(s['damaged_rejected_pct']).toStringAsFixed(1)}%')),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                const Divider(),
+
+                const Text('Payables Exposure & Aging', style: TextStyle(fontWeight: FontWeight.w600)),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(child: _kpiTile('Total Debt', _money(s['outstanding_payable']))),
+                    Expanded(child: _kpiTile('Aging Status', _statusText(s['aging_status']))),
+                  ],
+                ),
+                const SizedBox(height: 14),
+
+                if (riskIndicators.isNotEmpty) ...[
+                  const Divider(),
+                  const Text('Active Risk Indicators', style: TextStyle(fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 6),
+                  ...riskIndicators.map(
+                    (ind) => Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 2),
+                      child: Row(
+                        children: [
+                          Icon(Icons.warning, size: 14, color: theme.colorScheme.error),
+                          const SizedBox(width: 6),
+                          Expanded(child: Text(ind, style: TextStyle(fontSize: 12, color: theme.colorScheme.error))),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
   // ==========================================================================
-  // TAB 5: PURCHASE ORDERS WORKFLOW
+  // TAB 5: PROCUREMENT INTELLIGENCE & ACTION CENTRE
   // ==========================================================================
 
-  Widget _purchaseOrdersTab() {
+  Widget _procurementIntelligenceTab() {
+    return Column(
+      children: [
+        // Sub-view toggle: Recommendations vs Active Purchase Orders
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
+          child: Row(
+            children: [
+              SegmentedButton<String>(
+                segments: [
+                  ButtonSegment(
+                    value: 'recommendations',
+                    label: Text(
+                      'Replenishment Recommendations (${(_procurementIntelligenceState.data['recommendations'] as List?)?.length ?? 0})',
+                      style: const TextStyle(fontSize: 12.5),
+                    ),
+                    icon: const Icon(Icons.auto_graph, size: 16),
+                  ),
+                  ButtonSegment(
+                    value: 'orders',
+                    label: Text(
+                      'Active Purchase Orders (${_ordersState.data.length})',
+                      style: const TextStyle(fontSize: 12.5),
+                    ),
+                    icon: const Icon(Icons.shopping_cart_checkout, size: 16),
+                  ),
+                ],
+                selected: {_procurementViewMode},
+                onSelectionChanged: (set) {
+                  if (set.isNotEmpty) setState(() => _procurementViewMode = set.first);
+                },
+                style: const ButtonStyle(
+                  visualDensity: VisualDensity.compact,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+              ),
+              const Spacer(),
+              if (_procurementViewMode == 'recommendations')
+                FilledButton.icon(
+                  onPressed: _selectedProcurement.isEmpty
+                      ? null
+                      : _createSelectedProcurementOrders,
+                  icon: const Icon(Icons.add_shopping_cart, size: 16),
+                  label: Text('Create PO (${_selectedProcurement.length})'),
+                ),
+            ],
+          ),
+        ),
+
+        Expanded(
+          child: _procurementViewMode == 'orders'
+              ? _purchaseOrdersTabContent()
+              : _procurementRecommendationsView(),
+        ),
+      ],
+    );
+  }
+
+  Widget _procurementRecommendationsView() {
+    if (_procurementIntelligenceState.loading &&
+        _procurementIntelligenceState.data.isEmpty) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (_procurementIntelligenceState.hasError &&
+        _procurementIntelligenceState.data.isEmpty) {
+      return _sectionError(
+        'Procurement Intelligence',
+        _procurementIntelligenceState.error,
+        _loadProcurementIntelligence,
+      );
+    }
+
+    final data = _procurementIntelligenceState.data;
+    final summary = Map<String, dynamic>.from(data['summary'] as Map? ?? const {});
+    final allRecs = (data['recommendations'] as List? ?? const [])
+        .whereType<Map>()
+        .map((e) => Map<String, dynamic>.from(e))
+        .toList();
+
+    final filtered = allRecs.where((r) {
+      if (_procurementUrgencyFilter == 'all') return true;
+      return r['urgency'] == _procurementUrgencyFilter;
+    }).toList();
+
+    final totalRecommended = (summary['total_recommended_skus'] as num?)?.toInt() ?? 0;
+    final criticalCount = (summary['critical_skus_count'] as num?)?.toInt() ?? 0;
+    final highCount = (summary['high_urgency_skus_count'] as num?)?.toInt() ?? 0;
+    final normalCount = (summary['normal_urgency_skus_count'] as num?)?.toInt() ?? 0;
+    final coveredCount = (summary['incoming_stock_covered_skus'] as num?)?.toInt() ?? 0;
+    final rebalancingAlts = (summary['rebalancing_alternative_skus'] as num?)?.toInt() ?? 0;
+    final estimatedTotal = _n(summary['total_estimated_procurement_cost']);
+
+    return Column(
+      children: [
+        if (_procurementIntelligenceState.hasError)
+          _sectionError(
+            'Procurement Intelligence (cached view)',
+            _procurementIntelligenceState.error,
+            _loadProcurementIntelligence,
+          ),
+
+        if (rebalancingAlts > 0)
+          Container(
+            margin: const EdgeInsets.fromLTRB(16, 6, 16, 6),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.primaryContainer.withValues(alpha: 0.25),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.3)),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.sync_alt, size: 18),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    '💡 $rebalancingAlts SKU(s) have transferable surplus stock at another store. Review internal rebalancing before placing external supplier POs.',
+                    style: const TextStyle(fontSize: 12.5),
+                  ),
+                ),
+                TextButton.icon(
+                  onPressed: () => _tabs.animateTo(2),
+                  icon: const Icon(Icons.open_in_new, size: 14),
+                  label: const Text('View Stock Rebalancing', style: TextStyle(fontSize: 12)),
+                ),
+              ],
+            ),
+          ),
+
+        // KPI Banner
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 6, 16, 8),
+          child: Wrap(
+            spacing: 12,
+            runSpacing: 10,
+            children: [
+              _metricChip('SKUs to Reorder', totalRecommended.toString(), Icons.inventory_outlined),
+              _metricChip('Critical', criticalCount.toString(), Icons.error_outline, isAlert: criticalCount > 0),
+              _metricChip('High Urgency', highCount.toString(), Icons.warning_amber),
+              _metricChip('Normal', normalCount.toString(), Icons.info_outline),
+              _metricChip('Covered by In-Flight', coveredCount.toString(), Icons.check_circle_outline),
+              _metricChip('Rebalance Alternatives', rebalancingAlts.toString(), Icons.sync_alt),
+              _metricChip('Est. Procurement Cost', _canViewCost ? _money(estimatedTotal) : '—', Icons.payments_outlined),
+            ],
+          ),
+        ),
+
+        // Action Centre Toolbar
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          child: Row(
+            children: [
+              ChoiceChip(
+                label: Text('All (${allRecs.length})'),
+                selected: _procurementUrgencyFilter == 'all',
+                onSelected: (_) => setState(() => _procurementUrgencyFilter = 'all'),
+              ),
+              const SizedBox(width: 6),
+              ChoiceChip(
+                label: Text('Critical (${allRecs.where((r) => r['urgency'] == 'critical').length})'),
+                selected: _procurementUrgencyFilter == 'critical',
+                onSelected: (_) => setState(() => _procurementUrgencyFilter = 'critical'),
+              ),
+              const SizedBox(width: 6),
+              ChoiceChip(
+                label: Text('High (${allRecs.where((r) => r['urgency'] == 'high').length})'),
+                selected: _procurementUrgencyFilter == 'high',
+                onSelected: (_) => setState(() => _procurementUrgencyFilter = 'high'),
+              ),
+              const SizedBox(width: 6),
+              ChoiceChip(
+                label: Text('Normal (${allRecs.where((r) => r['urgency'] == 'normal').length})'),
+                selected: _procurementUrgencyFilter == 'normal',
+                onSelected: (_) => setState(() => _procurementUrgencyFilter = 'normal'),
+              ),
+              const SizedBox(width: 6),
+              ChoiceChip(
+                label: Text('Covered (${allRecs.where((r) => r['urgency'] == 'covered').length})'),
+                selected: _procurementUrgencyFilter == 'covered',
+                onSelected: (_) => setState(() => _procurementUrgencyFilter = 'covered'),
+              ),
+              const Spacer(),
+              Text(
+                '${_selectedProcurement.length} selected',
+                style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+              ),
+              const SizedBox(width: 10),
+              OutlinedButton.icon(
+                onPressed: () {
+                  setState(() {
+                    for (final r in filtered) {
+                      if (r['urgency'] != 'covered' && _n(r['suggested_purchase_qty']) > 0) {
+                        _selectedProcurement.add(_reorderKey(r));
+                      }
+                    }
+                  });
+                },
+                icon: const Icon(Icons.select_all, size: 14),
+                label: const Text('Select Actionable', style: TextStyle(fontSize: 12)),
+              ),
+              const SizedBox(width: 6),
+              if (_selectedProcurement.isNotEmpty)
+                IconButton(
+                  tooltip: 'Clear selection',
+                  icon: const Icon(Icons.clear, size: 16),
+                  onPressed: () => setState(() => _selectedProcurement.clear()),
+                ),
+            ],
+          ),
+        ),
+
+        // Recommendations Table
+        Expanded(
+          child: filtered.isEmpty
+              ? const Center(child: Text('No procurement recommendations match the selected filter.'))
+              : _procurementDataTable(filtered),
+        ),
+      ],
+    );
+  }
+
+  Widget _procurementDataTable(List<Map<String, dynamic>> recommendations) {
+    return Scrollbar(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: DataTable(
+            columns: const [
+              DataColumn(label: Text('')),
+              DataColumn(label: Text('Store', style: TextStyle(fontWeight: FontWeight.w600))),
+              DataColumn(label: Text('Product & SKU', style: TextStyle(fontWeight: FontWeight.w600))),
+              DataColumn(label: Text('Available', style: TextStyle(fontWeight: FontWeight.w600))),
+              DataColumn(label: Text('Incoming In-Flight', style: TextStyle(fontWeight: FontWeight.w600))),
+              DataColumn(label: Text('Net Effective', style: TextStyle(fontWeight: FontWeight.w600))),
+              DataColumn(label: Text('Reorder Level', style: TextStyle(fontWeight: FontWeight.w600))),
+              DataColumn(label: Text('Max Stock', style: TextStyle(fontWeight: FontWeight.w600))),
+              DataColumn(label: Text('Velocity (Avg/Day)', style: TextStyle(fontWeight: FontWeight.w600))),
+              DataColumn(label: Text('Cover Days', style: TextStyle(fontWeight: FontWeight.w600))),
+              DataColumn(label: Text('Suggested PO Qty', style: TextStyle(fontWeight: FontWeight.w600))),
+              DataColumn(label: Text('Urgency', style: TextStyle(fontWeight: FontWeight.w600))),
+              DataColumn(label: Text('Recommended Supplier', style: TextStyle(fontWeight: FontWeight.w600))),
+              DataColumn(label: Text('Est. Unit Cost', style: TextStyle(fontWeight: FontWeight.w600))),
+              DataColumn(label: Text('Est. PO Cost', style: TextStyle(fontWeight: FontWeight.w600))),
+            ],
+            rows: recommendations.map((r) {
+              final key = _reorderKey(r);
+              final isCovered = r['urgency'] == 'covered';
+              final canSelect = !isCovered && _n(r['suggested_purchase_qty']) > 0;
+              final isSelected = _selectedProcurement.contains(key);
+              final urgency = r['urgency']?.toString() ?? 'normal';
+              final incomingQty = _n(r['incoming_po_qty']) + _n(r['in_transit_qty']);
+
+              return DataRow(
+                selected: isSelected,
+                cells: [
+                  DataCell(
+                    Checkbox(
+                      value: isSelected,
+                      onChanged: canSelect
+                          ? (value) {
+                              setState(() {
+                                if (value == true) {
+                                  _selectedProcurement.add(key);
+                                } else {
+                                  _selectedProcurement.remove(key);
+                                }
+                              });
+                            }
+                          : null,
+                    ),
+                  ),
+                  DataCell(Text(r['location_name']?.toString() ?? '—')),
+                  DataCell(
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(r['product_name']?.toString() ?? '—', style: const TextStyle(fontWeight: FontWeight.w600)),
+                        Text(r['sku']?.toString() ?? '', style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                      ],
+                    ),
+                  ),
+                  DataCell(Text(_qty(r['available_stock']))),
+                  DataCell(
+                    Text(
+                      incomingQty > 0 ? '+${_qty(incomingQty)} (${_qty(r['incoming_po_qty'])} PO, ${_qty(r['in_transit_qty'])} transit)' : '0',
+                      style: TextStyle(color: incomingQty > 0 ? Colors.green[700] : null),
+                    ),
+                  ),
+                  DataCell(
+                    Text(
+                      _qty(r['net_effective_stock']),
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                  DataCell(Text(_qty(r['reorder_level']))),
+                  DataCell(Text(_qty(r['max_stock']))),
+                  DataCell(Text(_qty(r['avg_daily_sales']))),
+                  DataCell(
+                    Text(
+                      r['days_cover'] == null ? '—' : '${_n(r['days_cover']).toStringAsFixed(1)} d',
+                      style: TextStyle(
+                        color: (_n(r['days_cover']) <= 3 && _n(r['avg_daily_sales']) > 0)
+                            ? Theme.of(context).colorScheme.error
+                            : null,
+                      ),
+                    ),
+                  ),
+                  DataCell(
+                    Text(
+                      _qty(r['suggested_purchase_qty']),
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: _n(r['suggested_purchase_qty']) > 0 ? Theme.of(context).colorScheme.primary : Colors.grey,
+                      ),
+                    ),
+                  ),
+                  DataCell(_urgencyBadge(urgency)),
+                  DataCell(
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          r['suggested_supplier_name']?.toString() ?? 'No supplier history',
+                          style: const TextStyle(fontWeight: FontWeight.w500),
+                        ),
+                        if ((r['supplier_reason']?.toString() ?? '').isNotEmpty)
+                          Text(
+                            r['supplier_reason'].toString(),
+                            style: const TextStyle(fontSize: 10.5, color: Colors.grey),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                      ],
+                    ),
+                  ),
+                  DataCell(Text(_canViewCost ? _money(r['estimated_unit_cost']) : '—')),
+                  DataCell(Text(_canViewCost ? _money(r['estimated_purchase_cost']) : '—')),
+                ],
+              );
+            }).toList(),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _createSelectedProcurementOrders() async {
+    final allRecs = (_procurementIntelligenceState.data['recommendations'] as List? ?? const [])
+        .whereType<Map>()
+        .map((e) => Map<String, dynamic>.from(e))
+        .toList();
+
+    final selected = allRecs
+        .where((r) => _selectedProcurement.contains(_reorderKey(r)))
+        .toList();
+
+    if (selected.isEmpty) return;
+
+    if (selected.any((r) => (r['suggested_supplier_id']?.toString() ?? '').isEmpty)) {
+      ThqNotify.showSnackBar(
+        context,
+        const SnackBar(
+          content: Text(
+            'Some selected items have no supplier history. Assign a supplier before creating purchase orders.',
+          ),
+        ),
+      );
+      return;
+    }
+
+    final groups = <String, List<Map<String, dynamic>>>{};
+    for (final item in selected) {
+      final key = '${item['location_id']}|${item['suggested_supplier_id']}';
+      groups.putIfAbsent(key, () => []).add(item);
+    }
+
+    final confirmed = await showThqDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text('Create Purchase Orders (${selected.length} SKUs)'),
+        content: SizedBox(
+          width: 550,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Generate ${groups.length} draft purchase order(s) grouped by supplier and store:',
+                style: const TextStyle(fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 12),
+              ...groups.entries.map((entry) {
+                final first = entry.value.first;
+                final totalQty = entry.value.fold<double>(0, (sum, i) => sum + _n(i['suggested_purchase_qty']));
+                final totalCost = entry.value.fold<double>(0, (sum, i) => sum + _n(i['estimated_purchase_cost']));
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.storefront, size: 16),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          '${first['suggested_supplier_name'] ?? 'Supplier'} • ${first['location_name'] ?? 'Store'} (${entry.value.length} SKUs, ${_qty(totalQty)} units)',
+                        ),
+                      ),
+                      if (_canViewCost)
+                        Text(
+                          _money(totalCost),
+                          style: const TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                    ],
+                  ),
+                );
+              }),
+              const SizedBox(height: 12),
+              const Text(
+                'Orders will be created in Draft status for human review and approval.',
+                style: TextStyle(fontSize: 12, color: Colors.grey),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton.icon(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            icon: const Icon(Icons.check, size: 16),
+            label: const Text('Create Draft Orders'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    try {
+      for (final entry in groups.entries) {
+        final first = entry.value.first;
+        await _service.createPurchaseOrder(
+          tenantId: _tenantId,
+          locationId: first['location_id'].toString(),
+          supplierId: first['suggested_supplier_id'].toString(),
+          notes: 'Created via THQ Procurement Intelligence Action Centre (${_selectedPeriod.days}-day demand window).',
+          items: entry.value
+              .map(
+                (r) => <String, dynamic>{
+                  'variant_id': r['variant_id'],
+                  'quantity': _n(r['suggested_purchase_qty']),
+                  'unit_cost': _n(r['estimated_unit_cost']),
+                  'tax_rate': 0,
+                },
+              )
+              .toList(),
+        );
+      }
+
+      _selectedProcurement.clear();
+      _loadProcurementIntelligence();
+      _loadPurchaseOrders();
+
+      if (mounted) {
+        setState(() => _procurementViewMode = 'orders');
+        ThqNotify.success(
+          context,
+          '${groups.length} draft purchase order(s) created successfully.',
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ThqNotify.showSnackBar(
+          context,
+          SnackBar(content: Text('Failed to create purchase orders: $e')),
+        );
+      }
+    }
+  }
+
+
+
+  Widget _purchaseOrdersTabContent() {
     if (_ordersState.loading && _ordersState.data.isEmpty) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -3572,6 +4871,123 @@ class _OperationsIntelligenceScreenState
         ),
       ],
     );
+  }
+
+  Widget _metricChip(String label, String value, IconData icon, {bool isAlert = false}) {
+    final theme = Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: isAlert
+            ? theme.colorScheme.errorContainer.withValues(alpha: 0.4)
+            : theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: isAlert ? theme.colorScheme.error : theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: isAlert ? theme.colorScheme.error : theme.colorScheme.primary),
+          const SizedBox(width: 6),
+          Text('$label: ', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500)),
+          Text(value, style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: isAlert ? theme.colorScheme.error : null)),
+        ],
+      ),
+    );
+  }
+
+  Widget _riskBadge(String risk) {
+    final theme = Theme.of(context);
+    final isHigh = risk == 'high';
+    final isMed = risk == 'medium';
+    final color = isHigh
+        ? theme.colorScheme.errorContainer
+        : isMed
+            ? Color.alphaBlend(context.thqSemanticColors.warning.withValues(alpha: .15), theme.colorScheme.surface)
+            : Color.alphaBlend(context.thqSemanticColors.success.withValues(alpha: .15), theme.colorScheme.surface);
+    final textColor = isHigh
+        ? theme.colorScheme.error
+        : isMed
+            ? context.thqSemanticColors.warning
+            : context.thqSemanticColors.success;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: textColor.withValues(alpha: 0.4)),
+      ),
+      child: Text(
+        risk.toUpperCase(),
+        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: textColor),
+      ),
+    );
+  }
+
+  Widget _urgencyBadge(String urgency) {
+    final theme = Theme.of(context);
+    final isCrit = urgency == 'critical';
+    final isHigh = urgency == 'high';
+    final isCovered = urgency == 'covered';
+    final color = isCrit
+        ? theme.colorScheme.errorContainer
+        : isHigh
+            ? Color.alphaBlend(context.thqSemanticColors.warning.withValues(alpha: .15), theme.colorScheme.surface)
+            : isCovered
+                ? Color.alphaBlend(context.thqSemanticColors.success.withValues(alpha: .15), theme.colorScheme.surface)
+                : theme.colorScheme.primaryContainer.withValues(alpha: 0.5);
+    final textColor = isCrit
+        ? theme.colorScheme.error
+        : isHigh
+            ? context.thqSemanticColors.warning
+            : isCovered
+                ? context.thqSemanticColors.success
+                : theme.colorScheme.primary;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: textColor.withValues(alpha: 0.4)),
+      ),
+      child: Text(
+        urgency.toUpperCase(),
+        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: textColor),
+      ),
+    );
+  }
+
+  Widget _sufficiencyChip(String suff) {
+    final isSuff = suff == 'sufficient';
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: isSuff ? Colors.blue.withValues(alpha: 0.1) : Colors.grey.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Text(
+        isSuff ? 'Sufficient History' : 'Limited History',
+        style: TextStyle(fontSize: 10.5, color: isSuff ? Colors.blue[800] : Colors.grey[700]),
+      ),
+    );
+  }
+
+  Widget _kpiTile(String label, String value) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: const TextStyle(fontSize: 11, color: Colors.grey)),
+        const SizedBox(height: 2),
+        Text(value, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+      ],
+    );
+  }
+
+  String _statusText(dynamic val) {
+    final s = val?.toString() ?? 'clear';
+    return s.replaceAll('_', ' ').toUpperCase();
   }
 
   Widget _orderFilterChip(String status, String label) {
@@ -3764,66 +5180,6 @@ class _OperationsIntelligenceScreenState
         ThqNotify.showSnackBar(
           context,
           SnackBar(content: Text('Could not open PO: $error')),
-        );
-      }
-    }
-  }
-
-  Future<void> _createSelectedPurchaseOrders() async {
-    final rows = _reorderState.data
-        .where((r) => _selectedReorder.contains(_reorderKey(r)))
-        .toList();
-    if (rows.any((r) => (r['last_supplier_id']?.toString() ?? '').isEmpty)) {
-      ThqNotify.showSnackBar(
-        context,
-        const SnackBar(
-          content: Text(
-            'Some selected products have no purchase supplier history. Select products with a supplier.',
-          ),
-        ),
-      );
-      return;
-    }
-    final groups = <String, List<Map<String, dynamic>>>{};
-    for (final row in rows) {
-      final key = '${row['location_id']}|${row['last_supplier_id']}';
-      groups.putIfAbsent(key, () => []).add(row);
-    }
-    try {
-      for (final entry in groups.entries) {
-        final first = entry.value.first;
-        await _service.createPurchaseOrder(
-          tenantId: _tenantId,
-          locationId: first['location_id'].toString(),
-          supplierId: first['last_supplier_id'].toString(),
-          notes:
-              'Created from THQ reorder suggestions (${_selectedPeriod.days}-day demand window).',
-          items: entry.value
-              .map(
-                (r) => <String, dynamic>{
-                  'variant_id': r['variant_id'],
-                  'quantity': _n(r['suggested_quantity']),
-                  'unit_cost': _n(r['last_unit_cost']),
-                  'tax_rate': _n(r['tax_rate']),
-                },
-              )
-              .toList(),
-        );
-      }
-      _selectedReorder.clear();
-      _loadReorder();
-      _loadPurchaseOrders();
-      if (mounted) {
-        ThqNotify.success(
-          context,
-          '${groups.length} purchase order(s) created as Draft.',
-        );
-      }
-    } catch (error) {
-      if (mounted) {
-        ThqNotify.showSnackBar(
-          context,
-          SnackBar(content: Text('PO creation failed: $error')),
         );
       }
     }
