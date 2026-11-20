@@ -81,6 +81,25 @@ class OperationsIntelligenceService {
     ),
   );
 
+  Future<List<Map<String, dynamic>>> rebalancing({
+    required String tenantId,
+    String? locationId,
+    int days = 30,
+    int limit = 100,
+  }) async => _rows(
+    await _api.call(
+      ThqApiRequest(
+        tenantId: tenantId,
+        resource: 'inventory-rebalancing',
+        payload: {
+          'location_id': locationId,
+          'days': days,
+          'limit': limit,
+        },
+      ),
+    ),
+  );
+
   Future<List<Map<String, dynamic>>> customerCredit({
     required String tenantId,
     String? locationId,

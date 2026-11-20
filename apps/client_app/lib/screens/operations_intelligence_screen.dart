@@ -148,9 +148,14 @@ class _OperationsIntelligenceScreenState
       const SectionState(data: []);
   SectionState<List<Map<String, dynamic>>> _storesState =
       const SectionState(data: []);
+  SectionState<List<Map<String, dynamic>>> _rebalancingState =
+      const SectionState(data: []);
 
   final Set<String> _selectedReorder = <String>{};
   String _stockFilter = 'all';
+  String _abcFilter = 'all';
+  String _movementFilter = 'all';
+  bool _rebalancingExpanded = true;
   String _orderStatusFilter = 'all';
   String _salesProductTab = 'best_selling';
   String _trendViewMode = 'daily';
@@ -198,6 +203,7 @@ class _OperationsIntelligenceScreenState
     _loadOverview(seq);
     _loadSalesIntelligence(seq);
     _loadInventory(seq);
+    _loadRebalancing(seq);
     _loadCustomerCredit(seq);
     _loadSupplierPayables(seq);
     _loadReorder(seq);
@@ -285,6 +291,25 @@ class _OperationsIntelligenceScreenState
     } catch (e) {
       if (!mounted || currentSeq != _requestSequence) return;
       setState(() => _inventoryState = _inventoryState.toError(e.toString()));
+    }
+  }
+
+  Future<void> _loadRebalancing([int? seq]) async {
+    final currentSeq = seq ?? ++_requestSequence;
+    setState(() => _rebalancingState = _rebalancingState.toLoading());
+    try {
+      final rows = await _service.rebalancing(
+        tenantId: _tenantId,
+        locationId: _locationId,
+        days: _selectedPeriod.days,
+      );
+      if (!mounted || currentSeq != _requestSequence) return;
+      setState(() => _rebalancingState = _rebalancingState.toSuccess(rows));
+    } catch (e) {
+      if (!mounted || currentSeq != _requestSequence) return;
+      setState(
+        () => _rebalancingState = _rebalancingState.toError(e.toString()),
+      );
     }
   }
 
@@ -447,7 +472,7 @@ class _OperationsIntelligenceScreenState
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   const Text('Stock Intelligence'),
-                  if (_inventoryState.loading) ...[
+                  if (_inventoryState.loading || _rebalancingState.loading) ...[
                     const SizedBox(width: 6),
                     const SizedBox(
                       width: 10,
@@ -1333,11 +1358,11 @@ class _OperationsIntelligenceScreenState
     }
 
     final data = _salesIntelligenceState.data;
-    final perf = data['performance'] as Map<String, dynamic>? ?? const {};
-    final curPerf = perf['current'] as Map<String, dynamic>? ?? const {};
-    final prevPerf = perf['previous'] as Map<String, dynamic>? ?? const {};
+    final perf = data['performance'] is Map ? Map<String, dynamic>.from(data['performance'] as Map) : const <String, dynamic>{};
+    final curPerf = perf['current'] is Map ? Map<String, dynamic>.from(perf['current'] as Map) : const <String, dynamic>{};
+    final prevPerf = perf['previous'] is Map ? Map<String, dynamic>.from(perf['previous'] as Map) : const <String, dynamic>{};
 
-    final trends = data['trends'] as Map<String, dynamic>? ?? const {};
+    final trends = data['trends'] is Map ? Map<String, dynamic>.from(data['trends'] as Map) : const <String, dynamic>{};
     final dailyTrends =
         (trends['daily'] as List?)?.map((e) => Map<String, dynamic>.from(e as Map)).toList() ??
             const [];
@@ -1348,7 +1373,7 @@ class _OperationsIntelligenceScreenState
         (trends['monthly'] as List?)?.map((e) => Map<String, dynamic>.from(e as Map)).toList() ??
             const [];
 
-    final products = data['products'] as Map<String, dynamic>? ?? const {};
+    final products = data['products'] is Map ? Map<String, dynamic>.from(data['products'] as Map) : const <String, dynamic>{};
     final bestSelling =
         (products['best_selling'] as List?)?.map((e) => Map<String, dynamic>.from(e as Map)).toList() ??
             const [];
@@ -1366,8 +1391,12 @@ class _OperationsIntelligenceScreenState
         (data['categories'] as List?)?.map((e) => Map<String, dynamic>.from(e as Map)).toList() ??
             const [];
 
-    final customerIntel = data['customer_intelligence'] as Map<String, dynamic>? ?? const {};
-    final custSummary = customerIntel['summary'] as Map<String, dynamic>? ?? const {};
+    final customerIntel = data['customer_intelligence'] is Map
+        ? Map<String, dynamic>.from(data['customer_intelligence'] as Map)
+        : const <String, dynamic>{};
+    final custSummary = customerIntel['summary'] is Map
+        ? Map<String, dynamic>.from(customerIntel['summary'] as Map)
+        : const <String, dynamic>{};
     final custSegments =
         (customerIntel['segments'] as List?)?.map((e) => Map<String, dynamic>.from(e as Map)).toList() ??
             const [];
@@ -2380,108 +2409,788 @@ class _OperationsIntelligenceScreenState
       return _sectionError(
         'Stock Intelligence',
         _inventoryState.error,
-        _loadInventory,
+        () {
+          _loadInventory();
+          _loadRebalancing();
+        },
       );
     }
 
     final raw = _inventoryState.data;
+    final totalItems = raw.length;
+    final totalValuation = raw.fold<double>(
+      0.0,
+      (sum, r) => sum + _n(r['stock_value']),
+    );
+    final deadStockItems = raw
+        .where((r) =>
+            r['status'] == 'dead_stock' || r['movement_class'] == 'dead_stock')
+        .toList();
+    final deadStockVal = deadStockItems.fold<double>(
+      0.0,
+      (sum, r) => sum + _n(r['stock_value']),
+    );
+    final slowStockItems =
+        raw.where((r) => r['movement_class'] == 'slow_moving').toList();
+    final slowStockVal = slowStockItems.fold<double>(
+      0.0,
+      (sum, r) => sum + _n(r['stock_value']),
+    );
+    final tiedUpVal = deadStockVal + slowStockVal;
+    final excessVal =
+        raw.fold<double>(0.0, (sum, r) => sum + _n(r['excess_value']));
+
+    final validCovers = raw
+        .where((r) => r['days_cover'] != null && _n(r['days_cover']) > 0)
+        .map((r) => _n(r['days_cover']))
+        .toList();
+    final avgCover = validCovers.isEmpty
+        ? null
+        : validCovers.reduce((a, b) => a + b) / validCovers.length;
+
+    final rebalancingRows = _rebalancingState.data;
+
     final filtered = raw.where((r) {
-      if (_stockFilter == 'all') return true;
-      final st = r['status']?.toString().toLowerCase() ?? '';
-      return st == _stockFilter;
+      if (_stockFilter != 'all') {
+        final st = r['status']?.toString().toLowerCase() ?? '';
+        if (st != _stockFilter) return false;
+      }
+      if (_abcFilter != 'all') {
+        final abc = r['abc_class']?.toString() ?? 'C';
+        if (abc != _abcFilter) return false;
+      }
+      if (_movementFilter != 'all') {
+        final mv = r['movement_class']?.toString() ?? 'normal_moving';
+        if (mv != _movementFilter) return false;
+      }
+      return true;
     }).toList();
 
-    return Column(
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(18, 14, 18, 24),
       children: [
         if (_inventoryState.hasError)
           _sectionError(
             'Stock Intelligence (cached view)',
             _inventoryState.error,
-            _loadInventory,
+            () {
+              _loadInventory();
+              _loadRebalancing();
+            },
           ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(18, 12, 18, 4),
-          child: Row(
-            children: [
-              Expanded(
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    children: [
-                      _filterChip('all', 'All (${raw.length})'),
-                      const SizedBox(width: 6),
-                      _filterChip(
-                        'out_of_stock',
-                        'Out of Stock (${raw.where((r) => r['status'] == 'out_of_stock').length})',
-                      ),
-                      const SizedBox(width: 6),
-                      _filterChip(
-                        'low_stock',
-                        'Low Stock (${raw.where((r) => r['status'] == 'low_stock').length})',
-                      ),
-                      const SizedBox(width: 6),
-                      _filterChip(
-                        'dead_stock',
-                        'Dead Stock (${raw.where((r) => r['status'] == 'dead_stock').length})',
-                      ),
-                      const SizedBox(width: 6),
-                      _filterChip(
-                        'overstock',
-                        'Overstock (${raw.where((r) => r['status'] == 'overstock').length})',
-                      ),
-                    ],
+
+        // 1. Summary KPI Banner
+        _sectionHeader(
+          'Inventory Performance & Capital Health',
+          Icons.inventory_2_outlined,
+          subtitle:
+              'Analysis window: ${_selectedPeriod.label} • Capital allocation, turnover velocity, and stock health',
+          action: !_canViewCost
+              ? _statusBadge('Cost Restricted', isWarning: true)
+              : null,
+        ),
+        const SizedBox(height: 10),
+        Wrap(
+          spacing: 12,
+          runSpacing: 12,
+          children: [
+            _metricCard(
+              title: 'Total Stock Value',
+              value: _canViewCost ? _money(totalValuation) : 'Hidden',
+              icon: Icons.account_balance_wallet_outlined,
+              isRestricted: !_canViewCost,
+              extraLabel: '$totalItems monitored variants',
+            ),
+            _metricCard(
+              title: 'Monitored Items',
+              value: totalItems.toString(),
+              icon: Icons.category_outlined,
+              extraLabel:
+                  '${raw.where((r) => _n(r['available']) > 0).length} in stock',
+            ),
+            _metricCard(
+              title: 'Avg Stock Cover',
+              value: avgCover == null ? '—' : '${avgCover.toStringAsFixed(1)} d',
+              icon: Icons.timelapse_outlined,
+              extraLabel: '${validCovers.length} moving variants',
+            ),
+            _metricCard(
+              title: 'Dead & Slow Capital',
+              value: _canViewCost ? _money(tiedUpVal) : 'Hidden',
+              icon: Icons.lock_clock_outlined,
+              isWarning: tiedUpVal > 0,
+              isRestricted: !_canViewCost,
+              extraLabel:
+                  '${deadStockItems.length} dead, ${slowStockItems.length} slow',
+            ),
+            _metricCard(
+              title: 'Excess Stock Value',
+              value: _canViewCost ? _money(excessVal) : 'Hidden',
+              icon: Icons.layers_clear_outlined,
+              isWarning: excessVal > 0,
+              isRestricted: !_canViewCost,
+              extraLabel: 'Above target max stock',
+            ),
+            _metricCard(
+              title: 'Rebalancing Opps',
+              value: rebalancingRows.length.toString(),
+              icon: Icons.swap_horiz_outlined,
+              extraLabel: rebalancingRows.isNotEmpty
+                  ? 'Transfers available'
+                  : 'Multi-store balanced',
+            ),
+          ],
+        ),
+        const SizedBox(height: 24),
+
+        // 2. Inter-Store Stock Rebalancing
+        _interStoreRebalancingSection(rebalancingRows),
+        const SizedBox(height: 24),
+
+        // 3. Multi-Faceted Classification & Filtering Controls
+        _stockFilterBar(raw),
+        const SizedBox(height: 12),
+
+        // 4. Detailed 14-Column Stock Inventory Table
+        _stockTableSection(filtered),
+      ],
+    );
+  }
+
+  Widget _interStoreRebalancingSection(
+    List<Map<String, dynamic>> recommendations,
+  ) {
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: colors.surface,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: colors.outlineVariant.withValues(alpha: 0.6)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          InkWell(
+            onTap: () =>
+                setState(() => _rebalancingExpanded = !_rebalancingExpanded),
+            borderRadius: BorderRadius.circular(10),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              child: Row(
+                children: [
+                  Icon(Icons.swap_horiz, color: colors.primary, size: 22),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            const Text(
+                              'Inter-Store Stock Rebalancing',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 7,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: recommendations.isNotEmpty
+                                    ? colors.primary.withValues(alpha: 0.15)
+                                    : colors.outlineVariant
+                                        .withValues(alpha: 0.3),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Text(
+                                '${recommendations.length} opportunities',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: recommendations.isNotEmpty
+                                      ? colors.primary
+                                      : colors.onSurfaceVariant,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Transfers from locations with surplus stock to branches with shortages without depleting source safety buffer',
+                          style: TextStyle(
+                            fontSize: 11.5,
+                            color: colors.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
+                  Icon(
+                    _rebalancingExpanded
+                        ? Icons.keyboard_arrow_up
+                        : Icons.keyboard_arrow_down,
+                    color: colors.onSurfaceVariant,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          if (_rebalancingExpanded) ...[
+            const Divider(height: 1),
+            if (_rebalancingState.loading)
+              const Padding(
+                padding: EdgeInsets.all(24),
+                child: Center(child: CircularProgressIndicator()),
+              )
+            else if (recommendations.isEmpty)
+              Padding(
+                padding: const EdgeInsets.all(20),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.check_circle_outline,
+                      color: Colors.green.shade600,
+                      size: 20,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'No inter-store transfer opportunities detected for this period. All locations have adequate or balanced stock levels.',
+                        style: TextStyle(
+                          fontSize: 12.5,
+                          color: colors.onSurfaceVariant,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            else
+              Padding(
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  children: recommendations.map((rec) {
+                    final priority =
+                        rec['priority']?.toString().toLowerCase() ?? 'normal';
+                    final priColor = priority == 'critical'
+                        ? Colors.red.shade700
+                        : priority == 'high'
+                            ? Colors.orange.shade800
+                            : Colors.blue.shade700;
+
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 10),
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: colors.surfaceContainerLow,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: colors.outlineVariant.withValues(alpha: 0.4),
+                        ),
+                      ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 6,
+                                        vertical: 2,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: priColor.withValues(alpha: 0.12),
+                                        borderRadius: BorderRadius.circular(4),
+                                        border: Border.all(
+                                          color: priColor.withValues(alpha: 0.35),
+                                        ),
+                                      ),
+                                      child: Text(
+                                        priority.toUpperCase(),
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.bold,
+                                          color: priColor,
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      '${rec['product_name']} (${rec['sku']})',
+                                      style: const TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 6),
+                                Wrap(
+                                  crossAxisAlignment: WrapCrossAlignment.center,
+                                  spacing: 8,
+                                  runSpacing: 4,
+                                  children: [
+                                    Text(
+                                      'Source: ${rec['source_location_name']}',
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                    Text(
+                                      '(Avail: ${_qty(rec['source_available'])}, Surplus: ${_qty(rec['source_excess'])})',
+                                      style: TextStyle(
+                                        fontSize: 11.5,
+                                        color: colors.onSurfaceVariant,
+                                      ),
+                                    ),
+                                    const Icon(
+                                      Icons.arrow_forward,
+                                      size: 14,
+                                      color: Colors.grey,
+                                    ),
+                                    Text(
+                                      'Dest: ${rec['dest_location_name']}',
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                    Text(
+                                      '(Avail: ${_qty(rec['dest_available'])}, Shortage: ${_qty(rec['dest_shortage'])})',
+                                      style: TextStyle(
+                                        fontSize: 11.5,
+                                        color: _n(rec['dest_available']) == 0
+                                            ? Colors.red.shade700
+                                            : colors.onSurfaceVariant,
+                                        fontWeight: _n(rec['dest_available']) == 0
+                                            ? FontWeight.bold
+                                            : FontWeight.normal,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 4),
+                                Row(
+                                  children: [
+                                    Text(
+                                      'Transfer: ${_qty(rec['suggested_transfer_qty'])} units',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.bold,
+                                        color: colors.primary,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 14),
+                                    Text(
+                                      'Source after: ${_qty(rec['source_stock_after'])}  •  Dest after: ${_qty(rec['dest_stock_after'])}',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: colors.onSurfaceVariant,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  rec['reason']?.toString() ?? '',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontStyle: FontStyle.italic,
+                                    color: colors.onSurfaceVariant,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          OutlinedButton.icon(
+                            onPressed: () {
+                              ClientNavigationScope.navigate(
+                                context,
+                                'stock_transfers',
+                              );
+                            },
+                            icon: const Icon(Icons.swap_horiz, size: 15),
+                            label: const Text(
+                              'Initiate Transfer',
+                              style: TextStyle(fontSize: 11.5),
+                            ),
+                            style: OutlinedButton.styleFrom(
+                              visualDensity: VisualDensity.compact,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                                vertical: 6,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }).toList(),
                 ),
               ),
-              OutlinedButton.icon(
-                onPressed: () {
-                  // Seamlessly switch to Smart Inventory inside the same unified shell
-                  ClientNavigationScope.navigate(context, 'smart_inventory');
-                },
-                icon: const Icon(Icons.qr_code_scanner, size: 16),
-                label: const Text('Smart Inventory'),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _stockFilterBar(List<Map<String, dynamic>> raw) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Health Status Filters
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: [
+              _filterChip('all', 'All Health (${raw.length})'),
+              const SizedBox(width: 6),
+              _filterChip(
+                'out_of_stock',
+                'Out of Stock (${raw.where((r) => r['status'] == 'out_of_stock').length})',
+              ),
+              const SizedBox(width: 6),
+              _filterChip(
+                'critical_low',
+                'Critical Low (${raw.where((r) => r['status'] == 'critical_low').length})',
+              ),
+              const SizedBox(width: 6),
+              _filterChip(
+                'low_stock',
+                'Low Stock (${raw.where((r) => r['status'] == 'low_stock').length})',
+              ),
+              const SizedBox(width: 6),
+              _filterChip(
+                'healthy',
+                'Healthy (${raw.where((r) => r['status'] == 'healthy').length})',
+              ),
+              const SizedBox(width: 6),
+              _filterChip(
+                'overstock',
+                'Excess (${raw.where((r) => r['status'] == 'overstock').length})',
+              ),
+              const SizedBox(width: 6),
+              _filterChip(
+                'dead_stock',
+                'Dead Stock (${raw.where((r) => r['status'] == 'dead_stock').length})',
               ),
             ],
           ),
         ),
-        Expanded(
-          child: _table(
-            columns: [
-              'Store',
-              'ABC',
-              'Product',
-              'SKU',
-              'Available',
-              'Reorder',
-              'Max',
-              'Avg/day',
-              'Cover',
-              'Suggested',
-              'Value',
-              'Status',
-            ],
-            rows: filtered.map((r) {
-              final abc = r['abc_class']?.toString() ?? 'C';
-              return [
-                r['location_name'],
-                _abcBadge(abc),
-                r['product_name'],
-                r['sku'],
-                _qty(r['available']),
-                _qty(r['reorder_level']),
-                _qty(r['max_stock']),
-                _qty(r['avg_daily_sales']),
-                r['days_cover'] == null
-                    ? '—'
-                    : '${_n(r['days_cover']).toStringAsFixed(1)} d',
-                _qty(r['suggested_reorder']),
-                _canViewCost ? _money(r['stock_value']) : '—',
-                _status(r['status']),
-              ];
-            }).toList(),
-          ),
+        const SizedBox(height: 8),
+
+        // ABC and Velocity Classification Filters + Smart Inventory bridge
+        Row(
+          children: [
+            Expanded(
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    // ABC Pareto Chips
+                    _abcChip('all', 'All ABC'),
+                    const SizedBox(width: 5),
+                    _abcChip(
+                      'A',
+                      'Class A (70% Value) (${raw.where((r) => r['abc_class'] == 'A').length})',
+                    ),
+                    const SizedBox(width: 5),
+                    _abcChip(
+                      'B',
+                      'Class B (20% Value) (${raw.where((r) => r['abc_class'] == 'B').length})',
+                    ),
+                    const SizedBox(width: 5),
+                    _abcChip(
+                      'C',
+                      'Class C (10% & Zero) (${raw.where((r) => r['abc_class'] == 'C').length})',
+                    ),
+                    const SizedBox(width: 6),
+                    const Tooltip(
+                      message:
+                          'Pareto Analysis: Class A drives top 70% cumulative sales revenue, Class B next 20%, Class C remaining 10% or zero sales.',
+                      child: Icon(Icons.info_outline, size: 16, color: Colors.grey),
+                    ),
+                    const SizedBox(width: 14),
+                    const SizedBox(height: 20, child: VerticalDivider(width: 1)),
+                    const SizedBox(width: 14),
+
+                    // Velocity Movement Chips
+                    _movementChip('all', 'All Velocity'),
+                    const SizedBox(width: 5),
+                    _movementChip(
+                      'fast_moving',
+                      'Fast (${raw.where((r) => r['movement_class'] == 'fast_moving').length})',
+                    ),
+                    const SizedBox(width: 5),
+                    _movementChip(
+                      'normal_moving',
+                      'Normal (${raw.where((r) => r['movement_class'] == 'normal_moving').length})',
+                    ),
+                    const SizedBox(width: 5),
+                    _movementChip(
+                      'slow_moving',
+                      'Slow (${raw.where((r) => r['movement_class'] == 'slow_moving').length})',
+                    ),
+                    const SizedBox(width: 5),
+                    _movementChip(
+                      'non_moving',
+                      'Non-moving (${raw.where((r) => r['movement_class'] == 'non_moving').length})',
+                    ),
+                    const SizedBox(width: 5),
+                    _movementChip(
+                      'dead_stock',
+                      'Dead (${raw.where((r) => r['movement_class'] == 'dead_stock').length})',
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+            OutlinedButton.icon(
+              onPressed: () {
+                // Seamlessly switch to Smart Inventory inside the same unified shell
+                ClientNavigationScope.navigate(context, 'smart_inventory');
+              },
+              icon: const Icon(Icons.qr_code_scanner, size: 16),
+              label: const Text('Smart Inventory'),
+            ),
+          ],
         ),
       ],
+    );
+  }
+
+  Widget _abcChip(String key, String label) {
+    final active = _abcFilter == key;
+    return ChoiceChip(
+      selected: active,
+      label: Text(label, style: const TextStyle(fontSize: 11)),
+      onSelected: (_) => setState(() => _abcFilter = key),
+      visualDensity: VisualDensity.compact,
+    );
+  }
+
+  Widget _movementChip(String key, String label) {
+    final active = _movementFilter == key;
+    return ChoiceChip(
+      selected: active,
+      label: Text(label, style: const TextStyle(fontSize: 11)),
+      onSelected: (_) => setState(() => _movementFilter = key),
+      visualDensity: VisualDensity.compact,
+    );
+  }
+
+  Widget _stockTableSection(List<Map<String, dynamic>> filtered) {
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+
+    if (filtered.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.all(32),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: colors.surface,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: colors.outlineVariant.withValues(alpha: 0.6),
+          ),
+        ),
+        child: const Text('No inventory records matching selected filters.'),
+      );
+    }
+
+    return Container(
+      decoration: BoxDecoration(
+        color: colors.surface,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: colors.outlineVariant.withValues(alpha: 0.6)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+            child: Row(
+              children: [
+                Text(
+                  'Inventory Items (${filtered.length} SKUs)',
+                  style: const TextStyle(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const Spacer(),
+                Text(
+                  'Deduplicating pending POs & in-transit transfers in suggested orders',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: colors.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const Divider(height: 1),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: DataTable(
+              columnSpacing: 18,
+              headingRowHeight: 40,
+              dataRowMinHeight: 42,
+              dataRowMaxHeight: 52,
+              columns: const [
+                DataColumn(
+                  label: Text('Store', style: TextStyle(fontWeight: FontWeight.w600)),
+                ),
+                DataColumn(
+                  label: Text('ABC', style: TextStyle(fontWeight: FontWeight.w600)),
+                ),
+                DataColumn(
+                  label: Text('Velocity', style: TextStyle(fontWeight: FontWeight.w600)),
+                ),
+                DataColumn(
+                  label: Text('Product', style: TextStyle(fontWeight: FontWeight.w600)),
+                ),
+                DataColumn(
+                  label: Text('SKU', style: TextStyle(fontWeight: FontWeight.w600)),
+                ),
+                DataColumn(
+                  label: Text('Available', style: TextStyle(fontWeight: FontWeight.w600)),
+                ),
+                DataColumn(
+                  label: Text('Incoming', style: TextStyle(fontWeight: FontWeight.w600)),
+                ),
+                DataColumn(
+                  label: Text('Reorder', style: TextStyle(fontWeight: FontWeight.w600)),
+                ),
+                DataColumn(
+                  label: Text('Max', style: TextStyle(fontWeight: FontWeight.w600)),
+                ),
+                DataColumn(
+                  label: Text('Burn Rate', style: TextStyle(fontWeight: FontWeight.w600)),
+                ),
+                DataColumn(
+                  label: Text('Cover', style: TextStyle(fontWeight: FontWeight.w600)),
+                ),
+                DataColumn(
+                  label: Text('Suggested', style: TextStyle(fontWeight: FontWeight.w600)),
+                ),
+                DataColumn(
+                  label: Text('Stock Value', style: TextStyle(fontWeight: FontWeight.w600)),
+                ),
+                DataColumn(
+                  label: Text('Status', style: TextStyle(fontWeight: FontWeight.w600)),
+                ),
+              ],
+              rows: filtered.map((r) {
+                final abc = r['abc_class']?.toString() ?? 'C';
+                final mv = r['movement_class']?.toString();
+                final po = _n(r['incoming_po_qty']);
+                final transit = _n(r['in_transit_qty']);
+                final totalIncoming = po + transit;
+
+                return DataRow(
+                  cells: [
+                    DataCell(Text(r['location_name']?.toString() ?? '—')),
+                    DataCell(_abcBadge(abc)),
+                    DataCell(_movementBadge(mv)),
+                    DataCell(
+                      ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 180),
+                        child: Text(
+                          r['product_name']?.toString() ?? '—',
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontWeight: FontWeight.w500),
+                        ),
+                      ),
+                    ),
+                    DataCell(Text(r['sku']?.toString() ?? '—')),
+                    DataCell(
+                      Text(
+                        _qty(r['available']),
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: _n(r['available']) == 0
+                              ? Colors.red.shade700
+                              : null,
+                        ),
+                      ),
+                    ),
+                    DataCell(
+                      totalIncoming > 0
+                          ? Tooltip(
+                              message:
+                                  'PO: ${_qty(po)}, In-transit: ${_qty(transit)}',
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    _qty(totalIncoming),
+                                    style: TextStyle(
+                                      color: Colors.blue.shade700,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Icon(
+                                    Icons.info_outline,
+                                    size: 12,
+                                    color: Colors.blue.shade700,
+                                  ),
+                                ],
+                              ),
+                            )
+                          : const Text('0'),
+                    ),
+                    DataCell(Text(_qty(r['reorder_level']))),
+                    DataCell(Text(_qty(r['max_stock']))),
+                    DataCell(
+                      Text('${_n(r['avg_daily_sales']).toStringAsFixed(2)} /d'),
+                    ),
+                    DataCell(
+                      Text(
+                        r['days_cover'] == null
+                            ? '—'
+                            : '${_n(r['days_cover']).toStringAsFixed(1)} d',
+                      ),
+                    ),
+                    DataCell(
+                      Text(
+                        _qty(r['suggested_reorder']),
+                        style: TextStyle(
+                          fontWeight: _n(r['suggested_reorder']) > 0
+                              ? FontWeight.bold
+                              : FontWeight.normal,
+                          color: _n(r['suggested_reorder']) > 0
+                              ? Colors.amber.shade900
+                              : null,
+                        ),
+                      ),
+                    ),
+                    DataCell(
+                      Text(_canViewCost ? _money(r['stock_value']) : '—'),
+                    ),
+                    DataCell(_status(r['status'])),
+                  ],
+                );
+              }).toList(),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -2508,10 +3217,55 @@ class _OperationsIntelligenceScreenState
         border: Border.all(color: color.withValues(alpha: 0.4)),
       ),
       child: Text(
-        abc,
+        'Class $abc',
         style: TextStyle(
           fontSize: 10,
           fontWeight: FontWeight.bold,
+          color: color,
+        ),
+      ),
+    );
+  }
+
+  Widget _movementBadge(String? movement) {
+    final m = (movement ?? 'normal_moving').toLowerCase();
+    Color color;
+    String label;
+    switch (m) {
+      case 'fast_moving':
+        color = Colors.teal.shade700;
+        label = 'Fast';
+        break;
+      case 'slow_moving':
+        color = Colors.amber.shade800;
+        label = 'Slow';
+        break;
+      case 'non_moving':
+        color = Colors.deepPurple.shade600;
+        label = 'Non-moving';
+        break;
+      case 'dead_stock':
+        color = Colors.red.shade700;
+        label = 'Dead';
+        break;
+      case 'normal_moving':
+      default:
+        color = Colors.blue.shade700;
+        label = 'Normal';
+        break;
+    }
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: color.withValues(alpha: 0.35)),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 10,
+          fontWeight: FontWeight.w600,
           color: color,
         ),
       ),

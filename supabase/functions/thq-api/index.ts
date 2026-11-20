@@ -87,12 +87,17 @@ Deno.serve(async (req) => {
         params = { ...params, p_location_id: payload.location_id ?? null, p_device_id: payload.device_id ?? null }
         break
       case 'inventory-intelligence':
-        rpc = (payload.version === 'v830' || payload.use_v830) ? 'inventory_intelligence_v830' : 'inventory_intelligence_v480'
+        rpc = payload.version === 'v480' ? 'inventory_intelligence_v480' : 'inventory_intelligence_v830'
         params = { ...params, p_location_id: payload.location_id ?? null, p_days: payload.days ?? 30, p_query: payload.query ?? '', p_limit: payload.limit ?? 1000 }
         break
       case 'inventory-intelligence-v830':
         rpc = 'inventory_intelligence_v830'
         params = { ...params, p_location_id: payload.location_id ?? null, p_days: payload.days ?? 30, p_query: payload.query ?? '', p_limit: payload.limit ?? 1000 }
+        break
+      case 'inventory-rebalancing':
+      case 'inventory-rebalancing-v830':
+        rpc = 'inventory_rebalancing_recommendations_v830'
+        params = { ...params, p_location_id: payload.location_id ?? null, p_days: payload.days ?? 30, p_limit: payload.limit ?? 100 }
         break
       case 'units':
         rpc = 'inventory_units_list_v481'
