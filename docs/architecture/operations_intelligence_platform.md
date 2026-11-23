@@ -126,6 +126,13 @@ The **THQ Operations Intelligence Platform** is an enterprise-grade, algorithm-f
 - **Function:** `public.workforce_intelligence_v830(p_tenant_id uuid, p_location_id uuid, p_days int)`
 - **Key Responsibilities:** Correlates branch transaction velocity with staffing availability. Analyzes attendance coverage drop rates, overtime concentration, cashier shift coverage gaps during peak operating hours, and transaction throughput per active employee. Restricts payroll metrics when the session lacks `staff.payroll` authority.
 
+### Customer Intelligence Architecture (Distributed Domain Engine)
+- **Architecture Strategy:** Rather than an isolated monolithic query, customer intelligence operates as a cohesive, distributed capability embedded across three core engines with clear tenant/location boundaries:
+  1. *Customer Purchasing & RFM Engine* (via `sales_intelligence_v830`): Analyzes customer purchasing frequency, monetary spend, inactivity periods, and deterministic RFM segmentation (`Champions`, `Loyal`, `Potential Loyalists`, `At Risk`, `Needs Attention`, `Lost / Inactive`).
+  2. *Customer Credit & Receivables Engine* (via `customer_credit_intelligence_v480` and `financial_intelligence_v830`): Computes live customer credit limits, outstanding balances, overdue aging buckets (1-30, 31-60, 61-90, 90+ days), and working capital credit exposure.
+  3. *Predictive Customer Churn Engine* (via `predictive_intelligence_v830`): Calculates customer inactivity decay against mean order cycles, churn probabilities, and estimated revenue at risk.
+- **Action Centre Findings:** Generates customer-specific actionable insights (`SALES_CUSTOMER_CHURN_RISK`, `SALES_CONCENTRATION_RISK`, `FIN_OVERDUE_RECEIVABLE_CONCENTRATION`, `PRED_CUSTOMER_CHURN`, `PRED_RECEIVABLES_DELAY`).
+
 ### Engine 10: Predictive Intelligence & Business Simulation Sandbox
 - **Functions:**
   - `public.predictive_intelligence_v830(p_tenant_id uuid, p_location_id uuid, p_horizon_days int)`
@@ -140,12 +147,13 @@ The **THQ Operations Intelligence Platform** is an enterprise-grade, algorithm-f
   7. *Customer Churn Probability*
   8. *Supplier Lead-Time Delay Exposure*
 - **Action Centre Ingestion:** Automatically generates prescriptive findings into `erp_intelligence_insights` under rules such as `PRED_STOCKOUT_IMMINENT`, `PRED_DEAD_CAPITAL_EXCESS`, `PRED_NEGATIVE_CASH_FLOW`, and `PRED_SUPPLIER_DELAY`.
-- **Simulation Categories:**
-  - `PRICE_CHANGE`: Simulates price alterations against price elasticity of demand ($\epsilon$).
-  - `BULK_PURCHASE`: Simulates volume purchase discounts weighed against inventory holding costs.
-  - `CAPEX_INVESTMENT`: Simulates capital asset acquisition and multi-period depreciation.
-  - `CREDIT_TERM_CHANGE`: Simulates relaxed/tightened customer credit terms against Days Sales Outstanding (DSO) and working capital.
-  - `STAFFING_LEVEL_CHANGE`: Simulates branch labor adjustments against throughput and payroll costs.
+- **Supported Simulation Categories (Authoritative 5):**
+  - `pricing`: Simulates price alterations against price elasticity of demand ($\epsilon$).
+  - `bulk_purchasing`: Simulates volume purchase discounts weighed against inventory holding costs.
+  - `credit_policy`: Simulates relaxed/tightened customer credit terms against Days Sales Outstanding (DSO) and working capital.
+  - `staffing`: Simulates branch labor adjustments against throughput and payroll costs.
+  - `stock_transfer`: Simulates inter-store inventory transfer and stockout days averted while guaranteeing source store safety buffers.
+  *(Note: Unsupported scenario types such as `CAPEX_INVESTMENT` are strictly rejected server-side with an `Unsupported simulation category` exception).*
 
 ---
 
