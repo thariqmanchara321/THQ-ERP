@@ -101,6 +101,21 @@ class ComparisonMetric {
   }
 }
 
+/// Metadata item for the Operations Intelligence desktop dropdown navigation.
+class _IntelligenceSectionItem {
+  final int index;
+  final String title;
+  final IconData icon;
+  final bool Function() isLoading;
+
+  const _IntelligenceSectionItem({
+    required this.index,
+    required this.title,
+    required this.icon,
+    required this.isLoading,
+  });
+}
+
 class OperationsIntelligenceScreen extends StatefulWidget {
   final ClientSession session;
   final int? initialTab;
@@ -238,7 +253,7 @@ class _OperationsIntelligenceScreenState
     final initial = (widget.initialTab ?? 0).clamp(0, tabCount - 1);
     _tabs = TabController(length: tabCount, vsync: this, initialIndex: initial);
     _tabs.addListener(() {
-      if (!_tabs.indexIsChanging && mounted) setState(() {});
+      if (mounted) setState(() {});
     });
 
     LocationScopeService.selectedLocationId.addListener(_onLocationScopeChanged);
@@ -1054,214 +1069,344 @@ class _OperationsIntelligenceScreenState
     return ComparisonMetric.calculate(curr, prev);
   }
 
+  List<_IntelligenceSectionItem> get _sections => [
+    _IntelligenceSectionItem(
+      index: 0,
+      title: 'Overview',
+      icon: Icons.dashboard_outlined,
+      isLoading: () => _overviewState.loading,
+    ),
+    _IntelligenceSectionItem(
+      index: 1,
+      title: 'Sales Intelligence',
+      icon: Icons.trending_up_rounded,
+      isLoading: () => _salesIntelligenceState.loading,
+    ),
+    _IntelligenceSectionItem(
+      index: 2,
+      title: 'Stock Intelligence',
+      icon: Icons.inventory_2_outlined,
+      isLoading: () => _inventoryState.loading || _rebalancingState.loading,
+    ),
+    _IntelligenceSectionItem(
+      index: 3,
+      title: 'Purchase Intelligence',
+      icon: Icons.shopping_cart_outlined,
+      isLoading: () => _purchaseIntelligenceState.loading,
+    ),
+    _IntelligenceSectionItem(
+      index: 4,
+      title: 'Supplier Intelligence',
+      icon: Icons.business_outlined,
+      isLoading: () => _supplierIntelligenceState.loading,
+    ),
+    _IntelligenceSectionItem(
+      index: 5,
+      title: 'Procurement Intelligence',
+      icon: Icons.assignment_outlined,
+      isLoading: () => _procurementIntelligenceState.loading,
+    ),
+    _IntelligenceSectionItem(
+      index: 6,
+      title: 'Customer Credit',
+      icon: Icons.account_balance_wallet_outlined,
+      isLoading: () => _customerCreditState.loading,
+    ),
+    _IntelligenceSectionItem(
+      index: 7,
+      title: 'Financial Intelligence',
+      icon: Icons.monetization_on_outlined,
+      isLoading: () => _financialIntelligenceState.loading,
+    ),
+    _IntelligenceSectionItem(
+      index: 8,
+      title: 'Expense Intelligence',
+      icon: Icons.receipt_long_outlined,
+      isLoading: () => _expenseIntelligenceState.loading,
+    ),
+    _IntelligenceSectionItem(
+      index: 9,
+      title: 'Operational Efficiency',
+      icon: Icons.speed_outlined,
+      isLoading: () =>
+          _operationalEfficiencyState.loading || _isEfficiencyScanning,
+    ),
+    _IntelligenceSectionItem(
+      index: 10,
+      title: 'Workforce Intelligence',
+      icon: Icons.people_outline_rounded,
+      isLoading: () =>
+          _workforceIntelligenceState.loading || _isWorkforceScanning,
+    ),
+    _IntelligenceSectionItem(
+      index: 11,
+      title: 'Predictive Intelligence & Simulations',
+      icon: Icons.auto_graph_outlined,
+      isLoading: () =>
+          _predictiveIntelligenceState.loading || _isPredictiveScanning,
+    ),
+    _IntelligenceSectionItem(
+      index: 12,
+      title: 'Action & Risk Centre',
+      icon: Icons.shield_outlined,
+      isLoading: () => _actionCentreState.loading || _isScanning,
+    ),
+  ];
+
+  Widget _buildSectionDropdown(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final sections = _sections;
+    final currentIndex = _tabs.index.clamp(0, sections.length - 1);
+
+    return Container(
+      height: 40,
+      decoration: BoxDecoration(
+        color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.35),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: colorScheme.outlineVariant.withValues(alpha: 0.8),
+        ),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<int>(
+          key: const Key('operations_intelligence_section_dropdown'),
+          value: currentIndex,
+          isExpanded: true,
+          icon: Icon(
+            Icons.arrow_drop_down,
+            color: colorScheme.onSurfaceVariant,
+            size: 22,
+          ),
+          dropdownColor: colorScheme.surface,
+          borderRadius: BorderRadius.circular(8),
+          elevation: 6,
+          menuMaxHeight: 520,
+          focusColor: Colors.transparent,
+          selectedItemBuilder: (BuildContext context) {
+            return sections.map<Widget>((item) {
+              final loading = item.isLoading();
+              return Row(
+                children: [
+                  Icon(
+                    item.icon,
+                    size: 18,
+                    color: colorScheme.primary,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      item.title,
+                      style: const TextStyle(
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  if (loading) ...[
+                    const SizedBox(width: 8),
+                    SizedBox(
+                      width: 12,
+                      height: 12,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 1.5,
+                        color: colorScheme.primary,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                  ],
+                ],
+              );
+            }).toList();
+          },
+          items: sections.map<DropdownMenuItem<int>>((item) {
+            final isSelected = item.index == currentIndex;
+            final loading = item.isLoading();
+            return DropdownMenuItem<int>(
+              key: Key('intelligence_section_item_${item.index}'),
+              value: item.index,
+              child: Row(
+                children: [
+                  Icon(
+                    item.icon,
+                    size: 18,
+                    color: isSelected
+                        ? colorScheme.primary
+                        : colorScheme.onSurfaceVariant,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      item.title,
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight:
+                            isSelected ? FontWeight.w600 : FontWeight.w400,
+                        color: isSelected
+                            ? colorScheme.primary
+                            : colorScheme.onSurface,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  if (loading) ...[
+                    const SizedBox(width: 8),
+                    SizedBox(
+                      width: 12,
+                      height: 12,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 1.5,
+                        color: isSelected
+                            ? colorScheme.primary
+                            : colorScheme.outline,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                  ],
+                  if (isSelected)
+                    Icon(
+                      Icons.check_rounded,
+                      size: 16,
+                      color: colorScheme.primary,
+                    ),
+                ],
+              ),
+            );
+          }).toList(),
+          onChanged: (int? newIndex) {
+            if (newIndex != null && newIndex != _tabs.index) {
+              _tabs.animateTo(newIndex);
+              setState(() {});
+            }
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _sectionNavigationBar(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final sections = _sections;
+    final currentIndex = _tabs.index.clamp(0, sections.length - 1);
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(18, 0, 18, 10),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final isCompact = constraints.maxWidth < 640;
+          final selector = ConstrainedBox(
+            constraints: BoxConstraints(
+              minWidth: isCompact ? constraints.maxWidth : 340,
+              maxWidth: isCompact ? constraints.maxWidth : 440,
+            ),
+            child: _buildSectionDropdown(context),
+          );
+
+          if (isCompact) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                selector,
+                const SizedBox(height: 6),
+                Row(
+                  children: [
+                    IconButton.outlined(
+                      key: const Key('operations_intelligence_prev_btn_compact'),
+                      icon: const Icon(Icons.chevron_left_rounded, size: 20),
+                      tooltip: 'Previous section',
+                      visualDensity: VisualDensity.compact,
+                      onPressed: currentIndex > 0
+                          ? () {
+                              _tabs.animateTo(currentIndex - 1);
+                              setState(() {});
+                            }
+                          : null,
+                    ),
+                    const SizedBox(width: 6),
+                    IconButton.outlined(
+                      key: const Key('operations_intelligence_next_btn_compact'),
+                      icon: const Icon(Icons.chevron_right_rounded, size: 20),
+                      tooltip: 'Next section',
+                      visualDensity: VisualDensity.compact,
+                      onPressed: currentIndex < sections.length - 1
+                          ? () {
+                              _tabs.animateTo(currentIndex + 1);
+                              setState(() {});
+                            }
+                          : null,
+                    ),
+                    const Spacer(),
+                    Text(
+                      'Section ${currentIndex + 1} of ${sections.length}',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: colorScheme.outline,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            );
+          }
+
+          return Row(
+            children: [
+              selector,
+              const SizedBox(width: 8),
+              IconButton.outlined(
+                key: const Key('operations_intelligence_prev_btn'),
+                icon: const Icon(Icons.chevron_left_rounded, size: 20),
+                tooltip: 'Previous section',
+                visualDensity: VisualDensity.compact,
+                onPressed: currentIndex > 0
+                    ? () {
+                        _tabs.animateTo(currentIndex - 1);
+                        setState(() {});
+                      }
+                    : null,
+              ),
+              const SizedBox(width: 4),
+              IconButton.outlined(
+                key: const Key('operations_intelligence_next_btn'),
+                icon: const Icon(Icons.chevron_right_rounded, size: 20),
+                tooltip: 'Next section',
+                visualDensity: VisualDensity.compact,
+                onPressed: currentIndex < sections.length - 1
+                    ? () {
+                        _tabs.animateTo(currentIndex + 1);
+                        setState(() {});
+                      }
+                    : null,
+              ),
+              const SizedBox(width: 12),
+              Text(
+                'Section ${currentIndex + 1} of ${sections.length}',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: colorScheme.outline,
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Column(
       children: [
         _header(),
-        TabBar(
-          controller: _tabs,
-          isScrollable: true,
-          tabs: [
-            const Tab(text: 'Overview'),
-            Tab(
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Text('Sales Intelligence'),
-                  if (_salesIntelligenceState.loading) ...[
-                    const SizedBox(width: 6),
-                    const SizedBox(
-                      width: 10,
-                      height: 10,
-                      child: CircularProgressIndicator(strokeWidth: 1.5),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            Tab(
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Text('Stock Intelligence'),
-                  if (_inventoryState.loading || _rebalancingState.loading) ...[
-                    const SizedBox(width: 6),
-                    const SizedBox(
-                      width: 10,
-                      height: 10,
-                      child: CircularProgressIndicator(strokeWidth: 1.5),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            Tab(
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Text('Purchase Intelligence'),
-                  if (_purchaseIntelligenceState.loading) ...[
-                    const SizedBox(width: 6),
-                    const SizedBox(
-                      width: 10,
-                      height: 10,
-                      child: CircularProgressIndicator(strokeWidth: 1.5),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            Tab(
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Text('Supplier Intelligence'),
-                  if (_supplierIntelligenceState.loading) ...[
-                    const SizedBox(width: 6),
-                    const SizedBox(
-                      width: 10,
-                      height: 10,
-                      child: CircularProgressIndicator(strokeWidth: 1.5),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            Tab(
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Text('Procurement Intelligence'),
-                  if (_procurementIntelligenceState.loading) ...[
-                    const SizedBox(width: 6),
-                    const SizedBox(
-                      width: 10,
-                      height: 10,
-                      child: CircularProgressIndicator(strokeWidth: 1.5),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            Tab(
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Text('Customer Credit'),
-                  if (_customerCreditState.loading) ...[
-                    const SizedBox(width: 6),
-                    const SizedBox(
-                      width: 10,
-                      height: 10,
-                      child: CircularProgressIndicator(strokeWidth: 1.5),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            Tab(
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Text('Financial Intelligence'),
-                  if (_financialIntelligenceState.loading) ...[
-                    const SizedBox(width: 6),
-                    const SizedBox(
-                      width: 10,
-                      height: 10,
-                      child: CircularProgressIndicator(strokeWidth: 1.5),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            Tab(
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Text('Expense Intelligence'),
-                  if (_expenseIntelligenceState.loading) ...[
-                    const SizedBox(width: 6),
-                    const SizedBox(
-                      width: 10,
-                      height: 10,
-                      child: CircularProgressIndicator(strokeWidth: 1.5),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            Tab(
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Text('Operational Efficiency'),
-                  if (_operationalEfficiencyState.loading || _isEfficiencyScanning) ...[
-                    const SizedBox(width: 6),
-                    const SizedBox(
-                      width: 10,
-                      height: 10,
-                      child: CircularProgressIndicator(strokeWidth: 1.5),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            Tab(
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Text('Workforce Intelligence'),
-                  if (_workforceIntelligenceState.loading || _isWorkforceScanning) ...[
-                    const SizedBox(width: 6),
-                    const SizedBox(
-                      width: 10,
-                      height: 10,
-                      child: CircularProgressIndicator(strokeWidth: 1.5),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            Tab(
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Text('Predictive & Simulations'),
-                  if (_predictiveIntelligenceState.loading || _isPredictiveScanning) ...[
-                    const SizedBox(width: 6),
-                    const SizedBox(
-                      width: 10,
-                      height: 10,
-                      child: CircularProgressIndicator(strokeWidth: 1.5),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            Tab(
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Text('Action & Risk Centre'),
-                  if (_actionCentreState.loading || _isScanning) ...[
-                    const SizedBox(width: 6),
-                    const SizedBox(
-                      width: 10,
-                      height: 10,
-                      child: CircularProgressIndicator(strokeWidth: 1.5),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          ],
-        ),
+        _sectionNavigationBar(context),
         const Divider(height: 1),
         Expanded(
           child: TabBarView(
             controller: _tabs,
+            physics: const NeverScrollableScrollPhysics(),
             children: [
               _overviewTab(),
               _salesIntelligenceTab(),
@@ -1286,26 +1431,28 @@ class _OperationsIntelligenceScreenState
   Widget _header() {
     return Padding(
       padding: const EdgeInsets.fromLTRB(18, 14, 18, 10),
-      child: Row(
-        children: [
-          const Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Operations Intelligence',
-                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.w600),
-                ),
-                SizedBox(height: 2),
-                Text(
-                  'Live operational analytics, demand planning, credit exposure, and multi-store health.',
-                  style: TextStyle(fontSize: 12),
-                ),
-              ],
-            ),
-          ),
-          SizedBox(
-            width: 260,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final isCompact = constraints.maxWidth < 800;
+
+          final titleCol = Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: const [
+              Text(
+                'Operations Intelligence',
+                style: TextStyle(fontSize: 22, fontWeight: FontWeight.w600),
+              ),
+              SizedBox(height: 2),
+              Text(
+                'Live operational analytics, demand planning, credit exposure, and multi-store health.',
+                style: TextStyle(fontSize: 12),
+              ),
+            ],
+          );
+
+          final searchField = SizedBox(
+            width: isCompact ? null : 260,
             child: TextField(
               controller: _search,
               onSubmitted: (_) => _loadAll(force: true),
@@ -1324,9 +1471,9 @@ class _OperationsIntelligenceScreenState
                       ),
               ),
             ),
-          ),
-          const SizedBox(width: 8),
-          SegmentedButton<IntelligencePeriod>(
+          );
+
+          final periodBtn = SegmentedButton<IntelligencePeriod>(
             segments: IntelligencePeriod.values
                 .map(
                   (p) => ButtonSegment(
@@ -1347,14 +1494,50 @@ class _OperationsIntelligenceScreenState
               visualDensity: VisualDensity.compact,
               tapTargetSize: MaterialTapTargetSize.shrinkWrap,
             ),
-          ),
-          const SizedBox(width: 8),
-          IconButton.filledTonal(
+          );
+
+          final refreshBtn = IconButton.filledTonal(
             onPressed: () => _loadAll(force: true),
             icon: const Icon(Icons.refresh),
             tooltip: 'Refresh all intelligence',
-          ),
-        ],
+          );
+
+          if (isCompact) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                titleCol,
+                const SizedBox(height: 10),
+                searchField,
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: periodBtn,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    refreshBtn,
+                  ],
+                ),
+              ],
+            );
+          }
+
+          return Row(
+            children: [
+              Expanded(child: titleCol),
+              searchField,
+              const SizedBox(width: 8),
+              periodBtn,
+              const SizedBox(width: 8),
+              refreshBtn,
+            ],
+          );
+        },
       ),
     );
   }

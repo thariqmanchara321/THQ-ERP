@@ -630,8 +630,8 @@ void main() {
 
       await tester.pumpAndSettle();
 
-      // Tab bar title check
-      expect(find.widgetWithText(Tab, 'Sales Intelligence'), findsOneWidget);
+      // Active section title check
+      expect(find.text('Sales Intelligence'), findsWidgets);
 
       // Section 1: Sales Performance KPIs
       expect(find.text('Sales Performance'), findsOneWidget);

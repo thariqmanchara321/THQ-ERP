@@ -497,8 +497,15 @@ void main() {
       // Overview still loads and displays Gross Sales successfully
       expect(find.text('Gross Sales'), findsOneWidget);
 
-      // Switch to Customer Credit tab
-      await tester.tap(find.widgetWithText(Tab, 'Customer Credit'));
+      // Switch to Customer Credit tab via dropdown or tab
+      final tabFinder = find.widgetWithText(Tab, 'Customer Credit');
+      if (tabFinder.evaluate().isNotEmpty) {
+        await tester.tap(tabFinder);
+      } else {
+        await tester.tap(find.byKey(const Key('operations_intelligence_section_dropdown')));
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(const Key('intelligence_section_item_6')));
+      }
       await tester.pumpAndSettle();
 
       // Customer Credit should display error and retry button
