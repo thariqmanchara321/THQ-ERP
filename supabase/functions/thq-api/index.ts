@@ -180,6 +180,68 @@ Deno.serve(async (req) => {
           p_location_id: payload.location_id ?? null,
         }
         break
+      case 'predictive-intelligence':
+      case 'predictive-intelligence-v830':
+        rpc = 'predictive_intelligence_v830'
+        params = {
+          ...params,
+          p_location_id: payload.location_id ?? null,
+          p_horizon_days: payload.horizon_days ?? 30,
+        }
+        break
+      case 'predictive-intelligence-scan':
+      case 'predictive-intelligence-scan-v830':
+        rpc = 'predictive_intelligence_diagnostic_scan_v830'
+        params = {
+          ...params,
+          p_location_id: payload.location_id ?? null,
+        }
+        break
+      case 'business-simulation':
+      case 'business-simulation-v830':
+        if (action === 'run' || action === 'simulate') {
+          rpc = 'simulate_business_scenario_v830'
+          params = {
+            ...params,
+            p_simulation_category: payload.category ?? payload.simulation_category,
+            p_params: payload.params ?? payload.parameters ?? {},
+            p_location_id: payload.location_id ?? null,
+          }
+        } else if (action === 'save') {
+          rpc = 'save_business_simulation_v830'
+          params = {
+            ...params,
+            p_scenario_name: payload.scenario_name ?? payload.name,
+            p_simulation_category: payload.category ?? payload.simulation_category,
+            p_parameters: payload.params ?? payload.parameters ?? {},
+            p_simulation_results: payload.simulation_results ?? payload.results ?? {},
+            p_location_id: payload.location_id ?? null,
+            p_notes: payload.notes ?? null,
+          }
+        } else if (action === 'list') {
+          rpc = 'list_business_simulations_v830'
+          params = {
+            ...params,
+            p_simulation_category: payload.category ?? payload.simulation_category ?? null,
+            p_location_id: payload.location_id ?? null,
+            p_limit: payload.limit ?? 50,
+          }
+        } else if (action === 'delete') {
+          rpc = 'delete_business_simulation_v830'
+          params = {
+            ...params,
+            p_simulation_id: payload.simulation_id ?? payload.id,
+          }
+        } else {
+          rpc = 'simulate_business_scenario_v830'
+          params = {
+            ...params,
+            p_simulation_category: payload.category ?? payload.simulation_category,
+            p_params: payload.params ?? payload.parameters ?? {},
+            p_location_id: payload.location_id ?? null,
+          }
+        }
+        break
       case 'runtime-health':
         rpc = 'erp_runtime_health_v489'
         break

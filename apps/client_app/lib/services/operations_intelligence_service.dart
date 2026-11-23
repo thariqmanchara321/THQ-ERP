@@ -493,6 +493,126 @@ class OperationsIntelligenceService {
     return data is Map ? Map<String, dynamic>.from(data) : <String, dynamic>{};
   }
 
+  Future<Map<String, dynamic>> predictiveIntelligence({
+    required String tenantId,
+    String? locationId,
+    int horizonDays = 30,
+  }) async {
+    final data = await _api.call(
+      ThqApiRequest(
+        tenantId: tenantId,
+        resource: 'predictive-intelligence',
+        payload: {
+          'location_id': locationId,
+          'horizon_days': horizonDays,
+        },
+      ),
+    );
+    return data is Map ? Map<String, dynamic>.from(data) : <String, dynamic>{};
+  }
+
+  Future<Map<String, dynamic>> predictiveIntelligenceScan({
+    required String tenantId,
+    String? locationId,
+  }) async {
+    final data = await _api.call(
+      ThqApiRequest(
+        tenantId: tenantId,
+        resource: 'predictive-intelligence-scan',
+        payload: {
+          'location_id': locationId,
+        },
+      ),
+    );
+    return data is Map ? Map<String, dynamic>.from(data) : <String, dynamic>{};
+  }
+
+  Future<Map<String, dynamic>> simulateBusinessScenario({
+    required String tenantId,
+    required String category,
+    required Map<String, dynamic> params,
+    String? locationId,
+  }) async {
+    final data = await _api.call(
+      ThqApiRequest(
+        tenantId: tenantId,
+        resource: 'business-simulation',
+        action: 'simulate',
+        payload: {
+          'category': category,
+          'params': params,
+          'location_id': locationId,
+        },
+      ),
+    );
+    return data is Map ? Map<String, dynamic>.from(data) : <String, dynamic>{};
+  }
+
+  Future<Map<String, dynamic>> saveBusinessSimulation({
+    required String tenantId,
+    required String scenarioName,
+    required String category,
+    required Map<String, dynamic> params,
+    required Map<String, dynamic> results,
+    String? locationId,
+    String? notes,
+  }) async {
+    final data = await _api.call(
+      ThqApiRequest(
+        tenantId: tenantId,
+        resource: 'business-simulation',
+        action: 'save',
+        payload: {
+          'scenario_name': scenarioName,
+          'category': category,
+          'params': params,
+          'results': results,
+          'location_id': locationId,
+          'notes': notes,
+        },
+      ),
+    );
+    return data is Map ? Map<String, dynamic>.from(data) : <String, dynamic>{};
+  }
+
+  Future<List<Map<String, dynamic>>> listBusinessSimulations({
+    required String tenantId,
+    String? category,
+    String? locationId,
+    int limit = 50,
+  }) async {
+    final data = await _api.call(
+      ThqApiRequest(
+        tenantId: tenantId,
+        resource: 'business-simulation',
+        action: 'list',
+        payload: {
+          'category': category,
+          'location_id': locationId,
+          'limit': limit,
+        },
+      ),
+    );
+    return _rows(data);
+  }
+
+  Future<Map<String, dynamic>> deleteBusinessSimulation({
+    required String tenantId,
+    required String simulationId,
+  }) async {
+    final data = await _api.call(
+      ThqApiRequest(
+        tenantId: tenantId,
+        resource: 'business-simulation',
+        action: 'delete',
+        payload: {
+          'simulation_id': simulationId,
+        },
+      ),
+    );
+    return data is Map ? Map<String, dynamic>.from(data) : <String, dynamic>{};
+  }
+
   List<Map<String, dynamic>> _rows(dynamic data) => (data as List? ?? const [])
       .whereType<Map>()
       .map((row) => Map<String, dynamic>.from(row))

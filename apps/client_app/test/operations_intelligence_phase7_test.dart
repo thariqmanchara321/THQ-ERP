@@ -515,7 +515,7 @@ void main() {
           body: OperationsIntelligenceScreen(
             session: session,
             service: service,
-            initialTab: 11, // Tab 11: Action & Risk Centre
+            initialTab: 12, // Tab 12: Action & Risk Centre
           ),
         ),
       ));
@@ -564,7 +564,7 @@ void main() {
           body: OperationsIntelligenceScreen(
             session: session,
             service: service,
-            initialTab: 11,
+            initialTab: 12,
           ),
         ),
       ));
@@ -593,7 +593,7 @@ void main() {
           body: OperationsIntelligenceScreen(
             session: session,
             service: service,
-            initialTab: 11,
+            initialTab: 12,
           ),
         ),
       ));
@@ -623,7 +623,7 @@ void main() {
           body: OperationsIntelligenceScreen(
             session: session,
             service: service,
-            initialTab: 11,
+            initialTab: 12,
           ),
         ),
       ));
@@ -662,7 +662,7 @@ void main() {
           body: OperationsIntelligenceScreen(
             session: session,
             service: service,
-            initialTab: 11,
+            initialTab: 12,
           ),
         ),
       ));
@@ -700,7 +700,7 @@ void main() {
           body: OperationsIntelligenceScreen(
             session: session,
             service: service,
-            initialTab: 11,
+            initialTab: 12,
           ),
         ),
       ));
@@ -730,7 +730,7 @@ void main() {
             child: OperationsIntelligenceScreen(
               session: session,
               service: service,
-              initialTab: 11,
+              initialTab: 12,
             ),
           ),
         ),
@@ -759,7 +759,7 @@ void main() {
           body: OperationsIntelligenceScreen(
             session: session,
             service: service,
-            initialTab: 11,
+            initialTab: 12,
           ),
         ),
       ));
@@ -781,7 +781,7 @@ void main() {
           body: OperationsIntelligenceScreen(
             session: session,
             service: service,
-            initialTab: 11,
+            initialTab: 12,
           ),
         ),
       ));
