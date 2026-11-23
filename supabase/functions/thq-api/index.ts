@@ -163,6 +163,23 @@ Deno.serve(async (req) => {
           p_location_id: payload.location_id ?? null,
         }
         break
+      case 'workforce-intelligence':
+      case 'workforce-intelligence-v830':
+        rpc = 'workforce_intelligence_v830'
+        params = {
+          ...params,
+          p_location_id: payload.location_id ?? null,
+          p_days: payload.days ?? 30,
+        }
+        break
+      case 'workforce-intelligence-scan':
+      case 'workforce-intelligence-scan-v830':
+        rpc = 'workforce_intelligence_diagnostic_scan_v830'
+        params = {
+          ...params,
+          p_location_id: payload.location_id ?? null,
+        }
+        break
       case 'runtime-health':
         rpc = 'erp_runtime_health_v489'
         break

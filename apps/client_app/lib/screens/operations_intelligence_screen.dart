@@ -162,6 +162,8 @@ class _OperationsIntelligenceScreenState
       const SectionState(data: {});
   SectionState<Map<String, dynamic>> _operationalEfficiencyState =
       const SectionState(data: {});
+  SectionState<Map<String, dynamic>> _workforceIntelligenceState =
+      const SectionState(data: {});
   SectionState<Map<String, dynamic>> _actionCentreState =
       const SectionState(data: {});
 
@@ -183,6 +185,8 @@ class _OperationsIntelligenceScreenState
   String _expenseSubTab = 'categories';
   String _operationalEfficiencySubTab = 'overview';
   bool _isEfficiencyScanning = false;
+  String _workforceSubTab = 'overview';
+  bool _isWorkforceScanning = false;
   String _actionCentreSeverityFilter = 'all';
   String _actionCentreEngineFilter = 'all';
   String _actionCentreStatusFilter = 'unresolved';
@@ -197,12 +201,16 @@ class _OperationsIntelligenceScreenState
       widget.session.hasPermission('inventory.manage') ||
       widget.session.hasPermission('accounting.view') ||
       widget.session.hasPermission('reports.view');
+  bool get _canViewPayroll =>
+      widget.session.hasRole('owner') ||
+      widget.session.hasPermission('staff.payroll') ||
+      widget.session.hasPermission('accounting.view');
   bool get _isMultiLocation => widget.session.locations.length > 1;
 
   @override
   void initState() {
     super.initState();
-    final tabCount = 11;
+    final tabCount = 12;
     final initial = (widget.initialTab ?? 0).clamp(0, tabCount - 1);
     _tabs = TabController(length: tabCount, vsync: this, initialIndex: initial);
     _tabs.addListener(() {
@@ -255,6 +263,7 @@ class _OperationsIntelligenceScreenState
     _loadFinancialIntelligence(seq);
     _loadExpenseIntelligence(seq);
     _loadOperationalEfficiency(seq);
+    _loadWorkforceIntelligence(seq);
     _loadActionCentre(seq);
     if (_isMultiLocation && _locationId == null) {
       _loadStoreComparison(seq);
@@ -310,6 +319,58 @@ class _OperationsIntelligenceScreenState
       );
     } finally {
       if (mounted) setState(() => _isEfficiencyScanning = false);
+    }
+  }
+
+  Future<void> _loadWorkforceIntelligence([int? seq]) async {
+    final currentSeq = seq ?? ++_requestSequence;
+    setState(() => _workforceIntelligenceState = _workforceIntelligenceState.toLoading());
+    try {
+      final data = await _service.workforceIntelligence(
+        tenantId: _tenantId,
+        locationId: _locationId,
+        days: _selectedPeriod.days,
+      );
+      if (!mounted || currentSeq != _requestSequence) return;
+      setState(() => _workforceIntelligenceState = _workforceIntelligenceState.toSuccess(data));
+    } catch (e) {
+      if (!mounted || currentSeq != _requestSequence) return;
+      setState(() => _workforceIntelligenceState = _workforceIntelligenceState.toError(e.toString()));
+    }
+  }
+
+  Future<void> _runWorkforceDiagnosticScan() async {
+    if (_isWorkforceScanning) return;
+    setState(() => _isWorkforceScanning = true);
+    try {
+      final res = await _service.workforceIntelligenceScan(
+        tenantId: _tenantId,
+        locationId: _locationId,
+      );
+      if (!mounted) return;
+      final total = res['total_detected'] ?? 0;
+      final inserted = res['inserted'] ?? 0;
+      final updated = res['updated'] ?? 0;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Workforce diagnostic scan complete: $total risks detected ($inserted new, $updated refreshed in Action Centre).',
+          ),
+          backgroundColor: Colors.indigo.shade800,
+        ),
+      );
+      await _loadWorkforceIntelligence();
+      await _loadActionCentre();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Workforce diagnostic scan failed: $e'),
+          backgroundColor: Colors.red.shade800,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _isWorkforceScanning = false);
     }
   }
 
@@ -929,6 +990,22 @@ class _OperationsIntelligenceScreenState
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  const Text('Workforce Intelligence'),
+                  if (_workforceIntelligenceState.loading || _isWorkforceScanning) ...[
+                    const SizedBox(width: 6),
+                    const SizedBox(
+                      width: 10,
+                      height: 10,
+                      child: CircularProgressIndicator(strokeWidth: 1.5),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            Tab(
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
                   const Text('Action & Risk Centre'),
                   if (_actionCentreState.loading || _isScanning) ...[
                     const SizedBox(width: 6),
@@ -958,6 +1035,7 @@ class _OperationsIntelligenceScreenState
               _financialIntelligenceTab(),
               _expenseIntelligenceTab(),
               _operationalEfficiencyTab(),
+              _workforceIntelligenceTab(),
               _actionCentreTab(),
             ],
           ),
@@ -7544,8 +7622,10 @@ class _OperationsIntelligenceScreenState
       case 'acceptable':
         return Colors.blue.shade700;
       case 'needs_attention':
+      case 'moderate_risk':
         return Colors.orange.shade800;
       case 'critical_delay':
+      case 'critical_attention':
         return Colors.red.shade700;
       default:
         return Colors.grey.shade700;
@@ -7560,8 +7640,12 @@ class _OperationsIntelligenceScreenState
         return 'Acceptable';
       case 'needs_attention':
         return 'Needs Attention';
+      case 'moderate_risk':
+        return 'Moderate Risk';
       case 'critical_delay':
         return 'Critical Delay';
+      case 'critical_attention':
+        return 'Critical Attention';
       default:
         return status.toUpperCase();
     }
@@ -7726,7 +7810,7 @@ class _OperationsIntelligenceScreenState
               children: [
                 OutlinedButton.icon(
                   onPressed: () {
-                    _tabs.animateTo(10); // Go to Action & Risk Centre
+                    _tabs.animateTo(11); // Go to Action & Risk Centre
                   },
                   icon: const Icon(Icons.rule_folder_outlined, size: 14),
                   label: const Text('View in Action Centre', style: TextStyle(fontSize: 11.5)),
@@ -8231,7 +8315,1044 @@ class _OperationsIntelligenceScreenState
   }
 
   // ---------------------------------------------------------------------------
-  // TAB 10: ACTION & RISK CENTRE
+  // TAB 10: WORKFORCE INTELLIGENCE
+  // ---------------------------------------------------------------------------
+  Widget _workforceIntelligenceTab() {
+    if (_workforceIntelligenceState.loading && _workforceIntelligenceState.data.isEmpty) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (_workforceIntelligenceState.hasError && _workforceIntelligenceState.data.isEmpty) {
+      return _sectionError(
+        'Workforce Intelligence',
+        _workforceIntelligenceState.error,
+        _loadWorkforceIntelligence,
+      );
+    }
+
+    final data = _workforceIntelligenceState.data;
+    final summary = Map<String, dynamic>.from(data['summary'] as Map? ?? const {});
+    final availability = Map<String, dynamic>.from(data['workforce_availability'] as Map? ?? const {});
+    final attendance = Map<String, dynamic>.from(data['attendance_intelligence'] as Map? ?? const {});
+    final shifts = Map<String, dynamic>.from(data['shift_staffing'] as Map? ?? const {});
+    final capacity = Map<String, dynamic>.from(data['capacity_demand'] as Map? ?? const {});
+    final overtimeCost = Map<String, dynamic>.from(data['overtime_cost'] as Map? ?? const {});
+    final rawRisks = (data['risks'] as List? ?? const [])
+        .whereType<Map>()
+        .map((e) => Map<String, dynamic>.from(e))
+        .toList();
+    final branchBenchmarks = (data['branch_benchmarks'] as List? ?? const [])
+        .whereType<Map>()
+        .map((e) => Map<String, dynamic>.from(e))
+        .toList();
+    final freshness = Map<String, dynamic>.from(data['data_freshness'] as Map? ?? const {});
+    final canViewPayroll = _canViewPayroll || (data['can_view_payroll'] == true);
+
+    final risks = rawRisks.where((r) {
+      if (_workforceSubTab == 'attendance') return r['affected_process'] == 'workforce_attendance';
+      if (_workforceSubTab == 'shifts') return r['affected_process'] == 'cashier_shifts';
+      if (_workforceSubTab == 'capacity') return r['affected_process'] == 'workforce_capacity';
+      if (_workforceSubTab == 'overtime_cost') {
+        return ['workforce_overtime', 'workforce_expense'].contains(r['affected_process']);
+      }
+      return true;
+    }).toList();
+
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(18, 14, 18, 24),
+      children: [
+        if (_workforceIntelligenceState.hasError)
+          _sectionError(
+            'Workforce Intelligence (cached view)',
+            _workforceIntelligenceState.error,
+            _loadWorkforceIntelligence,
+          ),
+
+        // Header & Diagnostic Scan Action Row
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Workforce Intelligence',
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Ethical, business-focused workforce availability, attendance patterns, shift execution, demand capacity, and overtime analysis.',
+                    style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 12),
+            FilledButton.icon(
+              onPressed: _isWorkforceScanning ? null : _runWorkforceDiagnosticScan,
+              icon: _isWorkforceScanning
+                  ? const SizedBox(
+                      width: 14,
+                      height: 14,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                    )
+                  : const Icon(Icons.radar, size: 16),
+              label: Text(_isWorkforceScanning ? 'Scanning...' : 'Run Workforce Scan'),
+              style: FilledButton.styleFrom(
+                backgroundColor: Colors.indigo.shade800,
+                foregroundColor: Colors.white,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+
+        // Overall Score & Headline KPI Card
+        _workforceScoreCard(summary),
+        const SizedBox(height: 16),
+
+        // Sub-navigation ChoiceChips
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: [
+              _workforceChoiceChip('overview', 'Overview', Icons.dashboard_outlined),
+              const SizedBox(width: 8),
+              _workforceChoiceChip('attendance', 'Attendance Patterns', Icons.event_available_outlined),
+              const SizedBox(width: 8),
+              _workforceChoiceChip('shifts', 'Shift Coverage', Icons.access_time_outlined),
+              const SizedBox(width: 8),
+              _workforceChoiceChip('capacity', 'Capacity & Demand', Icons.trending_up_outlined),
+              const SizedBox(width: 8),
+              _workforceChoiceChip('overtime_cost', 'Overtime & Cost', Icons.payments_outlined),
+              const SizedBox(width: 8),
+              _workforceChoiceChip('benchmarks', 'Branch Benchmarks', Icons.storefront_outlined),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+
+        // Workforce Risks Section
+        _workforceRisksSection(risks),
+        const SizedBox(height: 20),
+
+        // Domain-specific Deep Dives
+        if (_workforceSubTab == 'overview' || _workforceSubTab == 'attendance') ...[
+          _workforceAttendanceSection(attendance, availability),
+          const SizedBox(height: 20),
+        ],
+
+        if (_workforceSubTab == 'overview' || _workforceSubTab == 'shifts') ...[
+          _workforceShiftsSection(shifts),
+          const SizedBox(height: 20),
+        ],
+
+        if (_workforceSubTab == 'overview' || _workforceSubTab == 'capacity') ...[
+          _workforceCapacitySection(capacity),
+          const SizedBox(height: 20),
+        ],
+
+        if (_workforceSubTab == 'overview' || _workforceSubTab == 'overtime_cost') ...[
+          _workforceCostSection(overtimeCost, canViewPayroll),
+          const SizedBox(height: 20),
+        ],
+
+        if (_workforceSubTab == 'overview' || _workforceSubTab == 'benchmarks') ...[
+          _workforceBenchmarksSection(branchBenchmarks),
+          const SizedBox(height: 20),
+        ],
+
+        // Data Freshness & Transparency Footnote
+        _workforceFreshnessFooter(freshness, canViewPayroll),
+      ],
+    );
+  }
+
+  Widget _workforceChoiceChip(String key, String label, IconData icon) {
+    final isSelected = _workforceSubTab == key;
+    return ChoiceChip(
+      selected: isSelected,
+      label: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: isSelected ? Colors.white : Colors.grey.shade700),
+          const SizedBox(width: 6),
+          Text(label),
+        ],
+      ),
+      onSelected: (_) => setState(() => _workforceSubTab = key),
+      selectedColor: Colors.indigo.shade800,
+      labelStyle: TextStyle(
+        fontSize: 12.5,
+        fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+        color: isSelected ? Colors.white : Colors.grey.shade800,
+      ),
+    );
+  }
+
+  Widget _workforceScoreCard(Map<String, dynamic> summary) {
+    final score = (summary['overall_workforce_score'] as num?)?.toDouble() ?? 100.0;
+    final health = summary['health_status']?.toString() ?? 'optimal';
+    final activeStaff = summary['active_workforce_count'] ?? 0;
+    final attRate = _n(summary['attendance_rate_pct']);
+    final regHours = _n(summary['total_recorded_hours']);
+    final otHours = _n(summary['total_overtime_hours']);
+    final otRatio = _n(summary['overtime_ratio_pct']);
+    final activeRisks = summary['active_risks_count'] ?? 0;
+
+    final healthCol = _healthColor(health);
+    final healthTxt = _healthLabel(health);
+
+    return Card(
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: healthCol.withValues(alpha: 0.35), width: 1.5),
+      ),
+      color: healthCol.withValues(alpha: 0.04),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: healthCol.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: healthCol.withValues(alpha: 0.4)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.people_alt, size: 20, color: healthCol),
+                      const SizedBox(width: 8),
+                      Text(
+                        '${score.toStringAsFixed(1)} / 100',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: healthCol,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: healthCol.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    healthTxt,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: healthCol,
+                    ),
+                  ),
+                ),
+                const Spacer(),
+                if (activeRisks > 0)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.red.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: Colors.red.shade300),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.warning, size: 13, color: Colors.red),
+                        const SizedBox(width: 4),
+                        Text(
+                          '$activeRisks Active Risks',
+                          style: const TextStyle(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.red,
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                else
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.teal.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: const [
+                        Icon(Icons.check_circle, size: 13, color: Colors.teal),
+                        SizedBox(width: 4),
+                        Text(
+                          'Workforce Healthy',
+                          style: TextStyle(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.teal,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            Wrap(
+              spacing: 12,
+              runSpacing: 8,
+              children: [
+                _miniKpi('Active Workforce', '$activeStaff Staff', Icons.badge_outlined),
+                _miniKpi('Attendance Rate', '${attRate.toStringAsFixed(1)}%', Icons.event_available),
+                _miniKpi('Recorded Operating Hours', '${regHours.toStringAsFixed(0)} hrs', Icons.schedule),
+                _miniKpi('Overtime Recorded', '${otHours.toStringAsFixed(0)} hrs (${otRatio.toStringAsFixed(1)}%)', Icons.more_time),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _miniKpi(String label, String value, IconData icon) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardColor,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.grey.withValues(alpha: 0.2)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 15, color: Colors.grey.shade600),
+          const SizedBox(width: 6),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                label,
+                style: TextStyle(fontSize: 10.5, color: Colors.grey.shade600),
+              ),
+              Text(
+                value,
+                style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _workforceRisksSection(List<Map<String, dynamic>> risks) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _sectionHeader(
+          'Workforce Operational Risks',
+          Icons.warning_amber_rounded,
+          subtitle: 'Algorithmic early-warning signals for attendance drops, overtime spikes, and shift gaps',
+        ),
+        const SizedBox(height: 10),
+        if (risks.isEmpty)
+          Card(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Row(
+                children: [
+                  Icon(Icons.check_circle_outline, size: 28, color: Colors.teal.shade700),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'No Active Workforce Operational Risks Detected',
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Branch staffing, attendance patterns, and cashier shift coverage are operating within expected operational bounds.',
+                          style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          )
+        else
+          ...risks.map((r) {
+            final severity = (r['severity']?.toString() ?? 'warning').toLowerCase();
+            final sevColor = severity == 'critical' ? Colors.red.shade700 : Colors.orange.shade800;
+            final route = r['route']?.toString() ?? '/staff';
+
+            return Card(
+              margin: const EdgeInsets.only(bottom: 10),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+                side: BorderSide(color: sevColor.withValues(alpha: 0.4), width: 1.2),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(14),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: sevColor.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(color: sevColor.withValues(alpha: 0.5)),
+                          ),
+                          child: Text(
+                            severity.toUpperCase(),
+                            style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: sevColor),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: Colors.indigo.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            r['rule_code']?.toString() ?? 'WORKFORCE_RISK',
+                            style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Colors.indigo.shade800),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      r['title']?.toString() ?? '',
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      r['description']?.toString() ?? '',
+                      style: TextStyle(fontSize: 12.5, color: Colors.grey.shade800),
+                    ),
+                    if (r['recommendation'] != null) ...[
+                      const SizedBox(height: 8),
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: Colors.blueGrey.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: Colors.blueGrey.withValues(alpha: 0.2)),
+                        ),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Icon(Icons.lightbulb_outline, size: 15, color: Colors.blueGrey.shade800),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                r['recommendation']?.toString() ?? '',
+                                style: TextStyle(fontSize: 12, color: Colors.blueGrey.shade900),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 10),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        OutlinedButton.icon(
+                          onPressed: () {
+                            setState(() => _actionCentreEngineFilter = 'workforce');
+                            _tabs.animateTo(11); // Go to Action & Risk Centre
+                          },
+                          icon: const Icon(Icons.rule_folder_outlined, size: 14),
+                          label: const Text('View in Action Centre', style: TextStyle(fontSize: 11.5)),
+                          style: OutlinedButton.styleFrom(
+                            visualDensity: VisualDensity.compact,
+                            foregroundColor: Colors.indigo.shade800,
+                          ),
+                        ),
+                        if (route.isNotEmpty) ...[
+                          const SizedBox(width: 8),
+                          FilledButton.icon(
+                            onPressed: () {
+                              final cleanRoute = route.startsWith('/') ? route.substring(1) : route;
+                              ClientNavigationScope.navigate(context, cleanRoute);
+                            },
+                            icon: const Icon(Icons.open_in_new, size: 14),
+                            label: const Text('Open in Staff Hub', style: TextStyle(fontSize: 11.5)),
+                            style: FilledButton.styleFrom(
+                              visualDensity: VisualDensity.compact,
+                              backgroundColor: Colors.indigo.shade800,
+                              foregroundColor: Colors.white,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }),
+      ],
+    );
+  }
+
+  Widget _workforceAttendanceSection(Map<String, dynamic> attendance, Map<String, dynamic> availability) {
+    final present = attendance['present_count'] ?? 0;
+    final halfDay = attendance['half_day_count'] ?? 0;
+    final absent = attendance['absent_count'] ?? 0;
+    final paidLeave = attendance['paid_leave_count'] ?? 0;
+    final unpaidLeave = attendance['unpaid_leave_count'] ?? 0;
+    final attRate = _n(attendance['attendance_rate_pct']);
+    final absRate = _n(attendance['absence_rate_pct']);
+    final byRole = (availability['by_role'] as List? ?? const [])
+        .whereType<Map>()
+        .map((e) => Map<String, dynamic>.from(e))
+        .toList();
+    final dailyTrends = (attendance['daily_trends'] as List? ?? const [])
+        .whereType<Map>()
+        .map((e) => Map<String, dynamic>.from(e))
+        .toList();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _sectionHeader(
+          'Workforce Availability & Attendance Patterns',
+          Icons.event_available_outlined,
+          subtitle: 'Attendance execution across scheduled operating days',
+        ),
+        const SizedBox(height: 10),
+        Wrap(
+          spacing: 12,
+          runSpacing: 12,
+          children: [
+            _metricCard(
+              title: 'Present Records',
+              value: '$present',
+              icon: Icons.person_outline,
+            ),
+            _metricCard(
+              title: 'Half-Day Records',
+              value: '$halfDay',
+              icon: Icons.timelapse,
+            ),
+            _metricCard(
+              title: 'Absences Recorded',
+              value: '$absent',
+              icon: Icons.person_off_outlined,
+              isWarning: absent > 0,
+            ),
+            _metricCard(
+              title: 'Approved Leave',
+              value: '${paidLeave + unpaidLeave} ($paidLeave paid)',
+              icon: Icons.beach_access_outlined,
+            ),
+            _metricCard(
+              title: 'Attendance Rate',
+              value: '${attRate.toStringAsFixed(1)}%',
+              icon: Icons.percent,
+              isWarning: attRate < 75.0 && attRate > 0,
+            ),
+            _metricCard(
+              title: 'Absence Rate',
+              value: '${absRate.toStringAsFixed(1)}%',
+              icon: Icons.trending_down,
+              isWarning: absRate > 15.0,
+            ),
+          ],
+        ),
+        if (byRole.isNotEmpty) ...[
+          const SizedBox(height: 14),
+          const Text('Active Staff by Role:', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+          const SizedBox(height: 6),
+          Wrap(
+            spacing: 8,
+            runSpacing: 6,
+            children: byRole.map((r) {
+              final roleName = r['role']?.toString().replaceAll('_', ' ').toUpperCase() ?? 'STAFF';
+              final count = r['count'] ?? 0;
+              return Chip(
+                avatar: const Icon(Icons.work_outline, size: 14),
+                label: Text('$roleName: $count', style: const TextStyle(fontSize: 11.5)),
+                visualDensity: VisualDensity.compact,
+              );
+            }).toList(),
+          ),
+        ],
+        if (dailyTrends.isNotEmpty) ...[
+          const SizedBox(height: 14),
+          const Text('Recent Daily Attendance Activity:', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+          const SizedBox(height: 6),
+          Card(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: DataTable(
+                headingRowHeight: 38,
+                dataRowMinHeight: 34,
+                dataRowMaxHeight: 38,
+                columns: const [
+                  DataColumn(label: Text('Date')),
+                  DataColumn(label: Text('Present')),
+                  DataColumn(label: Text('Absent')),
+                  DataColumn(label: Text('Leave')),
+                  DataColumn(label: Text('Regular Hrs')),
+                  DataColumn(label: Text('Overtime Hrs')),
+                ],
+                rows: dailyTrends.take(10).map((d) {
+                  return DataRow(
+                    cells: [
+                      DataCell(Text(d['work_date']?.toString() ?? '')),
+                      DataCell(Text(d['present']?.toString() ?? '0')),
+                      DataCell(Text(d['absent']?.toString() ?? '0')),
+                      DataCell(Text(d['leave']?.toString() ?? '0')),
+                      DataCell(Text(_n(d['regular_hours']).toStringAsFixed(1))),
+                      DataCell(Text(_n(d['overtime_hours']).toStringAsFixed(1))),
+                    ],
+                  );
+                }).toList(),
+              ),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _workforceShiftsSection(Map<String, dynamic> shifts) {
+    final totalShifts = shifts['total_shifts'] ?? 0;
+    final openShifts = shifts['open_shifts'] ?? 0;
+    final closedShifts = shifts['closed_shifts'] ?? 0;
+    final avgHours = _n(shifts['avg_shift_hours']);
+    final discrepancies = shifts['discrepancy_count'] ?? 0;
+    final dailyShifts = (shifts['daily_shifts'] as List? ?? const [])
+        .whereType<Map>()
+        .map((e) => Map<String, dynamic>.from(e))
+        .toList();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _sectionHeader(
+          'Shift Execution & Cashier Coverage',
+          Icons.access_time_outlined,
+          subtitle: 'Active register shifts, shift closing timeliness, and drawer reconciliations',
+        ),
+        const SizedBox(height: 10),
+        Wrap(
+          spacing: 12,
+          runSpacing: 12,
+          children: [
+            _metricCard(
+              title: 'Total Shifts',
+              value: '$totalShifts',
+              icon: Icons.timer_outlined,
+            ),
+            _metricCard(
+              title: 'Open Shifts',
+              value: '$openShifts',
+              icon: Icons.lock_open,
+            ),
+            _metricCard(
+              title: 'Closed Shifts',
+              value: '$closedShifts',
+              icon: Icons.lock_outline,
+            ),
+            _metricCard(
+              title: 'Avg Shift Duration',
+              value: '${avgHours.toStringAsFixed(1)} hrs',
+              icon: Icons.hourglass_bottom,
+            ),
+            _metricCard(
+              title: 'Cash Discrepancies',
+              value: '$discrepancies',
+              icon: Icons.error_outline,
+              isWarning: discrepancies > 0,
+            ),
+          ],
+        ),
+        if (dailyShifts.isNotEmpty) ...[
+          const SizedBox(height: 14),
+          const Text('Recent Daily Cashier Shifts:', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+          const SizedBox(height: 6),
+          Card(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: DataTable(
+                headingRowHeight: 38,
+                dataRowMinHeight: 34,
+                dataRowMaxHeight: 38,
+                columns: const [
+                  DataColumn(label: Text('Date')),
+                  DataColumn(label: Text('Total Shifts')),
+                  DataColumn(label: Text('Closed Shifts')),
+                  DataColumn(label: Text('Discrepancies')),
+                ],
+                rows: dailyShifts.take(10).map((s) {
+                  final disc = s['discrepancies'] ?? 0;
+                  return DataRow(
+                    cells: [
+                      DataCell(Text(s['work_date']?.toString() ?? '')),
+                      DataCell(Text(s['shifts_count']?.toString() ?? '0')),
+                      DataCell(Text(s['closed_count']?.toString() ?? '0')),
+                      DataCell(Text('$disc', style: TextStyle(color: disc > 0 ? Colors.red : null))),
+                    ],
+                  );
+                }).toList(),
+              ),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _workforceCapacitySection(Map<String, dynamic> capacity) {
+    final avgTxns = _n(capacity['avg_txns_per_staff_day']);
+    final workload = Map<String, dynamic>.from(capacity['workload_distribution'] as Map? ?? const {});
+    final peakHours = (capacity['peak_demand_hours'] as List? ?? const [])
+        .whereType<Map>()
+        .map((e) => Map<String, dynamic>.from(e))
+        .toList();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _sectionHeader(
+          'Workforce Capacity & Demand Alignment',
+          Icons.trending_up_outlined,
+          subtitle: 'Operational throughput versus staffing levels during peak hours',
+        ),
+        const SizedBox(height: 10),
+        Wrap(
+          spacing: 12,
+          runSpacing: 12,
+          children: [
+            _metricCard(
+              title: 'Avg Txns / Staff-Day',
+              value: avgTxns > 0 ? avgTxns.toStringAsFixed(1) : '—',
+              icon: Icons.speed,
+            ),
+            _metricCard(
+              title: 'Sales Transactions',
+              value: '${workload['sales_transactions'] ?? 0}',
+              icon: Icons.point_of_sale,
+            ),
+            _metricCard(
+              title: 'Purchase Orders Handled',
+              value: '${workload['purchase_orders'] ?? 0}',
+              icon: Icons.shopping_cart_outlined,
+            ),
+            _metricCard(
+              title: 'Stock Transfers Handled',
+              value: '${workload['stock_transfers'] ?? 0}',
+              icon: Icons.local_shipping_outlined,
+            ),
+          ],
+        ),
+        if (peakHours.isNotEmpty) ...[
+          const SizedBox(height: 14),
+          const Text('Hourly Demand Distribution (Sales Volume):', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+          const SizedBox(height: 6),
+          Card(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: DataTable(
+                headingRowHeight: 38,
+                dataRowMinHeight: 34,
+                dataRowMaxHeight: 38,
+                columns: const [
+                  DataColumn(label: Text('Operating Hour')),
+                  DataColumn(label: Text('Transactions Volume')),
+                ],
+                rows: peakHours.map((h) {
+                  final hr = h['hour_of_day'] ?? 0;
+                  final hrStr = '${hr.toString().padLeft(2, '0')}:00 - ${(hr + 1).toString().padLeft(2, '0')}:00';
+                  return DataRow(
+                    cells: [
+                      DataCell(Text(hrStr)),
+                      DataCell(Text(h['txns_count']?.toString() ?? '0')),
+                    ],
+                  );
+                }).toList(),
+              ),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _workforceCostSection(Map<String, dynamic> overtimeCost, bool canViewPayroll) {
+    final regHours = _n(overtimeCost['total_regular_hours']);
+    final otHours = _n(overtimeCost['total_overtime_hours']);
+    final otRatio = _n(overtimeCost['overtime_ratio_pct']);
+    final gross = _n(overtimeCost['gross_workforce_earnings']);
+    final net = _n(overtimeCost['net_workforce_earnings']);
+    final disbursed = _n(overtimeCost['total_payments_disbursed']);
+    final earningsByKind = (overtimeCost['earnings_by_kind'] as List? ?? const [])
+        .whereType<Map>()
+        .map((e) => Map<String, dynamic>.from(e))
+        .toList();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _sectionHeader(
+          'Overtime Analysis & Workforce Costs',
+          Icons.payments_outlined,
+          subtitle: 'Recorded overtime hours, overtime-to-regular ratios, and payroll expenditure',
+        ),
+        const SizedBox(height: 10),
+        Wrap(
+          spacing: 12,
+          runSpacing: 12,
+          children: [
+            _metricCard(
+              title: 'Regular Operating Hours',
+              value: '${regHours.toStringAsFixed(0)} hrs',
+              icon: Icons.schedule,
+            ),
+            _metricCard(
+              title: 'Overtime Hours',
+              value: '${otHours.toStringAsFixed(0)} hrs',
+              icon: Icons.more_time,
+              isWarning: otHours > 20.0,
+            ),
+            _metricCard(
+              title: 'Overtime Ratio',
+              value: '${otRatio.toStringAsFixed(1)}%',
+              icon: Icons.percent,
+              isWarning: otRatio > 25.0,
+            ),
+          ],
+        ),
+        const SizedBox(height: 14),
+        if (canViewPayroll) ...[
+          Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            children: [
+              _metricCard(
+                title: 'Gross Workforce Earnings',
+                value: _money(gross),
+                icon: Icons.account_balance_wallet_outlined,
+              ),
+              _metricCard(
+                title: 'Net Workforce Earnings',
+                value: _money(net),
+                icon: Icons.savings_outlined,
+              ),
+              _metricCard(
+                title: 'Disbursed Payments',
+                value: _money(disbursed),
+                icon: Icons.payment_outlined,
+              ),
+            ],
+          ),
+          if (earningsByKind.isNotEmpty) ...[
+            const SizedBox(height: 14),
+            const Text('Workforce Earnings by Kind:', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+            const SizedBox(height: 6),
+            Card(
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: DataTable(
+                  headingRowHeight: 38,
+                  dataRowMinHeight: 34,
+                  dataRowMaxHeight: 38,
+                  columns: const [
+                    DataColumn(label: Text('Earning Kind')),
+                    DataColumn(label: Text('Disbursed Amount')),
+                    DataColumn(label: Text('Records Count')),
+                  ],
+                  rows: earningsByKind.map((k) {
+                    final kindName = k['earning_kind']?.toString().replaceAll('_', ' ').toUpperCase() ?? '';
+                    return DataRow(
+                      cells: [
+                        DataCell(Text(kindName)),
+                        DataCell(Text(_money(k['total_amount']))),
+                        DataCell(Text(k['count']?.toString() ?? '0')),
+                      ],
+                    );
+                  }).toList(),
+                ),
+              ),
+            ),
+          ],
+        ] else ...[
+          Card(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            color: Colors.blueGrey.withValues(alpha: 0.05),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  Icon(Icons.lock_outline, size: 24, color: Colors.blueGrey.shade700),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Payroll Metrics Masked for Privacy & Role Permissions',
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Detailed workforce wage amounts and disbursement aggregates require \'staff.payroll\' or \'accounting.view\' permission.',
+                          style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _workforceBenchmarksSection(List<Map<String, dynamic>> benchmarks) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _sectionHeader(
+          'Branch Workforce Benchmarks',
+          Icons.storefront_outlined,
+          subtitle: 'Comparative staffing levels, attendance coverage, overtime ratios, and transaction capacity by location',
+        ),
+        const SizedBox(height: 10),
+        if (benchmarks.isEmpty)
+          const Text('No branch comparison records available.')
+        else
+          Card(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: DataTable(
+                headingRowHeight: 40,
+                dataRowMinHeight: 36,
+                dataRowMaxHeight: 40,
+                columns: const [
+                  DataColumn(label: Text('Branch')),
+                  DataColumn(label: Text('Active Staff')),
+                  DataColumn(label: Text('Attendance %')),
+                  DataColumn(label: Text('Overtime %')),
+                  DataColumn(label: Text('Shifts')),
+                  DataColumn(label: Text('Sales Txns')),
+                  DataColumn(label: Text('Txns / Staff')),
+                  DataColumn(label: Text('Data Sufficiency')),
+                ],
+                rows: benchmarks.map((b) {
+                  final attRate = _n(b['attendance_rate_pct']);
+                  final otRatio = _n(b['overtime_ratio_pct']);
+                  final txnsPerStaff = _n(b['txns_per_staff']);
+                  final isSufficient = b['data_sufficiency'] == 'Sufficient';
+
+                  return DataRow(
+                    cells: [
+                      DataCell(Text(
+                        b['location_name']?.toString() ?? 'Branch',
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      )),
+                      DataCell(Text(b['active_staff']?.toString() ?? '0')),
+                      DataCell(Text('${attRate.toStringAsFixed(1)}%')),
+                      DataCell(Text('${otRatio.toStringAsFixed(1)}%')),
+                      DataCell(Text(b['shifts_count']?.toString() ?? '0')),
+                      DataCell(Text(b['sales_txns']?.toString() ?? '0')),
+                      DataCell(Text(txnsPerStaff > 0 ? txnsPerStaff.toStringAsFixed(1) : '—')),
+                      DataCell(
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: isSufficient
+                                ? Colors.teal.withValues(alpha: 0.12)
+                                : Colors.grey.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            isSufficient ? 'Sufficient' : 'Low Volume',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: isSufficient ? Colors.teal.shade800 : Colors.grey.shade700,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  );
+                }).toList(),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _workforceFreshnessFooter(Map<String, dynamic> freshness, bool canViewPayroll) {
+    final evalAt = freshness['evaluated_at']?.toString() ?? '';
+    final hasAtt = freshness['has_attendance_data'] == true;
+    final hasShifts = freshness['has_shift_data'] == true;
+    final hasPay = freshness['has_payroll_data'] == true;
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Divider(),
+          const SizedBox(height: 6),
+          Row(
+            children: [
+              Icon(Icons.shield_outlined, size: 14, color: Colors.grey.shade600),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  'Workforce Intelligence evaluates business staffing health and capacity. Individual employee surveillance and automated disciplinary rankings are strictly avoided.',
+                  style: TextStyle(fontSize: 11.5, color: Colors.grey.shade600),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Evaluated: $evalAt | Attendance Data: ${hasAtt ? "Active" : "None"} | Shift Records: ${hasShifts ? "Active" : "None"} | Payroll Access: ${canViewPayroll ? (hasPay ? "Active" : "None") : "Masked"}',
+            style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // TAB 11: ACTION & RISK CENTRE
   // ---------------------------------------------------------------------------
   Widget _actionCentreTab() {
     if (_actionCentreState.loading && _actionCentreState.data.isEmpty) {
@@ -8450,6 +9571,8 @@ class _OperationsIntelligenceScreenState
                     DropdownMenuItem(value: 'customer_credit', child: Text('Customer Credit')),
                     DropdownMenuItem(value: 'financial', child: Text('Financial Intelligence')),
                     DropdownMenuItem(value: 'expense', child: Text('Expense Intelligence')),
+                    DropdownMenuItem(value: 'operational_efficiency', child: Text('Operational Efficiency')),
+                    DropdownMenuItem(value: 'workforce', child: Text('Workforce Intelligence')),
                   ],
                   onChanged: (val) {
                     if (val != null && val != _actionCentreEngineFilter) {
