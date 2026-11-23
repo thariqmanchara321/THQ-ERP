@@ -7,9 +7,11 @@ import 'package:flutter_test/flutter_test.dart';
 
 class _MockOperationsIntelligenceService extends OperationsIntelligenceService {
   final bool failPayables;
+  final bool failCredit;
 
   _MockOperationsIntelligenceService({
     this.failPayables = false,
+    this.failCredit = false,
   });
 
   @override
@@ -111,6 +113,9 @@ class _MockOperationsIntelligenceService extends OperationsIntelligenceService {
     String? locationId,
     String query = '',
   }) async {
+    if (failCredit) {
+      throw StateError('Credit network timeout simulation');
+    }
     return [
       {
         'customer_name': 'BuildCon Infra',
@@ -473,7 +478,7 @@ void main() {
         tester.view.resetDevicePixelRatio();
       });
 
-      final mockService = _MockOperationsIntelligenceService(failPayables: true);
+      final mockService = _MockOperationsIntelligenceService(failCredit: true);
       final session = createSession();
 
       await tester.pumpWidget(
@@ -492,12 +497,12 @@ void main() {
       // Overview still loads and displays Gross Sales successfully
       expect(find.text('Gross Sales'), findsOneWidget);
 
-      // Switch to Supplier Payables tab (index 3)
-      await tester.tap(find.widgetWithText(Tab, 'Supplier Payables'));
+      // Switch to Customer Credit tab
+      await tester.tap(find.widgetWithText(Tab, 'Customer Credit'));
       await tester.pumpAndSettle();
 
-      // Payables should display error and retry button
-      expect(find.textContaining('Payables network timeout simulation'), findsOneWidget);
+      // Customer Credit should display error and retry button
+      expect(find.textContaining('Credit network timeout simulation'), findsOneWidget);
       expect(find.text('Retry'), findsOneWidget);
     });
   });
