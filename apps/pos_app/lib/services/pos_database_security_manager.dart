@@ -5,8 +5,11 @@ import 'package:sqlite3/sqlite3.dart';
 
 import 'pos_database_key_store.dart';
 
+typedef PosMigrationTestHook = void Function(String stage, String targetPath);
+
 /// Manages SQLCipher database encryption at rest, automatic plaintext migration,
-/// key validation, encrypted backups, and safe recovery for the desktop POS database.
+/// key validation, encrypted backups, safe crash recovery, and secure cleanup of
+/// plaintext migration copies for the desktop POS database.
 class PosDatabaseSecurityManager {
   static const String defaultKeyName = 'thq_pos_offline_db_key_v486';
 
@@ -16,11 +19,19 @@ class PosDatabaseSecurityManager {
     required String databasePath,
     required PosDatabaseKeyStore keyStore,
     String keyName = defaultKeyName,
+    bool retainEncryptedBackup = true,
+    PosMigrationTestHook? testHook,
   }) async {
+    String? keyHex = await keyStore.readKey(keyName: keyName);
+
+    // 0. Recover from any prior interrupted migration or crash state
+    await recoverInterruptedMigration(
+      databasePath: databasePath,
+      keyHex: keyHex,
+    );
+
     final dbFile = File(databasePath);
     final exists = await dbFile.exists();
-
-    String? keyHex = await keyStore.readKey(keyName: keyName);
 
     if (!exists) {
       // 1. Fresh database initialization
@@ -43,6 +54,8 @@ class PosDatabaseSecurityManager {
       await migratePlaintextToEncrypted(
         databasePath: databasePath,
         keyHex: keyHex,
+        retainEncryptedBackup: retainEncryptedBackup,
+        testHook: testHook,
       );
       return _openEncryptedDatabase(databasePath, keyHex);
     }
@@ -58,6 +71,86 @@ class PosDatabaseSecurityManager {
     }
 
     return _openEncryptedDatabase(databasePath, keyHex);
+  }
+
+  /// Checks for and recovers from any previous interrupted migration or stale state.
+  /// Preserves safe crash recovery: never deletes the only valid recoverable copy.
+  static Future<void> recoverInterruptedMigration({
+    required String databasePath,
+    required String? keyHex,
+  }) async {
+    final lockFile = File('$databasePath.migration.lock');
+    if (await lockFile.exists()) {
+      bool isStale = false;
+      try {
+        final modified = await lockFile.lastModified();
+        if (DateTime.now().difference(modified).inMinutes >= 10) {
+          isStale = true;
+        }
+      } catch (_) {
+        isStale = true;
+      }
+      if (isStale) {
+        try {
+          await lockFile.delete();
+        } catch (_) {}
+      }
+    }
+
+    final tmpFile = File('$databasePath.migrating.tmp');
+    if (await tmpFile.exists()) {
+      try {
+        await tmpFile.delete();
+      } catch (_) {}
+    }
+
+    final backupFile = File('$databasePath.plaintext.bak');
+    final dbFile = File(databasePath);
+
+    if (await backupFile.exists()) {
+      bool primaryValid = false;
+      if (await dbFile.exists() && keyHex != null && !isPlaintextDatabase(databasePath)) {
+        try {
+          final testDb = sqlite3.open(databasePath);
+          try {
+            testDb.execute("PRAGMA key = \"x'$keyHex'\";");
+            final rows = testDb.select('PRAGMA integrity_check;');
+            if (rows.isNotEmpty && rows.first.values.first == 'ok') {
+              primaryValid = true;
+            }
+          } finally {
+            testDb.close();
+          }
+        } catch (_) {
+          primaryValid = false;
+        }
+      }
+
+      if (primaryValid) {
+        // Primary database is encrypted and verified valid. Clean up obsolete plaintext backup.
+        final walBak = File('$databasePath.plaintext.bak-wal');
+        final shmBak = File('$databasePath.plaintext.bak-shm');
+        await _secureDeleteFile(backupFile);
+        if (await walBak.exists()) await _secureDeleteFile(walBak);
+        if (await shmBak.exists()) await _secureDeleteFile(shmBak);
+      } else {
+        // Primary database is missing or corrupt/unverified. Restore from plaintext backup!
+        if (await dbFile.exists()) {
+          try {
+            await dbFile.delete();
+          } catch (_) {}
+        }
+        await _safeRename(backupFile, databasePath);
+        final walBak = File('$databasePath.plaintext.bak-wal');
+        if (await walBak.exists()) {
+          await _safeRename(walBak, '$databasePath-wal');
+        }
+        final shmBak = File('$databasePath.plaintext.bak-shm');
+        if (await shmBak.exists()) {
+          await _safeRename(shmBak, '$databasePath-shm');
+        }
+      }
+    }
   }
 
   /// Opens an encrypted SQLCipher database using [keyHex], verifies that the key
@@ -127,12 +220,82 @@ class PosDatabaseSecurityManager {
     }
   }
 
+  /// Applies restrictive Windows file permissions using icacls to sensitive temporary files.
+  /// Removes inheritance and grants full control only to the current Windows user.
+  static Future<void> _applyRestrictivePermissions(String filePath) async {
+    if (!Platform.isWindows) return;
+    try {
+      final file = File(filePath);
+      if (!await file.exists()) return;
+      final user = Platform.environment['USERNAME'];
+      if (user != null && user.isNotEmpty) {
+        await Process.run('icacls', [
+          filePath,
+          '/inheritance:r',
+          '/grant:r',
+          '$user:(F)',
+        ]);
+      }
+    } catch (_) {
+      // Best-effort permission hardening
+    }
+  }
+
+  /// Performs best-effort overwrite of file contents with zeroes before unlinking.
+  /// Note: On modern SSDs with wear-leveling/FTL or copy-on-write filesystems (NTFS/ReFS),
+  /// user-space overwriting cannot guarantee physical flash cell eradication.
+  /// This routine provides application-layer zero-fill sanitization before OS deletion.
+  static Future<void> _secureDeleteFile(File file) async {
+    if (!await file.exists()) return;
+    try {
+      final length = await file.length();
+      if (length > 0) {
+        final raf = await file.open(mode: FileMode.write);
+        try {
+          const chunkSize = 64 * 1024;
+          final zeroBytes = List<int>.filled(chunkSize, 0);
+          int remaining = length;
+          while (remaining > 0) {
+            final toWrite = remaining > chunkSize ? chunkSize : remaining;
+            await raf.writeFrom(zeroBytes, 0, toWrite);
+            remaining -= toWrite;
+          }
+          await raf.flush();
+        } finally {
+          await raf.close();
+        }
+      }
+    } catch (_) {
+      // Best-effort overwrite; continue to file deletion
+    }
+
+    // Delete the file with retry attempts
+    for (int i = 0; i < 10; i++) {
+      try {
+        await file.delete();
+        return;
+      } catch (e) {
+        if (i == 9) {
+          throw PosDatabasePlaintextCleanupException(
+            'Failed to securely delete plaintext file "${file.path}": $e',
+          );
+        }
+        await Future.delayed(const Duration(milliseconds: 50));
+      }
+    }
+  }
+
   /// Migrates an existing plaintext SQLite database to SQLCipher encryption using `sqlcipher_export`.
-  /// Preserves all data, verifies integrity and records, and keeps a protected recovery backup.
+  /// Preserves all data, verifies integrity and records, retains an encrypted recovery backup,
+  /// and securely removes obsolete plaintext backups only after complete verification.
   static Future<void> migratePlaintextToEncrypted({
     required String databasePath,
     required String keyHex,
+    bool retainEncryptedBackup = true,
+    PosMigrationTestHook? testHook,
   }) async {
+    await recoverInterruptedMigration(databasePath: databasePath, keyHex: keyHex);
+
     final lockFile = File('$databasePath.migration.lock');
     if (await lockFile.exists()) {
       final modified = await lockFile.lastModified();
@@ -145,19 +308,24 @@ class PosDatabaseSecurityManager {
       await lockFile.delete();
     }
 
-    // Acquire migration lock
+    // Acquire migration lock & apply restrictive permissions
     await lockFile.writeAsString(
       jsonEncode({
         'started_at': DateTime.now().toUtc().toIso8601String(),
         'pid': pid,
       }),
     );
+    await _applyRestrictivePermissions(lockFile.path);
 
     final tmpEncPath = '$databasePath.migrating.tmp';
     final tmpFile = File(tmpEncPath);
     if (await tmpFile.exists()) {
       await tmpFile.delete();
     }
+
+    final backupPath = '$databasePath.plaintext.bak';
+    final backupFile = File(backupPath);
+    bool swapPerformed = false;
 
     try {
       // 1. Flush any pending WAL pages on the plaintext database
@@ -182,6 +350,12 @@ class PosDatabaseSecurityManager {
         exportDb.execute('DETACH DATABASE encrypted;');
       } finally {
         exportDb.close();
+      }
+
+      await _applyRestrictivePermissions(tmpEncPath);
+
+      if (testHook != null) {
+        testHook('pre_swap', tmpEncPath);
       }
 
       // 4. Verify the temporary encrypted database
@@ -224,28 +398,147 @@ class PosDatabaseSecurityManager {
       // Compare counts and pending invoices
       _assertStatsMatch(originalStats, migratedStats);
 
-      // 5. Atomic swap with recovery backup
-      final backupPath = '$databasePath.plaintext.bak';
+      // 5. Atomic swap with temporary recovery backup
       await _safeRename(File(databasePath), backupPath);
+      await _applyRestrictivePermissions(backupPath);
+      swapPerformed = true;
 
       // Also backup WAL/SHM if present
       final walFile = File('$databasePath-wal');
       if (await walFile.exists()) {
         await _safeRename(walFile, '$backupPath-wal');
+        await _applyRestrictivePermissions('$backupPath-wal');
       }
       final shmFile = File('$databasePath-shm');
       if (await shmFile.exists()) {
         await _safeRename(shmFile, '$backupPath-shm');
+        await _applyRestrictivePermissions('$backupPath-shm');
       }
 
       // Rename validated encrypted database to authoritative path
       await _safeRename(File(tmpEncPath), databasePath);
+
+      // 6. POST-SWAP VERIFICATION ON THE ACTUAL DATABASE PATH
+      // Verify authoritative database opens with key, integrity check passes,
+      // and stats/pending invoices match
+      final finalDb = sqlite3.open(databasePath);
+      try {
+        finalDb.execute("PRAGMA key = \"x'$keyHex'\";");
+        final rows = finalDb.select('PRAGMA integrity_check;');
+        if (rows.isEmpty || rows.first.values.first != 'ok') {
+          throw PosDatabaseMigrationException(
+            'Authoritative encrypted database failed post-swap integrity check: $rows',
+          );
+        }
+      } finally {
+        finalDb.close();
+      }
+
+      final postSwapStats = _captureDatabaseStats(databasePath, keyHex: keyHex);
+      _assertStatsMatch(originalStats, postSwapStats);
+
+      // Verify restart simulation: opening and querying through _openEncryptedDatabase
+      final restartTestDb = _openEncryptedDatabase(databasePath, keyHex);
+      restartTestDb.close();
+
+      if (testHook != null) {
+        testHook('post_swap_verified', databasePath);
+      }
+
+      // 7. RETAIN ENCRYPTED RECOVERY BACKUP (if required)
+      if (retainEncryptedBackup) {
+        final encryptedBakPath = '$databasePath.encrypted.bak';
+        final encBakFile = File(encryptedBakPath);
+        if (await encBakFile.exists()) {
+          await encBakFile.delete();
+        }
+        await File(databasePath).copy(encryptedBakPath);
+        await _applyRestrictivePermissions(encryptedBakPath);
+
+        // Verify the encrypted backup
+        final testBakDb = sqlite3.open(encryptedBakPath);
+        try {
+          testBakDb.execute("PRAGMA key = \"x'$keyHex'\";");
+          final bRows = testBakDb.select('PRAGMA integrity_check;');
+          if (bRows.isEmpty || bRows.first.values.first != 'ok') {
+            throw PosDatabaseMigrationException(
+              'Encrypted recovery backup failed integrity check: $bRows',
+            );
+          }
+        } finally {
+          testBakDb.close();
+        }
+      }
+
+      if (testHook != null) {
+        testHook('pre_cleanup', backupPath);
+      }
+
+      // 8. SECURE CLEANUP OF OBSOLETE PLAINTEXT COPIES
+      // Now that the encrypted database is verified 100% and an encrypted backup is saved,
+      // remove the temporary plaintext backup and associated WAL/SHM files.
+      final cleanupErrors = <String>[];
+
+      for (final path in [
+        backupPath,
+        '$backupPath-wal',
+        '$backupPath-shm',
+        '$databasePath-wal',
+        '$databasePath-shm',
+        '$databasePath-journal',
+      ]) {
+        final f = File(path);
+        if (await f.exists()) {
+          try {
+            if (testHook != null) {
+              testHook('cleanup_file', path);
+            }
+            await _secureDeleteFile(f);
+          } catch (err) {
+            cleanupErrors.add('$path: $err');
+          }
+        }
+      }
+
+      if (cleanupErrors.isNotEmpty) {
+        throw PosDatabasePlaintextCleanupException(
+          'Encrypted migration completed successfully, but cleanup of obsolete plaintext '
+          'database copies failed for the following files: ${cleanupErrors.join("; ")}. '
+          'Manual intervention required to secure plaintext data remnants.',
+        );
+      }
     } catch (e) {
+      if (e is PosDatabasePlaintextCleanupException) {
+        // Plaintext cleanup failure was detected; encrypted DB is valid and should NOT be destroyed.
+        rethrow;
+      }
+
+      if (swapPerformed && await backupFile.exists()) {
+        // Rollback swap on verification/migration failure!
+        try {
+          final damagedDb = File(databasePath);
+          if (await damagedDb.exists()) {
+            await damagedDb.delete();
+          }
+          await _safeRename(backupFile, databasePath);
+          final walBak = File('$backupPath-wal');
+          if (await walBak.exists()) {
+            await _safeRename(walBak, '$databasePath-wal');
+          }
+          final shmBak = File('$backupPath-shm');
+          if (await shmBak.exists()) {
+            await _safeRename(shmBak, '$databasePath-shm');
+          }
+        } catch (_) {}
+      }
+
       if (await tmpFile.exists()) {
         try {
           await tmpFile.delete();
         } catch (_) {}
       }
+
+      if (e is PosDatabaseEncryptionException) rethrow;
       throw PosDatabaseMigrationException('Database encryption migration failed.', e);
     } finally {
       if (await lockFile.exists()) {
@@ -289,6 +582,7 @@ class PosDatabaseSecurityManager {
     // In SQLCipher, VACUUM INTO produces an encrypted, standalone database copy with the same key
     final sqlBackupPath = targetBackupPath.replaceAll(r'\', '/');
     db.execute("VACUUM INTO '$sqlBackupPath';");
+    await _applyRestrictivePermissions(targetBackupPath);
 
     // Verify backup copy
     final testDb = sqlite3.open(targetBackupPath);
@@ -326,13 +620,14 @@ class PosDatabaseSecurityManager {
       testDb.close();
     }
 
-    // Create a safety backup of current database before replacing
-    final safetyBak = '$databasePath.pre_restore.bak';
+    // Create a safety backup of current encrypted database before replacing
+    final safetyBak = '$databasePath.pre_restore.encrypted.bak';
     final curFile = File(databasePath);
     if (await curFile.exists()) {
       final bakFile = File(safetyBak);
       if (await bakFile.exists()) await bakFile.delete();
       await curFile.copy(safetyBak);
+      await _applyRestrictivePermissions(safetyBak);
     }
 
     // Clean up current WAL and SHM files
@@ -343,6 +638,7 @@ class PosDatabaseSecurityManager {
 
     // Replace database with validated backup
     await sourceFile.copy(databasePath);
+    await _applyRestrictivePermissions(databasePath);
   }
 
   /// Rotates the encryption key using SQLCipher's `PRAGMA rekey`.

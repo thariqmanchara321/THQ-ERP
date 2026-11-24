@@ -28,6 +28,13 @@ class PosDatabaseMigrationException extends PosDatabaseEncryptionException {
   String toString() => 'PosDatabaseMigrationException: $message${cause != null ? ' (Cause: $cause)' : ''}';
 }
 
+class PosDatabasePlaintextCleanupException extends PosDatabaseEncryptionException {
+  const PosDatabasePlaintextCleanupException(super.message, [super.cause]);
+
+  @override
+  String toString() => 'PosDatabasePlaintextCleanupException: $message${cause != null ? ' (Cause: $cause)' : ''}';
+}
+
 /// Abstract contract for storing and retrieving the POS database encryption key.
 abstract class PosDatabaseKeyStore {
   Future<String?> readKey({required String keyName});

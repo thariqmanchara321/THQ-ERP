@@ -328,7 +328,8 @@ void main() {
     final fileNames = files.map((f) => p.basename(f.path)).toList();
 
     expect(fileNames, contains('thq_pos_offline_v486.sqlite'));
-    expect(fileNames, contains('thq_pos_offline_v486.sqlite.plaintext.bak')); // explicitly retained recovery backup
+    expect(fileNames, isNot(contains('thq_pos_offline_v486.sqlite.plaintext.bak')));
+    expect(fileNames, contains('thq_pos_offline_v486.sqlite.encrypted.bak'));
     expect(fileNames, isNot(contains('thq_pos_offline_v486.sqlite.migrating.tmp')));
     expect(fileNames, isNot(contains('thq_pos_offline_v486.sqlite.migration.lock')));
   });
@@ -478,5 +479,148 @@ void main() {
       () => service.initialize(customDatabasePath: dbPath, keyStore: oldKeyStore),
       throwsA(isA<PosDatabaseEncryptionException>()),
     );
+  });
+
+  test('14. Successful migration followed by complete plaintext backup cleanup', () async {
+    final plainDb = sqlite3.open(dbPath);
+    plainDb.execute("CREATE TABLE offline_meta(key TEXT PRIMARY KEY, value TEXT NOT NULL, updated_at TEXT NOT NULL);");
+    plainDb.execute("INSERT INTO offline_meta VALUES ('secret_k', '\"secret_v\"', '2026-11-24');");
+    plainDb.close();
+
+    final service = OfflinePosService.instance;
+    await service.initialize(customDatabasePath: dbPath, keyStore: keyStore);
+
+    // Verify database is functional and encrypted
+    expect(await service.getMeta('secret_k'), 'secret_v');
+    expect(PosDatabaseSecurityManager.isPlaintextDatabase(dbPath), isFalse);
+    await service.close();
+
+    // Verify all plaintext copies and temporary migration files are gone
+    expect(File('$dbPath.plaintext.bak').existsSync(), isFalse);
+    expect(File('$dbPath.plaintext.bak-wal').existsSync(), isFalse);
+    expect(File('$dbPath.plaintext.bak-shm').existsSync(), isFalse);
+    expect(File('$dbPath.migrating.tmp').existsSync(), isFalse);
+    expect(File('$dbPath.migration.lock').existsSync(), isFalse);
+
+    // Verify encrypted backup is present and valid
+    final encBak = File('$dbPath.encrypted.bak');
+    expect(encBak.existsSync(), isTrue);
+    expect(PosDatabaseSecurityManager.isPlaintextDatabase(encBak.path), isFalse);
+  });
+
+  test('15. Interrupted migration preserves recoverability across failure points', () async {
+    // Scenario A: Process crashed after swap, leaving primary DB damaged and plaintext backup intact
+    final backupPath = '$dbPath.plaintext.bak';
+    final plainDb = sqlite3.open(backupPath);
+    plainDb.execute("CREATE TABLE offline_meta(key TEXT PRIMARY KEY, value TEXT NOT NULL, updated_at TEXT NOT NULL);");
+    plainDb.execute("INSERT INTO offline_meta VALUES ('recover_key', '\"recover_val\"', '2026-11-24');");
+    plainDb.close();
+
+    // Damaged primary DB
+    await File(dbPath).writeAsString('corrupted broken sqlite data');
+
+    final keyHex = PosDatabaseKeyStore.generateSecureKeyHex();
+    await keyStore.writeKey(keyName: PosDatabaseSecurityManager.defaultKeyName, keyHex: keyHex);
+
+    // Recovery runs on initialization
+    final service = OfflinePosService.instance;
+    await service.initialize(customDatabasePath: dbPath, keyStore: keyStore);
+
+    // Verify recovered and migrated
+    expect(await service.getMeta('recover_key'), 'recover_val');
+    expect(PosDatabaseSecurityManager.isPlaintextDatabase(dbPath), isFalse);
+    expect(File(backupPath).existsSync(), isFalse);
+    await service.close();
+
+    // Scenario B: Process crashed after swap and primary DB was already verified valid
+    // Create an unverified leftover .plaintext.bak next to the working encrypted DB
+    await File(backupPath).writeAsString('leftover plaintext that should be cleaned up');
+    await PosDatabaseSecurityManager.recoverInterruptedMigration(databasePath: dbPath, keyHex: keyHex);
+
+    // Obsolete plaintext backup must be securely cleaned up because primary DB is valid
+    expect(File(backupPath).existsSync(), isFalse);
+  });
+
+  test('16. Failed encrypted verification after swap preserves and rolls back to original database', () async {
+    final plainDb = sqlite3.open(dbPath);
+    plainDb.execute("CREATE TABLE offline_meta(key TEXT PRIMARY KEY, value TEXT NOT NULL, updated_at TEXT NOT NULL);");
+    plainDb.execute("INSERT INTO offline_meta VALUES ('original_data', '\"untouched\"', '2026-11-24');");
+    plainDb.close();
+
+    final keyHex = PosDatabaseKeyStore.generateSecureKeyHex();
+
+    // Migrate with a hook that injects verification failure after swap
+    await expectLater(
+      PosDatabaseSecurityManager.migratePlaintextToEncrypted(
+        databasePath: dbPath,
+        keyHex: keyHex,
+        testHook: (stage, path) {
+          if (stage == 'post_swap_verified') {
+            throw const PosDatabaseMigrationException('Simulated post-swap verification error');
+          }
+        },
+      ),
+      throwsA(isA<PosDatabaseMigrationException>()),
+    );
+
+    // Database must be rolled back to original plaintext!
+    expect(PosDatabaseSecurityManager.isPlaintextDatabase(dbPath), isTrue);
+
+    final checkDb = sqlite3.open(dbPath);
+    final rows = checkDb.select("SELECT value FROM offline_meta WHERE key='original_data';");
+    expect(rows.first['value'], '"untouched"');
+    checkDb.close();
+
+    // Temporary migration artifacts must not leave unhandled locks
+    expect(File('$dbPath.migrating.tmp').existsSync(), isFalse);
+  });
+
+  test('17. Plaintext cleanup failure is detected and reported via PosDatabasePlaintextCleanupException', () async {
+    final plainDb = sqlite3.open(dbPath);
+    plainDb.execute("CREATE TABLE offline_meta(key TEXT PRIMARY KEY, value TEXT NOT NULL, updated_at TEXT NOT NULL);");
+    plainDb.execute("INSERT INTO offline_meta VALUES ('cleanup_detect', '\"val\"', '2026-11-24');");
+    plainDb.close();
+
+    final keyHex = PosDatabaseKeyStore.generateSecureKeyHex();
+
+    // Migrate with hook that simulates cleanup failure
+    await expectLater(
+      PosDatabaseSecurityManager.migratePlaintextToEncrypted(
+        databasePath: dbPath,
+        keyHex: keyHex,
+        testHook: (stage, path) {
+          if (stage == 'cleanup_file') {
+            throw FileSystemException('Access denied by OS test harness', path);
+          }
+        },
+      ),
+      throwsA(isA<PosDatabasePlaintextCleanupException>()),
+    );
+
+    // The primary database at dbPath was already verified and is encrypted
+    expect(PosDatabaseSecurityManager.isPlaintextDatabase(dbPath), isFalse);
+  });
+
+  test('18. Encrypted recovery backup remains fully usable for database recovery', () async {
+    final service = OfflinePosService.instance;
+    final plainDb = sqlite3.open(dbPath);
+    plainDb.execute("CREATE TABLE offline_meta(key TEXT PRIMARY KEY, value TEXT NOT NULL, updated_at TEXT NOT NULL);");
+    plainDb.execute("INSERT INTO offline_meta VALUES ('pre_migration_state', '\"pristine\"', '2026-11-24');");
+    plainDb.close();
+
+    await service.initialize(customDatabasePath: dbPath, keyStore: keyStore);
+    await service.setMeta('mutated_after_migration', 'modified');
+    await service.close();
+
+    final encBak = File('$dbPath.encrypted.bak');
+    expect(encBak.existsSync(), isTrue);
+    expect(PosDatabaseSecurityManager.isPlaintextDatabase(encBak.path), isFalse);
+
+    // Restore from encrypted recovery backup
+    await service.restoreEncrypted(encBak.path);
+
+    expect(await service.getMeta('pre_migration_state'), 'pristine');
+    expect(await service.getMeta('mutated_after_migration'), isNull);
+    await service.close();
   });
 }
