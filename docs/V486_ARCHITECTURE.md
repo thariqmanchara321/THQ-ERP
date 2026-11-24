@@ -2,9 +2,11 @@
 
 v4.8.6 makes POS checkout local-first. The POS writes the invoice and local stock/serial reservations to SQLite before attempting server synchronization. The local queue owns the exact request UUID until the server confirms it.
 
-## Local database
+## Local database & Encryption at Rest
 
 `thq_pos_offline_v486.sqlite` is stored under the operating system application-support directory. WAL mode and `synchronous=FULL` are enabled. It stores cached products, customers, available serials, metadata/printer/shift snapshots, and the offline invoice queue.
+
+As of Phase 12.4 (`SEC-P2-02`), the local SQLite database is encrypted at rest using **SQLCipher 4.17.0 (AES-256 page-level encryption)** with keys protected by Windows DPAPI. Pre-existing plaintext databases are automatically migrated to encrypted format with zero data loss, preserving pending synchronization queues and retaining a protected recovery backup. Full architecture details are documented in [pos_offline_database_encryption.md](file:///D:/ERP/flexi_erp/docs/security/pos_offline_database_encryption.md).
 
 ## Sync lifecycle
 

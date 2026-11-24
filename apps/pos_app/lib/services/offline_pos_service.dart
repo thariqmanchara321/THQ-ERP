@@ -8,6 +8,8 @@ import 'package:sqlite3/sqlite3.dart';
 
 import '../models/customer.dart';
 import '../models/inventory_product.dart';
+import 'pos_database_key_store.dart';
+import 'pos_database_security_manager.dart';
 
 class OfflineInvoiceRecord {
   final String requestId;
@@ -59,17 +61,35 @@ class OfflinePosService {
 
   Database? _db;
   String? _databasePath;
+  PosDatabaseKeyStore? _keyStore;
 
-  Future<void> initialize() async {
+  void setKeyStoreForTesting(PosDatabaseKeyStore keyStore) {
+    _keyStore = keyStore;
+  }
+
+  Future<void> initialize({
+    String? customDatabasePath,
+    PosDatabaseKeyStore? keyStore,
+  }) async {
     if (_db != null) return;
-    final support = await getApplicationSupportDirectory();
-    final dir = Directory(p.join(support.path, 'THQ ERP', 'POS'));
-    if (!await dir.exists()) await dir.create(recursive: true);
-    _databasePath = p.join(dir.path, 'thq_pos_offline_v486.sqlite');
-    final db = sqlite3.open(_databasePath!);
-    db.execute('PRAGMA journal_mode=WAL;');
-    db.execute('PRAGMA synchronous=FULL;');
-    db.execute('PRAGMA foreign_keys=ON;');
+    if (keyStore != null) _keyStore = keyStore;
+    final effectiveKeyStore = _keyStore ?? const DpapiPosDatabaseKeyStore();
+    _keyStore = effectiveKeyStore;
+
+    if (customDatabasePath != null) {
+      _databasePath = customDatabasePath;
+    } else if (_databasePath == null) {
+      final support = await getApplicationSupportDirectory();
+      final dir = Directory(p.join(support.path, 'THQ ERP', 'POS'));
+      if (!await dir.exists()) await dir.create(recursive: true);
+      _databasePath = p.join(dir.path, 'thq_pos_offline_v486.sqlite');
+    }
+
+    final db = await PosDatabaseSecurityManager.ensureEncryptedAndOpen(
+      databasePath: _databasePath!,
+      keyStore: effectiveKeyStore,
+    );
+
     for (final statement in <String>[
       '''CREATE TABLE IF NOT EXISTS offline_meta(
         key TEXT PRIMARY KEY,
@@ -125,6 +145,53 @@ class OfflinePosService {
       db.execute(statement);
     }
     _db = db;
+  }
+
+  Future<void> close() async {
+    final db = _db;
+    _db = null;
+    if (db != null) {
+      try {
+        db.execute('PRAGMA wal_checkpoint(TRUNCATE);');
+      } catch (_) {}
+      db.close();
+    }
+  }
+
+  Future<void> backupEncrypted(String targetBackupPath) async {
+    await initialize();
+    final keyHex = await _keyStore?.readKey(keyName: PosDatabaseSecurityManager.defaultKeyName);
+    if (keyHex == null) {
+      throw const PosDatabaseKeyMissingException('Cannot perform backup: encryption key is not available.');
+    }
+    await PosDatabaseSecurityManager.backupEncrypted(
+      db: _database,
+      targetBackupPath: targetBackupPath,
+      keyHex: keyHex,
+    );
+  }
+
+  Future<void> restoreEncrypted(String sourceBackupPath) async {
+    final keyHex = await _keyStore?.readKey(keyName: PosDatabaseSecurityManager.defaultKeyName);
+    if (keyHex == null) {
+      throw const PosDatabaseKeyMissingException('Cannot perform restore: encryption key is not available.');
+    }
+    await close();
+    await PosDatabaseSecurityManager.restoreEncrypted(
+      databasePath: _databasePath!,
+      sourceBackupPath: sourceBackupPath,
+      keyHex: keyHex,
+    );
+    await initialize();
+  }
+
+  Future<void> rotateKey(String newKeyHex) async {
+    await initialize();
+    await PosDatabaseSecurityManager.rotateKey(
+      db: _database,
+      keyStore: _keyStore!,
+      newKeyHex: newKeyHex,
+    );
   }
 
   String? get databasePath => _databasePath;
