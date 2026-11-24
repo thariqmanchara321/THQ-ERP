@@ -13,11 +13,42 @@ enum IntelligencePeriod {
   today(1, 'Today'),
   days7(7, '7 Days'),
   days30(30, '30 Days'),
-  days90(90, '90 Days');
+  days90(90, '90 Days'),
+  custom(0, 'Custom Range');
 
   final int days;
   final String label;
   const IntelligencePeriod(this.days, this.label);
+}
+
+ThqDatePreset _toThqPreset(IntelligencePeriod p) {
+  switch (p) {
+    case IntelligencePeriod.today:
+      return ThqDatePreset.today;
+    case IntelligencePeriod.days7:
+      return ThqDatePreset.days7;
+    case IntelligencePeriod.days30:
+      return ThqDatePreset.days30;
+    case IntelligencePeriod.days90:
+      return ThqDatePreset.days90;
+    case IntelligencePeriod.custom:
+      return ThqDatePreset.custom;
+  }
+}
+
+IntelligencePeriod _fromThqPreset(ThqDatePreset p) {
+  switch (p) {
+    case ThqDatePreset.today:
+      return IntelligencePeriod.today;
+    case ThqDatePreset.days7:
+      return IntelligencePeriod.days7;
+    case ThqDatePreset.days30:
+      return IntelligencePeriod.days30;
+    case ThqDatePreset.days90:
+      return IntelligencePeriod.days90;
+    default:
+      return IntelligencePeriod.custom;
+  }
 }
 
 /// Generic state holder for independent asynchronous loading of workspace sections.
@@ -142,6 +173,18 @@ class _OperationsIntelligenceScreenState
   late TabController _tabs;
 
   IntelligencePeriod _selectedPeriod = IntelligencePeriod.days30;
+  DateTimeRange _selectedRange = DateTimeRange(
+    start: DateTime.now().subtract(const Duration(days: 29)),
+    end: DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day, 23, 59, 59, 999),
+  );
+
+  int get _effectiveDays {
+    if (_selectedPeriod == IntelligencePeriod.custom) {
+      final diff = _selectedRange.end.difference(_selectedRange.start).inDays + 1;
+      return diff.clamp(1, 730);
+    }
+    return _selectedPeriod.days;
+  }
   int _requestSequence = 0;
 
   // Independent section states
@@ -202,7 +245,7 @@ class _OperationsIntelligenceScreenState
   double _simCreditSalesBoostPct = 10.0;
   double _simStaffingDeltaPct = 25.0;
   double _simStaffingHourlyWage = 150.0;
-  double _simStaffingHoursPerDay = 8.0;
+  final double _simStaffingHoursPerDay = 8.0;
   double _simTransferQuantity = 50.0;
   double _simTransferFreightPerUnit = 10.0;
 
@@ -318,7 +361,7 @@ class _OperationsIntelligenceScreenState
       final data = await _service.operationalEfficiency(
         tenantId: _tenantId,
         locationId: _locationId,
-        days: _selectedPeriod.days,
+        days: _effectiveDays,
       );
       if (!mounted || currentSeq != _requestSequence) return;
       setState(() => _operationalEfficiencyState = _operationalEfficiencyState.toSuccess(data));
@@ -370,7 +413,7 @@ class _OperationsIntelligenceScreenState
       final data = await _service.workforceIntelligence(
         tenantId: _tenantId,
         locationId: _locationId,
-        days: _selectedPeriod.days,
+        days: _effectiveDays,
       );
       if (!mounted || currentSeq != _requestSequence) return;
       setState(() => _workforceIntelligenceState = _workforceIntelligenceState.toSuccess(data));
@@ -753,7 +796,7 @@ class _OperationsIntelligenceScreenState
       final data = await _service.financialIntelligence(
         tenantId: _tenantId,
         locationId: _locationId,
-        days: _selectedPeriod.days,
+        days: _effectiveDays,
       );
       if (!mounted || currentSeq != _requestSequence) return;
       setState(() => _financialIntelligenceState = _financialIntelligenceState.toSuccess(data));
@@ -771,7 +814,7 @@ class _OperationsIntelligenceScreenState
       final data = await _service.expenseIntelligence(
         tenantId: _tenantId,
         locationId: _locationId,
-        days: _selectedPeriod.days,
+        days: _effectiveDays,
         query: query,
       );
       if (!mounted || currentSeq != _requestSequence) return;
@@ -790,7 +833,7 @@ class _OperationsIntelligenceScreenState
       final data = await _service.purchaseIntelligence(
         tenantId: _tenantId,
         locationId: _locationId,
-        days: _selectedPeriod.days,
+        days: _effectiveDays,
         query: query,
       );
       if (!mounted || currentSeq != _requestSequence) return;
@@ -809,7 +852,7 @@ class _OperationsIntelligenceScreenState
       final data = await _service.supplierIntelligence(
         tenantId: _tenantId,
         locationId: _locationId,
-        days: _selectedPeriod.days,
+        days: _effectiveDays,
         query: query,
         limit: 200,
       );
@@ -829,7 +872,7 @@ class _OperationsIntelligenceScreenState
       final data = await _service.procurementIntelligence(
         tenantId: _tenantId,
         locationId: _locationId,
-        days: _selectedPeriod.days,
+        days: _effectiveDays,
         query: query,
         limit: 500,
       );
@@ -849,7 +892,7 @@ class _OperationsIntelligenceScreenState
       final data = await _service.salesIntelligence(
         tenantId: _tenantId,
         locationId: _locationId,
-        days: _selectedPeriod.days,
+        days: _effectiveDays,
         query: query,
       );
       if (!mounted || currentSeq != _requestSequence) return;
@@ -872,7 +915,7 @@ class _OperationsIntelligenceScreenState
       final summary = await _service.operationsSummary(
         tenantId: _tenantId,
         locationId: _locationId,
-        days: _selectedPeriod.days,
+        days: _effectiveDays,
       );
       if (!mounted || currentSeq != _requestSequence) return;
       setState(() => _overviewState = _overviewState.toSuccess(summary));
@@ -886,7 +929,7 @@ class _OperationsIntelligenceScreenState
       final doubleSummary = await _service.operationsSummary(
         tenantId: _tenantId,
         locationId: _locationId,
-        days: _selectedPeriod.days * 2,
+        days: _effectiveDays * 2,
       );
       if (!mounted || currentSeq != _requestSequence) return;
       setState(
@@ -910,7 +953,7 @@ class _OperationsIntelligenceScreenState
       final rows = await _service.inventory(
         tenantId: _tenantId,
         locationId: _locationId,
-        days: _selectedPeriod.days,
+        days: _effectiveDays,
         query: query,
         useV830: true,
       );
@@ -929,7 +972,7 @@ class _OperationsIntelligenceScreenState
       final rows = await _service.rebalancing(
         tenantId: _tenantId,
         locationId: _locationId,
-        days: _selectedPeriod.days,
+        days: _effectiveDays,
       );
       if (!mounted || currentSeq != _requestSequence) return;
       setState(() => _rebalancingState = _rebalancingState.toSuccess(rows));
@@ -994,7 +1037,7 @@ class _OperationsIntelligenceScreenState
       final rows = await _service.reorder(
         tenantId: _tenantId,
         locationId: _locationId,
-        days: _selectedPeriod.days,
+        days: _effectiveDays,
         query: query,
       );
       if (!mounted || currentSeq != _requestSequence) return;
@@ -1037,7 +1080,7 @@ class _OperationsIntelligenceScreenState
         final locSummary = await _service.operationsSummary(
           tenantId: _tenantId,
           locationId: loc.id,
-          days: _selectedPeriod.days,
+          days: _effectiveDays,
         );
         storeRows.add({
           'location_id': loc.id,
@@ -1067,6 +1110,15 @@ class _OperationsIntelligenceScreenState
     final doubleTotal = _n(_prevOverviewState.data[key]);
     final prev = math.max(0.0, doubleTotal - curr);
     return ComparisonMetric.calculate(curr, prev);
+  }
+
+  ComparisonMetric _calcAovMetric(ComparisonMetric netSales, ComparisonMetric orderCount) {
+    final currAov = _n(_overviewState.data['average_order_value']) > 0
+        ? _n(_overviewState.data['average_order_value'])
+        : (orderCount.current > 0 ? (netSales.current / orderCount.current) : 0.0);
+    // Non-additive metric: compute previous AOV from previous net sales and previous order count
+    final prevAov = orderCount.previous > 0 ? (netSales.previous / orderCount.previous) : 0.0;
+    return ComparisonMetric.calculate(currAov, prevAov);
   }
 
   List<_IntelligenceSectionItem> get _sections => [
@@ -1473,27 +1525,23 @@ class _OperationsIntelligenceScreenState
             ),
           );
 
-          final periodBtn = SegmentedButton<IntelligencePeriod>(
-            segments: IntelligencePeriod.values
-                .map(
-                  (p) => ButtonSegment(
-                    value: p,
-                    label: Text(p.label, style: const TextStyle(fontSize: 12)),
-                  ),
-                )
-                .toList(),
-            selected: {_selectedPeriod},
-            onSelectionChanged: (set) {
-              if (set.isNotEmpty) {
-                setState(() => _selectedPeriod = set.first);
-                _loadAll(force: true);
-              }
+          final dateSelector = ThqDateRangeSelector(
+            selectedRange: _selectedRange,
+            activePreset: _toThqPreset(_selectedPeriod),
+            onPresetChanged: (preset) {
+              setState(() {
+                _selectedPeriod = _fromThqPreset(preset);
+                _selectedRange = preset.toRange();
+              });
+              _loadAll(force: true);
             },
-            showSelectedIcon: false,
-            style: const ButtonStyle(
-              visualDensity: VisualDensity.compact,
-              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            ),
+            onRangeChanged: (newRange) {
+              setState(() {
+                _selectedPeriod = IntelligencePeriod.custom;
+                _selectedRange = newRange;
+              });
+              _loadAll(force: true);
+            },
           );
 
           final refreshBtn = IconButton.filledTonal(
@@ -1511,15 +1559,12 @@ class _OperationsIntelligenceScreenState
                 const SizedBox(height: 10),
                 searchField,
                 const SizedBox(height: 8),
-                Row(
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 6,
+                  crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
-                    Expanded(
-                      child: SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        child: periodBtn,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
+                    dateSelector,
                     refreshBtn,
                   ],
                 ),
@@ -1532,7 +1577,7 @@ class _OperationsIntelligenceScreenState
               Expanded(child: titleCol),
               searchField,
               const SizedBox(width: 8),
-              periodBtn,
+              dateSelector,
               const SizedBox(width: 8),
               refreshBtn,
             ],
@@ -1614,7 +1659,7 @@ class _OperationsIntelligenceScreenState
     final netSales = _calcFlowMetric('net_sales');
     final returns = _calcFlowMetric('sales_returns');
     final orderCount = _calcFlowMetric('order_count');
-    final aov = _calcFlowMetric('average_order_value');
+    final aov = _calcAovMetric(netSales, orderCount);
     final grossProfit = _calcFlowMetric('gross_profit');
     final expenses = _calcFlowMetric('expenses');
     final netProfit = _calcFlowMetric('net_operating_profit');
@@ -3891,6 +3936,126 @@ class _OperationsIntelligenceScreenState
     );
   }
 
+  void _showStockItemDetailDialog(Map<String, dynamic> r) {
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+    final abc = r['abc_class']?.toString() ?? 'C';
+    final mv = r['movement_class']?.toString();
+    final po = _n(r['incoming_po_qty']);
+    final transit = _n(r['in_transit_qty']);
+    final totalIncoming = po + transit;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 560, maxHeight: 660),
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            r['product_name']?.toString() ?? '—',
+                            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                          ),
+                          const SizedBox(height: 4),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 4,
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            children: [
+                              Text(
+                                'SKU: ${r['sku'] ?? '—'}',
+                                style: TextStyle(fontSize: 12, color: colors.onSurfaceVariant),
+                              ),
+                              _abcBadge(abc),
+                              _movementBadge(mv),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    _status(r['status']),
+                    const SizedBox(width: 8),
+                    IconButton(
+                      icon: const Icon(Icons.close, size: 20),
+                      onPressed: () => Navigator.of(ctx).pop(),
+                    ),
+                  ],
+                ),
+                const Divider(height: 20),
+                Flexible(
+                  child: SingleChildScrollView(
+                    child: Column(
+                      children: [
+                        _stockDetailRow('Store / Branch', r['location_name']?.toString() ?? '—'),
+                        _stockDetailRow('Available Stock', _qty(r['available']), isBold: true, isRed: _n(r['available']) == 0),
+                        _stockDetailRow('Incoming PO Qty', _qty(po)),
+                        _stockDetailRow('In-Transit Transfer Qty', _qty(transit)),
+                        _stockDetailRow('Total Incoming', _qty(totalIncoming), isBold: totalIncoming > 0),
+                        _stockDetailRow('Reorder Level', _qty(r['reorder_level'])),
+                        _stockDetailRow('Maximum Stock', _qty(r['max_stock'])),
+                        _stockDetailRow('Burn Rate (Avg Sales/Day)', '${_n(r['avg_daily_sales']).toStringAsFixed(2)} /d'),
+                        _stockDetailRow('Days of Stock Cover', r['days_cover'] == null ? '—' : '${_n(r['days_cover']).toStringAsFixed(1)} days'),
+                        _stockDetailRow('Suggested Reorder Qty', _qty(r['suggested_reorder']), isAmber: _n(r['suggested_reorder']) > 0),
+                        if (_canViewCost)
+                          _stockDetailRow('Stock Valuation', _money(r['stock_value'])),
+                        _stockDetailRow('ABC Classification', 'Class $abc'),
+                        _stockDetailRow('Movement Velocity', mv?.toUpperCase() ?? 'NORMAL'),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _stockDetailRow(String label, String value, {bool isBold = false, bool isRed = false, bool isAmber = false}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 5),
+      child: Row(
+        children: [
+          Expanded(
+            flex: 2,
+            child: Text(
+              label,
+              style: const TextStyle(fontSize: 12.5, color: Colors.grey),
+            ),
+          ),
+          Expanded(
+            flex: 3,
+            child: Text(
+              value,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: isBold || isAmber ? FontWeight.bold : FontWeight.w500,
+                color: isRed
+                    ? Colors.red.shade700
+                    : isAmber
+                        ? Colors.amber.shade900
+                        : null,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _stockTableSection(List<Map<String, dynamic>> filtered) {
     final theme = Theme.of(context);
     final colors = theme.colorScheme;
@@ -3909,6 +4074,139 @@ class _OperationsIntelligenceScreenState
         child: const Text('No inventory records matching selected filters.'),
       );
     }
+
+    final columns = const [
+      ThqResponsiveColumn(title: 'Store', flex: 2),
+      ThqResponsiveColumn(title: 'Product & SKU', flex: 4),
+      ThqResponsiveColumn(title: 'Available', flex: 2, isNumeric: true),
+      ThqResponsiveColumn(title: 'Incoming', flex: 2, isNumeric: true),
+      ThqResponsiveColumn(title: 'Reorder/Max', flex: 2, isNumeric: true),
+      ThqResponsiveColumn(title: 'Cover', flex: 2, isNumeric: true),
+      ThqResponsiveColumn(title: 'Suggested', flex: 2, isNumeric: true),
+      ThqResponsiveColumn(title: 'Status & Detail', flex: 3),
+    ];
+
+    final rows = filtered.map((r) {
+      final abc = r['abc_class']?.toString() ?? 'C';
+      final mv = r['movement_class']?.toString();
+      final po = _n(r['incoming_po_qty']);
+      final transit = _n(r['in_transit_qty']);
+      final totalIncoming = po + transit;
+
+      return ThqResponsiveRow(
+        cardTitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              r['product_name']?.toString() ?? '—',
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              'SKU: ${r['sku'] ?? '—'} • ${r['location_name'] ?? '—'}',
+              style: TextStyle(fontSize: 11.5, color: colors.onSurfaceVariant),
+            ),
+          ],
+        ),
+        cardBadge: _status(r['status']),
+        cardFields: [
+          ('Store', r['location_name']?.toString() ?? '—'),
+          ('Available', _qty(r['available'])),
+          ('Incoming', _qty(totalIncoming)),
+          ('Reorder', _qty(r['reorder_level'])),
+          ('Cover', r['days_cover'] == null ? '—' : '${_n(r['days_cover']).toStringAsFixed(1)} d'),
+          ('Suggested', _qty(r['suggested_reorder'])),
+          if (_canViewCost) ('Valuation', _money(r['stock_value'])),
+        ],
+        onViewDetails: () => _showStockItemDetailDialog(r),
+        cells: [
+          Text(r['location_name']?.toString() ?? '—', style: const TextStyle(fontSize: 12)),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                r['product_name']?.toString() ?? '—',
+                style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12.5),
+                overflow: TextOverflow.ellipsis,
+              ),
+              Row(
+                children: [
+                  Text(
+                    r['sku']?.toString() ?? '—',
+                    style: TextStyle(fontSize: 10.5, color: colors.onSurfaceVariant),
+                  ),
+                  const SizedBox(width: 6),
+                  _abcBadge(abc),
+                  const SizedBox(width: 4),
+                  _movementBadge(mv),
+                ],
+              ),
+            ],
+          ),
+          Text(
+            _qty(r['available']),
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              color: _n(r['available']) == 0 ? Colors.red.shade700 : null,
+            ),
+          ),
+          totalIncoming > 0
+              ? Tooltip(
+                  message: 'PO: ${_qty(po)}, In-transit: ${_qty(transit)}',
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        _qty(totalIncoming),
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.blue.shade700,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(width: 2),
+                      Icon(Icons.info_outline, size: 11, color: Colors.blue.shade700),
+                    ],
+                  ),
+                )
+              : const Text('0', style: TextStyle(fontSize: 12)),
+          Text(
+            '${_qty(r['reorder_level'])} / ${_qty(r['max_stock'])}',
+            style: const TextStyle(fontSize: 11.5),
+          ),
+          Text(
+            r['days_cover'] == null ? '—' : '${_n(r['days_cover']).toStringAsFixed(1)} d',
+            style: const TextStyle(fontSize: 11.5),
+          ),
+          Text(
+            _qty(r['suggested_reorder']),
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: _n(r['suggested_reorder']) > 0 ? FontWeight.bold : FontWeight.normal,
+              color: _n(r['suggested_reorder']) > 0 ? Colors.amber.shade900 : null,
+            ),
+          ),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _status(r['status']),
+              const SizedBox(width: 4),
+              IconButton(
+                icon: const Icon(Icons.open_in_new, size: 14),
+                tooltip: 'View Full Stock Details',
+                visualDensity: VisualDensity.compact,
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
+                onPressed: () => _showStockItemDetailDialog(r),
+              ),
+            ],
+          ),
+        ],
+      );
+    }).toList();
 
     return Container(
       decoration: BoxDecoration(
@@ -3942,150 +4240,10 @@ class _OperationsIntelligenceScreenState
             ),
           ),
           const Divider(height: 1),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: DataTable(
-              columnSpacing: 18,
-              headingRowHeight: 40,
-              dataRowMinHeight: 42,
-              dataRowMaxHeight: 52,
-              columns: const [
-                DataColumn(
-                  label: Text('Store', style: TextStyle(fontWeight: FontWeight.w600)),
-                ),
-                DataColumn(
-                  label: Text('ABC', style: TextStyle(fontWeight: FontWeight.w600)),
-                ),
-                DataColumn(
-                  label: Text('Velocity', style: TextStyle(fontWeight: FontWeight.w600)),
-                ),
-                DataColumn(
-                  label: Text('Product', style: TextStyle(fontWeight: FontWeight.w600)),
-                ),
-                DataColumn(
-                  label: Text('SKU', style: TextStyle(fontWeight: FontWeight.w600)),
-                ),
-                DataColumn(
-                  label: Text('Available', style: TextStyle(fontWeight: FontWeight.w600)),
-                ),
-                DataColumn(
-                  label: Text('Incoming', style: TextStyle(fontWeight: FontWeight.w600)),
-                ),
-                DataColumn(
-                  label: Text('Reorder', style: TextStyle(fontWeight: FontWeight.w600)),
-                ),
-                DataColumn(
-                  label: Text('Max', style: TextStyle(fontWeight: FontWeight.w600)),
-                ),
-                DataColumn(
-                  label: Text('Burn Rate', style: TextStyle(fontWeight: FontWeight.w600)),
-                ),
-                DataColumn(
-                  label: Text('Cover', style: TextStyle(fontWeight: FontWeight.w600)),
-                ),
-                DataColumn(
-                  label: Text('Suggested', style: TextStyle(fontWeight: FontWeight.w600)),
-                ),
-                DataColumn(
-                  label: Text('Stock Value', style: TextStyle(fontWeight: FontWeight.w600)),
-                ),
-                DataColumn(
-                  label: Text('Status', style: TextStyle(fontWeight: FontWeight.w600)),
-                ),
-              ],
-              rows: filtered.map((r) {
-                final abc = r['abc_class']?.toString() ?? 'C';
-                final mv = r['movement_class']?.toString();
-                final po = _n(r['incoming_po_qty']);
-                final transit = _n(r['in_transit_qty']);
-                final totalIncoming = po + transit;
-
-                return DataRow(
-                  cells: [
-                    DataCell(Text(r['location_name']?.toString() ?? '—')),
-                    DataCell(_abcBadge(abc)),
-                    DataCell(_movementBadge(mv)),
-                    DataCell(
-                      ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 180),
-                        child: Text(
-                          r['product_name']?.toString() ?? '—',
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(fontWeight: FontWeight.w500),
-                        ),
-                      ),
-                    ),
-                    DataCell(Text(r['sku']?.toString() ?? '—')),
-                    DataCell(
-                      Text(
-                        _qty(r['available']),
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: _n(r['available']) == 0
-                              ? Colors.red.shade700
-                              : null,
-                        ),
-                      ),
-                    ),
-                    DataCell(
-                      totalIncoming > 0
-                          ? Tooltip(
-                              message:
-                                  'PO: ${_qty(po)}, In-transit: ${_qty(transit)}',
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Text(
-                                    _qty(totalIncoming),
-                                    style: TextStyle(
-                                      color: Colors.blue.shade700,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Icon(
-                                    Icons.info_outline,
-                                    size: 12,
-                                    color: Colors.blue.shade700,
-                                  ),
-                                ],
-                              ),
-                            )
-                          : const Text('0'),
-                    ),
-                    DataCell(Text(_qty(r['reorder_level']))),
-                    DataCell(Text(_qty(r['max_stock']))),
-                    DataCell(
-                      Text('${_n(r['avg_daily_sales']).toStringAsFixed(2)} /d'),
-                    ),
-                    DataCell(
-                      Text(
-                        r['days_cover'] == null
-                            ? '—'
-                            : '${_n(r['days_cover']).toStringAsFixed(1)} d',
-                      ),
-                    ),
-                    DataCell(
-                      Text(
-                        _qty(r['suggested_reorder']),
-                        style: TextStyle(
-                          fontWeight: _n(r['suggested_reorder']) > 0
-                              ? FontWeight.bold
-                              : FontWeight.normal,
-                          color: _n(r['suggested_reorder']) > 0
-                              ? Colors.amber.shade900
-                              : null,
-                        ),
-                      ),
-                    ),
-                    DataCell(
-                      Text(_canViewCost ? _money(r['stock_value']) : '—'),
-                    ),
-                    DataCell(_status(r['status'])),
-                  ],
-                );
-              }).toList(),
-            ),
+          ThqResponsiveTable(
+            columns: columns,
+            rows: rows,
+            emptyMessage: 'No inventory records matching selected filters.',
           ),
         ],
       ),
@@ -5561,7 +5719,7 @@ class _OperationsIntelligenceScreenState
           tenantId: _tenantId,
           locationId: first['location_id'].toString(),
           supplierId: first['suggested_supplier_id'].toString(),
-          notes: 'Created via THQ Procurement Intelligence Action Centre (${_selectedPeriod.days}-day demand window).',
+          notes: 'Created via THQ Procurement Intelligence Action Centre ($_effectiveDays-day demand window).',
           items: entry.value
               .map(
                 (r) => <String, dynamic>{
@@ -8709,7 +8867,7 @@ class _OperationsIntelligenceScreenState
 
   Widget _efficiencyFreshnessFooter(Map<String, dynamic> freshness) {
     final asOf = freshness['as_of']?.toString() ?? '';
-    final evaluatedDays = freshness['evaluated_days'] ?? _selectedPeriod.days;
+    final evaluatedDays = freshness['evaluated_days'] ?? _effectiveDays;
     final salesEval = freshness['total_sales_evaluated'] ?? 0;
     final posEval = freshness['total_pos_evaluated'] ?? 0;
     final transfersEval = freshness['total_transfers_evaluated'] ?? 0;
@@ -11997,7 +12155,7 @@ class _OperationsIntelligenceScreenState
                               min: 50.0,
                               max: 1000.0,
                               divisions: 95,
-                              label: '${_simBulkQuantity.toStringAsFixed(0)}',
+                              label: _simBulkQuantity.toStringAsFixed(0),
                               onChanged: (val) => setState(() => _simBulkQuantity = val),
                             ),
                           ],
@@ -12052,7 +12210,7 @@ class _OperationsIntelligenceScreenState
                               min: -30.0,
                               max: 60.0,
                               divisions: 90,
-                              label: '${_simCreditDaysDelta.toStringAsFixed(0)}',
+                              label: _simCreditDaysDelta.toStringAsFixed(0),
                               onChanged: (val) => setState(() => _simCreditDaysDelta = val),
                             ),
                           ],
@@ -12145,7 +12303,7 @@ class _OperationsIntelligenceScreenState
                               min: 10.0,
                               max: 300.0,
                               divisions: 29,
-                              label: '${_simTransferQuantity.toStringAsFixed(0)}',
+                              label: _simTransferQuantity.toStringAsFixed(0),
                               onChanged: (val) => setState(() => _simTransferQuantity = val),
                             ),
                           ],

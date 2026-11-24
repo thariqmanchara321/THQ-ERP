@@ -102,35 +102,32 @@ class _MobileReportsCenterPageState extends State<MobileReportsCenterPage> {
               onChanged: (_) => setState(() {}),
             ),
           ),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
+          Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-            child: Row(
+            child: Wrap(
+              spacing: 6,
+              runSpacing: 4,
               children: [
                 _CategoryChip(
                   label: 'All',
                   selected: _selectedCategory == 'All',
                   onSelected: () => setState(() => _selectedCategory = 'All'),
                 ),
-                const SizedBox(width: 6),
                 _CategoryChip(
                   label: 'Sales',
                   selected: _selectedCategory == 'Sales',
                   onSelected: () => setState(() => _selectedCategory = 'Sales'),
                 ),
-                const SizedBox(width: 6),
                 _CategoryChip(
                   label: 'Inventory',
                   selected: _selectedCategory == 'Inventory',
                   onSelected: () => setState(() => _selectedCategory = 'Inventory'),
                 ),
-                const SizedBox(width: 6),
                 _CategoryChip(
                   label: 'Purchase',
                   selected: _selectedCategory == 'Purchase',
                   onSelected: () => setState(() => _selectedCategory = 'Purchase'),
                 ),
-                const SizedBox(width: 6),
                 _CategoryChip(
                   label: 'Accounting',
                   selected: _selectedCategory == 'Accounting',
@@ -431,31 +428,98 @@ class _ReportRunnerPageState extends State<_ReportRunnerPage> {
                         child: const Center(child: Text('No records found for the selected period')),
                       )
                     else
-                      SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        child: DataTable(
-                          columnSpacing: 20,
-                          horizontalMargin: 12,
-                          columns: columns.isEmpty
-                              ? (rows.first.keys.map((k) => DataColumn(label: Text(k))).toList())
+                      ListView.separated(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        itemCount: rows.length,
+                        separatorBuilder: (_, _) => const SizedBox(height: 8),
+                        itemBuilder: (context, idx) {
+                          final r = rows[idx];
+                          final entries = columns.isEmpty
+                              ? r.entries.map((e) => (e.key, e.value?.toString() ?? '—')).toList()
                               : columns.map((col) {
-                                  return DataColumn(
-                                    label: Text(
-                                      col['label']?.toString() ?? col['key']?.toString() ?? '',
-                                      style: const TextStyle(fontWeight: FontWeight.bold),
+                                  final label = col['label']?.toString() ?? col['key']?.toString() ?? '';
+                                  final val = r[col['key']]?.toString() ?? '—';
+                                  return (label, val);
+                                }).toList();
+
+                          return Card(
+                            elevation: 0,
+                            color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              side: BorderSide(
+                                color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.5),
+                              ),
+                            ),
+                            child: Padding(
+                              padding: const EdgeInsets.all(12),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  if (entries.isNotEmpty) ...[
+                                    Row(
+                                      children: [
+                                        Text(
+                                          '#${idx + 1}',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.bold,
+                                            color: Theme.of(context).colorScheme.primary,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: Text(
+                                            entries.first.$2,
+                                            style: const TextStyle(
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                      ],
                                     ),
-                                  );
-                                }).toList(),
-                          rows: rows.map((r) {
-                            final cells = columns.isEmpty
-                                ? r.values.map((v) => DataCell(Text(v?.toString() ?? '—'))).toList()
-                                : columns.map((col) {
-                                    final val = r[col['key']];
-                                    return DataCell(Text(val?.toString() ?? '—'));
-                                  }).toList();
-                            return DataRow(cells: cells);
-                          }).toList(),
-                        ),
+                                    const Divider(height: 12),
+                                  ],
+                                  Wrap(
+                                    spacing: 12,
+                                    runSpacing: 4,
+                                    children: (entries.length > 1 ? entries.sublist(1) : entries).map((e) {
+                                      return SizedBox(
+                                        width: (MediaQuery.of(context).size.width - 56) / 2 > 120
+                                            ? (MediaQuery.of(context).size.width - 56) / 2
+                                            : double.infinity,
+                                        child: Row(
+                                          children: [
+                                            Text(
+                                              '${e.$1}: ',
+                                              style: TextStyle(
+                                                fontSize: 11.5,
+                                                color: Theme.of(context).colorScheme.onSurfaceVariant,
+                                              ),
+                                            ),
+                                            Expanded(
+                                              child: Text(
+                                                e.$2,
+                                                style: const TextStyle(
+                                                  fontSize: 11.5,
+                                                  fontWeight: FontWeight.w600,
+                                                ),
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      );
+                                    }).toList(),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        },
                       ),
                   ],
                 );

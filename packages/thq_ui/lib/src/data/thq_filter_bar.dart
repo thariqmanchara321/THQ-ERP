@@ -81,20 +81,14 @@ class ThqFilterBar extends StatelessWidget {
             if (filters.isNotEmpty) ...[
               const SizedBox(width: ThqTokens.space8),
               Expanded(
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    children: [
-                      for (var index = 0; index < filters.length; index++) ...[
-                        if (index > 0) const SizedBox(width: ThqTokens.space8),
-                        filters[index],
-                      ],
-                      if (clear != null) ...[
-                        const SizedBox(width: ThqTokens.space8),
-                        clear,
-                      ],
-                    ],
-                  ),
+                child: Wrap(
+                  spacing: ThqTokens.space8,
+                  runSpacing: ThqTokens.space4,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    ...filters,
+                    if (clear != null) clear,
+                  ],
                 ),
               ),
             ] else

@@ -60,10 +60,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
     return '${widget.session.currencyCode} ${value.toStringAsFixed(2)}';
   }
 
-  String _date(DateTime value) {
-    return '${value.day.toString().padLeft(2, '0')}-'
-        '${value.month.toString().padLeft(2, '0')}-${value.year}';
-  }
+
 
   Future<void> _export(String format) async {
     if (_exporting) return;
@@ -144,30 +141,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
     );
   }
 
-  Future<void> _pick(bool isFrom) async {
-    final selected = await showDatePicker(
-      context: context,
-      initialDate: isFrom ? _from : _to,
-      firstDate: DateTime(2020),
-      lastDate: DateTime.now(),
-    );
 
-    if (selected == null) return;
-
-    setState(() {
-      if (isFrom) {
-        _from = selected;
-      } else {
-        _to = selected;
-      }
-      if (_from.isAfter(_to)) {
-        final temp = _from;
-        _from = _to;
-        _to = temp;
-      }
-      _load();
-    });
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -294,15 +268,15 @@ class _ReportsScreenState extends State<ReportsScreen> {
                       icon: const Icon(Icons.analytics_outlined),
                       label: const Text('Expense Analysis'),
                     ),
-                  OutlinedButton.icon(
-                    onPressed: () => _pick(true),
-                    icon: const Icon(Icons.date_range, size: 15),
-                    label: Text('From ${_date(_from)}'),
-                  ),
-                  OutlinedButton.icon(
-                    onPressed: () => _pick(false),
-                    icon: const Icon(Icons.event, size: 15),
-                    label: Text('To ${_date(_to)}'),
+                  ThqDateRangeSelector(
+                    selectedRange: DateTimeRange(start: _from, end: _to),
+                    onRangeChanged: (newRange) {
+                      setState(() {
+                        _from = newRange.start;
+                        _to = newRange.end;
+                        _load();
+                      });
+                    },
                   ),
                   IconButton(
                     tooltip: 'Refresh',
@@ -374,16 +348,11 @@ class _ReportsScreenState extends State<ReportsScreen> {
                     ),
                   ),
                 ];
-                return SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    children: [
-                      for (final control in controls) ...[
-                        control,
-                        const SizedBox(width: 5),
-                      ],
-                    ],
-                  ),
+                return Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: controls,
                 );
               },
             ),

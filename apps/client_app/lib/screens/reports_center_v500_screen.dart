@@ -527,108 +527,94 @@ class _ReportsCenterV500ScreenState extends State<ReportsCenterV500Screen> {
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        SizedBox(
-          height: MediaQuery.textScalerOf(context).scale(14) + 18,
-          child: ListView(
-            scrollDirection: Axis.horizontal,
-            children: [
-              for (final category in [
-                'All',
-                ..._catalog.map((r) => r.category).toSet(),
-              ])
-                Padding(
-                  padding: const EdgeInsets.only(right: 6),
-                  child: ChoiceChip(
-                    label: Text(
-                      category,
-                      style: Theme.of(
-                        context,
-                      ).textTheme.labelMedium!.copyWith(fontSize: 12),
-                    ),
-                    materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    visualDensity: VisualDensity.compact,
-                    labelPadding: const EdgeInsets.symmetric(horizontal: 6),
-                    selected: (_category ?? 'All') == category,
-                    onSelected: _exporting
-                        ? null
-                        : (_) {
-                            setState(() {
-                              _category = category == 'All' ? null : category;
-                            });
-                            if (_category != null &&
-                                _definition?.category != _category) {
-                              _chooseReport(
-                                _catalog.firstWhere(
-                                  (r) => r.category == _category,
-                                ),
-                              );
-                            }
-                          },
+        Wrap(
+          spacing: 6,
+          runSpacing: 4,
+          children: [
+            for (final category in [
+              'All',
+              ..._catalog.map((r) => r.category).toSet(),
+            ])
+              ChoiceChip(
+                label: Text(
+                  category,
+                  style: Theme.of(
+                    context,
+                  ).textTheme.labelMedium!.copyWith(fontSize: 12),
+                ),
+                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                visualDensity: VisualDensity.compact,
+                labelPadding: const EdgeInsets.symmetric(horizontal: 6),
+                selected: (_category ?? 'All') == category,
+                onSelected: _exporting
+                    ? null
+                    : (_) {
+                        setState(() {
+                          _category = category == 'All' ? null : category;
+                        });
+                        if (_category != null &&
+                            _definition?.category != _category) {
+                          _chooseReport(
+                            _catalog.firstWhere(
+                              (r) => r.category == _category,
+                            ),
+                          );
+                        }
+                      },
+              ),
+            if ((_category == 'Inventory' || _category == null) &&
+                canOpenInventoryReports(widget.session))
+              ActionChip(
+                avatar: const Icon(Icons.table_chart_outlined, size: 14),
+                label: const Text(
+                  '15-Report Stock Matrix',
+                  style: TextStyle(fontSize: 11),
+                ),
+                visualDensity: VisualDensity.compact,
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) =>
+                        InventoryReportsScreen(session: widget.session),
                   ),
                 ),
-              if ((_category == 'Inventory' || _category == null) &&
-                  canOpenInventoryReports(widget.session))
-                Padding(
-                  padding: const EdgeInsets.only(right: 6),
-                  child: ActionChip(
-                    avatar: const Icon(Icons.table_chart_outlined, size: 14),
-                    label: const Text(
-                      '15-Report Stock Matrix',
-                      style: TextStyle(fontSize: 11),
-                    ),
-                    visualDensity: VisualDensity.compact,
-                    onPressed: () => Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) =>
-                            InventoryReportsScreen(session: widget.session),
-                      ),
-                    ),
+              ),
+            if ((_category == 'Accounting' || _category == null) &&
+                widget.session.hasPermission('expenses.view'))
+              ActionChip(
+                avatar: const Icon(Icons.pie_chart_outline, size: 14),
+                label: const Text(
+                  'Advanced Expense Report',
+                  style: TextStyle(fontSize: 11),
+                ),
+                visualDensity: VisualDensity.compact,
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) =>
+                        AdvancedExpenseReportScreen(session: widget.session),
                   ),
                 ),
-              if ((_category == 'Accounting' || _category == null) &&
-                  widget.session.hasPermission('expenses.view'))
-                Padding(
-                  padding: const EdgeInsets.only(right: 6),
-                  child: ActionChip(
-                    avatar: const Icon(Icons.pie_chart_outline, size: 14),
-                    label: const Text(
-                      'Advanced Expense Report',
-                      style: TextStyle(fontSize: 11),
-                    ),
-                    visualDensity: VisualDensity.compact,
-                    onPressed: () => Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) =>
-                            AdvancedExpenseReportScreen(session: widget.session),
-                      ),
-                    ),
-                  ),
+              ),
+            if ((_category == 'Material Yard' || _category == null) &&
+                widget.session.hasModule('aggregate_yard'))
+              ActionChip(
+                avatar: const Icon(
+                  Icons.precision_manufacturing_outlined,
+                  size: 14,
                 ),
-              if ((_category == 'Material Yard' || _category == null) &&
-                  widget.session.hasModule('aggregate_yard'))
-                Padding(
-                  padding: const EdgeInsets.only(right: 6),
-                  child: ActionChip(
-                    avatar: const Icon(
-                      Icons.precision_manufacturing_outlined,
-                      size: 14,
-                    ),
-                    label: const Text(
-                      'Crusher Register',
-                      style: TextStyle(fontSize: 11),
-                    ),
-                    visualDensity: VisualDensity.compact,
-                    onPressed: () => Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => MaterialYardCrusherReportScreen(
-                          session: widget.session,
-                        ),
-                      ),
+                label: const Text(
+                  'Crusher Register',
+                  style: TextStyle(fontSize: 11),
+                ),
+                visualDensity: VisualDensity.compact,
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => MaterialYardCrusherReportScreen(
+                      session: widget.session,
                     ),
                   ),
                 ),
-            ],
-          ),
+              ),
+          ],
         ),
         const SizedBox(height: 6),
         if (compact)

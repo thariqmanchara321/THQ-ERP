@@ -130,23 +130,19 @@ class _MobileSalesWorkspaceState extends State<MobileSalesWorkspace> {
               ),
               if (statuses.length > 1) ...[
                 const SizedBox(height: 9),
-                SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    children: statuses
-                        .map(
-                          (status) => Padding(
-                            padding: const EdgeInsets.only(right: 7),
-                            child: ChoiceChip(
-                              label: Text(workspaceLabel(status)),
-                              selected: _status == status,
-                              onSelected: (_) =>
-                                  setState(() => _status = status),
-                            ),
-                          ),
-                        )
-                        .toList(),
-                  ),
+                Wrap(
+                  spacing: 7,
+                  runSpacing: 6,
+                  children: statuses
+                      .map(
+                        (status) => ChoiceChip(
+                          label: Text(workspaceLabel(status)),
+                          selected: _status == status,
+                          onSelected: (_) =>
+                              setState(() => _status = status),
+                        ),
+                      )
+                      .toList(),
                 ),
               ],
               const SizedBox(height: 12),
@@ -460,23 +456,19 @@ class _MobileInventoryWorkspaceState extends State<MobileInventoryWorkspace> {
               ),
               if (statuses.length > 1) ...[
                 const SizedBox(height: 10),
-                SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    children: statuses
-                        .map(
-                          (status) => Padding(
-                            padding: const EdgeInsets.only(right: 7),
-                            child: ChoiceChip(
-                              label: Text(workspaceLabel(status)),
-                              selected: _status == status,
-                              onSelected: (_) =>
-                                  setState(() => _status = status),
-                            ),
-                          ),
-                        )
-                        .toList(),
-                  ),
+                Wrap(
+                  spacing: 7,
+                  runSpacing: 6,
+                  children: statuses
+                      .map(
+                        (status) => ChoiceChip(
+                          label: Text(workspaceLabel(status)),
+                          selected: _status == status,
+                          onSelected: (_) =>
+                              setState(() => _status = status),
+                        ),
+                      )
+                      .toList(),
                 ),
               ],
               const SizedBox(height: 12),

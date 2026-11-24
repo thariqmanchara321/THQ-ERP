@@ -323,28 +323,21 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                   ];
 
                   if (compact) {
-                    return SizedBox(
-                      height: 92,
-                      child: SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        child: Row(
-                          children: values
-                              .map(
-                                (item) => Padding(
-                                  padding: const EdgeInsets.only(right: 6),
-                                  child: SizedBox(
-                                    width: item.$1 == 'Period' ? 180 : 140,
-                                    child: _expenseMetric(
-                                      item.$1,
-                                      item.$2,
-                                      item.$3,
-                                    ),
-                                  ),
-                                ),
-                              )
-                              .toList(),
-                        ),
-                      ),
+                    return Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: values
+                          .map(
+                            (item) => SizedBox(
+                              width: item.$1 == 'Period' ? 180 : 140,
+                              child: _expenseMetric(
+                                item.$1,
+                                item.$2,
+                                item.$3,
+                              ),
+                            ),
+                          )
+                          .toList(),
                     );
                   }
 

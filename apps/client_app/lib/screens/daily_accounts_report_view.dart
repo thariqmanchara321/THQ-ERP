@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:thq_ui/thq_ui.dart';
 
 import '../features/audit_intelligence/audit_intelligence_service.dart';
@@ -27,7 +26,6 @@ class DailyDetailedAccountsView extends StatefulWidget {
 }
 
 class _DailyDetailedAccountsViewState extends State<DailyDetailedAccountsView> {
-  final DateFormat _dateFmt = DateFormat('dd MMM yyyy');
   final DailyAccountsExportService _exportService = DailyAccountsExportService();
 
   late DateTime _from;
@@ -86,44 +84,7 @@ class _DailyDetailedAccountsViewState extends State<DailyDetailedAccountsView> {
     return '$cur ${v.toStringAsFixed(2)}';
   }
 
-  Future<void> _pickDate(bool isFrom) async {
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: isFrom ? _from : _to,
-      firstDate: DateTime(2020),
-      lastDate: DateTime.now().add(const Duration(days: 365)),
-    );
-    if (picked == null || !mounted) return;
 
-    setState(() {
-      if (isFrom) {
-        _from = DateTime(picked.year, picked.month, picked.day);
-        if (_from.isAfter(_to)) _to = _from;
-      } else {
-        _to = DateTime(picked.year, picked.month, picked.day);
-        if (_to.isBefore(_from)) _from = _to;
-      }
-    });
-    _fetch();
-  }
-
-  void _setDatePreset(String preset) {
-    final now = DateTime.now();
-    setState(() {
-      if (preset == 'today') {
-        _from = DateTime(now.year, now.month, now.day);
-        _to = DateTime(now.year, now.month, now.day);
-      } else if (preset == 'yesterday') {
-        final y = now.subtract(const Duration(days: 1));
-        _from = DateTime(y.year, y.month, y.day);
-        _to = DateTime(y.year, y.month, y.day);
-      } else if (preset == 'this_month') {
-        _from = DateTime(now.year, now.month, 1);
-        _to = DateTime(now.year, now.month, now.day);
-      }
-    });
-    _fetch();
-  }
 
   Future<void> _export(String format) async {
     if (_data == null || _exporting) return;
@@ -231,32 +192,21 @@ class _DailyDetailedAccountsViewState extends State<DailyDetailedAccountsView> {
             runSpacing: 8,
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              OutlinedButton.icon(
-                onPressed: () => _pickDate(true),
-                icon: const Icon(Icons.calendar_today, size: 14),
-                label: Text('From: ${_dateFmt.format(_from)}'),
-                style: OutlinedButton.styleFrom(visualDensity: VisualDensity.compact),
-              ),
-              OutlinedButton.icon(
-                onPressed: () => _pickDate(false),
-                icon: const Icon(Icons.event, size: 14),
-                label: Text('To: ${_dateFmt.format(_to)}'),
-                style: OutlinedButton.styleFrom(visualDensity: VisualDensity.compact),
-              ),
-              ActionChip(
-                label: const Text('Today', style: TextStyle(fontSize: 12)),
-                onPressed: () => _setDatePreset('today'),
-                visualDensity: VisualDensity.compact,
-              ),
-              ActionChip(
-                label: const Text('Yesterday', style: TextStyle(fontSize: 12)),
-                onPressed: () => _setDatePreset('yesterday'),
-                visualDensity: VisualDensity.compact,
-              ),
-              ActionChip(
-                label: const Text('This Month', style: TextStyle(fontSize: 12)),
-                onPressed: () => _setDatePreset('this_month'),
-                visualDensity: VisualDensity.compact,
+              ThqDateRangeSelector(
+                selectedRange: DateTimeRange(start: _from, end: _to),
+                supportedPresets: const [
+                  ThqDatePreset.today,
+                  ThqDatePreset.yesterday,
+                  ThqDatePreset.thisMonth,
+                  ThqDatePreset.custom,
+                ],
+                onRangeChanged: (newRange) {
+                  setState(() {
+                    _from = newRange.start;
+                    _to = newRange.end;
+                    _fetch();
+                  });
+                },
               ),
               const SizedBox(width: 8),
               FilledButton.tonalIcon(

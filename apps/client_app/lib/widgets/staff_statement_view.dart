@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:thq_ui/thq_ui.dart';
 import '../models/staff_statement.dart';
 import '../models/record_presentation.dart';
 import 'record_preview.dart';
@@ -66,60 +67,56 @@ class StaffStatementView extends StatelessWidget {
             ),
           )
         else
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: DataTable(
-              columnSpacing: 24,
-              columns: [
-                for (final label in [
-                  'Date',
-                  'Document',
-                  'Store / description',
-                  'Earnings',
-                  'Payments',
-                  'Running balance',
-                ])
-                  DataColumn(
-                    label: Text(label),
-                    numeric: [
-                      'Earnings',
-                      'Payments',
-                      'Running balance',
-                    ].contains(label),
-                  ),
-              ],
-              rows: ledger
-                  .map(
-                    (row) => DataRow(
-                      cells: [
-                        DataCell(Text(s.text('date', row['date']))),
-                        DataCell(
-                          Text(
-                            s.text(
-                              'document_reference',
-                              row['document_reference'],
-                            ),
-                          ),
-                        ),
-                        DataCell(
-                          Text(
-                            '${row['location_name'] ?? ''}\n${row['description'] ?? ''}',
-                          ),
-                        ),
-                        DataCell(Text(s.text('earning', row['earning']))),
-                        DataCell(Text(s.text('payment', row['payment']))),
-                        DataCell(Text(s.text('balance', row['balance']))),
-                      ],
-                      onSelectChanged: (_) => RecordPreview.show(
-                        context,
-                        title: 'Staff transaction',
-                        record: row,
-                        currency: s.currency,
-                      ),
+          ThqResponsiveTable(
+            columns: const [
+              ThqResponsiveColumn(title: 'Date', flex: 2),
+              ThqResponsiveColumn(title: 'Document', flex: 2),
+              ThqResponsiveColumn(title: 'Store / description', flex: 3),
+              ThqResponsiveColumn(title: 'Earnings', flex: 2, isNumeric: true),
+              ThqResponsiveColumn(title: 'Payments', flex: 2, isNumeric: true),
+              ThqResponsiveColumn(title: 'Running balance', flex: 2, isNumeric: true),
+            ],
+            rows: ledger
+                .map(
+                  (row) => ThqResponsiveRow(
+                    cardTitle: Text(
+                      '${s.text('document_reference', row['document_reference'])} • ${s.text('date', row['date'])}',
+                      style: const TextStyle(fontWeight: FontWeight.w600),
                     ),
-                  )
-                  .toList(),
-            ),
+                    cardFields: [
+                      ('Store/Desc', '${row['location_name'] ?? ''} ${row['description'] ?? ''}'),
+                      ('Earnings', s.text('earning', row['earning'])),
+                      ('Payments', s.text('payment', row['payment'])),
+                      ('Balance', s.text('balance', row['balance'])),
+                    ],
+                    cells: [
+                      Text(s.text('date', row['date']), style: const TextStyle(fontSize: 12)),
+                      Text(
+                        s.text('document_reference', row['document_reference']),
+                        style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 12),
+                      ),
+                      Text(
+                        '${row['location_name'] ?? ''}\n${row['description'] ?? ''}',
+                        style: const TextStyle(fontSize: 11.5),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      Text(s.text('earning', row['earning']), style: const TextStyle(fontSize: 12)),
+                      Text(s.text('payment', row['payment']), style: const TextStyle(fontSize: 12)),
+                      Text(
+                        s.text('balance', row['balance']),
+                        style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12),
+                      ),
+                    ],
+                    onTap: () => RecordPreview.show(
+                      context,
+                      title: 'Staff transaction',
+                      record: row,
+                      currency: s.currency,
+                    ),
+                  ),
+                )
+                .toList(),
           ),
         const SizedBox(height: 16),
         Text(
