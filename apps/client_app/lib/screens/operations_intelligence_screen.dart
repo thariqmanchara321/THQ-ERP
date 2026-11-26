@@ -5692,10 +5692,22 @@ class _OperationsIntelligenceScreenState
                 Text('${r['location_name'] ?? '—'} • $sku', style: const TextStyle(fontSize: 10, color: Colors.grey)),
               ],
             ),
-            Text(
-              '${_qty(r['available_stock'])}${incomingQty > 0 ? ' (+$incomingQty)' : ''}',
-              style: TextStyle(fontSize: 12, color: incomingQty > 0 ? Colors.green[700] : null),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  '${_qty(r['available_stock'])}${incomingQty > 0 ? ' (+$incomingQty)' : ''}',
+                  style: TextStyle(fontSize: 12, color: incomingQty > 0 ? Colors.green[700] : null),
+                ),
+                if (incomingQty > 0)
+                  Text(
+                    '+${_qty(incomingQty)} (${_qty(r['incoming_po_qty'])} PO, ${_qty(r['in_transit_qty'])} transit)',
+                    style: const TextStyle(fontSize: 9.5, color: Colors.grey),
+                  ),
+              ],
             ),
+
             Text(
               _qty(r['suggested_purchase_qty']),
               style: TextStyle(

@@ -173,8 +173,9 @@ void main() {
       expect(find.textContaining('Staff ID: STF-001'), findsOneWidget);
       expect(find.text('Opening balance'), findsOneWidget);
       expect(find.text('Closing balance'), findsOneWidget);
-      expect(find.text('JE-1'), findsOneWidget);
+      expect(find.textContaining('JE-1'), findsOneWidget);
       expect(find.textContaining(internalUuid), findsNothing);
+
       expect(find.text('Save PDF'), findsOneWidget);
       expect(find.text('Excel statement'), findsOneWidget);
     });

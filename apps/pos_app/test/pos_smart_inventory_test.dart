@@ -16,8 +16,11 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:thq_ui/thq_ui.dart';
 
 void main() {
+  late final Directory tempTestDir;
+
   setUpAll(() async {
     TestWidgetsFlutterBinding.ensureInitialized();
+    tempTestDir = Directory.systemTemp.createTempSync('pos_inv_test_');
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(
           const MethodChannel('plugins.flutter.io/shared_preferences'),
@@ -26,7 +29,7 @@ void main() {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(
           const MethodChannel('plugins.flutter.io/path_provider'),
-          (call) async => Directory.systemTemp.path,
+          (call) async => tempTestDir.path,
         );
     FlutterSecureStorage.setMockInitialValues({});
     try {
@@ -37,6 +40,15 @@ void main() {
       );
     } catch (_) {}
   });
+
+  tearDownAll(() async {
+    try {
+      if (tempTestDir.existsSync()) {
+        tempTestDir.deleteSync(recursive: true);
+      }
+    } catch (_) {}
+  });
+
   const tenantId = 'tenant-pos-1';
   const locationId = 'loc-main';
 
