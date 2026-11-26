@@ -29,8 +29,10 @@ void main() {
       expect(OfflineConflictCodes.serialConflict, 'SERIAL_CONFLICT');
       expect(OfflineConflictCodes.serverValidation, 'SERVER_VALIDATION');
       expect(OfflineConflictCodes.authExpired, 'AUTH_EXPIRED');
+      expect(OfflineConflictCodes.tenantMismatch, 'TENANT_MISMATCH');
+      expect(OfflineConflictCodes.locationMismatch, 'LOCATION_MISMATCH');
       expect(OfflineConflictCodes.unexpectedError, 'UNEXPECTED_ERROR');
-      expect(OfflineConflictCodes.all.length, 7);
+      expect(OfflineConflictCodes.all.length, 9);
     });
   });
 

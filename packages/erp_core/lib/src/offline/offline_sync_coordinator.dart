@@ -116,6 +116,29 @@ class OfflineSyncCoordinator {
           }
         }
 
+        // 3b. Validate multi-tenant and cross-location boundary isolation
+        final payloadTenant = record.payload['tenant_id']?.toString();
+        if (payloadTenant != null && payloadTenant.isNotEmpty && payloadTenant != tenantId) {
+          await storage.markConflict(
+            record.requestId,
+            code: OfflineConflictCodes.tenantMismatch,
+            message: 'Cross-tenant sync rejected: payload tenant $payloadTenant != session tenant $tenantId.',
+          );
+          conflicts++;
+          continue;
+        }
+
+        final payloadLocation = record.payload['location_id']?.toString();
+        if (payloadLocation != null && payloadLocation.isNotEmpty && payloadLocation != locationId) {
+          await storage.markConflict(
+            record.requestId,
+            code: OfflineConflictCodes.locationMismatch,
+            message: 'Cross-location sync rejected: payload location $payloadLocation != terminal location $locationId.',
+          );
+          conflicts++;
+          continue;
+        }
+
         if (record.status == 'conflict') {
           await storage.retry(record.requestId);
         }

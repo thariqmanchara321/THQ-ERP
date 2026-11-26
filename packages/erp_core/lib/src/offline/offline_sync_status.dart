@@ -49,6 +49,12 @@ abstract final class OfflineConflictCodes {
   /// Authentication token or device session expired during sync.
   static const String authExpired = 'AUTH_EXPIRED';
 
+  /// Record belongs to a different tenant than active session.
+  static const String tenantMismatch = 'TENANT_MISMATCH';
+
+  /// Record belongs to a different location than active session.
+  static const String locationMismatch = 'LOCATION_MISMATCH';
+
   /// Unexpected or unhandled server error during sync processing.
   static const String unexpectedError = 'UNEXPECTED_ERROR';
 
@@ -60,6 +66,8 @@ abstract final class OfflineConflictCodes {
     serialConflict,
     serverValidation,
     authExpired,
+    tenantMismatch,
+    locationMismatch,
     unexpectedError,
   ];
 }
