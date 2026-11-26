@@ -149,7 +149,14 @@ class OfflinePosSyncService {
     return raw is Map && raw.isNotEmpty;
   }
 
-  static bool _isSyncInProgress = false;
+  bool isSyncInProgress(ClientSession session) {
+    final device = session.device;
+    if (device == null) return false;
+    return OfflineSyncCoordinator.isSyncLocked(
+      session.business.id,
+      device.deviceId,
+    );
+  }
 
   Future<OfflineSyncResult> syncPending(
     ClientSession session, {
@@ -159,98 +166,50 @@ class OfflinePosSyncService {
     final device = session.device;
     if (device == null) throw StateError('POS device context is required.');
 
-    if (_isSyncInProgress) {
-      return const OfflineSyncResult(
-        attempted: 0,
-        synced: 0,
-        conflicts: 0,
-        pending: 0,
-      );
+    final syncRpc = await _guard.route(
+      tenantId: session.business.id,
+      channel: 'pos_offline',
+      routeKey: 'sale_sync',
+      deviceId: device.deviceId,
+    );
+
+    final coordinator = OfflineSyncCoordinator(storage: _local);
+
+    final result = await coordinator.syncQueue(
+      tenantId: session.business.id,
+      locationId: device.locationId,
+      deviceId: device.deviceId,
+      includeConflicts: includeConflicts,
+      onlyRequestId: onlyRequestId,
+      rpcExecutor: ({
+        required String tenantId,
+        required String locationId,
+        required String deviceId,
+        required String requestId,
+        required Map<String, dynamic> payload,
+      }) async {
+        return await _supabase.rpc(
+          syncRpc,
+          params: {
+            'p_tenant_id': tenantId,
+            'p_device_id': deviceId,
+            'p_location_id': locationId,
+            'p_request_id': requestId,
+            'p_payload': payload,
+          },
+        );
+      },
+    );
+
+    if (result.synced > 0) {
+      try {
+        await refreshCatalogue(session);
+      } catch (_) {
+        // Queue state is already durable. Cache refresh can wait.
+      }
     }
-    _isSyncInProgress = true;
 
-    try {
-      final syncRpc = await _guard.route(
-        tenantId: session.business.id,
-        channel: 'pos_offline',
-        routeKey: 'sale_sync',
-        deviceId: device.deviceId,
-      );
-
-      final statuses = <String>{'pending', 'syncing', 'error'};
-      if (includeConflicts) statuses.add('conflict');
-      var rows = await _local.queue(
-        tenantId: session.business.id,
-        deviceId: device.deviceId,
-        statuses: statuses,
-      );
-      if (onlyRequestId != null) {
-        rows = rows.where((row) => row.requestId == onlyRequestId).toList();
-      }
-
-      var synced = 0;
-      var conflicts = 0;
-      var pending = 0;
-
-      for (final record in rows.reversed) {
-        if (record.status == 'conflict') await _local.retry(record.requestId);
-        await _local.markSyncing(record.requestId);
-        try {
-          final result = await _supabase.rpc(
-            syncRpc,
-            params: {
-              'p_tenant_id': session.business.id,
-              'p_device_id': device.deviceId,
-              'p_location_id': device.locationId,
-              'p_request_id': record.requestId,
-              'p_payload': record.payload,
-            },
-          );
-          final verification = OfflineSyncVerifier.verify(result);
-          if (verification.isConflict) {
-            await _local.markConflict(
-              record.requestId,
-              code: verification.conflictCode ?? 'SERVER_VALIDATION',
-              message:
-                  verification.conflictMessage ??
-                  'Server rejected the offline invoice.',
-            );
-            conflicts++;
-          } else if (verification.isSuccess) {
-            await _local.markSynced(record.requestId, verification.rawResponse);
-            synced++;
-          } else {
-            throw StateError(
-              verification.conflictMessage ??
-                  'v5.2.2 sync response is missing authoritative GST recovery evidence.',
-            );
-          }
-        } catch (error) {
-          // Transport/API outage is not a failed sale. Keep the exact immutable
-          // request queued so the next attempt reuses the same request ID.
-          await _local.markPending(record.requestId, message: error.toString());
-          pending++;
-          break;
-        }
-      }
-
-      if (synced > 0) {
-        try {
-          await refreshCatalogue(session);
-        } catch (_) {
-          // Queue state is already durable. Cache refresh can wait.
-        }
-      }
-
-      return OfflineSyncResult(
-        attempted: rows.length,
-        synced: synced,
-        conflicts: conflicts,
-        pending: pending,
-      );
-    } finally {
-      _isSyncInProgress = false;
-    }
+    return result;
   }
 
   Future<void> _cacheInvoicePrinter(ClientSession session) async {

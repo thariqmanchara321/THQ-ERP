@@ -89,89 +89,60 @@ class MobilePosSyncService {
     );
   }
 
-  static bool _isSyncInProgress = false;
+  bool isSyncInProgress(PosSession session) =>
+      OfflineSyncCoordinator.isSyncLocked(session.tenantId, session.deviceId);
 
   Future<MobileSyncResult> sync(
     PosSession session, {
     bool includeConflicts = false,
     String? only,
   }) async {
-    if (_isSyncInProgress) {
-      return const MobileSyncResult(0, 0, 0, 0);
+    final syncRpc = await _guard.route(
+      tenantId: session.tenantId,
+      channel: 'mobile_pos',
+      routeKey: 'sale_sync',
+      deviceId: session.deviceId,
+    );
+
+    final coordinator = OfflineSyncCoordinator(storage: _local);
+
+    final result = await coordinator.syncQueue(
+      tenantId: session.tenantId,
+      locationId: session.locationId,
+      deviceId: session.deviceId,
+      includeConflicts: includeConflicts,
+      onlyRequestId: only,
+      rpcExecutor: ({
+        required String tenantId,
+        required String locationId,
+        required String deviceId,
+        required String requestId,
+        required Map<String, dynamic> payload,
+      }) async {
+        return await _supabase.rpc(
+          syncRpc,
+          params: {
+            'p_tenant_id': tenantId,
+            'p_device_id': deviceId,
+            'p_location_id': locationId,
+            'p_request_id': requestId,
+            'p_payload': payload,
+          },
+        );
+      },
+    );
+
+    if (result.synced > 0) {
+      try {
+        await refreshCatalogue(session);
+      } catch (_) {}
     }
-    _isSyncInProgress = true;
 
-    try {
-      final syncRpc = await _guard.route(
-        tenantId: session.tenantId,
-        channel: 'mobile_pos',
-        routeKey: 'sale_sync',
-        deviceId: session.deviceId,
-      );
-
-      final statuses = <String>{'pending', 'syncing', 'error'};
-      if (includeConflicts) statuses.add('conflict');
-      var rows = await _local.queue(
-        session.tenantId,
-        session.deviceId,
-        statuses: statuses,
-      );
-      if (only != null) {
-        rows = rows.where((x) => x.requestId == only).toList();
-      }
-
-      var synced = 0;
-      var conflicts = 0;
-      var pending = 0;
-
-      for (final row in rows.reversed) {
-        if (row.status == 'conflict') await _local.retry(row.requestId);
-        await _local.markSyncing(row.requestId);
-        try {
-          final raw = await _supabase.rpc(
-            syncRpc,
-            params: {
-              'p_tenant_id': session.tenantId,
-              'p_device_id': session.deviceId,
-              'p_location_id': session.locationId,
-              'p_request_id': row.requestId,
-              'p_payload': row.payload,
-            },
-          );
-          final verification = OfflineSyncVerifier.verify(raw);
-
-          if (verification.isConflict) {
-            await _local.markConflict(
-              row.requestId,
-              code: verification.conflictCode ?? 'SERVER_VALIDATION',
-              message: verification.conflictMessage ?? 'Server rejected invoice.',
-            );
-            conflicts++;
-          } else if (verification.isSuccess) {
-            await _local.markSynced(row.requestId, verification.rawResponse);
-            synced++;
-          } else {
-            throw StateError(
-              verification.conflictMessage ??
-                  'v5.2 Mobile POS sync is missing GST snapshot/journal evidence.',
-            );
-          }
-        } catch (error) {
-          await _local.markPending(row.requestId, message: error.toString());
-          pending++;
-          break;
-        }
-      }
-
-      if (synced > 0) {
-        try {
-          await refreshCatalogue(session);
-        } catch (_) {}
-      }
-
-      return MobileSyncResult(rows.length, synced, conflicts, pending);
-    } finally {
-      _isSyncInProgress = false;
-    }
+    return MobileSyncResult(
+      result.attempted,
+      result.synced,
+      result.conflicts,
+      result.pending,
+    );
   }
 }

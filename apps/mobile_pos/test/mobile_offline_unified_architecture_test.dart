@@ -236,4 +236,107 @@ void main() {
     products = await local.products('t-mpos', 'loc-1');
     expect(products.first.stockQuantity, equals(5.0)); // Restored
   });
+
+  test('FIFO queue ordering and interrupted sync recovery in MobilePosLocalStore', () async {
+    final local = MobilePosLocalStore.instance;
+    await local.initialize();
+
+    // Queue 3 sales with staggered times
+    final num1 = await local.queueSale(
+      requestId: 'req-mfifo-1',
+      tenantId: 't-mpos',
+      locationId: 'loc-1',
+      deviceId: 'dev-m1',
+      payload: const {'seq': 1},
+    );
+    await Future.delayed(const Duration(milliseconds: 10));
+    final num2 = await local.queueSale(
+      requestId: 'req-mfifo-2',
+      tenantId: 't-mpos',
+      locationId: 'loc-1',
+      deviceId: 'dev-m1',
+      payload: const {'seq': 2},
+    );
+    await Future.delayed(const Duration(milliseconds: 10));
+    final num3 = await local.queueSale(
+      requestId: 'req-mfifo-3',
+      tenantId: 't-mpos',
+      locationId: 'loc-1',
+      deviceId: 'dev-m1',
+      payload: const {'seq': 3},
+    );
+
+    expect(num1, isNotEmpty);
+    expect(num2, isNotEmpty);
+    expect(num3, isNotEmpty);
+
+    // 1. fetchSyncQueue must return in oldest-first order
+    final syncQueue = await local.fetchSyncQueue(
+      tenantId: 't-mpos',
+      deviceId: 'dev-m1',
+    );
+    expect(syncQueue.length, equals(3));
+    expect(syncQueue[0].requestId, equals('req-mfifo-1'));
+    expect(syncQueue[1].requestId, equals('req-mfifo-2'));
+    expect(syncQueue[2].requestId, equals('req-mfifo-3'));
+
+    // 2. Mark req-mfifo-2 as syncing to simulate an interrupted process
+    await local.markSyncing('req-mfifo-2');
+    var inv2 = await local.invoice('req-mfifo-2');
+    expect(inv2!.isSyncing, isTrue);
+
+    // 3. recoverInterruptedSync must reset syncing record to pending
+    final recovered = await local.recoverInterruptedSync(
+      tenantId: 't-mpos',
+      deviceId: 'dev-m1',
+    );
+    expect(recovered, equals(1));
+
+    inv2 = await local.invoice('req-mfifo-2');
+    expect(inv2!.isPending, isTrue);
+    expect(inv2.conflictMessage, equals('Recovered after interrupted sync'));
+
+    // 4. Test OfflineSyncCoordinator single-flight locking for Mobile POS
+    OfflineSyncCoordinator.resetLocksForTest();
+    final coordinator = OfflineSyncCoordinator(storage: local);
+    final p1 = coordinator.syncQueue(
+      tenantId: 't-mpos',
+      locationId: 'loc-1',
+      deviceId: 'dev-m1',
+      rpcExecutor: ({
+        required String tenantId,
+        required String locationId,
+        required String deviceId,
+        required String requestId,
+        required Map<String, dynamic> payload,
+      }) async {
+        await Future.delayed(const Duration(milliseconds: 50));
+        return {
+          'ok': true,
+          'status': 'synced',
+          'authoritative_gst': true,
+          'gst_snapshot_id': 'snap-$requestId',
+          'gst_journal_id': 'jour-$requestId',
+        };
+      },
+    );
+
+    final p2 = coordinator.syncQueue(
+      tenantId: 't-mpos',
+      locationId: 'loc-1',
+      deviceId: 'dev-m1',
+      rpcExecutor: ({
+        required String tenantId,
+        required String locationId,
+        required String deviceId,
+        required String requestId,
+        required Map<String, dynamic> payload,
+      }) async => {'ok': true},
+    );
+
+    final results = await Future.wait([p1, p2]);
+    final totalSynced = results[0].synced + results[1].synced;
+    expect(totalSynced, equals(3));
+    expect(results[0].attempted == 0 || results[1].attempted == 0, isTrue);
+  });
 }

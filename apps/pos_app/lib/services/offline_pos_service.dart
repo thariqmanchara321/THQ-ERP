@@ -487,6 +487,49 @@ class OfflinePosService implements OfflineStorageAdapter {
       );
 
   @override
+  Future<List<OfflineSaleRecord>> fetchSyncQueue({
+    required String tenantId,
+    required String deviceId,
+    Set<String>? statuses,
+    int limit = 300,
+  }) async {
+    await initialize();
+    final statusList = statuses?.toList() ?? const <String>[];
+    var sql =
+        'SELECT * FROM offline_invoices WHERE tenant_id=? AND device_id=?';
+    final args = <Object?>[tenantId, deviceId];
+    if (statusList.isNotEmpty) {
+      sql +=
+          ' AND status IN (${List.filled(statusList.length, '?').join(',')})';
+      args.addAll(statusList);
+    }
+    sql += ' ORDER BY created_at ASC, rowid ASC LIMIT ?';
+    args.add(limit);
+    return _database.select(sql, args).map(_invoiceFromRow).toList();
+  }
+
+  @override
+  Future<int> recoverInterruptedSync({
+    required String tenantId,
+    required String deviceId,
+  }) async {
+    await initialize();
+    final now = DateTime.now().toUtc().toIso8601String();
+    final countRows = _database.select(
+      "SELECT count(*) AS c FROM offline_invoices WHERE tenant_id=? AND device_id=? AND status='syncing'",
+      [tenantId, deviceId],
+    );
+    final count = (countRows.first['c'] as num?)?.toInt() ?? 0;
+    if (count > 0) {
+      _database.execute(
+        "UPDATE offline_invoices SET status='pending',conflict_message='Recovered after interrupted sync',attempts=0,updated_at=? WHERE tenant_id=? AND device_id=? AND status='syncing'",
+        [now, tenantId, deviceId],
+      );
+    }
+    return count;
+  }
+
+  @override
   Future<OfflineQueueSummary> queueSummary({
     required String tenantId,
     required String deviceId,

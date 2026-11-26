@@ -39,6 +39,25 @@ abstract class OfflineStorageAdapter {
     int limit = 300,
   });
 
+  /// Retrieves queued transactions in strict FIFO order (oldest first: `created_at ASC, rowid ASC`).
+  Future<List<OfflineSaleRecord>> fetchSyncQueue({
+    required String tenantId,
+    required String deviceId,
+    Set<String>? statuses,
+    int limit = 300,
+  });
+
+  /// Recovers transactions that were left in 'syncing' status due to an unhandled
+  /// application crash, forced kill, or unexpected restart.
+  ///
+  /// Resets their status to 'pending' with a recovery message so they become eligible
+  /// for retry without losing any data.
+  /// Returns the count of recovered records.
+  Future<int> recoverInterruptedSync({
+    required String tenantId,
+    required String deviceId,
+  });
+
   /// Retrieves a single transaction record by its unique request ID.
   Future<OfflineSaleRecord?> invoice(String requestId);
 

@@ -468,6 +468,51 @@ class MobilePosLocalStore implements OfflineStorageAdapter {
   }) =>
       queue(tenantId, deviceId, statuses: statuses, limit: limit);
 
+  @override
+  Future<List<OfflineSaleRecord>> fetchSyncQueue({
+    required String tenantId,
+    required String deviceId,
+    Set<String>? statuses,
+    int limit = 300,
+  }) async {
+    final d = await db;
+    final where = StringBuffer('tenant_id=? AND device_id=?');
+    final args = <Object?>[tenantId, deviceId];
+    if (statuses != null && statuses.isNotEmpty) {
+      where.write(' AND status IN (${List.filled(statuses.length, '?').join(',')})');
+      args.addAll(statuses);
+    }
+    final rows = await d.query(
+      'invoices',
+      where: where.toString(),
+      whereArgs: args,
+      orderBy: 'created_at ASC, rowid ASC',
+      limit: limit,
+    );
+    return rows.map(_invoice).toList();
+  }
+
+  @override
+  Future<int> recoverInterruptedSync({
+    required String tenantId,
+    required String deviceId,
+  }) async {
+    final d = await db;
+    final now = DateTime.now().toUtc().toIso8601String();
+    final updated = await d.update(
+      'invoices',
+      {
+        'status': 'pending',
+        'conflict_message': 'Recovered after interrupted sync',
+        'attempts': 0,
+        'updated_at': now,
+      },
+      where: "tenant_id=? AND device_id=? AND status='syncing'",
+      whereArgs: [tenantId, deviceId],
+    );
+    return updated;
+  }
+
   Future<LocalInvoice?> invoiceByRequest(String requestId) async {
     final d = await db;
     final rows = await d.query(

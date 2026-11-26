@@ -223,4 +223,485 @@ void main() {
       expect(result.conflictMessage, contains('missing authoritative GST'));
     });
   });
+
+  group('OfflineSyncCoordinator Reliability & Mutex Locking', () {
+    late FakeOfflineStorage storage;
+
+    setUp(() {
+      storage = FakeOfflineStorage();
+      OfflineSyncCoordinator.resetLocksForTest();
+    });
+
+    test('computes bounded exponential backoff up to 60 seconds', () {
+      expect(OfflineSyncCoordinator.computeBackoffSeconds(0), 0);
+      expect(OfflineSyncCoordinator.computeBackoffSeconds(1), 1);
+      expect(OfflineSyncCoordinator.computeBackoffSeconds(2), 2);
+      expect(OfflineSyncCoordinator.computeBackoffSeconds(3), 4);
+      expect(OfflineSyncCoordinator.computeBackoffSeconds(4), 8);
+      expect(OfflineSyncCoordinator.computeBackoffSeconds(5), 16);
+      expect(OfflineSyncCoordinator.computeBackoffSeconds(6), 32);
+      expect(OfflineSyncCoordinator.computeBackoffSeconds(7), 60);
+      expect(OfflineSyncCoordinator.computeBackoffSeconds(15), 60);
+    });
+
+    test('recovers interrupted sync records on startup before sync', () async {
+      storage.records.add(OfflineSaleRecord(
+        requestId: 'req-orphaned',
+        localInvoiceNumber: 'LOCAL-001',
+        status: 'syncing',
+        payload: const {'item': 'widget'},
+        attempts: 1,
+        createdAt: DateTime.now().subtract(const Duration(minutes: 5)),
+        updatedAt: DateTime.now().subtract(const Duration(minutes: 5)),
+      ));
+
+      final coordinator = OfflineSyncCoordinator(storage: storage);
+      final result = await coordinator.syncQueue(
+        tenantId: 'tenant-1',
+        locationId: 'loc-1',
+        deviceId: 'dev-1',
+        rpcExecutor: ({
+          required String tenantId,
+          required String locationId,
+          required String deviceId,
+          required String requestId,
+          required Map<String, dynamic> payload,
+        }) async {
+          return {
+            'ok': true,
+            'status': 'synced',
+            'authoritative_gst': true,
+            'gst_snapshot_id': 'snap-1',
+            'gst_journal_id': 'jour-1',
+          };
+        },
+      );
+
+      expect(storage.recoveredCount, equals(1));
+      expect(result.synced, equals(1));
+      expect(result.isFullySynced, isTrue);
+      expect(storage.records.first.isSynced, isTrue);
+    });
+
+    test('enforces strict chronological FIFO processing order', () async {
+      final now = DateTime.now();
+      storage.records.addAll([
+        OfflineSaleRecord(
+          requestId: 'req-3',
+          localInvoiceNumber: 'LOCAL-003',
+          status: 'pending',
+          payload: const {'seq': 3},
+          attempts: 0,
+          createdAt: now.add(const Duration(seconds: 2)),
+          updatedAt: now.add(const Duration(seconds: 2)),
+        ),
+        OfflineSaleRecord(
+          requestId: 'req-1',
+          localInvoiceNumber: 'LOCAL-001',
+          status: 'pending',
+          payload: const {'seq': 1},
+          attempts: 0,
+          createdAt: now,
+          updatedAt: now,
+        ),
+        OfflineSaleRecord(
+          requestId: 'req-2',
+          localInvoiceNumber: 'LOCAL-002',
+          status: 'pending',
+          payload: const {'seq': 2},
+          attempts: 0,
+          createdAt: now.add(const Duration(seconds: 1)),
+          updatedAt: now.add(const Duration(seconds: 1)),
+        ),
+      ]);
+
+      final processedIds = <String>[];
+      final coordinator = OfflineSyncCoordinator(storage: storage);
+      final result = await coordinator.syncQueue(
+        tenantId: 'tenant-1',
+        locationId: 'loc-1',
+        deviceId: 'dev-1',
+        rpcExecutor: ({
+          required String tenantId,
+          required String locationId,
+          required String deviceId,
+          required String requestId,
+          required Map<String, dynamic> payload,
+        }) async {
+          processedIds.add(requestId);
+          return {
+            'ok': true,
+            'status': 'synced',
+            'authoritative_gst': true,
+            'gst_snapshot_id': 'snap-$requestId',
+            'gst_journal_id': 'jour-$requestId',
+          };
+        },
+      );
+
+      expect(result.synced, equals(3));
+      expect(processedIds, equals(['req-1', 'req-2', 'req-3']));
+    });
+
+    test('single-flight locking prevents concurrent execution for same device', () async {
+      storage.records.add(OfflineSaleRecord(
+        requestId: 'req-slow',
+        localInvoiceNumber: 'LOCAL-SLOW',
+        status: 'pending',
+        payload: const {},
+        attempts: 0,
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      ));
+
+      final coord1 = OfflineSyncCoordinator(storage: storage);
+      final coord2 = OfflineSyncCoordinator(storage: storage);
+
+      late OfflineSyncResult result1;
+      late OfflineSyncResult result2;
+
+      // Launch two concurrent sync operations with different coordinator instances
+      final future1 = coord1.syncQueue(
+        tenantId: 'tenant-1',
+        locationId: 'loc-1',
+        deviceId: 'dev-1',
+        rpcExecutor: ({
+          required String tenantId,
+          required String locationId,
+          required String deviceId,
+          required String requestId,
+          required Map<String, dynamic> payload,
+        }) async {
+          await Future.delayed(const Duration(milliseconds: 50));
+          return {
+            'ok': true,
+            'status': 'synced',
+            'authoritative_gst': true,
+            'gst_snapshot_id': 'snap-1',
+            'gst_journal_id': 'jour-1',
+          };
+        },
+      );
+
+      final future2 = coord2.syncQueue(
+        tenantId: 'tenant-1',
+        locationId: 'loc-1',
+        deviceId: 'dev-1',
+        rpcExecutor: ({
+          required String tenantId,
+          required String locationId,
+          required String deviceId,
+          required String requestId,
+          required Map<String, dynamic> payload,
+        }) async {
+          return {'ok': true};
+        },
+      );
+
+      final results = await Future.wait([future1, future2]);
+      result1 = results[0];
+      result2 = results[1];
+
+      // One completed successfully; the concurrent invocation was safely rejected with 0 attempted
+      expect(result1.synced + result2.synced, equals(1));
+      expect(result1.attempted == 0 || result2.attempted == 0, isTrue);
+
+      // Lock is released after completion
+      expect(OfflineSyncCoordinator.isSyncLocked('tenant-1', 'dev-1'), isFalse);
+    });
+
+    test('transport failure halts queue immediately and preserves immutable request', () async {
+      storage.records.addAll([
+        OfflineSaleRecord(
+          requestId: 'req-success',
+          localInvoiceNumber: 'LOCAL-1',
+          status: 'pending',
+          payload: const {'total': 100},
+          attempts: 0,
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now(),
+        ),
+        OfflineSaleRecord(
+          requestId: 'req-fail',
+          localInvoiceNumber: 'LOCAL-2',
+          status: 'pending',
+          payload: const {'total': 200},
+          attempts: 0,
+          createdAt: DateTime.now().add(const Duration(seconds: 1)),
+          updatedAt: DateTime.now().add(const Duration(seconds: 1)),
+        ),
+        OfflineSaleRecord(
+          requestId: 'req-blocked',
+          localInvoiceNumber: 'LOCAL-3',
+          status: 'pending',
+          payload: const {'total': 300},
+          attempts: 0,
+          createdAt: DateTime.now().add(const Duration(seconds: 2)),
+          updatedAt: DateTime.now().add(const Duration(seconds: 2)),
+        ),
+      ]);
+
+      final coordinator = OfflineSyncCoordinator(storage: storage);
+      final result = await coordinator.syncQueue(
+        tenantId: 'tenant-1',
+        locationId: 'loc-1',
+        deviceId: 'dev-1',
+        rpcExecutor: ({
+          required String tenantId,
+          required String locationId,
+          required String deviceId,
+          required String requestId,
+          required Map<String, dynamic> payload,
+        }) async {
+          if (requestId == 'req-fail') {
+            throw Exception('Connection reset by peer');
+          }
+          return {
+            'ok': true,
+            'status': 'synced',
+            'authoritative_gst': true,
+            'gst_snapshot_id': 'snap-$requestId',
+            'gst_journal_id': 'jour-$requestId',
+          };
+        },
+      );
+
+      expect(result.synced, equals(1));
+      expect(result.pending, equals(2)); // Head-of-line halted: req-fail and req-blocked remain pending
+
+      final failedRecord = await storage.invoice('req-fail');
+      expect(failedRecord!.isPending, isTrue);
+      expect(failedRecord.conflictMessage, contains('Connection reset by peer'));
+
+      final blockedRecord = await storage.invoice('req-blocked');
+      expect(blockedRecord!.isPending, isTrue);
+      expect(blockedRecord.attempts, equals(0)); // Never attempted, preserving FIFO order
+    });
+
+    test('AUTH_EXPIRED conflict halts queue execution immediately', () async {
+      storage.records.addAll([
+        OfflineSaleRecord(
+          requestId: 'req-auth-fail',
+          localInvoiceNumber: 'LOCAL-1',
+          status: 'pending',
+          payload: const {},
+          attempts: 0,
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now(),
+        ),
+        OfflineSaleRecord(
+          requestId: 'req-auth-blocked',
+          localInvoiceNumber: 'LOCAL-2',
+          status: 'pending',
+          payload: const {},
+          attempts: 0,
+          createdAt: DateTime.now().add(const Duration(seconds: 1)),
+          updatedAt: DateTime.now().add(const Duration(seconds: 1)),
+        ),
+      ]);
+
+      final coordinator = OfflineSyncCoordinator(storage: storage);
+      final result = await coordinator.syncQueue(
+        tenantId: 'tenant-1',
+        locationId: 'loc-1',
+        deviceId: 'dev-1',
+        rpcExecutor: ({
+          required String tenantId,
+          required String locationId,
+          required String deviceId,
+          required String requestId,
+          required Map<String, dynamic> payload,
+        }) async {
+          return {
+            'ok': false,
+            'status': 'conflict',
+            'code': OfflineConflictCodes.authExpired,
+            'message': 'Device token has expired',
+          };
+        },
+      );
+
+      expect(result.conflicts, equals(1));
+      expect(result.pending, equals(1));
+
+      final authFail = await storage.invoice('req-auth-fail');
+      expect(authFail!.isConflict, isTrue);
+      expect(authFail.conflictCode, OfflineConflictCodes.authExpired);
+
+      final authBlocked = await storage.invoice('req-auth-blocked');
+      expect(authBlocked!.isPending, isTrue);
+      expect(authBlocked.attempts, equals(0));
+    });
+  });
+}
+
+class FakeOfflineStorage implements OfflineStorageAdapter {
+  final List<OfflineSaleRecord> records = [];
+  final Map<String, dynamic> metadata = {};
+  int recoveredCount = 0;
+
+  @override
+  Future<void> initialize() async {}
+  @override
+  Future<void> close() async {}
+  @override
+  Future<void> setMeta(String key, Object? value) async => metadata[key] = value;
+  @override
+  Future<dynamic> getMeta(String key) async => metadata[key];
+
+  @override
+  Future<String> queueSale({
+    required String requestId,
+    required String tenantId,
+    required String locationId,
+    required String deviceId,
+    required Map<String, dynamic> payload,
+    bool printRequested = false,
+  }) async {
+    final num = 'LOCAL-$requestId';
+    records.add(OfflineSaleRecord(
+      requestId: requestId,
+      localInvoiceNumber: num,
+      status: 'pending',
+      payload: payload,
+      attempts: 0,
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+      printRequested: printRequested,
+    ));
+    return num;
+  }
+
+  @override
+  Future<List<OfflineSaleRecord>> fetchQueue({
+    required String tenantId,
+    required String deviceId,
+    Set<String>? statuses,
+    int limit = 300,
+  }) async {
+    return records
+        .where((r) => statuses == null || statuses.contains(r.status))
+        .take(limit)
+        .toList();
+  }
+
+  @override
+  Future<List<OfflineSaleRecord>> fetchSyncQueue({
+    required String tenantId,
+    required String deviceId,
+    Set<String>? statuses,
+    int limit = 300,
+  }) async {
+    final matching = records
+        .where((r) => statuses == null || statuses.contains(r.status))
+        .toList();
+    matching.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+    return matching.take(limit).toList();
+  }
+
+  @override
+  Future<int> recoverInterruptedSync({
+    required String tenantId,
+    required String deviceId,
+  }) async {
+    var count = 0;
+    for (var i = 0; i < records.length; i++) {
+      if (records[i].status == 'syncing') {
+        records[i] = records[i].copyWith(
+          status: 'pending',
+          attempts: 0,
+          conflictMessage: 'Recovered after interrupted sync',
+        );
+        count++;
+      }
+    }
+    recoveredCount += count;
+    return count;
+  }
+
+  @override
+  Future<OfflineSaleRecord?> invoice(String requestId) async {
+    return records.where((r) => r.requestId == requestId).firstOrNull;
+  }
+
+  @override
+  Future<OfflineQueueSummary> queueSummary({
+    required String tenantId,
+    required String deviceId,
+  }) async {
+    return OfflineQueueSummary(
+      pending: records.where((r) => r.isPending || r.isSyncing).length,
+      conflict: records.where((r) => r.isConflict).length,
+      error: records.where((r) => r.isError).length,
+      synced: records.where((r) => r.isSynced).length,
+    );
+  }
+
+  @override
+  Future<void> markSyncing(String requestId) async {
+    final idx = records.indexWhere((r) => r.requestId == requestId);
+    if (idx >= 0) {
+      records[idx] = records[idx].copyWith(
+        status: 'syncing',
+        attempts: records[idx].attempts + 1,
+      );
+    }
+  }
+
+  @override
+  Future<void> markPending(String requestId, {String? message}) async {
+    final idx = records.indexWhere((r) => r.requestId == requestId);
+    if (idx >= 0) {
+      records[idx] = records[idx].copyWith(
+        status: 'pending',
+        conflictMessage: message,
+      );
+    }
+  }
+
+  @override
+  Future<void> markConflict(
+    String requestId, {
+    required String code,
+    required String message,
+  }) async {
+    final idx = records.indexWhere((r) => r.requestId == requestId);
+    if (idx >= 0) {
+      records[idx] = records[idx].copyWith(
+        status: 'conflict',
+        conflictCode: code,
+        conflictMessage: message,
+      );
+    }
+  }
+
+  @override
+  Future<void> markSynced(
+    String requestId,
+    Map<String, dynamic> serverResponse,
+  ) async {
+    final idx = records.indexWhere((r) => r.requestId == requestId);
+    if (idx >= 0) {
+      records[idx] = records[idx].copyWith(
+        status: 'synced',
+        serverResponse: serverResponse,
+      );
+    }
+  }
+
+  @override
+  Future<void> retry(String requestId) async {
+    final idx = records.indexWhere((r) => r.requestId == requestId);
+    if (idx >= 0) {
+      records[idx] = records[idx].copyWith(status: 'pending');
+    }
+  }
+
+  @override
+  Future<void> cancel(String requestId) async {
+    final idx = records.indexWhere((r) => r.requestId == requestId);
+    if (idx >= 0) {
+      records[idx] = records[idx].copyWith(status: 'cancelled');
+    }
+  }
 }

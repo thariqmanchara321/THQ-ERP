@@ -258,4 +258,107 @@ void main() {
     products = await service.cachedProducts(tenantId: 't-arch', locationId: 'loc-1');
     expect(products.first.stockQuantity, equals(10.0));
   });
+
+  test('FIFO queue ordering and interrupted sync recovery in OfflinePosService', () async {
+    final service = OfflinePosService.instance;
+    await service.initialize(customDatabasePath: dbPath, keyStore: keyStore);
+
+    // Queue 3 sales with staggered times
+    final num1 = await service.queueSale(
+      requestId: 'req-fifo-1',
+      tenantId: 't-arch',
+      locationId: 'loc-1',
+      deviceId: 'dev-1',
+      payload: const {'val': 1},
+    );
+    await Future.delayed(const Duration(milliseconds: 10));
+    final num2 = await service.queueSale(
+      requestId: 'req-fifo-2',
+      tenantId: 't-arch',
+      locationId: 'loc-1',
+      deviceId: 'dev-1',
+      payload: const {'val': 2},
+    );
+    await Future.delayed(const Duration(milliseconds: 10));
+    final num3 = await service.queueSale(
+      requestId: 'req-fifo-3',
+      tenantId: 't-arch',
+      locationId: 'loc-1',
+      deviceId: 'dev-1',
+      payload: const {'val': 3},
+    );
+
+    expect(num1, isNotEmpty);
+    expect(num2, isNotEmpty);
+    expect(num3, isNotEmpty);
+
+    // 1. fetchSyncQueue must return in oldest-first order (req-fifo-1, req-fifo-2, req-fifo-3)
+    final syncQueue = await service.fetchSyncQueue(
+      tenantId: 't-arch',
+      deviceId: 'dev-1',
+    );
+    expect(syncQueue.length, equals(3));
+    expect(syncQueue[0].requestId, equals('req-fifo-1'));
+    expect(syncQueue[1].requestId, equals('req-fifo-2'));
+    expect(syncQueue[2].requestId, equals('req-fifo-3'));
+
+    // 2. Mark req-fifo-2 as syncing to simulate an interrupted crash
+    await service.markSyncing('req-fifo-2');
+    var invoice2 = await service.invoice('req-fifo-2');
+    expect(invoice2!.isSyncing, isTrue);
+
+    // 3. recoverInterruptedSync must reset syncing record back to pending
+    final recovered = await service.recoverInterruptedSync(
+      tenantId: 't-arch',
+      deviceId: 'dev-1',
+    );
+    expect(recovered, equals(1));
+
+    invoice2 = await service.invoice('req-fifo-2');
+    expect(invoice2!.isPending, isTrue);
+    expect(invoice2.conflictMessage, equals('Recovered after interrupted sync'));
+
+    // 4. Test OfflineSyncCoordinator single-flight locking for POS
+    OfflineSyncCoordinator.resetLocksForTest();
+    final coordinator = OfflineSyncCoordinator(storage: service);
+    final p1 = coordinator.syncQueue(
+      tenantId: 't-arch',
+      locationId: 'loc-1',
+      deviceId: 'dev-1',
+      rpcExecutor: ({
+        required String tenantId,
+        required String locationId,
+        required String deviceId,
+        required String requestId,
+        required Map<String, dynamic> payload,
+      }) async {
+        await Future.delayed(const Duration(milliseconds: 50));
+        return {
+          'ok': true,
+          'status': 'synced',
+          'authoritative_gst': true,
+          'gst_snapshot_id': 'snap-$requestId',
+          'gst_journal_id': 'jour-$requestId',
+        };
+      },
+    );
+
+    final p2 = coordinator.syncQueue(
+      tenantId: 't-arch',
+      locationId: 'loc-1',
+      deviceId: 'dev-1',
+      rpcExecutor: ({
+        required String tenantId,
+        required String locationId,
+        required String deviceId,
+        required String requestId,
+        required Map<String, dynamic> payload,
+      }) async => {'ok': true},
+    );
+
+    final syncResults = await Future.wait([p1, p2]);
+    final totalSynced = syncResults[0].synced + syncResults[1].synced;
+    expect(totalSynced, equals(3));
+    expect(syncResults[0].attempted == 0 || syncResults[1].attempted == 0, isTrue);
+  });
 }
