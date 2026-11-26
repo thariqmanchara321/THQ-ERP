@@ -1079,7 +1079,17 @@ RETURNS TABLE (
   last_sale_date date,
   last_purchase_date date,
   status text,
-  abc_class text
+  abc_class text,
+  movement_class text,
+  incoming_po_qty numeric,
+  in_transit_qty numeric,
+  reserved_qty numeric,
+  net_effective_stock numeric,
+  sales_value numeric,
+  cumulative_sales_pct numeric,
+  turnover_ratio numeric,
+  excess_qty numeric,
+  excess_value numeric
 )
 LANGUAGE plpgsql STABLE SECURITY DEFINER
 SET search_path TO 'public', 'private', 'pg_temp'
