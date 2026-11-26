@@ -1212,7 +1212,7 @@ class _OperationsIntelligenceScreenState
     final currentIndex = _tabs.index.clamp(0, sections.length - 1);
 
     return Container(
-      height: 40,
+      height: 36,
       decoration: BoxDecoration(
         color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.35),
         borderRadius: BorderRadius.circular(8),
@@ -1220,7 +1220,7 @@ class _OperationsIntelligenceScreenState
           color: colorScheme.outlineVariant.withValues(alpha: 0.8),
         ),
       ),
-      padding: const EdgeInsets.symmetric(horizontal: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 10),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<int>(
           key: const Key('operations_intelligence_section_dropdown'),
@@ -1338,184 +1338,38 @@ class _OperationsIntelligenceScreenState
     );
   }
 
-  Widget _sectionNavigationBar(BuildContext context) {
+  Widget _unifiedHeader(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final sections = _sections;
     final currentIndex = _tabs.index.clamp(0, sections.length - 1);
 
     return Container(
-      padding: const EdgeInsets.fromLTRB(18, 0, 18, 10),
+      key: const Key('operations_intelligence_unified_header'),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 3),
       child: LayoutBuilder(
         builder: (context, constraints) {
+          final isDesktopWide = constraints.maxWidth >= 1250;
           final isCompact = constraints.maxWidth < 640;
-          final selector = ConstrainedBox(
-            constraints: BoxConstraints(
-              minWidth: isCompact ? constraints.maxWidth : 340,
-              maxWidth: isCompact ? constraints.maxWidth : 440,
-            ),
-            child: _buildSectionDropdown(context),
-          );
-
-          if (isCompact) {
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                selector,
-                const SizedBox(height: 6),
-                Row(
-                  children: [
-                    IconButton.outlined(
-                      key: const Key('operations_intelligence_prev_btn_compact'),
-                      icon: const Icon(Icons.chevron_left_rounded, size: 20),
-                      tooltip: 'Previous section',
-                      visualDensity: VisualDensity.compact,
-                      onPressed: currentIndex > 0
-                          ? () {
-                              _tabs.animateTo(currentIndex - 1);
-                              setState(() {});
-                            }
-                          : null,
-                    ),
-                    const SizedBox(width: 6),
-                    IconButton.outlined(
-                      key: const Key('operations_intelligence_next_btn_compact'),
-                      icon: const Icon(Icons.chevron_right_rounded, size: 20),
-                      tooltip: 'Next section',
-                      visualDensity: VisualDensity.compact,
-                      onPressed: currentIndex < sections.length - 1
-                          ? () {
-                              _tabs.animateTo(currentIndex + 1);
-                              setState(() {});
-                            }
-                          : null,
-                    ),
-                    const Spacer(),
-                    Text(
-                      'Section ${currentIndex + 1} of ${sections.length}',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: colorScheme.outline,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            );
-          }
-
-          return Row(
-            children: [
-              selector,
-              const SizedBox(width: 8),
-              IconButton.outlined(
-                key: const Key('operations_intelligence_prev_btn'),
-                icon: const Icon(Icons.chevron_left_rounded, size: 20),
-                tooltip: 'Previous section',
-                visualDensity: VisualDensity.compact,
-                onPressed: currentIndex > 0
-                    ? () {
-                        _tabs.animateTo(currentIndex - 1);
-                        setState(() {});
-                      }
-                    : null,
-              ),
-              const SizedBox(width: 4),
-              IconButton.outlined(
-                key: const Key('operations_intelligence_next_btn'),
-                icon: const Icon(Icons.chevron_right_rounded, size: 20),
-                tooltip: 'Next section',
-                visualDensity: VisualDensity.compact,
-                onPressed: currentIndex < sections.length - 1
-                    ? () {
-                        _tabs.animateTo(currentIndex + 1);
-                        setState(() {});
-                      }
-                    : null,
-              ),
-              const SizedBox(width: 12),
-              Text(
-                'Section ${currentIndex + 1} of ${sections.length}',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: colorScheme.outline,
-                ),
-              ),
-            ],
-          );
-        },
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        _header(),
-        _sectionNavigationBar(context),
-        const Divider(height: 1),
-        Expanded(
-          child: TabBarView(
-            controller: _tabs,
-            physics: const NeverScrollableScrollPhysics(),
-            children: [
-              _overviewTab(),
-              _salesIntelligenceTab(),
-              _stockTab(),
-              _purchaseIntelligenceTab(),
-              _supplierIntelligenceTab(),
-              _procurementIntelligenceTab(),
-              _customerCreditTab(),
-              _financialIntelligenceTab(),
-              _expenseIntelligenceTab(),
-              _operationalEfficiencyTab(),
-              _workforceIntelligenceTab(),
-              _predictiveIntelligenceTab(),
-              _actionCentreTab(),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _header() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(18, 14, 18, 10),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final isCompact = constraints.maxWidth < 800;
-
-          final titleCol = Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: const [
-              Text(
-                'Operations Intelligence',
-                style: TextStyle(fontSize: 22, fontWeight: FontWeight.w600),
-              ),
-              SizedBox(height: 2),
-              Text(
-                'Live operational analytics, demand planning, credit exposure, and multi-store health.',
-                style: TextStyle(fontSize: 12),
-              ),
-            ],
-          );
 
           final searchField = SizedBox(
-            width: isCompact ? null : 260,
+            width: isDesktopWide ? 220 : (isCompact ? double.infinity : 200),
+            height: 34,
             child: TextField(
               controller: _search,
               onSubmitted: (_) => _loadAll(force: true),
+              style: const TextStyle(fontSize: 12.5),
               decoration: InputDecoration(
-                prefixIcon: const Icon(Icons.search, size: 18),
+                prefixIcon: const Icon(Icons.search, size: 16),
                 hintText: 'Search product / customer / supplier',
+                hintStyle: const TextStyle(fontSize: 11.5),
                 isDense: true,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                 suffixIcon: _search.text.isEmpty
                     ? null
                     : IconButton(
-                        icon: const Icon(Icons.clear, size: 16),
+                        icon: const Icon(Icons.clear, size: 14),
+                        visualDensity: VisualDensity.compact,
                         onPressed: () {
                           _search.clear();
                           _loadAll(force: true);
@@ -1544,46 +1398,190 @@ class _OperationsIntelligenceScreenState
             },
           );
 
-          final refreshBtn = IconButton.filledTonal(
-            onPressed: () => _loadAll(force: true),
-            icon: const Icon(Icons.refresh),
-            tooltip: 'Refresh all intelligence',
+          final refreshBtn = SizedBox(
+            width: 32,
+            height: 32,
+            child: IconButton.filledTonal(
+              onPressed: () => _loadAll(force: true),
+              icon: const Icon(Icons.refresh, size: 16),
+              tooltip: 'Refresh all intelligence',
+              visualDensity: VisualDensity.compact,
+              padding: EdgeInsets.zero,
+            ),
           );
 
-          if (isCompact) {
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                titleCol,
-                const SizedBox(height: 10),
-                searchField,
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 6,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  children: [
-                    dateSelector,
-                    refreshBtn,
-                  ],
-                ),
-              ],
-            );
-          }
+        final dropdownSelector = ConstrainedBox(
+          constraints: BoxConstraints(
+            minWidth: isCompact ? constraints.maxWidth : (isDesktopWide ? 280 : 320),
+            maxWidth: isCompact ? constraints.maxWidth : (isDesktopWide ? 340 : 420),
+          ),
+          child: _buildSectionDropdown(context),
+        );
 
-          return Row(
+        final prevBtnKey = isCompact
+            ? const Key('operations_intelligence_prev_btn_compact')
+            : const Key('operations_intelligence_prev_btn');
+        final nextBtnKey = isCompact
+            ? const Key('operations_intelligence_next_btn_compact')
+            : const Key('operations_intelligence_next_btn');
+
+        final prevBtn = IconButton.outlined(
+          key: prevBtnKey,
+          icon: const Icon(Icons.chevron_left_rounded, size: 18),
+          tooltip: 'Previous section',
+          visualDensity: VisualDensity.compact,
+          padding: EdgeInsets.zero,
+          constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+          onPressed: currentIndex > 0
+              ? () {
+                  _tabs.animateTo(currentIndex - 1);
+                  setState(() {});
+                }
+              : null,
+        );
+
+        final nextBtn = IconButton.outlined(
+          key: nextBtnKey,
+          icon: const Icon(Icons.chevron_right_rounded, size: 18),
+          tooltip: 'Next section',
+          visualDensity: VisualDensity.compact,
+          padding: EdgeInsets.zero,
+          constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+          onPressed: currentIndex < sections.length - 1
+              ? () {
+                  _tabs.animateTo(currentIndex + 1);
+                  setState(() {});
+                }
+              : null,
+        );
+
+        final sectionCounter = Text(
+          'Section ${currentIndex + 1} of ${sections.length}',
+          style: TextStyle(
+            fontSize: 11,
+            color: colorScheme.outline,
+          ),
+        );
+
+        if (isCompact) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Expanded(child: titleCol),
+              Row(
+                children: [
+                  const Expanded(
+                    child: Text(
+                      'Operations Intelligence',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                  refreshBtn,
+                ],
+              ),
+              const SizedBox(height: 6),
+              dropdownSelector,
+              const SizedBox(height: 6),
+              Row(
+                children: [
+                  prevBtn,
+                  const SizedBox(width: 6),
+                  nextBtn,
+                  const SizedBox(width: 8),
+                  sectionCounter,
+                ],
+              ),
+              const SizedBox(height: 6),
               searchField,
-              const SizedBox(width: 8),
+              const SizedBox(height: 6),
               dateSelector,
-              const SizedBox(width: 8),
-              refreshBtn,
             ],
           );
-        },
-      ),
+        }
+
+        // When width < 1250, place dateSelector on its own row to guarantee zero overflow
+        final isMidDesktop = constraints.maxWidth >= 1250;
+
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(
+              height: 36,
+              child: Row(
+                children: [
+                  const Expanded(
+                    child: Text(
+                      'Operations Intelligence',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                  searchField,
+                  if (isMidDesktop) ...[
+                    const SizedBox(width: 8),
+                    dateSelector,
+                  ],
+                  const SizedBox(width: 6),
+                  refreshBtn,
+                ],
+              ),
+            ),
+            if (!isMidDesktop) ...[
+              const SizedBox(height: 4),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: dateSelector,
+              ),
+            ],
+            const SizedBox(height: 4),
+            SizedBox(
+              height: 36,
+              child: Row(
+                children: [
+                  dropdownSelector,
+                  const SizedBox(width: 8),
+                  prevBtn,
+                  const SizedBox(width: 4),
+                  nextBtn,
+                  const SizedBox(width: 12),
+                  sectionCounter,
+                ],
+              ),
+            ),
+          ],
+        );
+      },
+    ),
+  );
+}
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        _unifiedHeader(context),
+        const Divider(height: 1),
+        Expanded(
+          child: TabBarView(
+            controller: _tabs,
+            physics: const NeverScrollableScrollPhysics(),
+            children: [
+              _overviewTab(),
+              _salesIntelligenceTab(),
+              _stockTab(),
+              _purchaseIntelligenceTab(),
+              _supplierIntelligenceTab(),
+              _procurementIntelligenceTab(),
+              _customerCreditTab(),
+              _financialIntelligenceTab(),
+              _expenseIntelligenceTab(),
+              _operationalEfficiencyTab(),
+              _workforceIntelligenceTab(),
+              _predictiveIntelligenceTab(),
+              _actionCentreTab(),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
@@ -1923,13 +1921,13 @@ class _OperationsIntelligenceScreenState
     final colors = theme.colorScheme;
 
     return Container(
-      width: 215,
-      padding: const EdgeInsets.all(14),
+      width: 195,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
         color: isWarning
             ? colors.errorContainer.withValues(alpha: 0.25)
             : colors.surface,
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(8),
         border: Border.all(
           color: isWarning
               ? colors.error.withValues(alpha: 0.35)
@@ -1938,20 +1936,21 @@ class _OperationsIntelligenceScreenState
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
           Row(
             children: [
               Icon(
                 icon,
-                size: 16,
+                size: 15,
                 color: isWarning ? colors.error : colors.onSurfaceVariant,
               ),
-              const SizedBox(width: 6),
+              const SizedBox(width: 5),
               Expanded(
                 child: Text(
                   title,
                   style: TextStyle(
-                    fontSize: 11.5,
+                    fontSize: 11,
                     fontWeight: FontWeight.w600,
                     color: isWarning ? colors.error : colors.onSurfaceVariant,
                   ),
@@ -1961,17 +1960,17 @@ class _OperationsIntelligenceScreenState
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 4),
           if (isRestricted) ...[
             Row(
               children: [
-                Icon(Icons.lock_outline, size: 14, color: colors.onSurfaceVariant),
+                Icon(Icons.lock_outline, size: 13, color: colors.onSurfaceVariant),
                 const SizedBox(width: 4),
                 Expanded(
                   child: Text(
                     'Access restricted',
                     style: TextStyle(
-                      fontSize: 12,
+                      fontSize: 11,
                       fontWeight: FontWeight.w500,
                       color: colors.onSurfaceVariant,
                     ),
@@ -1985,7 +1984,7 @@ class _OperationsIntelligenceScreenState
             Text(
               'Not available',
               style: TextStyle(
-                fontSize: 13,
+                fontSize: 12,
                 fontWeight: FontWeight.w500,
                 color: colors.onSurfaceVariant,
               ),
@@ -1994,22 +1993,22 @@ class _OperationsIntelligenceScreenState
             Text(
               value,
               style: TextStyle(
-                fontSize: 19,
+                fontSize: 17,
                 fontWeight: FontWeight.bold,
                 color: isWarning ? colors.error : colors.onSurface,
               ),
             ),
           ],
           if (metric != null && metric.percentChange != null) ...[
-            const SizedBox(height: 6),
+            const SizedBox(height: 3),
             _trendBadge(metric.percentChange!, invert: invertTrend),
           ],
           if (extraLabel != null) ...[
-            const SizedBox(height: 4),
+            const SizedBox(height: 3),
             Text(
               extraLabel,
               style: TextStyle(
-                fontSize: 10.5,
+                fontSize: 10,
                 fontWeight: FontWeight.w500,
                 color: isWarning ? colors.error : colors.onSurfaceVariant,
               ),
@@ -2045,12 +2044,16 @@ class _OperationsIntelligenceScreenState
           color: color,
         ),
         const SizedBox(width: 2),
-        Text(
-          '${pct >= 0 ? '+' : ''}${pct.toStringAsFixed(1)}% vs prev',
-          style: TextStyle(
-            fontSize: 10,
-            fontWeight: FontWeight.w600,
-            color: color,
+        Flexible(
+          child: Text(
+            '${pct >= 0 ? '+' : ''}${pct.toStringAsFixed(1)}% vs prev',
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+              color: color,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
         ),
       ],
@@ -2224,36 +2227,50 @@ class _OperationsIntelligenceScreenState
       return const Text('No location data available.');
     }
 
-    return DataTable(
-      columnSpacing: 18,
+    return ThqResponsiveTable(
       columns: [
-        const DataColumn(label: Text('Store / Location')),
-        const DataColumn(label: Text('Net Sales')),
-        if (_canViewCost) const DataColumn(label: Text('Gross Profit')),
-        const DataColumn(label: Text('Orders')),
-        const DataColumn(label: Text('Low / Out Stock')),
-        const DataColumn(label: Text('Receivables')),
-        const DataColumn(label: Text('Action')),
+        const ThqResponsiveColumn(title: 'Store / Location', flex: 3),
+        const ThqResponsiveColumn(title: 'Net Sales', flex: 2, isNumeric: true),
+        if (_canViewCost) const ThqResponsiveColumn(title: 'Gross Profit', flex: 2, isNumeric: true),
+        const ThqResponsiveColumn(title: 'Orders', flex: 1, isNumeric: true),
+        const ThqResponsiveColumn(title: 'Low / Out Stock', flex: 2),
+        const ThqResponsiveColumn(title: 'Receivables', flex: 2, isNumeric: true),
+        const ThqResponsiveColumn(title: 'Action', flex: 2, alignment: Alignment.center),
       ],
       rows: storeRows.map((s) {
         final locId = s['location_id'] as String;
         final sum = s['summary'] as Map<String, dynamic>? ?? const {};
         final lowStock = _n(sum['low_stock']).toInt();
         final outStock = _n(sum['out_of_stock']).toInt();
-        return DataRow(
+        return ThqResponsiveRow(
+          cardTitle: Text('${s['location_name']} (${s['location_code']})', style: const TextStyle(fontWeight: FontWeight.w600)),
+          cardBadge: lowStock > 0 || outStock > 0
+              ? Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text('$lowStock low • $outStock out', style: TextStyle(fontSize: 10, color: Colors.orange.shade900)),
+                )
+              : null,
+          cardFields: [
+            ('Net Sales', _money(sum['net_sales'])),
+            if (_canViewCost) ('Gross Profit', _money(sum['gross_profit'])),
+            ('Orders', '${sum['order_count'] ?? 0}'),
+            ('Receivables', _money(sum['receivables'])),
+          ],
+          onTap: () => LocationScopeService.selectedLocationId.value = locId,
           cells: [
-            DataCell(Text('${s['location_name']} (${s['location_code']})')),
-            DataCell(Text(_money(sum['net_sales']))),
-            if (_canViewCost) DataCell(Text(_money(sum['gross_profit']))),
-            DataCell(Text('${sum['order_count'] ?? 0}')),
-            DataCell(Text('$lowStock low • $outStock out')),
-            DataCell(Text(_money(sum['receivables']))),
-            DataCell(
-              TextButton(
-                onPressed: () =>
-                    LocationScopeService.selectedLocationId.value = locId,
-                child: const Text('Filter Store'),
-              ),
+            Text('${s['location_name']} (${s['location_code']})', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12)),
+            Text(_money(sum['net_sales']), style: const TextStyle(fontSize: 12)),
+            if (_canViewCost) Text(_money(sum['gross_profit']), style: const TextStyle(fontSize: 12)),
+            Text('${sum['order_count'] ?? 0}', style: const TextStyle(fontSize: 12)),
+            Text('$lowStock low • $outStock out', style: TextStyle(fontSize: 12, color: (lowStock > 0 || outStock > 0) ? Colors.orange.shade900 : null)),
+            Text(_money(sum['receivables']), style: const TextStyle(fontSize: 12)),
+            TextButton(
+              onPressed: () => LocationScopeService.selectedLocationId.value = locId,
+              child: const Text('Filter Store', style: TextStyle(fontSize: 11)),
             ),
           ],
         );
@@ -2262,22 +2279,30 @@ class _OperationsIntelligenceScreenState
   }
 
   Widget _topProductsTable(List topProducts) {
-    return DataTable(
-      columnSpacing: 24,
+    if (topProducts.isEmpty) {
+      return const Text('No top product data available.');
+    }
+    return ThqResponsiveTable(
       columns: const [
-        DataColumn(label: Text('Product')),
-        DataColumn(label: Text('SKU')),
-        DataColumn(label: Text('Quantity Sold')),
-        DataColumn(label: Text('Revenue')),
+        ThqResponsiveColumn(title: 'Product', flex: 3),
+        ThqResponsiveColumn(title: 'SKU', flex: 2),
+        ThqResponsiveColumn(title: 'Quantity Sold', flex: 2, isNumeric: true),
+        ThqResponsiveColumn(title: 'Revenue', flex: 2, isNumeric: true),
       ],
       rows: topProducts.map((p) {
         final row = Map<String, dynamic>.from(p as Map);
-        return DataRow(
+        return ThqResponsiveRow(
+          cardTitle: Text(row['product_name']?.toString() ?? '', style: const TextStyle(fontWeight: FontWeight.w600)),
+          cardBadge: Text(row['sku']?.toString() ?? '', style: const TextStyle(fontSize: 11, color: Colors.grey)),
+          cardFields: [
+            ('Quantity Sold', _qty(row['quantity_sold'])),
+            ('Revenue', _money(row['revenue'])),
+          ],
           cells: [
-            DataCell(Text(row['product_name']?.toString() ?? '')),
-            DataCell(Text(row['sku']?.toString() ?? '')),
-            DataCell(Text(_qty(row['quantity_sold']))),
-            DataCell(Text(_money(row['revenue']))),
+            Text(row['product_name']?.toString() ?? '', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12)),
+            Text(row['sku']?.toString() ?? '', style: const TextStyle(fontSize: 11, color: Colors.grey)),
+            Text(_qty(row['quantity_sold']), style: const TextStyle(fontSize: 12)),
+            Text(_money(row['revenue']), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
           ],
         );
       }).toList(),
@@ -2796,34 +2821,38 @@ class _OperationsIntelligenceScreenState
       return const Text('No weekly trend data available.');
     }
 
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: DataTable(
-        columnSpacing: 24,
-        columns: const [
-          DataColumn(label: Text('Week Starting')),
-          DataColumn(label: Text('Net Sales')),
-          DataColumn(label: Text('Gross Sales')),
-          DataColumn(label: Text('Orders')),
-          DataColumn(label: Text('AOV')),
-        ],
-        rows: weeklyTrends.map((w) {
-          final net = _n(w['net_sales']);
-          final gross = _n(w['gross_sales']);
-          final orders = _n(w['order_count']).toInt();
-          final aov = orders > 0 ? net / orders : 0.0;
+    return ThqResponsiveTable(
+      columns: const [
+        ThqResponsiveColumn(title: 'Week Starting', flex: 3),
+        ThqResponsiveColumn(title: 'Net Sales', flex: 2, isNumeric: true),
+        ThqResponsiveColumn(title: 'Gross Sales', flex: 2, isNumeric: true),
+        ThqResponsiveColumn(title: 'Orders', flex: 1, isNumeric: true),
+        ThqResponsiveColumn(title: 'AOV', flex: 2, isNumeric: true),
+      ],
+      rows: weeklyTrends.map((w) {
+        final net = _n(w['net_sales']);
+        final gross = _n(w['gross_sales']);
+        final orders = _n(w['order_count']).toInt();
+        final aov = orders > 0 ? net / orders : 0.0;
+        final weekLabel = w['label']?.toString() ?? w['week_start']?.toString() ?? '';
 
-          return DataRow(
-            cells: [
-              DataCell(Text(w['label']?.toString() ?? w['week_start']?.toString() ?? '')),
-              DataCell(Text(_money(net), style: const TextStyle(fontWeight: FontWeight.w600))),
-              DataCell(Text(_money(gross))),
-              DataCell(Text(orders.toString())),
-              DataCell(Text(_money(aov))),
-            ],
-          );
-        }).toList(),
-      ),
+        return ThqResponsiveRow(
+          cardTitle: Text(weekLabel, style: const TextStyle(fontWeight: FontWeight.w600)),
+          cardFields: [
+            ('Net Sales', _money(net)),
+            ('Gross Sales', _money(gross)),
+            ('Orders', orders.toString()),
+            ('AOV', _money(aov)),
+          ],
+          cells: [
+            Text(weekLabel, style: const TextStyle(fontSize: 12)),
+            Text(_money(net), style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12)),
+            Text(_money(gross), style: const TextStyle(fontSize: 12)),
+            Text(orders.toString(), style: const TextStyle(fontSize: 12)),
+            Text(_money(aov), style: const TextStyle(fontSize: 12)),
+          ],
+        );
+      }).toList(),
     );
   }
 
@@ -2832,34 +2861,48 @@ class _OperationsIntelligenceScreenState
       return const Text('No monthly trend data available.');
     }
 
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: DataTable(
-        columnSpacing: 24,
-        columns: const [
-          DataColumn(label: Text('Month')),
-          DataColumn(label: Text('Net Sales')),
-          DataColumn(label: Text('Gross Sales')),
-          DataColumn(label: Text('Orders')),
-          DataColumn(label: Text('AOV')),
-        ],
-        rows: monthlyTrends.map((m) {
-          final net = _n(m['net_sales']);
-          final gross = _n(m['gross_sales']);
-          final orders = _n(m['order_count']).toInt();
-          final aov = orders > 0 ? net / orders : 0.0;
+    return ThqResponsiveTable(
+      columns: const [
+        ThqResponsiveColumn(title: 'Month', flex: 3),
+        ThqResponsiveColumn(title: 'Net Sales', flex: 2, isNumeric: true),
+        ThqResponsiveColumn(title: 'Gross Sales', flex: 2, isNumeric: true),
+        ThqResponsiveColumn(title: 'Orders', flex: 1, isNumeric: true),
+        ThqResponsiveColumn(title: 'AOV', flex: 2, isNumeric: true),
+      ],
+      rows: monthlyTrends.map((m) {
+        final net = _n(m['net_sales']);
+        final gross = _n(m['gross_sales']);
+        final orders = _n(m['order_count']).toInt();
+        final aov = orders > 0 ? net / orders : 0.0;
+        final monthLabel = m['label']?.toString() ?? m['month_start']?.toString() ?? '';
 
-          return DataRow(
-            cells: [
-              DataCell(Text(m['label']?.toString() ?? m['month_start']?.toString() ?? '')),
-              DataCell(Text(_money(net), style: const TextStyle(fontWeight: FontWeight.w600))),
-              DataCell(Text(_money(gross))),
-              DataCell(Text(orders.toString())),
-              DataCell(Text(_money(aov))),
-            ],
-          );
-        }).toList(),
-      ),
+        return ThqResponsiveRow(
+          cardTitle: Text(monthLabel, style: const TextStyle(fontWeight: FontWeight.w600)),
+          cardFields: [
+            ('Net Sales', _money(net)),
+            ('Gross Sales', _money(gross)),
+            ('Orders', orders.toString()),
+            ('AOV', _money(aov)),
+          ],
+          cells: [
+            Text(monthLabel, style: const TextStyle(fontSize: 12)),
+            Text(_money(net), style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12)),
+            Text(_money(gross), style: const TextStyle(fontSize: 12)),
+            Text(orders.toString(), style: const TextStyle(fontSize: 12)),
+            Text(_money(aov), style: const TextStyle(fontSize: 12)),
+          ],
+        );
+      }).toList(),
+    );
+  }
+
+  Widget _kpiMetricRow(String label, String value) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(label, style: const TextStyle(fontSize: 12.5, color: Colors.grey)),
+        Text(value, style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold)),
+      ],
     );
   }
 
@@ -2871,64 +2914,118 @@ class _OperationsIntelligenceScreenState
       );
     }
 
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: DataTable(
-        columnSpacing: 20,
-        columns: [
-          const DataColumn(label: Text('Category')),
-          const DataColumn(label: Text('Revenue')),
-          const DataColumn(label: Text('Contribution %')),
-          const DataColumn(label: Text('Units Sold')),
-          const DataColumn(label: Text('Growth vs Prev')),
-          if (_canViewCost) const DataColumn(label: Text('Gross Margin %')),
-        ],
-        rows: categories.map((cat) {
-          final rev = _n(cat['revenue']);
-          final contrib = _n(cat['contribution_pct']);
-          final growth = cat['growth_pct'] != null ? _n(cat['growth_pct']) : null;
-          final margin = cat['gross_margin_pct'] != null ? _n(cat['gross_margin_pct']) : null;
+    return ThqResponsiveTable(
+      columns: [
+        const ThqResponsiveColumn(title: 'Category', flex: 3),
+        const ThqResponsiveColumn(title: 'Revenue', flex: 2, isNumeric: true),
+        const ThqResponsiveColumn(title: 'Contribution %', flex: 2),
+        const ThqResponsiveColumn(title: 'Units Sold', flex: 1, isNumeric: true),
+        const ThqResponsiveColumn(title: 'Growth vs Prev', flex: 2),
+        if (_canViewCost) const ThqResponsiveColumn(title: 'Gross Margin %', flex: 2, isNumeric: true),
+      ],
+      rows: categories.map((cat) {
+        final rev = _n(cat['revenue']);
+        final contrib = _n(cat['contribution_pct']);
+        final growth = cat['growth_pct'] != null ? _n(cat['growth_pct']) : null;
+        final margin = cat['gross_margin_pct'] != null ? _n(cat['gross_margin_pct']) : null;
+        final catName = cat['category_name']?.toString() ?? 'Uncategorized';
 
-          return DataRow(
-            cells: [
-              DataCell(Text(cat['category_name']?.toString() ?? 'Uncategorized',
-                  style: const TextStyle(fontWeight: FontWeight.w600))),
-              DataCell(Text(_money(rev))),
-              DataCell(
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    SizedBox(
-                      width: 60,
-                      child: LinearProgressIndicator(
-                        value: (contrib / 100.0).clamp(0.0, 1.0),
-                        backgroundColor: Colors.grey.shade200,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Text('${contrib.toStringAsFixed(1)}%'),
-                  ],
-                ),
-              ),
-              DataCell(Text(_qty(cat['units_sold']))),
-              DataCell(
-                growth != null
-                    ? _trendBadge(growth)
-                    : const Text('New', style: TextStyle(fontSize: 10, color: Colors.blueGrey)),
-              ),
-              if (_canViewCost)
-                DataCell(
-                  Text(
-                    margin != null ? '${margin.toStringAsFixed(1)}%' : '—',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w600,
-                      color: margin != null && margin < 15 ? Colors.orange.shade800 : null,
-                    ),
+        return ThqResponsiveRow(
+          cardTitle: Text(catName, style: const TextStyle(fontWeight: FontWeight.w600)),
+          cardFields: [
+            ('Revenue', _money(rev)),
+            ('Contribution', '${contrib.toStringAsFixed(1)}%'),
+            ('Units Sold', _qty(cat['units_sold'])),
+            if (growth != null) ('Growth', '${growth >= 0 ? '+' : ''}${growth.toStringAsFixed(1)}%'),
+            if (_canViewCost && margin != null) ('Margin', '${margin.toStringAsFixed(1)}%'),
+          ],
+          cells: [
+            Text(catName, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12)),
+            Text(_money(rev), style: const TextStyle(fontSize: 12)),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SizedBox(
+                  width: 50,
+                  child: LinearProgressIndicator(
+                    value: (contrib / 100.0).clamp(0.0, 1.0),
+                    backgroundColor: Colors.grey.shade200,
                   ),
                 ),
+                const SizedBox(width: 6),
+                Text('${contrib.toStringAsFixed(1)}%', style: const TextStyle(fontSize: 11.5)),
+              ],
+            ),
+            Text(_qty(cat['units_sold']), style: const TextStyle(fontSize: 12)),
+            growth != null
+                ? _trendBadge(growth)
+                : const Text('New', style: TextStyle(fontSize: 10, color: Colors.blueGrey)),
+            if (_canViewCost)
+              Text(
+                margin != null ? '${margin.toStringAsFixed(1)}%' : '—',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: margin != null && margin < 15 ? Colors.orange.shade800 : null,
+                ),
+              ),
+          ],
+        );
+      }).toList(),
+    );
+  }
+
+  void _showProductPerformanceDetail(Map<String, dynamic> p) {
+    final prodName = p['product_name']?.toString() ?? '';
+    final varName = p['variant_name']?.toString() ?? '';
+    final sku = p['sku']?.toString() ?? '';
+    final displayName = varName.isNotEmpty && varName != prodName
+        ? '$prodName ($varName)'
+        : prodName;
+    final growth = p['growth_pct'] != null ? _n(p['growth_pct']) : null;
+    final margin = p['margin_pct'] != null ? _n(p['margin_pct']) : null;
+
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Row(
+          children: [
+            const Icon(Icons.inventory_2_outlined),
+            const SizedBox(width: 8),
+            Expanded(child: Text(displayName, overflow: TextOverflow.ellipsis)),
+          ],
+        ),
+        content: SizedBox(
+          width: 480,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (sku.isNotEmpty) Text('SKU: $sku', style: const TextStyle(color: Colors.grey, fontSize: 12)),
+              Text('Category: ${p['category_name']?.toString() ?? '—'}', style: const TextStyle(fontSize: 12)),
+              const Divider(height: 18),
+              _kpiMetricRow('Units Sold', _qty(p['sold_qty'])),
+              const SizedBox(height: 6),
+              _kpiMetricRow('Revenue', _money(p['revenue'])),
+              const SizedBox(height: 6),
+              _kpiMetricRow('Contribution %', '${_n(p['contribution_pct']).toStringAsFixed(1)}%'),
+              const SizedBox(height: 6),
+              _kpiMetricRow('Growth vs Previous', growth != null ? '${growth >= 0 ? '+' : ''}${growth.toStringAsFixed(1)}%' : 'New'),
+              if (_canViewCost) ...[
+                const SizedBox(height: 6),
+                _kpiMetricRow('Gross Profit', _money(p['gross_profit'])),
+                const SizedBox(height: 6),
+                _kpiMetricRow('Gross Margin %', margin != null ? '${margin.toStringAsFixed(1)}%' : '—'),
+              ],
             ],
-          );
-        }).toList(),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Close'),
+          ),
+        ],
       ),
     );
   }
@@ -2957,73 +3054,79 @@ class _OperationsIntelligenceScreenState
     }
 
     if (list.isEmpty) {
-      return Padding(
-        padding: const EdgeInsets.all(12),
+      return const Padding(
+        padding: EdgeInsets.all(12),
         child: Text('No products match this criterion for the selected period.'),
       );
     }
 
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: DataTable(
-        columnSpacing: 18,
-        columns: [
-          const DataColumn(label: Text('Product & Variant')),
-          const DataColumn(label: Text('Category')),
-          const DataColumn(label: Text('Units Sold')),
-          const DataColumn(label: Text('Revenue')),
-          const DataColumn(label: Text('Contribution %')),
-          const DataColumn(label: Text('Growth vs Prev')),
-          if (_canViewCost) const DataColumn(label: Text('Gross Profit')),
-          if (_canViewCost) const DataColumn(label: Text('Margin %')),
-        ],
-        rows: list.map((p) {
-          final prodName = p['product_name']?.toString() ?? '';
-          final varName = p['variant_name']?.toString() ?? '';
-          final sku = p['sku']?.toString() ?? '';
-          final displayName = varName.isNotEmpty && varName != prodName
-              ? '$prodName ($varName)'
-              : prodName;
-          final growth = p['growth_pct'] != null ? _n(p['growth_pct']) : null;
-          final margin = p['margin_pct'] != null ? _n(p['margin_pct']) : null;
+    return ThqResponsiveTable(
+      columns: [
+        const ThqResponsiveColumn(title: 'Product & Variant', flex: 3),
+        const ThqResponsiveColumn(title: 'Category', flex: 2),
+        const ThqResponsiveColumn(title: 'Units Sold', flex: 1, isNumeric: true),
+        const ThqResponsiveColumn(title: 'Revenue', flex: 2, isNumeric: true),
+        const ThqResponsiveColumn(title: 'Contribution %', flex: 1, isNumeric: true),
+        const ThqResponsiveColumn(title: 'Growth vs Prev', flex: 1),
+        if (_canViewCost) const ThqResponsiveColumn(title: 'Margin %', flex: 1, isNumeric: true),
+        const ThqResponsiveColumn(title: 'Action', flex: 1, alignment: Alignment.center),
+      ],
+      rows: list.map((p) {
+        final prodName = p['product_name']?.toString() ?? '';
+        final varName = p['variant_name']?.toString() ?? '';
+        final sku = p['sku']?.toString() ?? '';
+        final displayName = varName.isNotEmpty && varName != prodName
+            ? '$prodName ($varName)'
+            : prodName;
+        final growth = p['growth_pct'] != null ? _n(p['growth_pct']) : null;
+        final margin = p['margin_pct'] != null ? _n(p['margin_pct']) : null;
 
-          return DataRow(
-            cells: [
-              DataCell(
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(displayName, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12)),
-                    if (sku.isNotEmpty)
-                      Text(sku, style: const TextStyle(fontSize: 10, color: Colors.grey)),
-                  ],
+        return ThqResponsiveRow(
+          cardTitle: Text(displayName, style: const TextStyle(fontWeight: FontWeight.w600)),
+          cardBadge: sku.isNotEmpty ? Text(sku, style: const TextStyle(fontSize: 10, color: Colors.grey)) : null,
+          cardFields: [
+            ('Category', p['category_name']?.toString() ?? '—'),
+            ('Units Sold', _qty(p['sold_qty'])),
+            ('Revenue', _money(p['revenue'])),
+            ('Contribution', '${_n(p['contribution_pct']).toStringAsFixed(1)}%'),
+            if (_canViewCost && margin != null) ('Margin', '${margin.toStringAsFixed(1)}%'),
+          ],
+          onViewDetails: () => _showProductPerformanceDetail(p),
+          cells: [
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(displayName, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12), overflow: TextOverflow.ellipsis),
+                if (sku.isNotEmpty)
+                  Text(sku, style: const TextStyle(fontSize: 10, color: Colors.grey)),
+              ],
+            ),
+            Text(p['category_name']?.toString() ?? '', style: const TextStyle(fontSize: 12), overflow: TextOverflow.ellipsis),
+            Text(_qty(p['sold_qty']), style: const TextStyle(fontSize: 12)),
+            Text(_money(p['revenue']), style: const TextStyle(fontSize: 12)),
+            Text('${_n(p['contribution_pct']).toStringAsFixed(1)}%', style: const TextStyle(fontSize: 11.5)),
+            growth != null
+                ? _trendBadge(growth)
+                : const Text('New', style: TextStyle(fontSize: 10, color: Colors.blueGrey)),
+            if (_canViewCost)
+              Text(
+                margin != null ? '${margin.toStringAsFixed(1)}%' : '—',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: margin != null && margin < 15 ? Colors.orange.shade800 : null,
                 ),
               ),
-              DataCell(Text(p['category_name']?.toString() ?? '')),
-              DataCell(Text(_qty(p['sold_qty']))),
-              DataCell(Text(_money(p['revenue']))),
-              DataCell(Text('${_n(p['contribution_pct']).toStringAsFixed(1)}%')),
-              DataCell(
-                growth != null
-                    ? _trendBadge(growth)
-                    : const Text('New', style: TextStyle(fontSize: 10, color: Colors.blueGrey)),
-              ),
-              if (_canViewCost) DataCell(Text(_money(p['gross_profit']))),
-              if (_canViewCost)
-                DataCell(
-                  Text(
-                    margin != null ? '${margin.toStringAsFixed(1)}%' : '—',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w600,
-                      color: margin != null && margin < 15 ? Colors.orange.shade800 : null,
-                    ),
-                  ),
-                ),
-            ],
-          );
-        }).toList(),
-      ),
+            IconButton(
+              icon: const Icon(Icons.open_in_new, size: 14),
+              tooltip: 'View Details',
+              visualDensity: VisualDensity.compact,
+              onPressed: () => _showProductPerformanceDetail(p),
+            ),
+          ],
+        );
+      }).toList(),
     );
   }
 
@@ -3292,51 +3395,54 @@ class _OperationsIntelligenceScreenState
       );
     }
 
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: DataTable(
-        columnSpacing: 18,
-        columns: const [
-          DataColumn(label: Text('Customer')),
-          DataColumn(label: Text('Segment')),
-          DataColumn(label: Text('Recency')),
-          DataColumn(label: Text('Period Orders / Spend')),
-          DataColumn(label: Text('Lifetime Orders / Spend')),
-          DataColumn(label: Text('AOV')),
-        ],
-        rows: filtered.map((c) {
-          final name = c['customer_name']?.toString() ?? 'Direct Client';
-          final phone = c['phone']?.toString() ?? '';
-          final segment = c['segment']?.toString() ?? 'Occasional';
-          final recency = _n(c['recency_days']).toInt();
-          final pOrders = _n(c['period_orders']).toInt();
-          final pSpend = _n(c['period_spend']);
-          final lOrders = _n(c['lifetime_orders']).toInt();
-          final lSpend = _n(c['lifetime_spend']);
-          final aov = _n(c['aov']);
+    return ThqResponsiveTable(
+      columns: const [
+        ThqResponsiveColumn(title: 'Customer', flex: 3),
+        ThqResponsiveColumn(title: 'Segment', flex: 2),
+        ThqResponsiveColumn(title: 'Recency', flex: 1),
+        ThqResponsiveColumn(title: 'Period Orders / Spend', flex: 2, isNumeric: true),
+        ThqResponsiveColumn(title: 'Lifetime Orders / Spend', flex: 2, isNumeric: true),
+        ThqResponsiveColumn(title: 'AOV', flex: 1, isNumeric: true),
+      ],
+      rows: filtered.map((c) {
+        final name = c['customer_name']?.toString() ?? 'Direct Client';
+        final phone = c['phone']?.toString() ?? '';
+        final segment = c['segment']?.toString() ?? 'Occasional';
+        final recency = _n(c['recency_days']).toInt();
+        final pOrders = _n(c['period_orders']).toInt();
+        final pSpend = _n(c['period_spend']);
+        final lOrders = _n(c['lifetime_orders']).toInt();
+        final lSpend = _n(c['lifetime_spend']);
+        final aov = _n(c['aov']);
 
-          return DataRow(
-            cells: [
-              DataCell(
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(name, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12)),
-                    if (phone.isNotEmpty)
-                      Text(phone, style: const TextStyle(fontSize: 10, color: Colors.grey)),
-                  ],
-                ),
-              ),
-              DataCell(_statusBadge(segment)),
-              DataCell(Text('${recency}d ago')),
-              DataCell(Text('$pOrders orders • ${_money(pSpend)}')),
-              DataCell(Text('$lOrders orders • ${_money(lSpend)}')),
-              DataCell(Text(_money(aov))),
-            ],
-          );
-        }).toList(),
-      ),
+        return ThqResponsiveRow(
+          cardTitle: Text(name, style: const TextStyle(fontWeight: FontWeight.w600)),
+          cardBadge: _statusBadge(segment),
+          cardFields: [
+            if (phone.isNotEmpty) ('Phone', phone),
+            ('Recency', '${recency}d ago'),
+            ('Period Spend', _money(pSpend)),
+            ('Lifetime Spend', _money(lSpend)),
+            ('AOV', _money(aov)),
+          ],
+          cells: [
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(name, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12)),
+                if (phone.isNotEmpty)
+                  Text(phone, style: const TextStyle(fontSize: 10, color: Colors.grey)),
+              ],
+            ),
+            _statusBadge(segment),
+            Text('${recency}d ago', style: const TextStyle(fontSize: 11.5)),
+            Text('$pOrders ord • ${_money(pSpend)}', style: const TextStyle(fontSize: 11.5)),
+            Text('$lOrders ord • ${_money(lSpend)}', style: const TextStyle(fontSize: 11.5)),
+            Text(_money(aov), style: const TextStyle(fontSize: 11.5)),
+          ],
+        );
+      }).toList(),
     );
   }
 
@@ -3795,43 +3901,36 @@ class _OperationsIntelligenceScreenState
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // Health Status Filters
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(
-            children: [
-              _filterChip('all', 'All Health (${raw.length})'),
-              const SizedBox(width: 6),
-              _filterChip(
-                'out_of_stock',
-                'Out of Stock (${raw.where((r) => r['status'] == 'out_of_stock').length})',
-              ),
-              const SizedBox(width: 6),
-              _filterChip(
-                'critical_low',
-                'Critical Low (${raw.where((r) => r['status'] == 'critical_low').length})',
-              ),
-              const SizedBox(width: 6),
-              _filterChip(
-                'low_stock',
-                'Low Stock (${raw.where((r) => r['status'] == 'low_stock').length})',
-              ),
-              const SizedBox(width: 6),
-              _filterChip(
-                'healthy',
-                'Healthy (${raw.where((r) => r['status'] == 'healthy').length})',
-              ),
-              const SizedBox(width: 6),
-              _filterChip(
-                'overstock',
-                'Excess (${raw.where((r) => r['status'] == 'overstock').length})',
-              ),
-              const SizedBox(width: 6),
-              _filterChip(
-                'dead_stock',
-                'Dead Stock (${raw.where((r) => r['status'] == 'dead_stock').length})',
-              ),
-            ],
-          ),
+        Wrap(
+          spacing: 6,
+          runSpacing: 4,
+          children: [
+            _filterChip('all', 'All Health (${raw.length})'),
+            _filterChip(
+              'out_of_stock',
+              'Out of Stock (${raw.where((r) => r['status'] == 'out_of_stock').length})',
+            ),
+            _filterChip(
+              'critical_low',
+              'Critical Low (${raw.where((r) => r['status'] == 'critical_low').length})',
+            ),
+            _filterChip(
+              'low_stock',
+              'Low Stock (${raw.where((r) => r['status'] == 'low_stock').length})',
+            ),
+            _filterChip(
+              'healthy',
+              'Healthy (${raw.where((r) => r['status'] == 'healthy').length})',
+            ),
+            _filterChip(
+              'overstock',
+              'Excess (${raw.where((r) => r['status'] == 'overstock').length})',
+            ),
+            _filterChip(
+              'dead_stock',
+              'Dead Stock (${raw.where((r) => r['status'] == 'dead_stock').length})',
+            ),
+          ],
         ),
         const SizedBox(height: 8),
 
@@ -5069,84 +5168,59 @@ class _OperationsIntelligenceScreenState
   }
 
   Widget _supplierDataTable(List<Map<String, dynamic>> suppliers) {
-    return Scrollbar(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: DataTable(
-            showCheckboxColumn: false,
-            columns: const [
-              DataColumn(label: Text('Supplier', style: TextStyle(fontWeight: FontWeight.w600))),
-              DataColumn(label: Text('Spend & Share', style: TextStyle(fontWeight: FontWeight.w600))),
-              DataColumn(label: Text('Orders', style: TextStyle(fontWeight: FontWeight.w600))),
-              DataColumn(label: Text('Fulfillment', style: TextStyle(fontWeight: FontWeight.w600))),
-              DataColumn(label: Text('On-Time', style: TextStyle(fontWeight: FontWeight.w600))),
-              DataColumn(label: Text('Lead Time', style: TextStyle(fontWeight: FontWeight.w600))),
-              DataColumn(label: Text('Quality', style: TextStyle(fontWeight: FontWeight.w600))),
-              DataColumn(label: Text('Outstanding', style: TextStyle(fontWeight: FontWeight.w600))),
-              DataColumn(label: Text('Aging', style: TextStyle(fontWeight: FontWeight.w600))),
-              DataColumn(label: Text('Risk Score', style: TextStyle(fontWeight: FontWeight.w600))),
-              DataColumn(label: Text('Risk Indicators / Factors', style: TextStyle(fontWeight: FontWeight.w600))),
-              DataColumn(label: Text('Sufficiency', style: TextStyle(fontWeight: FontWeight.w600))),
-            ],
-            rows: suppliers.map((s) {
-              final risk = s['risk_score']?.toString() ?? 'low';
-              final indicators = (s['risk_indicators'] as List? ?? const []).map((e) => e.toString()).toList();
-              return DataRow(
-                onSelectChanged: (_) => _showSupplierDetailDialog(s),
-                cells: [
-                  DataCell(
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(s['supplier_name']?.toString() ?? '—', style: const TextStyle(fontWeight: FontWeight.w600)),
-                        if ((s['phone']?.toString() ?? '').isNotEmpty)
-                          Text(s['phone'].toString(), style: const TextStyle(fontSize: 11, color: Colors.grey)),
-                      ],
-                    ),
-                  ),
-                  DataCell(
-                    Text(
-                      _canViewCost ? '${_money(s['spend'])} (${_n(s['share_pct']).toStringAsFixed(1)}%)' : '—',
-                    ),
-                  ),
-                  DataCell(Text('${s['order_count'] ?? 0}')),
-                  DataCell(Text('${_n(s['fulfillment_rate_pct']).toStringAsFixed(1)}%')),
-                  DataCell(Text('${_n(s['on_time_delivery_pct']).toStringAsFixed(1)}%')),
-                  DataCell(Text('${_n(s['avg_lead_time_days']).toStringAsFixed(1)} d')),
-                  DataCell(
-                    Text(
-                      '${_n(s['damaged_rejected_pct']).toStringAsFixed(1)}% reject',
-                      style: TextStyle(color: _n(s['damaged_rejected_pct']) > 5 ? Theme.of(context).colorScheme.error : null),
-                    ),
-                  ),
-                  DataCell(Text(_money(s['outstanding_payable']))),
-                  DataCell(_status(s['aging_status'])),
-                  DataCell(_riskBadge(risk)),
-                  DataCell(
-                    indicators.isEmpty
-                        ? const Text('None detected', style: TextStyle(fontSize: 11, color: Colors.grey))
-                        : Wrap(
-                            spacing: 4,
-                            children: indicators.map((ind) => Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: Theme.of(context).colorScheme.errorContainer.withValues(alpha: 0.5),
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: Text(ind, style: TextStyle(fontSize: 10, color: Theme.of(context).colorScheme.error, fontWeight: FontWeight.w500)),
-                            )).toList(),
-                          ),
-                  ),
-                  DataCell(_sufficiencyChip(s['data_sufficiency']?.toString() ?? 'sufficient')),
-                ],
-              );
-            }).toList(),
-          ),
-        ),
-      ),
+    return ThqResponsiveTable(
+      columns: const [
+        ThqResponsiveColumn(title: 'Supplier', flex: 3),
+        ThqResponsiveColumn(title: 'Spend & Share', flex: 2, isNumeric: true),
+        ThqResponsiveColumn(title: 'Fulfillment', flex: 2, isNumeric: true),
+        ThqResponsiveColumn(title: 'Lead Time', flex: 1, isNumeric: true),
+        ThqResponsiveColumn(title: 'Outstanding', flex: 2, isNumeric: true),
+        ThqResponsiveColumn(title: 'Risk Score', flex: 2),
+        ThqResponsiveColumn(title: 'Action', flex: 1, alignment: Alignment.center),
+      ],
+      rows: suppliers.map((s) {
+        final risk = s['risk_score']?.toString() ?? 'low';
+        final supplierName = s['supplier_name']?.toString() ?? '—';
+        final phone = s['phone']?.toString() ?? '';
+
+        return ThqResponsiveRow(
+          cardTitle: Text(supplierName, style: const TextStyle(fontWeight: FontWeight.w600)),
+          cardBadge: _riskBadge(risk),
+          cardFields: [
+            if (phone.isNotEmpty) ('Contact', phone),
+            if (_canViewCost) ('Spend', '${_money(s['spend'])} (${_n(s['share_pct']).toStringAsFixed(1)}%)'),
+            ('Fulfillment', '${_n(s['fulfillment_rate_pct']).toStringAsFixed(1)}%'),
+            ('Lead Time', '${_n(s['avg_lead_time_days']).toStringAsFixed(1)} d'),
+            ('Outstanding', _money(s['outstanding_payable'])),
+          ],
+          onViewDetails: () => _showSupplierDetailDialog(s),
+          cells: [
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(supplierName, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12), overflow: TextOverflow.ellipsis),
+                if (phone.isNotEmpty)
+                  Text(phone, style: const TextStyle(fontSize: 10, color: Colors.grey)),
+              ],
+            ),
+            Text(
+              _canViewCost ? '${_money(s['spend'])} (${_n(s['share_pct']).toStringAsFixed(1)}%)' : '—',
+              style: const TextStyle(fontSize: 12),
+            ),
+            Text('${_n(s['fulfillment_rate_pct']).toStringAsFixed(1)}%', style: const TextStyle(fontSize: 12)),
+            Text('${_n(s['avg_lead_time_days']).toStringAsFixed(1)} d', style: const TextStyle(fontSize: 12)),
+            Text(_money(s['outstanding_payable']), style: const TextStyle(fontSize: 12)),
+            _riskBadge(risk),
+            IconButton(
+              icon: const Icon(Icons.open_in_new, size: 14),
+              tooltip: 'View Supplier Profile',
+              visualDensity: VisualDensity.compact,
+              onPressed: () => _showSupplierDetailDialog(s),
+            ),
+          ],
+        );
+      }).toList(),
     );
   }
 
@@ -5492,130 +5566,156 @@ class _OperationsIntelligenceScreenState
     );
   }
 
-  Widget _procurementDataTable(List<Map<String, dynamic>> recommendations) {
-    return Scrollbar(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: DataTable(
-            columns: const [
-              DataColumn(label: Text('')),
-              DataColumn(label: Text('Store', style: TextStyle(fontWeight: FontWeight.w600))),
-              DataColumn(label: Text('Product & SKU', style: TextStyle(fontWeight: FontWeight.w600))),
-              DataColumn(label: Text('Available', style: TextStyle(fontWeight: FontWeight.w600))),
-              DataColumn(label: Text('Incoming In-Flight', style: TextStyle(fontWeight: FontWeight.w600))),
-              DataColumn(label: Text('Net Effective', style: TextStyle(fontWeight: FontWeight.w600))),
-              DataColumn(label: Text('Reorder Level', style: TextStyle(fontWeight: FontWeight.w600))),
-              DataColumn(label: Text('Max Stock', style: TextStyle(fontWeight: FontWeight.w600))),
-              DataColumn(label: Text('Velocity (Avg/Day)', style: TextStyle(fontWeight: FontWeight.w600))),
-              DataColumn(label: Text('Cover Days', style: TextStyle(fontWeight: FontWeight.w600))),
-              DataColumn(label: Text('Suggested PO Qty', style: TextStyle(fontWeight: FontWeight.w600))),
-              DataColumn(label: Text('Urgency', style: TextStyle(fontWeight: FontWeight.w600))),
-              DataColumn(label: Text('Recommended Supplier', style: TextStyle(fontWeight: FontWeight.w600))),
-              DataColumn(label: Text('Est. Unit Cost', style: TextStyle(fontWeight: FontWeight.w600))),
-              DataColumn(label: Text('Est. PO Cost', style: TextStyle(fontWeight: FontWeight.w600))),
-            ],
-            rows: recommendations.map((r) {
-              final key = _reorderKey(r);
-              final isCovered = r['urgency'] == 'covered';
-              final canSelect = !isCovered && _n(r['suggested_purchase_qty']) > 0;
-              final isSelected = _selectedProcurement.contains(key);
-              final urgency = r['urgency']?.toString() ?? 'normal';
-              final incomingQty = _n(r['incoming_po_qty']) + _n(r['in_transit_qty']);
+  void _showProcurementDetailDialog(Map<String, dynamic> r) {
+    final urgency = r['urgency']?.toString() ?? 'normal';
+    final incomingQty = _n(r['incoming_po_qty']) + _n(r['in_transit_qty']);
 
-              return DataRow(
-                selected: isSelected,
-                cells: [
-                  DataCell(
-                    Checkbox(
-                      value: isSelected,
-                      onChanged: canSelect
-                          ? (value) {
-                              setState(() {
-                                if (value == true) {
-                                  _selectedProcurement.add(key);
-                                } else {
-                                  _selectedProcurement.remove(key);
-                                }
-                              });
-                            }
-                          : null,
-                    ),
-                  ),
-                  DataCell(Text(r['location_name']?.toString() ?? '—')),
-                  DataCell(
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(r['product_name']?.toString() ?? '—', style: const TextStyle(fontWeight: FontWeight.w600)),
-                        Text(r['sku']?.toString() ?? '', style: const TextStyle(fontSize: 11, color: Colors.grey)),
-                      ],
-                    ),
-                  ),
-                  DataCell(Text(_qty(r['available_stock']))),
-                  DataCell(
-                    Text(
-                      incomingQty > 0 ? '+${_qty(incomingQty)} (${_qty(r['incoming_po_qty'])} PO, ${_qty(r['in_transit_qty'])} transit)' : '0',
-                      style: TextStyle(color: incomingQty > 0 ? Colors.green[700] : null),
-                    ),
-                  ),
-                  DataCell(
-                    Text(
-                      _qty(r['net_effective_stock']),
-                      style: const TextStyle(fontWeight: FontWeight.w600),
-                    ),
-                  ),
-                  DataCell(Text(_qty(r['reorder_level']))),
-                  DataCell(Text(_qty(r['max_stock']))),
-                  DataCell(Text(_qty(r['avg_daily_sales']))),
-                  DataCell(
-                    Text(
-                      r['days_cover'] == null ? '—' : '${_n(r['days_cover']).toStringAsFixed(1)} d',
-                      style: TextStyle(
-                        color: (_n(r['days_cover']) <= 3 && _n(r['avg_daily_sales']) > 0)
-                            ? Theme.of(context).colorScheme.error
-                            : null,
-                      ),
-                    ),
-                  ),
-                  DataCell(
-                    Text(
-                      _qty(r['suggested_purchase_qty']),
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: _n(r['suggested_purchase_qty']) > 0 ? Theme.of(context).colorScheme.primary : Colors.grey,
-                      ),
-                    ),
-                  ),
-                  DataCell(_urgencyBadge(urgency)),
-                  DataCell(
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          r['suggested_supplier_name']?.toString() ?? 'No supplier history',
-                          style: const TextStyle(fontWeight: FontWeight.w500),
-                        ),
-                        if ((r['supplier_reason']?.toString() ?? '').isNotEmpty)
-                          Text(
-                            r['supplier_reason'].toString(),
-                            style: const TextStyle(fontSize: 10.5, color: Colors.grey),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                      ],
-                    ),
-                  ),
-                  DataCell(Text(_canViewCost ? _money(r['estimated_unit_cost']) : '—')),
-                  DataCell(Text(_canViewCost ? _money(r['estimated_purchase_cost']) : '—')),
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Row(
+          children: [
+            const Icon(Icons.shopping_cart_outlined),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                r['product_name']?.toString() ?? 'Procurement Detail',
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            _urgencyBadge(urgency),
+          ],
+        ),
+        content: SizedBox(
+          width: 520,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Location: ${r['location_name']?.toString() ?? '—'} • SKU: ${r['sku']?.toString() ?? '—'}',
+                    style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                const Divider(height: 18),
+                _kpiMetricRow('Available Stock', _qty(r['available_stock'])),
+                const SizedBox(height: 6),
+                _kpiMetricRow('Incoming In-Flight', '+${_qty(incomingQty)} (${_qty(r['incoming_po_qty'])} PO, ${_qty(r['in_transit_qty'])} transit)'),
+                const SizedBox(height: 6),
+                _kpiMetricRow('Net Effective Stock', _qty(r['net_effective_stock'])),
+                const SizedBox(height: 6),
+                _kpiMetricRow('Reorder Level / Max', '${_qty(r['reorder_level'])} / ${_qty(r['max_stock'])}'),
+                const SizedBox(height: 6),
+                _kpiMetricRow('Burn Rate (Avg Daily)', _qty(r['avg_daily_sales'])),
+                const SizedBox(height: 6),
+                _kpiMetricRow('Cover Days', r['days_cover'] == null ? '—' : '${_n(r['days_cover']).toStringAsFixed(1)} d'),
+                const SizedBox(height: 6),
+                _kpiMetricRow('Suggested PO Qty', _qty(r['suggested_purchase_qty'])),
+                const Divider(height: 18),
+                const Text('Supplier Recommendation:', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12.5)),
+                const SizedBox(height: 4),
+                Text(r['suggested_supplier_name']?.toString() ?? 'No supplier history', style: const TextStyle(fontSize: 12.5)),
+                if ((r['supplier_reason']?.toString() ?? '').isNotEmpty)
+                  Text(r['supplier_reason'].toString(), style: const TextStyle(color: Colors.grey, fontSize: 11)),
+                if (_canViewCost) ...[
+                  const SizedBox(height: 8),
+                  _kpiMetricRow('Est. Unit Cost', _money(r['estimated_unit_cost'])),
+                  const SizedBox(height: 6),
+                  _kpiMetricRow('Est. PO Total Cost', _money(r['estimated_purchase_cost'])),
                 ],
-              );
-            }).toList(),
+              ],
+            ),
           ),
         ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Close'),
+          ),
+        ],
       ),
+    );
+  }
+
+  Widget _procurementDataTable(List<Map<String, dynamic>> recommendations) {
+    return ThqResponsiveTable(
+      columns: [
+        const ThqResponsiveColumn(title: '', flex: 1, alignment: Alignment.center),
+        const ThqResponsiveColumn(title: 'Store & Product', flex: 4),
+        const ThqResponsiveColumn(title: 'Available / In-Flight', flex: 2),
+        const ThqResponsiveColumn(title: 'Suggested Qty', flex: 2, isNumeric: true),
+        const ThqResponsiveColumn(title: 'Urgency', flex: 2),
+        const ThqResponsiveColumn(title: 'Supplier', flex: 3),
+        if (_canViewCost) const ThqResponsiveColumn(title: 'Est. PO Cost', flex: 2, isNumeric: true),
+        const ThqResponsiveColumn(title: 'Action', flex: 1, alignment: Alignment.center),
+      ],
+      rows: recommendations.map((r) {
+        final key = _reorderKey(r);
+        final isCovered = r['urgency'] == 'covered';
+        final canSelect = !isCovered && _n(r['suggested_purchase_qty']) > 0;
+        final isSelected = _selectedProcurement.contains(key);
+        final urgency = r['urgency']?.toString() ?? 'normal';
+        final incomingQty = _n(r['incoming_po_qty']) + _n(r['in_transit_qty']);
+        final prodName = r['product_name']?.toString() ?? '—';
+        final sku = r['sku']?.toString() ?? '';
+
+        return ThqResponsiveRow(
+          cardTitle: Text(prodName, style: const TextStyle(fontWeight: FontWeight.w600)),
+          cardBadge: _urgencyBadge(urgency),
+          cardFields: [
+            ('Store', r['location_name']?.toString() ?? '—'),
+            if (sku.isNotEmpty) ('SKU', sku),
+            ('Effective Stock', _qty(r['net_effective_stock'])),
+            ('Suggested PO', _qty(r['suggested_purchase_qty'])),
+            ('Supplier', r['suggested_supplier_name']?.toString() ?? '—'),
+            if (_canViewCost) ('Est. Cost', _money(r['estimated_purchase_cost'])),
+          ],
+          onViewDetails: () => _showProcurementDetailDialog(r),
+          cells: [
+            Checkbox(
+              value: isSelected,
+              onChanged: canSelect
+                  ? (value) {
+                      setState(() {
+                        if (value == true) {
+                          _selectedProcurement.add(key);
+                        } else {
+                          _selectedProcurement.remove(key);
+                        }
+                      });
+                    }
+                  : null,
+            ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(prodName, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12), overflow: TextOverflow.ellipsis),
+                Text('${r['location_name'] ?? '—'} • $sku', style: const TextStyle(fontSize: 10, color: Colors.grey)),
+              ],
+            ),
+            Text(
+              '${_qty(r['available_stock'])}${incomingQty > 0 ? ' (+$incomingQty)' : ''}',
+              style: TextStyle(fontSize: 12, color: incomingQty > 0 ? Colors.green[700] : null),
+            ),
+            Text(
+              _qty(r['suggested_purchase_qty']),
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 12,
+                color: _n(r['suggested_purchase_qty']) > 0 ? Theme.of(context).colorScheme.primary : Colors.grey,
+              ),
+            ),
+            _urgencyBadge(urgency),
+            Text(r['suggested_supplier_name']?.toString() ?? '—', style: const TextStyle(fontSize: 12), overflow: TextOverflow.ellipsis),
+            if (_canViewCost) Text(_money(r['estimated_purchase_cost']), style: const TextStyle(fontSize: 12)),
+            IconButton(
+              icon: const Icon(Icons.open_in_new, size: 14),
+              tooltip: 'View Full Reorder Details',
+              visualDensity: VisualDensity.compact,
+              onPressed: () => _showProcurementDetailDialog(r),
+            ),
+          ],
+        );
+      }).toList(),
     );
   }
 
@@ -5784,24 +5884,15 @@ class _OperationsIntelligenceScreenState
           ),
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-          child: Row(
+          child: Wrap(
+            spacing: 6,
+            runSpacing: 4,
             children: [
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  children: [
-                    _orderFilterChip('all', 'All (${allOrders.length})'),
-                    const SizedBox(width: 6),
-                    _orderFilterChip('draft', 'Draft'),
-                    const SizedBox(width: 6),
-                    _orderFilterChip('submitted', 'Submitted'),
-                    const SizedBox(width: 6),
-                    _orderFilterChip('approved', 'Approved'),
-                    const SizedBox(width: 6),
-                    _orderFilterChip('ordered', 'Ordered'),
-                  ],
-                ),
-              ),
+              _orderFilterChip('all', 'All (${allOrders.length})'),
+              _orderFilterChip('draft', 'Draft'),
+              _orderFilterChip('submitted', 'Submitted'),
+              _orderFilterChip('approved', 'Approved'),
+              _orderFilterChip('ordered', 'Ordered'),
             ],
           ),
         ),
@@ -6181,56 +6272,89 @@ class _OperationsIntelligenceScreenState
     if (dataRows.isEmpty) {
       return const Center(child: Text('No matching records.'));
     }
-    return Scrollbar(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(14),
-        child: SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: DataTable(
-            columns: [
-              if (leading) const DataColumn(label: Text('')),
-              ...columns.map(
-                (c) => DataColumn(
-                  label: Text(
-                    c,
-                    style: const TextStyle(fontWeight: FontWeight.w600),
-                  ),
-                ),
-              ),
-            ],
-            rows: List<DataRow>.generate(dataRows.length, (index) {
-              final source = sourceRows == null ? null : sourceRows[index];
-              final selected = source == null
-                  ? false
-                  : _selectedReorder.contains(_reorderKey(source));
-              return DataRow(
-                selected: selected,
-                cells: [
-                  if (leading)
-                    DataCell(
-                      Checkbox(
-                        value: selected,
-                        onChanged: (value) => setState(() {
-                          final key = _reorderKey(source!);
-                          if (value == true) {
-                            _selectedReorder.add(key);
-                          } else {
-                            _selectedReorder.remove(key);
-                          }
-                        }),
-                      ),
-                    ),
-                  ...dataRows[index].map(
-                    (value) => DataCell(
-                      value is Widget ? value : Text(value?.toString() ?? ''),
-                    ),
-                  ),
-                ],
-              );
+
+    final tableColumns = [
+      if (leading)
+        const ThqResponsiveColumn(
+          title: '',
+          flex: 1,
+          alignment: Alignment.center,
+        ),
+      ...columns.map((c) {
+        final isNum = c.contains('Total') ||
+            c.contains('Cost') ||
+            c.contains('Spend') ||
+            c.contains('Price') ||
+            c.contains('Limit') ||
+            c.contains('Outstanding') ||
+            c.contains('Available') ||
+            c.contains('Units') ||
+            c.contains('Usage') ||
+            c.contains('Change') ||
+            c.contains('Balance') ||
+            c.contains('AOV');
+        final flex = (c == 'Customer' || c == 'Product' || c == 'Description' || c == 'Supplier') ? 3 : 2;
+        return ThqResponsiveColumn(
+          title: c,
+          flex: flex,
+          isNumeric: isNum,
+          alignment: isNum ? Alignment.centerRight : Alignment.centerLeft,
+        );
+      }),
+    ];
+
+    final tableRows = List<ThqResponsiveRow>.generate(dataRows.length, (index) {
+      final source = sourceRows == null ? null : sourceRows[index];
+      final selected = source == null
+          ? false
+          : _selectedReorder.contains(_reorderKey(source));
+      final cells = [
+        if (leading)
+          Checkbox(
+            value: selected,
+            onChanged: (value) => setState(() {
+              final key = _reorderKey(source!);
+              if (value == true) {
+                _selectedReorder.add(key);
+              } else {
+                _selectedReorder.remove(key);
+              }
             }),
           ),
+        ...dataRows[index].map(
+          (value) => value is Widget
+              ? value
+              : Text(value?.toString() ?? '', style: const TextStyle(fontSize: 12)),
         ),
-      ),
+      ];
+
+      final cardFields = <(String, String)>[];
+      for (int i = 1; i < columns.length && i < dataRows[index].length; i++) {
+        final val = dataRows[index][i];
+        final textVal = val is Widget ? '' : (val?.toString() ?? '');
+        if (textVal.isNotEmpty) {
+          cardFields.add((columns[i], textVal));
+        }
+      }
+
+      final firstVal = dataRows[index].isNotEmpty ? dataRows[index].first : null;
+      final cardTitle = firstVal is Widget
+          ? firstVal
+          : Text(
+              firstVal?.toString() ?? 'Record #${index + 1}',
+              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+            );
+
+      return ThqResponsiveRow(
+        cells: cells,
+        cardTitle: cardTitle,
+        cardFields: cardFields,
+      );
+    });
+
+    return ThqResponsiveTable(
+      columns: tableColumns,
+      rows: tableRows,
     );
   }
 
@@ -6496,64 +6620,89 @@ class _OperationsIntelligenceScreenState
               ],
             ),
             const SizedBox(height: 14),
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: DataTable(
-                columns: const [
-                  DataColumn(label: Text('Line Item', style: TextStyle(fontWeight: FontWeight.w600))),
-                  DataColumn(label: Text('Current Window', style: TextStyle(fontWeight: FontWeight.w600))),
-                  DataColumn(label: Text('Prior Window', style: TextStyle(fontWeight: FontWeight.w600))),
-                  DataColumn(label: Text('Growth %', style: TextStyle(fontWeight: FontWeight.w600))),
-                  DataColumn(label: Text('Margin / Benchmark', style: TextStyle(fontWeight: FontWeight.w600))),
-                ],
-                rows: rows.map((r) {
-                  final label = r[0] as String;
-                  final curVal = r[1];
-                  final priorVal = r[2];
-                  final growth = _n(r[3]);
-                  final notes = r[4] as String;
-                  final isNet = label.startsWith('Net Profit');
-                  final isGross = label.startsWith('Gross Profit');
+            ThqResponsiveTable(
+              columns: const [
+                ThqResponsiveColumn(title: 'Line Item', flex: 3),
+                ThqResponsiveColumn(title: 'Current Window', flex: 2, isNumeric: true, alignment: Alignment.centerRight),
+                ThqResponsiveColumn(title: 'Prior Window', flex: 2, isNumeric: true, alignment: Alignment.centerRight),
+                ThqResponsiveColumn(title: 'Growth %', flex: 2, isNumeric: true, alignment: Alignment.centerRight),
+                ThqResponsiveColumn(title: 'Margin / Benchmark', flex: 3),
+              ],
+              rows: rows.map((r) {
+                final label = r[0] as String;
+                final curVal = r[1];
+                final priorVal = r[2];
+                final growth = _n(r[3]);
+                final notes = r[4] as String;
+                final isNet = label.startsWith('Net Profit');
+                final isGross = label.startsWith('Gross Profit');
 
-                  return DataRow(
-                    cells: [
-                      DataCell(Text(
-                        label,
-                        style: TextStyle(
-                          fontWeight: (isNet || isGross) ? FontWeight.bold : FontWeight.normal,
-                          color: isNet && _n(curVal) < 0 ? Theme.of(context).colorScheme.error : null,
-                        ),
-                      )),
-                      DataCell(Text(
-                        _canViewCost ? _money(curVal) : '—',
-                        style: TextStyle(
-                          fontWeight: (isNet || isGross) ? FontWeight.bold : FontWeight.normal,
-                        ),
-                      )),
-                      DataCell(Text(
-                        _canViewCost ? _money(priorVal) : '—',
-                        style: const TextStyle(color: Colors.grey),
-                      )),
-                      DataCell(
-                        _canViewCost
-                            ? Text(
-                                '${growth >= 0 ? '+' : ''}${growth.toStringAsFixed(1)}%',
-                                style: TextStyle(
-                                  color: growth > 0
-                                      ? Colors.green.shade700
-                                      : growth < 0
-                                          ? Colors.red.shade700
-                                          : Colors.grey,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              )
-                            : const Text('—'),
+                final curText = _canViewCost ? _money(curVal) : '—';
+                final priorText = _canViewCost ? _money(priorVal) : '—';
+                final growthText = _canViewCost
+                    ? '${growth >= 0 ? '+' : ''}${growth.toStringAsFixed(1)}%'
+                    : '—';
+
+                return ThqResponsiveRow(
+                  cardTitle: Text(
+                    label,
+                    style: TextStyle(
+                      fontWeight: (isNet || isGross) ? FontWeight.bold : FontWeight.w600,
+                      color: isNet && _n(curVal) < 0 ? Theme.of(context).colorScheme.error : null,
+                    ),
+                  ),
+                  cardBadge: _canViewCost
+                      ? Text(
+                          growthText,
+                          style: TextStyle(
+                            color: growth > 0
+                                ? Colors.green.shade700
+                                : growth < 0
+                                    ? Colors.red.shade700
+                                    : Colors.grey,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        )
+                      : null,
+                  cardFields: [
+                    ('Current', curText),
+                    ('Prior', priorText),
+                    ('Growth', growthText),
+                    ('Benchmark', notes),
+                  ],
+                  cells: [
+                    Text(
+                      label,
+                      style: TextStyle(
+                        fontWeight: (isNet || isGross) ? FontWeight.bold : FontWeight.normal,
+                        color: isNet && _n(curVal) < 0 ? Theme.of(context).colorScheme.error : null,
                       ),
-                      DataCell(Text(notes, style: const TextStyle(fontSize: 12, color: Colors.grey))),
-                    ],
-                  );
-                }).toList(),
-              ),
+                    ),
+                    Text(
+                      curText,
+                      style: TextStyle(
+                        fontWeight: (isNet || isGross) ? FontWeight.bold : FontWeight.normal,
+                      ),
+                    ),
+                    Text(
+                      priorText,
+                      style: const TextStyle(color: Colors.grey),
+                    ),
+                    Text(
+                      growthText,
+                      style: TextStyle(
+                        color: growth > 0
+                            ? Colors.green.shade700
+                            : growth < 0
+                                ? Colors.red.shade700
+                                : Colors.grey,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    Text(notes, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                  ],
+                );
+              }).toList(),
             ),
           ],
         ),
@@ -6649,36 +6798,53 @@ class _OperationsIntelligenceScreenState
                   ],
                 ),
                 const SizedBox(height: 14),
-                SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: DataTable(
-                    columns: const [
-                      DataColumn(label: Text('Account / Channel', style: TextStyle(fontWeight: FontWeight.w600))),
-                      DataColumn(label: Text('Opening Balance', style: TextStyle(fontWeight: FontWeight.w600))),
-                      DataColumn(label: Text('Inflows (Received)', style: TextStyle(fontWeight: FontWeight.w600))),
-                      DataColumn(label: Text('Outflows (Paid)', style: TextStyle(fontWeight: FontWeight.w600))),
-                      DataColumn(label: Text('Net Change', style: TextStyle(fontWeight: FontWeight.w600))),
-                      DataColumn(label: Text('Closing Balance', style: TextStyle(fontWeight: FontWeight.w600))),
-                    ],
-                    rows: [
-                      DataRow(cells: [
-                        const DataCell(Text('Cash on Hand', style: TextStyle(fontWeight: FontWeight.bold))),
-                        DataCell(Text(_canViewCost ? _money(cash['opening_balance']) : '—')),
-                        DataCell(Text(_canViewCost ? _money(cash['received']) : '—', style: TextStyle(color: Colors.green.shade700))),
-                        DataCell(Text(_canViewCost ? _money(cash['paid']) : '—', style: TextStyle(color: Colors.red.shade700))),
-                        DataCell(Text(_canViewCost ? _money(cash['net_change']) : '—', style: const TextStyle(fontWeight: FontWeight.w600))),
-                        DataCell(Text(_canViewCost ? _money(cash['closing_balance']) : '—', style: const TextStyle(fontWeight: FontWeight.bold))),
-                      ]),
-                      DataRow(cells: [
-                        const DataCell(Text('Bank Accounts', style: TextStyle(fontWeight: FontWeight.bold))),
-                        DataCell(Text(_canViewCost ? _money(bank['opening_balance']) : '—')),
-                        DataCell(Text(_canViewCost ? _money(bank['received']) : '—', style: TextStyle(color: Colors.green.shade700))),
-                        DataCell(Text(_canViewCost ? _money(bank['paid']) : '—', style: TextStyle(color: Colors.red.shade700))),
-                        DataCell(Text(_canViewCost ? _money(bank['net_change']) : '—', style: const TextStyle(fontWeight: FontWeight.w600))),
-                        DataCell(Text(_canViewCost ? _money(bank['closing_balance']) : '—', style: const TextStyle(fontWeight: FontWeight.bold))),
-                      ]),
-                    ],
-                  ),
+                ThqResponsiveTable(
+                  columns: const [
+                    ThqResponsiveColumn(title: 'Account / Channel', flex: 3),
+                    ThqResponsiveColumn(title: 'Opening Balance', flex: 2, isNumeric: true, alignment: Alignment.centerRight),
+                    ThqResponsiveColumn(title: 'Inflows (Received)', flex: 2, isNumeric: true, alignment: Alignment.centerRight),
+                    ThqResponsiveColumn(title: 'Outflows (Paid)', flex: 2, isNumeric: true, alignment: Alignment.centerRight),
+                    ThqResponsiveColumn(title: 'Net Change', flex: 2, isNumeric: true, alignment: Alignment.centerRight),
+                    ThqResponsiveColumn(title: 'Closing Balance', flex: 2, isNumeric: true, alignment: Alignment.centerRight),
+                  ],
+                  rows: [
+                    ThqResponsiveRow(
+                      cardTitle: const Text('Cash on Hand', style: TextStyle(fontWeight: FontWeight.bold)),
+                      cardFields: [
+                        ('Opening', _canViewCost ? _money(cash['opening_balance']) : '—'),
+                        ('Inflows', _canViewCost ? _money(cash['received']) : '—'),
+                        ('Outflows', _canViewCost ? _money(cash['paid']) : '—'),
+                        ('Net Change', _canViewCost ? _money(cash['net_change']) : '—'),
+                        ('Closing', _canViewCost ? _money(cash['closing_balance']) : '—'),
+                      ],
+                      cells: [
+                        const Text('Cash on Hand', style: TextStyle(fontWeight: FontWeight.bold)),
+                        Text(_canViewCost ? _money(cash['opening_balance']) : '—'),
+                        Text(_canViewCost ? _money(cash['received']) : '—', style: TextStyle(color: Colors.green.shade700)),
+                        Text(_canViewCost ? _money(cash['paid']) : '—', style: TextStyle(color: Colors.red.shade700)),
+                        Text(_canViewCost ? _money(cash['net_change']) : '—', style: const TextStyle(fontWeight: FontWeight.w600)),
+                        Text(_canViewCost ? _money(cash['closing_balance']) : '—', style: const TextStyle(fontWeight: FontWeight.bold)),
+                      ],
+                    ),
+                    ThqResponsiveRow(
+                      cardTitle: const Text('Bank Accounts', style: TextStyle(fontWeight: FontWeight.bold)),
+                      cardFields: [
+                        ('Opening', _canViewCost ? _money(bank['opening_balance']) : '—'),
+                        ('Inflows', _canViewCost ? _money(bank['received']) : '—'),
+                        ('Outflows', _canViewCost ? _money(bank['paid']) : '—'),
+                        ('Net Change', _canViewCost ? _money(bank['net_change']) : '—'),
+                        ('Closing', _canViewCost ? _money(bank['closing_balance']) : '—'),
+                      ],
+                      cells: [
+                        const Text('Bank Accounts', style: TextStyle(fontWeight: FontWeight.bold)),
+                        Text(_canViewCost ? _money(bank['opening_balance']) : '—'),
+                        Text(_canViewCost ? _money(bank['received']) : '—', style: TextStyle(color: Colors.green.shade700)),
+                        Text(_canViewCost ? _money(bank['paid']) : '—', style: TextStyle(color: Colors.red.shade700)),
+                        Text(_canViewCost ? _money(bank['net_change']) : '—', style: const TextStyle(fontWeight: FontWeight.w600)),
+                        Text(_canViewCost ? _money(bank['closing_balance']) : '—', style: const TextStyle(fontWeight: FontWeight.bold)),
+                      ],
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 12),
                 Container(
@@ -6731,41 +6897,44 @@ class _OperationsIntelligenceScreenState
                     child: Center(child: Text('No daily cash flow entries in this period.', style: TextStyle(color: Colors.grey))),
                   )
                 else
-                  SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: DataTable(
-                      columns: const [
-                        DataColumn(label: Text('Date', style: TextStyle(fontWeight: FontWeight.w600))),
-                        DataColumn(label: Text('Cash In', style: TextStyle(fontWeight: FontWeight.w600))),
-                        DataColumn(label: Text('Cash Out', style: TextStyle(fontWeight: FontWeight.w600))),
-                        DataColumn(label: Text('Bank In', style: TextStyle(fontWeight: FontWeight.w600))),
-                        DataColumn(label: Text('Bank Out', style: TextStyle(fontWeight: FontWeight.w600))),
-                        DataColumn(label: Text('Net Movement', style: TextStyle(fontWeight: FontWeight.w600))),
-                      ],
-                      rows: dailyFlow.map((d) {
-                        final net = _n(d['net']);
-                        return DataRow(cells: [
-                          DataCell(Text(d['date']?.toString() ?? '')),
-                          DataCell(Text(_canViewCost ? _money(d['cash_in']) : '—')),
-                          DataCell(Text(_canViewCost ? _money(d['cash_out']) : '—')),
-                          DataCell(Text(_canViewCost ? _money(d['bank_in']) : '—')),
-                          DataCell(Text(_canViewCost ? _money(d['bank_out']) : '—')),
-                          DataCell(
-                            Text(
-                              _canViewCost ? _money(net) : '—',
-                              style: TextStyle(
-                                color: net > 0
-                                    ? Colors.green.shade700
-                                    : net < 0
-                                        ? Colors.red.shade700
-                                        : null,
-                                fontWeight: FontWeight.w600,
-                              ),
+                  ThqResponsiveTable(
+                    columns: const [
+                      ThqResponsiveColumn(title: 'Date', flex: 2),
+                      ThqResponsiveColumn(title: 'Cash In', flex: 2, isNumeric: true, alignment: Alignment.centerRight),
+                      ThqResponsiveColumn(title: 'Cash Out', flex: 2, isNumeric: true, alignment: Alignment.centerRight),
+                      ThqResponsiveColumn(title: 'Bank In', flex: 2, isNumeric: true, alignment: Alignment.centerRight),
+                      ThqResponsiveColumn(title: 'Bank Out', flex: 2, isNumeric: true, alignment: Alignment.centerRight),
+                      ThqResponsiveColumn(title: 'Net Movement', flex: 2, isNumeric: true, alignment: Alignment.centerRight),
+                    ],
+                    rows: dailyFlow.map((d) {
+                      final net = _n(d['net']);
+                      final netStr = _canViewCost ? _money(net) : '—';
+                      return ThqResponsiveRow(
+                        cardTitle: Text(d['date']?.toString() ?? '', style: const TextStyle(fontWeight: FontWeight.w600)),
+                        cardBadge: Text(netStr, style: TextStyle(color: net >= 0 ? Colors.green.shade700 : Colors.red.shade700, fontWeight: FontWeight.bold)),
+                        cardFields: [
+                          ('Cash In', _canViewCost ? _money(d['cash_in']) : '—'),
+                          ('Cash Out', _canViewCost ? _money(d['cash_out']) : '—'),
+                          ('Bank In', _canViewCost ? _money(d['bank_in']) : '—'),
+                          ('Bank Out', _canViewCost ? _money(d['bank_out']) : '—'),
+                          ('Net', netStr),
+                        ],
+                        cells: [
+                          Text(d['date']?.toString() ?? ''),
+                          Text(_canViewCost ? _money(d['cash_in']) : '—'),
+                          Text(_canViewCost ? _money(d['cash_out']) : '—'),
+                          Text(_canViewCost ? _money(d['bank_in']) : '—'),
+                          Text(_canViewCost ? _money(d['bank_out']) : '—'),
+                          Text(
+                            netStr,
+                            style: TextStyle(
+                              color: net >= 0 ? Colors.green.shade700 : Colors.red.shade700,
+                              fontWeight: FontWeight.bold,
                             ),
                           ),
-                        ]);
-                      }).toList(),
-                    ),
+                        ],
+                      );
+                    }).toList(),
                   ),
               ],
             ),
@@ -6836,48 +7005,65 @@ class _OperationsIntelligenceScreenState
                   style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
                 ),
                 const SizedBox(height: 14),
-                SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: DataTable(
-                    columns: const [
-                      DataColumn(label: Text('Category', style: TextStyle(fontWeight: FontWeight.w600))),
-                      DataColumn(label: Text('Current (0–30)', style: TextStyle(fontWeight: FontWeight.w600))),
-                      DataColumn(label: Text('31–60 Days', style: TextStyle(fontWeight: FontWeight.w600))),
-                      DataColumn(label: Text('61–90 Days', style: TextStyle(fontWeight: FontWeight.w600))),
-                      DataColumn(label: Text('90+ Days (Critical)', style: TextStyle(fontWeight: FontWeight.w600))),
-                      DataColumn(label: Text('Total Outstanding', style: TextStyle(fontWeight: FontWeight.w600))),
-                    ],
-                    rows: [
-                      DataRow(cells: [
-                        const DataCell(Text('Customer AR (Owed to Us)', style: TextStyle(fontWeight: FontWeight.bold))),
-                        DataCell(Text(_canViewCost ? _money(arAging['days_1_30']) : '—')),
-                        DataCell(Text(_canViewCost ? _money(arAging['days_31_60']) : '—')),
-                        DataCell(Text(_canViewCost ? _money(arAging['days_61_90']) : '—')),
-                        DataCell(Text(
+                ThqResponsiveTable(
+                  columns: const [
+                    ThqResponsiveColumn(title: 'Category', flex: 3),
+                    ThqResponsiveColumn(title: 'Current (0–30)', flex: 2, isNumeric: true, alignment: Alignment.centerRight),
+                    ThqResponsiveColumn(title: '31–60 Days', flex: 2, isNumeric: true, alignment: Alignment.centerRight),
+                    ThqResponsiveColumn(title: '61–90 Days', flex: 2, isNumeric: true, alignment: Alignment.centerRight),
+                    ThqResponsiveColumn(title: '90+ Days (Critical)', flex: 2, isNumeric: true, alignment: Alignment.centerRight),
+                    ThqResponsiveColumn(title: 'Total Outstanding', flex: 2, isNumeric: true, alignment: Alignment.centerRight),
+                  ],
+                  rows: [
+                    ThqResponsiveRow(
+                      cardTitle: const Text('Customer AR (Owed to Us)', style: TextStyle(fontWeight: FontWeight.bold)),
+                      cardFields: [
+                        ('0–30 Days', _canViewCost ? _money(arAging['days_1_30']) : '—'),
+                        ('31–60 Days', _canViewCost ? _money(arAging['days_31_60']) : '—'),
+                        ('61–90 Days', _canViewCost ? _money(arAging['days_61_90']) : '—'),
+                        ('90+ Days', _canViewCost ? _money(arAging['days_90_plus']) : '—'),
+                        ('Total', _canViewCost ? _money(arAging['total']) : '—'),
+                      ],
+                      cells: [
+                        const Text('Customer AR (Owed to Us)', style: TextStyle(fontWeight: FontWeight.bold)),
+                        Text(_canViewCost ? _money(arAging['days_1_30']) : '—'),
+                        Text(_canViewCost ? _money(arAging['days_31_60']) : '—'),
+                        Text(_canViewCost ? _money(arAging['days_61_90']) : '—'),
+                        Text(
                           _canViewCost ? _money(arAging['days_90_plus']) : '—',
                           style: TextStyle(
                             color: _n(arAging['days_90_plus']) > 0 ? Colors.red.shade700 : null,
                             fontWeight: FontWeight.w600,
                           ),
-                        )),
-                        DataCell(Text(_canViewCost ? _money(arAging['total']) : '—', style: const TextStyle(fontWeight: FontWeight.bold))),
-                      ]),
-                      DataRow(cells: [
-                        const DataCell(Text('Supplier AP (We Owe)', style: TextStyle(fontWeight: FontWeight.bold))),
-                        DataCell(Text(_canViewCost ? _money(apAging['days_1_30']) : '—')),
-                        DataCell(Text(_canViewCost ? _money(apAging['days_31_60']) : '—')),
-                        DataCell(Text(_canViewCost ? _money(apAging['days_61_90']) : '—')),
-                        DataCell(Text(
+                        ),
+                        Text(_canViewCost ? _money(arAging['total']) : '—', style: const TextStyle(fontWeight: FontWeight.bold)),
+                      ],
+                    ),
+                    ThqResponsiveRow(
+                      cardTitle: const Text('Supplier AP (We Owe)', style: TextStyle(fontWeight: FontWeight.bold)),
+                      cardFields: [
+                        ('0–30 Days', _canViewCost ? _money(apAging['days_1_30']) : '—'),
+                        ('31–60 Days', _canViewCost ? _money(apAging['days_31_60']) : '—'),
+                        ('61–90 Days', _canViewCost ? _money(apAging['days_61_90']) : '—'),
+                        ('90+ Days', _canViewCost ? _money(apAging['days_90_plus']) : '—'),
+                        ('Total', _canViewCost ? _money(apAging['total']) : '—'),
+                      ],
+                      cells: [
+                        const Text('Supplier AP (We Owe)', style: TextStyle(fontWeight: FontWeight.bold)),
+                        Text(_canViewCost ? _money(apAging['days_1_30']) : '—'),
+                        Text(_canViewCost ? _money(apAging['days_31_60']) : '—'),
+                        Text(_canViewCost ? _money(apAging['days_61_90']) : '—'),
+                        Text(
                           _canViewCost ? _money(apAging['days_90_plus']) : '—',
                           style: TextStyle(
                             color: _n(apAging['days_90_plus']) > 0 ? Colors.orange.shade800 : null,
                             fontWeight: FontWeight.w600,
                           ),
-                        )),
-                        DataCell(Text(_canViewCost ? _money(apAging['total']) : '—', style: const TextStyle(fontWeight: FontWeight.bold))),
-                      ]),
-                    ],
-                  ),
+                        ),
+                        Text(_canViewCost ? _money(apAging['total']) : '—', style: const TextStyle(fontWeight: FontWeight.bold)),
+                      ],
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -6902,20 +7088,24 @@ class _OperationsIntelligenceScreenState
                       if (topDebtors.isEmpty)
                         const Text('No debtors with outstanding balance.', style: TextStyle(color: Colors.grey))
                       else
-                        SingleChildScrollView(
-                          scrollDirection: Axis.horizontal,
-                          child: DataTable(
-                            columns: const [
-                              DataColumn(label: Text('Customer')),
-                              DataColumn(label: Text('Balance')),
-                              DataColumn(label: Text('Share %')),
+                        ThqResponsiveTable(
+                          columns: const [
+                            ThqResponsiveColumn(title: 'Customer', flex: 3),
+                            ThqResponsiveColumn(title: 'Balance', flex: 2, isNumeric: true, alignment: Alignment.centerRight),
+                            ThqResponsiveColumn(title: 'Share %', flex: 2, isNumeric: true, alignment: Alignment.centerRight),
+                          ],
+                          rows: topDebtors.map((d) => ThqResponsiveRow(
+                            cardTitle: Text(d['name']?.toString() ?? '', style: const TextStyle(fontWeight: FontWeight.bold)),
+                            cardFields: [
+                              ('Balance', _canViewCost ? _money(d['balance']) : '—'),
+                              ('Share', '${_n(d['share_pct']).toStringAsFixed(1)}%'),
                             ],
-                            rows: topDebtors.map((d) => DataRow(cells: [
-                              DataCell(Text(d['name']?.toString() ?? '')),
-                              DataCell(Text(_canViewCost ? _money(d['balance']) : '—')),
-                              DataCell(Text('${_n(d['share_pct']).toStringAsFixed(1)}%')),
-                            ])).toList(),
-                          ),
+                            cells: [
+                              Text(d['name']?.toString() ?? ''),
+                              Text(_canViewCost ? _money(d['balance']) : '—'),
+                              Text('${_n(d['share_pct']).toStringAsFixed(1)}%'),
+                            ],
+                          )).toList(),
                         ),
                     ],
                   ),
@@ -6938,20 +7128,24 @@ class _OperationsIntelligenceScreenState
                       if (topCreditors.isEmpty)
                         const Text('No creditors with outstanding balance.', style: TextStyle(color: Colors.grey))
                       else
-                        SingleChildScrollView(
-                          scrollDirection: Axis.horizontal,
-                          child: DataTable(
-                            columns: const [
-                              DataColumn(label: Text('Supplier')),
-                              DataColumn(label: Text('Balance')),
-                              DataColumn(label: Text('Share %')),
+                        ThqResponsiveTable(
+                          columns: const [
+                            ThqResponsiveColumn(title: 'Supplier', flex: 3),
+                            ThqResponsiveColumn(title: 'Balance', flex: 2, isNumeric: true, alignment: Alignment.centerRight),
+                            ThqResponsiveColumn(title: 'Share %', flex: 2, isNumeric: true, alignment: Alignment.centerRight),
+                          ],
+                          rows: topCreditors.map((c) => ThqResponsiveRow(
+                            cardTitle: Text(c['name']?.toString() ?? '', style: const TextStyle(fontWeight: FontWeight.bold)),
+                            cardFields: [
+                              ('Balance', _canViewCost ? _money(c['balance']) : '—'),
+                              ('Share', '${_n(c['share_pct']).toStringAsFixed(1)}%'),
                             ],
-                            rows: topCreditors.map((c) => DataRow(cells: [
-                              DataCell(Text(c['name']?.toString() ?? '')),
-                              DataCell(Text(_canViewCost ? _money(c['balance']) : '—')),
-                              DataCell(Text('${_n(c['share_pct']).toStringAsFixed(1)}%')),
-                            ])).toList(),
-                          ),
+                            cells: [
+                              Text(c['name']?.toString() ?? ''),
+                              Text(_canViewCost ? _money(c['balance']) : '—'),
+                              Text('${_n(c['share_pct']).toStringAsFixed(1)}%'),
+                            ],
+                          )).toList(),
                         ),
                     ],
                   ),
@@ -7042,24 +7236,30 @@ class _OperationsIntelligenceScreenState
                   style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
                 ),
                 const SizedBox(height: 14),
-                SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: DataTable(
-                    columns: const [
-                      DataColumn(label: Text('Group Type', style: TextStyle(fontWeight: FontWeight.w600))),
-                      DataColumn(label: Text('Total Debits', style: TextStyle(fontWeight: FontWeight.w600))),
-                      DataColumn(label: Text('Total Credits', style: TextStyle(fontWeight: FontWeight.w600))),
-                      DataColumn(label: Text('Net Balance', style: TextStyle(fontWeight: FontWeight.w600))),
-                      DataColumn(label: Text('Active Accounts', style: TextStyle(fontWeight: FontWeight.w600))),
+                ThqResponsiveTable(
+                  columns: const [
+                    ThqResponsiveColumn(title: 'Group Type', flex: 3),
+                    ThqResponsiveColumn(title: 'Total Debits', flex: 2, isNumeric: true, alignment: Alignment.centerRight),
+                    ThqResponsiveColumn(title: 'Total Credits', flex: 2, isNumeric: true, alignment: Alignment.centerRight),
+                    ThqResponsiveColumn(title: 'Net Balance', flex: 2, isNumeric: true, alignment: Alignment.centerRight),
+                    ThqResponsiveColumn(title: 'Active Accounts', flex: 2, isNumeric: true, alignment: Alignment.centerRight),
+                  ],
+                  rows: groups.map((g) => ThqResponsiveRow(
+                    cardTitle: Text(g['type']?.toString().toUpperCase() ?? '', style: const TextStyle(fontWeight: FontWeight.bold)),
+                    cardFields: [
+                      ('Debits', _canViewCost ? _money(g['debit_total']) : '—'),
+                      ('Credits', _canViewCost ? _money(g['credit_total']) : '—'),
+                      ('Net Balance', _canViewCost ? _money(g['net_balance']) : '—'),
+                      ('Accounts', g['count']?.toString() ?? '0'),
                     ],
-                    rows: groups.map((g) => DataRow(cells: [
-                      DataCell(Text(g['type']?.toString().toUpperCase() ?? '', style: const TextStyle(fontWeight: FontWeight.bold))),
-                      DataCell(Text(_canViewCost ? _money(g['debit_total']) : '—')),
-                      DataCell(Text(_canViewCost ? _money(g['credit_total']) : '—')),
-                      DataCell(Text(_canViewCost ? _money(g['net_balance']) : '—', style: const TextStyle(fontWeight: FontWeight.w600))),
-                      DataCell(Text(g['count']?.toString() ?? '0')),
-                    ])).toList(),
-                  ),
+                    cells: [
+                      Text(g['type']?.toString().toUpperCase() ?? '', style: const TextStyle(fontWeight: FontWeight.bold)),
+                      Text(_canViewCost ? _money(g['debit_total']) : '—'),
+                      Text(_canViewCost ? _money(g['credit_total']) : '—'),
+                      Text(_canViewCost ? _money(g['net_balance']) : '—', style: const TextStyle(fontWeight: FontWeight.w600)),
+                      Text(g['count']?.toString() ?? '0'),
+                    ],
+                  )).toList(),
                 ),
               ],
             ),
@@ -7300,32 +7500,50 @@ class _OperationsIntelligenceScreenState
                   style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
                 ),
                 const SizedBox(height: 14),
-                SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: DataTable(
-                    columns: const [
-                      DataColumn(label: Text('Metric')),
-                      DataColumn(label: Text('Daily Average')),
-                      DataColumn(label: Text('Description')),
-                    ],
-                    rows: [
-                      DataRow(cells: [
-                        const DataCell(Text('Average Daily Revenue', style: TextStyle(fontWeight: FontWeight.bold))),
-                        DataCell(Text(_canViewCost ? _money(runRate['avg_daily_revenue']) : '—')),
-                        const DataCell(Text('Calculated as net revenue / period days')),
-                      ]),
-                      DataRow(cells: [
-                        const DataCell(Text('Average Daily Operating Expense', style: TextStyle(fontWeight: FontWeight.bold))),
-                        DataCell(Text(_canViewCost ? _money(runRate['avg_daily_expense']) : '—')),
-                        const DataCell(Text('Calculated as opex / period days')),
-                      ]),
-                      DataRow(cells: [
-                        const DataCell(Text('Net Daily Cash Flow Rate', style: TextStyle(fontWeight: FontWeight.bold))),
-                        DataCell(Text(_canViewCost ? _money(runRate['net_daily_cashflow']) : '—')),
-                        const DataCell(Text('Daily cash inflow minus outflow')),
-                      ]),
-                    ],
-                  ),
+                ThqResponsiveTable(
+                  columns: const [
+                    ThqResponsiveColumn(title: 'Metric', flex: 3),
+                    ThqResponsiveColumn(title: 'Daily Average', flex: 2, isNumeric: true, alignment: Alignment.centerRight),
+                    ThqResponsiveColumn(title: 'Description', flex: 4),
+                  ],
+                  rows: [
+                    ThqResponsiveRow(
+                      cardTitle: const Text('Average Daily Revenue', style: TextStyle(fontWeight: FontWeight.bold)),
+                      cardFields: [
+                        ('Daily Avg', _canViewCost ? _money(runRate['avg_daily_revenue']) : '—'),
+                        ('Desc', 'Calculated as net revenue / period days'),
+                      ],
+                      cells: [
+                        const Text('Average Daily Revenue', style: TextStyle(fontWeight: FontWeight.bold)),
+                        Text(_canViewCost ? _money(runRate['avg_daily_revenue']) : '—'),
+                        const Text('Calculated as net revenue / period days'),
+                      ],
+                    ),
+                    ThqResponsiveRow(
+                      cardTitle: const Text('Average Daily Operating Expense', style: TextStyle(fontWeight: FontWeight.bold)),
+                      cardFields: [
+                        ('Daily Avg', _canViewCost ? _money(runRate['avg_daily_expense']) : '—'),
+                        ('Desc', 'Calculated as opex / period days'),
+                      ],
+                      cells: [
+                        const Text('Average Daily Operating Expense', style: TextStyle(fontWeight: FontWeight.bold)),
+                        Text(_canViewCost ? _money(runRate['avg_daily_expense']) : '—'),
+                        const Text('Calculated as opex / period days'),
+                      ],
+                    ),
+                    ThqResponsiveRow(
+                      cardTitle: const Text('Net Daily Cash Flow Rate', style: TextStyle(fontWeight: FontWeight.bold)),
+                      cardFields: [
+                        ('Daily Avg', _canViewCost ? _money(runRate['net_daily_cashflow']) : '—'),
+                        ('Desc', 'Daily cash inflow minus outflow'),
+                      ],
+                      cells: [
+                        const Text('Net Daily Cash Flow Rate', style: TextStyle(fontWeight: FontWeight.bold)),
+                        Text(_canViewCost ? _money(runRate['net_daily_cashflow']) : '—'),
+                        const Text('Daily cash inflow minus outflow'),
+                      ],
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -7513,39 +7731,48 @@ class _OperationsIntelligenceScreenState
               style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 14),
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: DataTable(
-                columns: const [
-                  DataColumn(label: Text('Category', style: TextStyle(fontWeight: FontWeight.w600))),
-                  DataColumn(label: Text('Current Spend', style: TextStyle(fontWeight: FontWeight.w600))),
-                  DataColumn(label: Text('Share %', style: TextStyle(fontWeight: FontWeight.w600))),
-                  DataColumn(label: Text('Transactions', style: TextStyle(fontWeight: FontWeight.w600))),
-                  DataColumn(label: Text('Prior Spend', style: TextStyle(fontWeight: FontWeight.w600))),
-                  DataColumn(label: Text('Growth %', style: TextStyle(fontWeight: FontWeight.w600))),
-                ],
-                rows: byCat.map((c) {
-                  final growth = _n(c['growth_pct']);
-                  return DataRow(cells: [
-                    DataCell(Text(c['category_name']?.toString() ?? '', style: const TextStyle(fontWeight: FontWeight.bold))),
-                    DataCell(Text(_canViewCost ? _money(c['current_spend']) : '—')),
-                    DataCell(Text('${_n(c['share_pct']).toStringAsFixed(1)}%')),
-                    DataCell(Text(c['transaction_count']?.toString() ?? '0')),
-                    DataCell(Text(_canViewCost ? _money(c['prior_spend']) : '—', style: const TextStyle(color: Colors.grey))),
-                    DataCell(
-                      _canViewCost
-                          ? Text(
-                              '${growth >= 0 ? '+' : ''}${growth.toStringAsFixed(1)}%',
-                              style: TextStyle(
-                                color: growth > 0 ? Colors.red.shade700 : Colors.green.shade700,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            )
-                          : const Text('—'),
-                    ),
-                  ]);
-                }).toList(),
-              ),
+            ThqResponsiveTable(
+              columns: const [
+                ThqResponsiveColumn(title: 'Category', flex: 3),
+                ThqResponsiveColumn(title: 'Current Spend', flex: 2, isNumeric: true, alignment: Alignment.centerRight),
+                ThqResponsiveColumn(title: 'Share %', flex: 2, isNumeric: true, alignment: Alignment.centerRight),
+                ThqResponsiveColumn(title: 'Transactions', flex: 2, isNumeric: true, alignment: Alignment.centerRight),
+                ThqResponsiveColumn(title: 'Prior Spend', flex: 2, isNumeric: true, alignment: Alignment.centerRight),
+                ThqResponsiveColumn(title: 'Growth %', flex: 2, isNumeric: true, alignment: Alignment.centerRight),
+              ],
+              rows: byCat.map((c) {
+                final growth = _n(c['growth_pct']);
+                final growthStr = _canViewCost
+                    ? '${growth >= 0 ? '+' : ''}${growth.toStringAsFixed(1)}%'
+                    : '—';
+                return ThqResponsiveRow(
+                  cardTitle: Text(c['category_name']?.toString() ?? '', style: const TextStyle(fontWeight: FontWeight.bold)),
+                  cardBadge: _canViewCost ? Text(growthStr, style: TextStyle(color: growth > 0 ? Colors.red.shade700 : Colors.green.shade700, fontWeight: FontWeight.bold)) : null,
+                  cardFields: [
+                    ('Current Spend', _canViewCost ? _money(c['current_spend']) : '—'),
+                    ('Share', '${_n(c['share_pct']).toStringAsFixed(1)}%'),
+                    ('Transactions', c['transaction_count']?.toString() ?? '0'),
+                    ('Prior Spend', _canViewCost ? _money(c['prior_spend']) : '—'),
+                    ('Growth', growthStr),
+                  ],
+                  cells: [
+                    Text(c['category_name']?.toString() ?? '', style: const TextStyle(fontWeight: FontWeight.bold)),
+                    Text(_canViewCost ? _money(c['current_spend']) : '—'),
+                    Text('${_n(c['share_pct']).toStringAsFixed(1)}%'),
+                    Text(c['transaction_count']?.toString() ?? '0'),
+                    Text(_canViewCost ? _money(c['prior_spend']) : '—', style: const TextStyle(color: Colors.grey)),
+                    _canViewCost
+                        ? Text(
+                            growthStr,
+                            style: TextStyle(
+                              color: growth > 0 ? Colors.red.shade700 : Colors.green.shade700,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          )
+                        : const Text('—'),
+                  ],
+                );
+              }).toList(),
             ),
           ],
         ),
@@ -7632,20 +7859,24 @@ class _OperationsIntelligenceScreenState
               ),
             ),
             const SizedBox(height: 16),
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: DataTable(
-                columns: const [
-                  DataColumn(label: Text('Date', style: TextStyle(fontWeight: FontWeight.w600))),
-                  DataColumn(label: Text('Expense Amount', style: TextStyle(fontWeight: FontWeight.w600))),
-                  DataColumn(label: Text('Transactions', style: TextStyle(fontWeight: FontWeight.w600))),
+            ThqResponsiveTable(
+              columns: const [
+                ThqResponsiveColumn(title: 'Date', flex: 2),
+                ThqResponsiveColumn(title: 'Expense Amount', flex: 2, isNumeric: true, alignment: Alignment.centerRight),
+                ThqResponsiveColumn(title: 'Transactions', flex: 2, isNumeric: true, alignment: Alignment.centerRight),
+              ],
+              rows: dailyTrends.map((d) => ThqResponsiveRow(
+                cardTitle: Text(d['date']?.toString() ?? '', style: const TextStyle(fontWeight: FontWeight.bold)),
+                cardFields: [
+                  ('Amount', _canViewCost ? _money(d['expense_amount']) : '—'),
+                  ('Transactions', d['transaction_count']?.toString() ?? '0'),
                 ],
-                rows: dailyTrends.map((d) => DataRow(cells: [
-                  DataCell(Text(d['date']?.toString() ?? '')),
-                  DataCell(Text(_canViewCost ? _money(d['expense_amount']) : '—')),
-                  DataCell(Text(d['transaction_count']?.toString() ?? '0')),
-                ])).toList(),
-              ),
+                cells: [
+                  Text(d['date']?.toString() ?? ''),
+                  Text(_canViewCost ? _money(d['expense_amount']) : '—'),
+                  Text(d['transaction_count']?.toString() ?? '0'),
+                ],
+              )).toList(),
             ),
           ],
         ),
@@ -7674,22 +7905,27 @@ class _OperationsIntelligenceScreenState
               style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 14),
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: DataTable(
-                columns: const [
-                  DataColumn(label: Text('Payee / Vendor', style: TextStyle(fontWeight: FontWeight.w600))),
-                  DataColumn(label: Text('Total Spend', style: TextStyle(fontWeight: FontWeight.w600))),
-                  DataColumn(label: Text('Transactions', style: TextStyle(fontWeight: FontWeight.w600))),
-                  DataColumn(label: Text('Share %', style: TextStyle(fontWeight: FontWeight.w600))),
+            ThqResponsiveTable(
+              columns: const [
+                ThqResponsiveColumn(title: 'Payee / Vendor', flex: 3),
+                ThqResponsiveColumn(title: 'Total Spend', flex: 2, isNumeric: true, alignment: Alignment.centerRight),
+                ThqResponsiveColumn(title: 'Transactions', flex: 2, isNumeric: true, alignment: Alignment.centerRight),
+                ThqResponsiveColumn(title: 'Share %', flex: 2, isNumeric: true, alignment: Alignment.centerRight),
+              ],
+              rows: byPayee.map((p) => ThqResponsiveRow(
+                cardTitle: Text(p['payee']?.toString() ?? 'Unknown', style: const TextStyle(fontWeight: FontWeight.bold)),
+                cardFields: [
+                  ('Spend', _canViewCost ? _money(p['total_spend']) : '—'),
+                  ('Transactions', p['transaction_count']?.toString() ?? '0'),
+                  ('Share', '${_n(p['share_pct']).toStringAsFixed(1)}%'),
                 ],
-                rows: byPayee.map((p) => DataRow(cells: [
-                  DataCell(Text(p['payee']?.toString() ?? 'Unknown', style: const TextStyle(fontWeight: FontWeight.bold))),
-                  DataCell(Text(_canViewCost ? _money(p['total_spend']) : '—')),
-                  DataCell(Text(p['transaction_count']?.toString() ?? '0')),
-                  DataCell(Text('${_n(p['share_pct']).toStringAsFixed(1)}%')),
-                ])).toList(),
-              ),
+                cells: [
+                  Text(p['payee']?.toString() ?? 'Unknown', style: const TextStyle(fontWeight: FontWeight.bold)),
+                  Text(_canViewCost ? _money(p['total_spend']) : '—'),
+                  Text(p['transaction_count']?.toString() ?? '0'),
+                  Text('${_n(p['share_pct']).toStringAsFixed(1)}%'),
+                ],
+              )).toList(),
             ),
           ],
         ),
@@ -7718,22 +7954,27 @@ class _OperationsIntelligenceScreenState
               style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 14),
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: DataTable(
-                columns: const [
-                  DataColumn(label: Text('Location', style: TextStyle(fontWeight: FontWeight.w600))),
-                  DataColumn(label: Text('Total Spend', style: TextStyle(fontWeight: FontWeight.w600))),
-                  DataColumn(label: Text('Transactions', style: TextStyle(fontWeight: FontWeight.w600))),
-                  DataColumn(label: Text('Share %', style: TextStyle(fontWeight: FontWeight.w600))),
+            ThqResponsiveTable(
+              columns: const [
+                ThqResponsiveColumn(title: 'Location', flex: 3),
+                ThqResponsiveColumn(title: 'Total Spend', flex: 2, isNumeric: true, alignment: Alignment.centerRight),
+                ThqResponsiveColumn(title: 'Transactions', flex: 2, isNumeric: true, alignment: Alignment.centerRight),
+                ThqResponsiveColumn(title: 'Share %', flex: 2, isNumeric: true, alignment: Alignment.centerRight),
+              ],
+              rows: byLoc.map((l) => ThqResponsiveRow(
+                cardTitle: Text(l['location_name']?.toString() ?? 'All Locations', style: const TextStyle(fontWeight: FontWeight.bold)),
+                cardFields: [
+                  ('Spend', _canViewCost ? _money(l['total_spend']) : '—'),
+                  ('Transactions', l['transaction_count']?.toString() ?? '0'),
+                  ('Share', '${_n(l['share_pct']).toStringAsFixed(1)}%'),
                 ],
-                rows: byLoc.map((l) => DataRow(cells: [
-                  DataCell(Text(l['location_name']?.toString() ?? 'All Locations', style: const TextStyle(fontWeight: FontWeight.bold))),
-                  DataCell(Text(_canViewCost ? _money(l['total_spend']) : '—')),
-                  DataCell(Text(l['transaction_count']?.toString() ?? '0')),
-                  DataCell(Text('${_n(l['share_pct']).toStringAsFixed(1)}%')),
-                ])).toList(),
-              ),
+                cells: [
+                  Text(l['location_name']?.toString() ?? 'All Locations', style: const TextStyle(fontWeight: FontWeight.bold)),
+                  Text(_canViewCost ? _money(l['total_spend']) : '—'),
+                  Text(l['transaction_count']?.toString() ?? '0'),
+                  Text('${_n(l['share_pct']).toStringAsFixed(1)}%'),
+                ],
+              )).toList(),
             ),
           ],
         ),
@@ -7767,28 +8008,36 @@ class _OperationsIntelligenceScreenState
               style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 14),
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: DataTable(
-                columns: const [
-                  DataColumn(label: Text('Payee', style: TextStyle(fontWeight: FontWeight.w600))),
-                  DataColumn(label: Text('Transactions', style: TextStyle(fontWeight: FontWeight.w600))),
-                  DataColumn(label: Text('Total Spend', style: TextStyle(fontWeight: FontWeight.w600))),
-                  DataColumn(label: Text('Avg Txn Size', style: TextStyle(fontWeight: FontWeight.w600))),
-                  DataColumn(label: Text('Est. Monthly Burn', style: TextStyle(fontWeight: FontWeight.w600))),
-                  DataColumn(label: Text('First Seen', style: TextStyle(fontWeight: FontWeight.w600))),
-                  DataColumn(label: Text('Last Seen', style: TextStyle(fontWeight: FontWeight.w600))),
+            ThqResponsiveTable(
+              columns: const [
+                ThqResponsiveColumn(title: 'Payee', flex: 3),
+                ThqResponsiveColumn(title: 'Transactions', flex: 2, isNumeric: true, alignment: Alignment.centerRight),
+                ThqResponsiveColumn(title: 'Total Spend', flex: 2, isNumeric: true, alignment: Alignment.centerRight),
+                ThqResponsiveColumn(title: 'Avg Txn Size', flex: 2, isNumeric: true, alignment: Alignment.centerRight),
+                ThqResponsiveColumn(title: 'Est. Monthly Burn', flex: 2, isNumeric: true, alignment: Alignment.centerRight),
+                ThqResponsiveColumn(title: 'First Seen', flex: 2),
+                ThqResponsiveColumn(title: 'Last Seen', flex: 2),
+              ],
+              rows: recurring.map((r) => ThqResponsiveRow(
+                cardTitle: Text(r['payee']?.toString() ?? '', style: const TextStyle(fontWeight: FontWeight.bold)),
+                cardFields: [
+                  ('Transactions', r['transaction_count']?.toString() ?? '0'),
+                  ('Total Spend', _canViewCost ? _money(r['total_spend']) : '—'),
+                  ('Avg Txn', _canViewCost ? _money(r['avg_transaction_size']) : '—'),
+                  ('Est. Monthly Burn', _canViewCost ? _money(r['estimated_monthly_spend']) : '—'),
+                  ('First Seen', r['first_seen']?.toString() ?? ''),
+                  ('Last Seen', r['last_seen']?.toString() ?? ''),
                 ],
-                rows: recurring.map((r) => DataRow(cells: [
-                  DataCell(Text(r['payee']?.toString() ?? '', style: const TextStyle(fontWeight: FontWeight.bold))),
-                  DataCell(Text(r['transaction_count']?.toString() ?? '0')),
-                  DataCell(Text(_canViewCost ? _money(r['total_spend']) : '—')),
-                  DataCell(Text(_canViewCost ? _money(r['avg_transaction_size']) : '—')),
-                  DataCell(Text(_canViewCost ? _money(r['estimated_monthly_spend']) : '—', style: const TextStyle(fontWeight: FontWeight.w600))),
-                  DataCell(Text(r['first_seen']?.toString() ?? '', style: const TextStyle(fontSize: 11, color: Colors.grey))),
-                  DataCell(Text(r['last_seen']?.toString() ?? '', style: const TextStyle(fontSize: 11, color: Colors.grey))),
-                ])).toList(),
-              ),
+                cells: [
+                  Text(r['payee']?.toString() ?? '', style: const TextStyle(fontWeight: FontWeight.bold)),
+                  Text(r['transaction_count']?.toString() ?? '0'),
+                  Text(_canViewCost ? _money(r['total_spend']) : '—'),
+                  Text(_canViewCost ? _money(r['avg_transaction_size']) : '—'),
+                  Text(_canViewCost ? _money(r['estimated_monthly_spend']) : '—', style: const TextStyle(fontWeight: FontWeight.w600)),
+                  Text(r['first_seen']?.toString() ?? '', style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                  Text(r['last_seen']?.toString() ?? '', style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                ],
+              )).toList(),
             ),
           ],
         ),
@@ -7993,21 +8242,16 @@ class _OperationsIntelligenceScreenState
         const SizedBox(height: 16),
 
         // Sub-navigation ChoiceChips
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(
-            children: [
-              _efficiencyChoiceChip('overview', 'Overview', Icons.dashboard_outlined),
-              const SizedBox(width: 8),
-              _efficiencyChoiceChip('sales', 'Sales & Billing', Icons.point_of_sale_outlined),
-              const SizedBox(width: 8),
-              _efficiencyChoiceChip('procurement', 'Procurement', Icons.local_shipping_outlined),
-              const SizedBox(width: 8),
-              _efficiencyChoiceChip('transfers', 'Transfers & Stock', Icons.swap_horiz_outlined),
-              const SizedBox(width: 8),
-              _efficiencyChoiceChip('benchmarks', 'Branch Benchmarks', Icons.storefront_outlined),
-            ],
-          ),
+        Wrap(
+          spacing: 8,
+          runSpacing: 6,
+          children: [
+            _efficiencyChoiceChip('overview', 'Overview', Icons.dashboard_outlined),
+            _efficiencyChoiceChip('sales', 'Sales & Billing', Icons.point_of_sale_outlined),
+            _efficiencyChoiceChip('procurement', 'Procurement', Icons.local_shipping_outlined),
+            _efficiencyChoiceChip('transfers', 'Transfers & Stock', Icons.swap_horiz_outlined),
+            _efficiencyChoiceChip('benchmarks', 'Branch Benchmarks', Icons.storefront_outlined),
+          ],
         ),
         const SizedBox(height: 16),
 
@@ -8768,60 +9012,65 @@ class _OperationsIntelligenceScreenState
               borderRadius: BorderRadius.circular(10),
               side: BorderSide(color: Colors.grey.withValues(alpha: 0.2)),
             ),
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: DataTable(
-                headingRowHeight: 40,
-                dataRowMinHeight: 44,
-                dataRowMaxHeight: 52,
-                columns: const [
-                  DataColumn(label: Text('Branch Name', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
-                  DataColumn(label: Text('Code', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
-                  DataColumn(label: Text('Transfers', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
-                  DataColumn(label: Text('Avg Transit', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
-                  DataColumn(label: Text('Delayed', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
-                  DataColumn(label: Text('POs', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
-                  DataColumn(label: Text('Overdue POs', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
-                  DataColumn(label: Text('Sync Events', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
-                  DataColumn(label: Text('Sync Errors', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
-                  DataColumn(label: Text('Data Sufficiency', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
-                ],
-                rows: branches.map((b) {
-                  final sufficiency = b['data_sufficiency']?.toString() ?? 'low_volume';
-                  final isSufficient = sufficiency == 'sufficient';
+            child: ThqResponsiveTable(
+              columns: const [
+                ThqResponsiveColumn(title: 'Branch Name', flex: 3),
+                ThqResponsiveColumn(title: 'Code', flex: 2),
+                ThqResponsiveColumn(title: 'Transfers', flex: 2, isNumeric: true, alignment: Alignment.centerRight),
+                ThqResponsiveColumn(title: 'Avg Transit', flex: 2, isNumeric: true, alignment: Alignment.centerRight),
+                ThqResponsiveColumn(title: 'Delayed', flex: 2, isNumeric: true, alignment: Alignment.centerRight),
+                ThqResponsiveColumn(title: 'POs', flex: 2, isNumeric: true, alignment: Alignment.centerRight),
+                ThqResponsiveColumn(title: 'Overdue POs', flex: 2, isNumeric: true, alignment: Alignment.centerRight),
+                ThqResponsiveColumn(title: 'Sync Events', flex: 2, isNumeric: true, alignment: Alignment.centerRight),
+                ThqResponsiveColumn(title: 'Sync Errors', flex: 2, isNumeric: true, alignment: Alignment.centerRight),
+                ThqResponsiveColumn(title: 'Data Sufficiency', flex: 2),
+              ],
+              rows: branches.map((b) {
+                final sufficiency = b['data_sufficiency']?.toString() ?? 'low_volume';
+                final isSufficient = sufficiency == 'sufficient';
+                final badge = Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: isSufficient ? Colors.green.withValues(alpha: 0.12) : Colors.amber.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    isSufficient ? 'Sufficient' : 'Low Volume',
+                    style: TextStyle(
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.bold,
+                      color: isSufficient ? Colors.green.shade800 : Colors.amber.shade900,
+                    ),
+                  ),
+                );
 
-                  return DataRow(
-                    cells: [
-                      DataCell(Text(b['location_name']?.toString() ?? 'Unknown', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12))),
-                      DataCell(Text(b['location_code']?.toString() ?? '-', style: const TextStyle(fontSize: 11, fontFamily: 'monospace'))),
-                      DataCell(Text('${b['total_transfers'] ?? 0}', style: const TextStyle(fontSize: 12))),
-                      DataCell(Text('${b['avg_transfer_hours'] ?? 0} hrs', style: const TextStyle(fontSize: 12))),
-                      DataCell(Text('${b['delayed_transfers'] ?? 0}', style: TextStyle(fontSize: 12, color: (b['delayed_transfers'] ?? 0) > 0 ? Colors.red : null))),
-                      DataCell(Text('${b['total_pos'] ?? 0}', style: const TextStyle(fontSize: 12))),
-                      DataCell(Text('${b['overdue_pos'] ?? 0}', style: TextStyle(fontSize: 12, color: (b['overdue_pos'] ?? 0) > 0 ? Colors.red : null))),
-                      DataCell(Text('${b['sync_events'] ?? 0}', style: const TextStyle(fontSize: 12))),
-                      DataCell(Text('${b['sync_errors'] ?? 0}', style: TextStyle(fontSize: 12, color: (b['sync_errors'] ?? 0) > 0 ? Colors.red : null))),
-                      DataCell(
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: isSufficient ? Colors.green.withValues(alpha: 0.12) : Colors.amber.withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Text(
-                            isSufficient ? 'Sufficient' : 'Low Volume',
-                            style: TextStyle(
-                              fontSize: 10.5,
-                              fontWeight: FontWeight.bold,
-                              color: isSufficient ? Colors.green.shade800 : Colors.amber.shade900,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  );
-                }).toList(),
-              ),
+                return ThqResponsiveRow(
+                  cardTitle: Text(b['location_name']?.toString() ?? 'Unknown', style: const TextStyle(fontWeight: FontWeight.bold)),
+                  cardBadge: badge,
+                  cardFields: [
+                    ('Code', b['location_code']?.toString() ?? '-'),
+                    ('Transfers', '${b['total_transfers'] ?? 0}'),
+                    ('Avg Transit', '${b['avg_transfer_hours'] ?? 0} hrs'),
+                    ('Delayed', '${b['delayed_transfers'] ?? 0}'),
+                    ('POs', '${b['total_pos'] ?? 0}'),
+                    ('Overdue POs', '${b['overdue_pos'] ?? 0}'),
+                    ('Sync Events', '${b['sync_events'] ?? 0}'),
+                    ('Sync Errors', '${b['sync_errors'] ?? 0}'),
+                  ],
+                  cells: [
+                    Text(b['location_name']?.toString() ?? 'Unknown', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12)),
+                    Text(b['location_code']?.toString() ?? '-', style: const TextStyle(fontSize: 11, fontFamily: 'monospace')),
+                    Text('${b['total_transfers'] ?? 0}', style: const TextStyle(fontSize: 12)),
+                    Text('${b['avg_transfer_hours'] ?? 0} hrs', style: const TextStyle(fontSize: 12)),
+                    Text('${b['delayed_transfers'] ?? 0}', style: TextStyle(fontSize: 12, color: (b['delayed_transfers'] ?? 0) > 0 ? Colors.red : null)),
+                    Text('${b['total_pos'] ?? 0}', style: const TextStyle(fontSize: 12)),
+                    Text('${b['overdue_pos'] ?? 0}', style: TextStyle(fontSize: 12, color: (b['overdue_pos'] ?? 0) > 0 ? Colors.red : null)),
+                    Text('${b['sync_events'] ?? 0}', style: const TextStyle(fontSize: 12)),
+                    Text('${b['sync_errors'] ?? 0}', style: TextStyle(fontSize: 12, color: (b['sync_errors'] ?? 0) > 0 ? Colors.red : null)),
+                    badge,
+                  ],
+                );
+              }).toList(),
             ),
           ),
       ],
@@ -8992,23 +9241,17 @@ class _OperationsIntelligenceScreenState
         const SizedBox(height: 16),
 
         // Sub-navigation ChoiceChips
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(
-            children: [
-              _workforceChoiceChip('overview', 'Overview', Icons.dashboard_outlined),
-              const SizedBox(width: 8),
-              _workforceChoiceChip('attendance', 'Attendance Patterns', Icons.event_available_outlined),
-              const SizedBox(width: 8),
-              _workforceChoiceChip('shifts', 'Shift Coverage', Icons.access_time_outlined),
-              const SizedBox(width: 8),
-              _workforceChoiceChip('capacity', 'Capacity & Demand', Icons.trending_up_outlined),
-              const SizedBox(width: 8),
-              _workforceChoiceChip('overtime_cost', 'Overtime & Cost', Icons.payments_outlined),
-              const SizedBox(width: 8),
-              _workforceChoiceChip('benchmarks', 'Branch Benchmarks', Icons.storefront_outlined),
-            ],
-          ),
+        Wrap(
+          spacing: 8,
+          runSpacing: 6,
+          children: [
+            _workforceChoiceChip('overview', 'Overview', Icons.dashboard_outlined),
+            _workforceChoiceChip('attendance', 'Attendance Patterns', Icons.event_available_outlined),
+            _workforceChoiceChip('shifts', 'Shift Coverage', Icons.access_time_outlined),
+            _workforceChoiceChip('capacity', 'Capacity & Demand', Icons.trending_up_outlined),
+            _workforceChoiceChip('overtime_cost', 'Overtime & Cost', Icons.payments_outlined),
+            _workforceChoiceChip('benchmarks', 'Branch Benchmarks', Icons.storefront_outlined),
+          ],
         ),
         const SizedBox(height: 16),
 
@@ -9485,33 +9728,33 @@ class _OperationsIntelligenceScreenState
           const SizedBox(height: 6),
           Card(
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: DataTable(
-                headingRowHeight: 38,
-                dataRowMinHeight: 34,
-                dataRowMaxHeight: 38,
-                columns: const [
-                  DataColumn(label: Text('Date')),
-                  DataColumn(label: Text('Present')),
-                  DataColumn(label: Text('Absent')),
-                  DataColumn(label: Text('Leave')),
-                  DataColumn(label: Text('Regular Hrs')),
-                  DataColumn(label: Text('Overtime Hrs')),
+            child: ThqResponsiveTable(
+              columns: const [
+                ThqResponsiveColumn(title: 'Date', flex: 2),
+                ThqResponsiveColumn(title: 'Present', flex: 2, isNumeric: true, alignment: Alignment.centerRight),
+                ThqResponsiveColumn(title: 'Absent', flex: 2, isNumeric: true, alignment: Alignment.centerRight),
+                ThqResponsiveColumn(title: 'Leave', flex: 2, isNumeric: true, alignment: Alignment.centerRight),
+                ThqResponsiveColumn(title: 'Regular Hrs', flex: 2, isNumeric: true, alignment: Alignment.centerRight),
+                ThqResponsiveColumn(title: 'Overtime Hrs', flex: 2, isNumeric: true, alignment: Alignment.centerRight),
+              ],
+              rows: dailyTrends.take(10).map((d) => ThqResponsiveRow(
+                cardTitle: Text(d['work_date']?.toString() ?? '', style: const TextStyle(fontWeight: FontWeight.bold)),
+                cardFields: [
+                  ('Present', d['present']?.toString() ?? '0'),
+                  ('Absent', d['absent']?.toString() ?? '0'),
+                  ('Leave', d['leave']?.toString() ?? '0'),
+                  ('Regular', _n(d['regular_hours']).toStringAsFixed(1)),
+                  ('Overtime', _n(d['overtime_hours']).toStringAsFixed(1)),
                 ],
-                rows: dailyTrends.take(10).map((d) {
-                  return DataRow(
-                    cells: [
-                      DataCell(Text(d['work_date']?.toString() ?? '')),
-                      DataCell(Text(d['present']?.toString() ?? '0')),
-                      DataCell(Text(d['absent']?.toString() ?? '0')),
-                      DataCell(Text(d['leave']?.toString() ?? '0')),
-                      DataCell(Text(_n(d['regular_hours']).toStringAsFixed(1))),
-                      DataCell(Text(_n(d['overtime_hours']).toStringAsFixed(1))),
-                    ],
-                  );
-                }).toList(),
-              ),
+                cells: [
+                  Text(d['work_date']?.toString() ?? ''),
+                  Text(d['present']?.toString() ?? '0'),
+                  Text(d['absent']?.toString() ?? '0'),
+                  Text(d['leave']?.toString() ?? '0'),
+                  Text(_n(d['regular_hours']).toStringAsFixed(1)),
+                  Text(_n(d['overtime_hours']).toStringAsFixed(1)),
+                ],
+              )).toList(),
             ),
           ),
         ],
@@ -9577,30 +9820,31 @@ class _OperationsIntelligenceScreenState
           const SizedBox(height: 6),
           Card(
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: DataTable(
-                headingRowHeight: 38,
-                dataRowMinHeight: 34,
-                dataRowMaxHeight: 38,
-                columns: const [
-                  DataColumn(label: Text('Date')),
-                  DataColumn(label: Text('Total Shifts')),
-                  DataColumn(label: Text('Closed Shifts')),
-                  DataColumn(label: Text('Discrepancies')),
-                ],
-                rows: dailyShifts.take(10).map((s) {
-                  final disc = s['discrepancies'] ?? 0;
-                  return DataRow(
-                    cells: [
-                      DataCell(Text(s['work_date']?.toString() ?? '')),
-                      DataCell(Text(s['shifts_count']?.toString() ?? '0')),
-                      DataCell(Text(s['closed_count']?.toString() ?? '0')),
-                      DataCell(Text('$disc', style: TextStyle(color: disc > 0 ? Colors.red : null))),
-                    ],
-                  );
-                }).toList(),
-              ),
+            child: ThqResponsiveTable(
+              columns: const [
+                ThqResponsiveColumn(title: 'Date', flex: 2),
+                ThqResponsiveColumn(title: 'Total Shifts', flex: 2, isNumeric: true, alignment: Alignment.centerRight),
+                ThqResponsiveColumn(title: 'Closed Shifts', flex: 2, isNumeric: true, alignment: Alignment.centerRight),
+                ThqResponsiveColumn(title: 'Discrepancies', flex: 2, isNumeric: true, alignment: Alignment.centerRight),
+              ],
+              rows: dailyShifts.take(10).map((s) {
+                final disc = s['discrepancies'] ?? 0;
+                return ThqResponsiveRow(
+                  cardTitle: Text(s['work_date']?.toString() ?? '', style: const TextStyle(fontWeight: FontWeight.bold)),
+                  cardBadge: disc > 0 ? Text('$disc discrepancies', style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold)) : null,
+                  cardFields: [
+                    ('Total Shifts', s['shifts_count']?.toString() ?? '0'),
+                    ('Closed', s['closed_count']?.toString() ?? '0'),
+                    ('Discrepancies', '$disc'),
+                  ],
+                  cells: [
+                    Text(s['work_date']?.toString() ?? ''),
+                    Text(s['shifts_count']?.toString() ?? '0'),
+                    Text(s['closed_count']?.toString() ?? '0'),
+                    Text('$disc', style: TextStyle(color: disc > 0 ? Colors.red : null)),
+                  ],
+                );
+              }).toList(),
             ),
           ),
         ],
@@ -9657,27 +9901,25 @@ class _OperationsIntelligenceScreenState
           const SizedBox(height: 6),
           Card(
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: DataTable(
-                headingRowHeight: 38,
-                dataRowMinHeight: 34,
-                dataRowMaxHeight: 38,
-                columns: const [
-                  DataColumn(label: Text('Operating Hour')),
-                  DataColumn(label: Text('Transactions Volume')),
-                ],
-                rows: peakHours.map((h) {
-                  final hr = h['hour_of_day'] ?? 0;
-                  final hrStr = '${hr.toString().padLeft(2, '0')}:00 - ${(hr + 1).toString().padLeft(2, '0')}:00';
-                  return DataRow(
-                    cells: [
-                      DataCell(Text(hrStr)),
-                      DataCell(Text(h['txns_count']?.toString() ?? '0')),
-                    ],
-                  );
-                }).toList(),
-              ),
+            child: ThqResponsiveTable(
+              columns: const [
+                ThqResponsiveColumn(title: 'Operating Hour', flex: 3),
+                ThqResponsiveColumn(title: 'Transactions Volume', flex: 2, isNumeric: true, alignment: Alignment.centerRight),
+              ],
+              rows: peakHours.map((h) {
+                final hr = h['hour_of_day'] ?? 0;
+                final hrStr = '${hr.toString().padLeft(2, '0')}:00 - ${(hr + 1).toString().padLeft(2, '0')}:00';
+                return ThqResponsiveRow(
+                  cardTitle: Text(hrStr, style: const TextStyle(fontWeight: FontWeight.bold)),
+                  cardFields: [
+                    ('Transactions', h['txns_count']?.toString() ?? '0'),
+                  ],
+                  cells: [
+                    Text(hrStr),
+                    Text(h['txns_count']?.toString() ?? '0'),
+                  ],
+                );
+              }).toList(),
             ),
           ),
         ],
@@ -9758,28 +10000,27 @@ class _OperationsIntelligenceScreenState
             const SizedBox(height: 6),
             Card(
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: DataTable(
-                  headingRowHeight: 38,
-                  dataRowMinHeight: 34,
-                  dataRowMaxHeight: 38,
-                  columns: const [
-                    DataColumn(label: Text('Earning Kind')),
-                    DataColumn(label: Text('Disbursed Amount')),
-                    DataColumn(label: Text('Records Count')),
-                  ],
-                  rows: earningsByKind.map((k) {
-                    final kindName = k['earning_kind']?.toString().replaceAll('_', ' ').toUpperCase() ?? '';
-                    return DataRow(
-                      cells: [
-                        DataCell(Text(kindName)),
-                        DataCell(Text(_money(k['total_amount']))),
-                        DataCell(Text(k['count']?.toString() ?? '0')),
-                      ],
-                    );
-                  }).toList(),
-                ),
+              child: ThqResponsiveTable(
+                columns: const [
+                  ThqResponsiveColumn(title: 'Earning Kind', flex: 3),
+                  ThqResponsiveColumn(title: 'Disbursed Amount', flex: 2, isNumeric: true, alignment: Alignment.centerRight),
+                  ThqResponsiveColumn(title: 'Records Count', flex: 2, isNumeric: true, alignment: Alignment.centerRight),
+                ],
+                rows: earningsByKind.map((k) {
+                  final kindName = k['earning_kind']?.toString().replaceAll('_', ' ').toUpperCase() ?? '';
+                  return ThqResponsiveRow(
+                    cardTitle: Text(kindName, style: const TextStyle(fontWeight: FontWeight.bold)),
+                    cardFields: [
+                      ('Amount', _money(k['total_amount'])),
+                      ('Records', k['count']?.toString() ?? '0'),
+                    ],
+                    cells: [
+                      Text(kindName),
+                      Text(_money(k['total_amount'])),
+                      Text(k['count']?.toString() ?? '0'),
+                    ],
+                  );
+                }).toList(),
               ),
             ),
           ],
@@ -9833,63 +10074,57 @@ class _OperationsIntelligenceScreenState
         else
           Card(
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: DataTable(
-                headingRowHeight: 40,
-                dataRowMinHeight: 36,
-                dataRowMaxHeight: 40,
-                columns: const [
-                  DataColumn(label: Text('Branch')),
-                  DataColumn(label: Text('Active Staff')),
-                  DataColumn(label: Text('Attendance %')),
-                  DataColumn(label: Text('Overtime %')),
-                  DataColumn(label: Text('Shifts')),
-                  DataColumn(label: Text('Sales Txns')),
-                  DataColumn(label: Text('Txns / Staff')),
-                  DataColumn(label: Text('Data Sufficiency')),
-                ],
-                rows: benchmarks.map((b) {
-                  final attRate = _n(b['attendance_rate_pct']);
-                  final otRatio = _n(b['overtime_ratio_pct']);
-                  final txnsPerStaff = _n(b['txns_per_staff']);
-                  final isSufficient = b['data_sufficiency'] == 'Sufficient';
+            child: ThqResponsiveTable(
+              columns: const [
+                ThqResponsiveColumn(title: 'Branch', flex: 3),
+                ThqResponsiveColumn(title: 'Active Staff', flex: 2, isNumeric: true, alignment: Alignment.centerRight),
+                ThqResponsiveColumn(title: 'Attendance %', flex: 2, isNumeric: true, alignment: Alignment.centerRight),
+                ThqResponsiveColumn(title: 'Overtime %', flex: 2, isNumeric: true, alignment: Alignment.centerRight),
+                ThqResponsiveColumn(title: 'Shifts', flex: 2, isNumeric: true, alignment: Alignment.centerRight),
+                ThqResponsiveColumn(title: 'Sales Txns', flex: 2, isNumeric: true, alignment: Alignment.centerRight),
+                ThqResponsiveColumn(title: 'Txns / Staff', flex: 2, isNumeric: true, alignment: Alignment.centerRight),
+                ThqResponsiveColumn(title: 'Data Sufficiency', flex: 2),
+              ],
+              rows: benchmarks.map((b) {
+                final attRate = _n(b['attendance_rate_pct']);
+                final otRatio = _n(b['overtime_ratio_pct']);
+                final txnsPerStaff = _n(b['txns_per_staff']);
+                final isSufficient = b['data_sufficiency'] == 'Sufficient';
+                final badge = Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: isSufficient ? Colors.green.withValues(alpha: 0.15) : Colors.amber.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    b['data_sufficiency']?.toString() ?? 'Low Volume',
+                    style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.bold, color: isSufficient ? Colors.green.shade800 : Colors.amber.shade900),
+                  ),
+                );
 
-                  return DataRow(
-                    cells: [
-                      DataCell(Text(
-                        b['location_name']?.toString() ?? 'Branch',
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      )),
-                      DataCell(Text(b['active_staff']?.toString() ?? '0')),
-                      DataCell(Text('${attRate.toStringAsFixed(1)}%')),
-                      DataCell(Text('${otRatio.toStringAsFixed(1)}%')),
-                      DataCell(Text(b['shifts_count']?.toString() ?? '0')),
-                      DataCell(Text(b['sales_txns']?.toString() ?? '0')),
-                      DataCell(Text(txnsPerStaff > 0 ? txnsPerStaff.toStringAsFixed(1) : '—')),
-                      DataCell(
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: isSufficient
-                                ? Colors.teal.withValues(alpha: 0.12)
-                                : Colors.grey.withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Text(
-                            isSufficient ? 'Sufficient' : 'Low Volume',
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.bold,
-                              color: isSufficient ? Colors.teal.shade800 : Colors.grey.shade700,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  );
-                }).toList(),
-              ),
+                return ThqResponsiveRow(
+                  cardTitle: Text(b['location_name']?.toString() ?? 'Store', style: const TextStyle(fontWeight: FontWeight.bold)),
+                  cardBadge: badge,
+                  cardFields: [
+                    ('Active Staff', '${b['active_staff'] ?? 0}'),
+                    ('Attendance', '${attRate.toStringAsFixed(1)}%'),
+                    ('Overtime', '${otRatio.toStringAsFixed(1)}%'),
+                    ('Shifts', '${b['shifts_count'] ?? 0}'),
+                    ('Sales Txns', '${b['sales_txns_count'] ?? 0}'),
+                    ('Txns/Staff', txnsPerStaff.toStringAsFixed(1)),
+                  ],
+                  cells: [
+                    Text(b['location_name']?.toString() ?? 'Store', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12)),
+                    Text('${b['active_staff'] ?? 0}', style: const TextStyle(fontSize: 12)),
+                    Text('${attRate.toStringAsFixed(1)}%', style: const TextStyle(fontSize: 12)),
+                    Text('${otRatio.toStringAsFixed(1)}%', style: TextStyle(fontSize: 12, color: otRatio > 25 ? Colors.orange.shade800 : null)),
+                    Text('${b['shifts_count'] ?? 0}', style: const TextStyle(fontSize: 12)),
+                    Text('${b['sales_txns_count'] ?? 0}', style: const TextStyle(fontSize: 12)),
+                    Text(txnsPerStaff.toStringAsFixed(1), style: const TextStyle(fontSize: 12)),
+                    badge,
+                  ],
+                );
+              }).toList(),
             ),
           ),
       ],
@@ -11111,25 +11346,18 @@ class _OperationsIntelligenceScreenState
         const SizedBox(height: 16),
 
         // Subtabs
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(
-            children: [
-              _predictiveChoiceChip('overview', 'Overview', Icons.dashboard_outlined),
-              const SizedBox(width: 8),
-              _predictiveChoiceChip('sales', 'Sales & Demand', Icons.trending_up_outlined),
-              const SizedBox(width: 8),
-              _predictiveChoiceChip('inventory', 'Inventory Depletion', Icons.inventory_2_outlined),
-              const SizedBox(width: 8),
-              _predictiveChoiceChip('cash_flow', 'Cash Flow & Working Capital', Icons.account_balance_wallet_outlined),
-              const SizedBox(width: 8),
-              _predictiveChoiceChip('risks', 'Customer & Supplier Risk', Icons.warning_amber_outlined),
-              const SizedBox(width: 8),
-              _predictiveChoiceChip('simulations', 'What-If Simulations', Icons.science_outlined),
-              const SizedBox(width: 8),
-              _predictiveChoiceChip('accuracy', 'Backtesting & Accuracy', Icons.fact_check_outlined),
-            ],
-          ),
+        Wrap(
+          spacing: 8,
+          runSpacing: 6,
+          children: [
+            _predictiveChoiceChip('overview', 'Overview', Icons.dashboard_outlined),
+            _predictiveChoiceChip('sales', 'Sales & Demand', Icons.trending_up_outlined),
+            _predictiveChoiceChip('inventory', 'Inventory Depletion', Icons.inventory_2_outlined),
+            _predictiveChoiceChip('cash_flow', 'Cash Flow & Working Capital', Icons.account_balance_wallet_outlined),
+            _predictiveChoiceChip('risks', 'Customer & Supplier Risk', Icons.warning_amber_outlined),
+            _predictiveChoiceChip('simulations', 'What-If Simulations', Icons.science_outlined),
+            _predictiveChoiceChip('accuracy', 'Backtesting & Accuracy', Icons.fact_check_outlined),
+          ],
         ),
         const SizedBox(height: 16),
 
@@ -11419,78 +11647,144 @@ class _OperationsIntelligenceScreenState
                   style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 10),
-                SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: DataTable(
-                    headingRowHeight: 38,
-                    dataRowMinHeight: 40,
-                    dataRowMaxHeight: 48,
-                    columns: const [
-                      DataColumn(label: Text('Domain', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
-                      DataColumn(label: Text('Primary Metric', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
-                      DataColumn(label: Text('Projected Value', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
-                      DataColumn(label: Text('Model / Algorithm', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
-                      DataColumn(label: Text('Confidence Level', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
-                    ],
-                    rows: [
-                      DataRow(cells: [
-                        const DataCell(Text('Sales & Demand', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12))),
-                        const DataCell(Text('Gross Revenue Demand', style: TextStyle(fontSize: 12))),
-                        DataCell(Text(canViewCost ? _money(salesForecast['projected_total_revenue']) : 'Confidential', style: const TextStyle(fontSize: 12))),
-                        const DataCell(Text('OLS Linear Regression & WMA', style: TextStyle(fontSize: 11, fontFamily: 'monospace'))),
-                        const DataCell(Text('80% Prediction Band', style: TextStyle(fontSize: 11, color: Colors.green))),
-                      ]),
-                      DataRow(cells: [
-                        const DataCell(Text('Inventory Depletion', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12))),
-                        const DataCell(Text('Days of Cover & Stockout Date', style: TextStyle(fontSize: 12))),
-                        DataCell(Text('${summary['stockouts_imminent_count'] ?? 0} Critical Items', style: const TextStyle(fontSize: 12))),
-                        const DataCell(Text('30d Daily Burn-Rate Velocity', style: TextStyle(fontSize: 11, fontFamily: 'monospace'))),
-                        const DataCell(Text('High (Physical Ledger)', style: TextStyle(fontSize: 11, color: Colors.green))),
-                      ]),
-                      DataRow(cells: [
-                        const DataCell(Text('Cash Flow Forecast', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12))),
-                        const DataCell(Text('Net Liquidity Position', style: TextStyle(fontSize: 12))),
-                        DataCell(Text(canViewCost ? _money(cashForecast['projected_net_cash']) : 'Confidential', style: const TextStyle(fontSize: 12))),
-                        const DataCell(Text('Inflow/Outflow Probability Matrix', style: TextStyle(fontSize: 11, fontFamily: 'monospace'))),
-                        const DataCell(Text('Moderate (85% Inflow Ratio)', style: TextStyle(fontSize: 11, color: Colors.blue))),
-                      ]),
-                      DataRow(cells: [
-                        const DataCell(Text('Receivables & Collections', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12))),
-                        const DataCell(Text('Projected Inflows & DSO', style: TextStyle(fontSize: 12))),
-                        DataCell(Text(canViewCost ? _money(cashForecast['projected_inflows']) : 'Confidential', style: const TextStyle(fontSize: 12))),
-                        const DataCell(Text('Customer Credit Aging Schedule', style: TextStyle(fontSize: 11, fontFamily: 'monospace'))),
-                        const DataCell(Text('High (Authoritative GL)', style: TextStyle(fontSize: 11, color: Colors.green))),
-                      ]),
-                      DataRow(cells: [
-                        const DataCell(Text('Payables Obligations', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12))),
-                        const DataCell(Text('Upcoming Supplier Outflows', style: TextStyle(fontSize: 12))),
-                        DataCell(Text(canViewCost ? _money(cashForecast['total_payables']) : 'Confidential', style: const TextStyle(fontSize: 12))),
-                        const DataCell(Text('Purchase Invoice Due Dates', style: TextStyle(fontSize: 11, fontFamily: 'monospace'))),
-                        const DataCell(Text('Authoritative (Due Ledger)', style: TextStyle(fontSize: 11, color: Colors.green))),
-                      ]),
-                      DataRow(cells: [
-                        const DataCell(Text('Operating Expenses', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12))),
-                        const DataCell(Text('Run-Rate Expenses Outflow', style: TextStyle(fontSize: 12))),
-                        DataCell(Text(canViewCost ? _money(cashForecast['projected_expenses']) : 'Confidential', style: const TextStyle(fontSize: 12))),
-                        const DataCell(Text('60-Day Expense Average Run-Rate', style: TextStyle(fontSize: 11, fontFamily: 'monospace'))),
-                        const DataCell(Text('Moderate', style: TextStyle(fontSize: 11, color: Colors.blue))),
-                      ]),
-                      DataRow(cells: [
-                        const DataCell(Text('Customer Inactivity', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12))),
-                        const DataCell(Text('Churn Probability Rate', style: TextStyle(fontSize: 12))),
-                        DataCell(Text('${summary['churn_risk_customers_count'] ?? 0} Inactive Accounts', style: const TextStyle(fontSize: 12))),
-                        const DataCell(Text('Recency vs Order Frequency Model', style: TextStyle(fontSize: 11, fontFamily: 'monospace'))),
-                        const DataCell(Text('High (>45d Threshold)', style: TextStyle(fontSize: 11, color: Colors.green))),
-                      ]),
-                      DataRow(cells: [
-                        const DataCell(Text('Supplier Delivery', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12))),
-                        const DataCell(Text('Lead-Time Delay Risk', style: TextStyle(fontSize: 12))),
-                        DataCell(Text('${summary['at_risk_suppliers_count'] ?? 0} Delayed Vendors', style: const TextStyle(fontSize: 12))),
-                        const DataCell(Text('PO Lead Variance & Fulfillment Rate', style: TextStyle(fontSize: 11, fontFamily: 'monospace'))),
-                        const DataCell(Text('Moderate', style: TextStyle(fontSize: 11, color: Colors.blue))),
-                      ]),
-                    ],
-                  ),
+                ThqResponsiveTable(
+                  columns: const [
+                    ThqResponsiveColumn(title: 'Domain', flex: 3),
+                    ThqResponsiveColumn(title: 'Primary Metric', flex: 3),
+                    ThqResponsiveColumn(title: 'Projected Value', flex: 3),
+                    ThqResponsiveColumn(title: 'Model / Algorithm', flex: 3),
+                    ThqResponsiveColumn(title: 'Confidence Level', flex: 2),
+                  ],
+                  rows: [
+                    ThqResponsiveRow(
+                      cardTitle: const Text('Sales & Demand', style: TextStyle(fontWeight: FontWeight.bold)),
+                      cardFields: [
+                        ('Primary Metric', 'Gross Revenue Demand'),
+                        ('Projected Value', canViewCost ? _money(salesForecast['projected_total_revenue']) : 'Confidential'),
+                        ('Model', 'OLS Linear Regression & WMA'),
+                        ('Confidence', '80% Prediction Band'),
+                      ],
+                      cells: [
+                        const Text('Sales & Demand', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12)),
+                        const Text('Gross Revenue Demand', style: TextStyle(fontSize: 12)),
+                        Text(canViewCost ? _money(salesForecast['projected_total_revenue']) : 'Confidential', style: const TextStyle(fontSize: 12)),
+                        const Text('OLS Linear Regression & WMA', style: TextStyle(fontSize: 11, fontFamily: 'monospace')),
+                        const Text('80% Prediction Band', style: TextStyle(fontSize: 11, color: Colors.green)),
+                      ],
+                    ),
+                    ThqResponsiveRow(
+                      cardTitle: const Text('Inventory Depletion', style: TextStyle(fontWeight: FontWeight.bold)),
+                      cardFields: [
+                        ('Primary Metric', 'Days of Cover & Stockout Date'),
+                        ('Projected Value', '${summary['stockouts_imminent_count'] ?? 0} Critical Items'),
+                        ('Model', '30d Daily Burn-Rate Velocity'),
+                        ('Confidence', 'High (Physical Ledger)'),
+                      ],
+                      cells: [
+                        const Text('Inventory Depletion', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12)),
+                        const Text('Days of Cover & Stockout Date', style: TextStyle(fontSize: 12)),
+                        Text('${summary['stockouts_imminent_count'] ?? 0} Critical Items', style: const TextStyle(fontSize: 12)),
+                        const Text('30d Daily Burn-Rate Velocity', style: TextStyle(fontSize: 11, fontFamily: 'monospace')),
+                        const Text('High (Physical Ledger)', style: TextStyle(fontSize: 11, color: Colors.green)),
+                      ],
+                    ),
+                    ThqResponsiveRow(
+                      cardTitle: const Text('Cash Flow Forecast', style: TextStyle(fontWeight: FontWeight.bold)),
+                      cardFields: [
+                        ('Primary Metric', 'Net Liquidity Position'),
+                        ('Projected Value', canViewCost ? _money(cashForecast['projected_net_cash']) : 'Confidential'),
+                        ('Model', 'Inflow/Outflow Probability Matrix'),
+                        ('Confidence', 'Moderate (85% Inflow Ratio)'),
+                      ],
+                      cells: [
+                        const Text('Cash Flow Forecast', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12)),
+                        const Text('Net Liquidity Position', style: TextStyle(fontSize: 12)),
+                        Text(canViewCost ? _money(cashForecast['projected_net_cash']) : 'Confidential', style: const TextStyle(fontSize: 12)),
+                        const Text('Inflow/Outflow Probability Matrix', style: TextStyle(fontSize: 11, fontFamily: 'monospace')),
+                        const Text('Moderate (85% Inflow Ratio)', style: TextStyle(fontSize: 11, color: Colors.blue)),
+                      ],
+                    ),
+                    ThqResponsiveRow(
+                      cardTitle: const Text('Receivables & Collections', style: TextStyle(fontWeight: FontWeight.bold)),
+                      cardFields: [
+                        ('Primary Metric', 'Projected Inflows & DSO'),
+                        ('Projected Value', canViewCost ? _money(cashForecast['projected_inflows']) : 'Confidential'),
+                        ('Model', 'Customer Credit Aging Schedule'),
+                        ('Confidence', 'High (Authoritative GL)'),
+                      ],
+                      cells: [
+                        const Text('Receivables & Collections', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12)),
+                        const Text('Projected Inflows & DSO', style: TextStyle(fontSize: 12)),
+                        Text(canViewCost ? _money(cashForecast['projected_inflows']) : 'Confidential', style: const TextStyle(fontSize: 12)),
+                        const Text('Customer Credit Aging Schedule', style: TextStyle(fontSize: 11, fontFamily: 'monospace')),
+                        const Text('High (Authoritative GL)', style: TextStyle(fontSize: 11, color: Colors.green)),
+                      ],
+                    ),
+                    ThqResponsiveRow(
+                      cardTitle: const Text('Payables Obligations', style: TextStyle(fontWeight: FontWeight.bold)),
+                      cardFields: [
+                        ('Primary Metric', 'Upcoming Supplier Outflows'),
+                        ('Projected Value', canViewCost ? _money(cashForecast['total_payables']) : 'Confidential'),
+                        ('Model', 'Purchase Invoice Due Dates'),
+                        ('Confidence', 'Authoritative (Due Ledger)'),
+                      ],
+                      cells: [
+                        const Text('Payables Obligations', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12)),
+                        const Text('Upcoming Supplier Outflows', style: TextStyle(fontSize: 12)),
+                        Text(canViewCost ? _money(cashForecast['total_payables']) : 'Confidential', style: const TextStyle(fontSize: 12)),
+                        const Text('Purchase Invoice Due Dates', style: TextStyle(fontSize: 11, fontFamily: 'monospace')),
+                        const Text('Authoritative (Due Ledger)', style: TextStyle(fontSize: 11, color: Colors.green)),
+                      ],
+                    ),
+                    ThqResponsiveRow(
+                      cardTitle: const Text('Operating Expenses', style: TextStyle(fontWeight: FontWeight.bold)),
+                      cardFields: [
+                        ('Primary Metric', 'Run-Rate Expenses Outflow'),
+                        ('Projected Value', canViewCost ? _money(cashForecast['projected_expenses']) : 'Confidential'),
+                        ('Model', '60-Day Expense Average Run-Rate'),
+                        ('Confidence', 'Moderate'),
+                      ],
+                      cells: [
+                        const Text('Operating Expenses', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12)),
+                        const Text('Run-Rate Expenses Outflow', style: TextStyle(fontSize: 12)),
+                        Text(canViewCost ? _money(cashForecast['projected_expenses']) : 'Confidential', style: const TextStyle(fontSize: 12)),
+                        const Text('60-Day Expense Average Run-Rate', style: TextStyle(fontSize: 11, fontFamily: 'monospace')),
+                        const Text('Moderate', style: TextStyle(fontSize: 11, color: Colors.blue)),
+                      ],
+                    ),
+                    ThqResponsiveRow(
+                      cardTitle: const Text('Customer Inactivity', style: TextStyle(fontWeight: FontWeight.bold)),
+                      cardFields: [
+                        ('Primary Metric', 'Churn Probability Rate'),
+                        ('Projected Value', '${summary['churn_risk_customers_count'] ?? 0} Inactive Accounts'),
+                        ('Model', 'Recency vs Order Frequency Model'),
+                        ('Confidence', 'High (>45d Threshold)'),
+                      ],
+                      cells: [
+                        const Text('Customer Inactivity', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12)),
+                        const Text('Churn Probability Rate', style: TextStyle(fontSize: 12)),
+                        Text('${summary['churn_risk_customers_count'] ?? 0} Inactive Accounts', style: const TextStyle(fontSize: 12)),
+                        const Text('Recency vs Order Frequency Model', style: TextStyle(fontSize: 11, fontFamily: 'monospace')),
+                        const Text('High (>45d Threshold)', style: TextStyle(fontSize: 11, color: Colors.green)),
+                      ],
+                    ),
+                    ThqResponsiveRow(
+                      cardTitle: const Text('Supplier Delivery', style: TextStyle(fontWeight: FontWeight.bold)),
+                      cardFields: [
+                        ('Primary Metric', 'Lead-Time Delay Risk'),
+                        ('Projected Value', '${summary['at_risk_suppliers_count'] ?? 0} Delayed Vendors'),
+                        ('Model', 'PO Lead Variance & Fulfillment Rate'),
+                        ('Confidence', 'Moderate'),
+                      ],
+                      cells: [
+                        const Text('Supplier Delivery', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12)),
+                        const Text('Lead-Time Delay Risk', style: TextStyle(fontSize: 12)),
+                        Text('${summary['at_risk_suppliers_count'] ?? 0} Delayed Vendors', style: const TextStyle(fontSize: 12)),
+                        const Text('PO Lead Variance & Fulfillment Rate', style: TextStyle(fontSize: 11, fontFamily: 'monospace')),
+                        const Text('Moderate', style: TextStyle(fontSize: 11, color: Colors.blue)),
+                      ],
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -11583,29 +11877,30 @@ class _OperationsIntelligenceScreenState
                 if (dailyProjections.isEmpty)
                   const Text('No daily projections available.', style: TextStyle(fontSize: 12))
                 else
-                  SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: DataTable(
-                      headingRowHeight: 38,
-                      dataRowMinHeight: 38,
-                      dataRowMaxHeight: 44,
-                      columns: const [
-                        DataColumn(label: Text('Date', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
-                        DataColumn(label: Text('Day #', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
-                        DataColumn(label: Text('Trend Value', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
-                        DataColumn(label: Text('80% Low Bound', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
-                        DataColumn(label: Text('80% High Bound', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
+                  ThqResponsiveTable(
+                    columns: const [
+                      ThqResponsiveColumn(title: 'Date', flex: 2),
+                      ThqResponsiveColumn(title: 'Day #', flex: 1, isNumeric: true, alignment: Alignment.centerRight),
+                      ThqResponsiveColumn(title: 'Trend Value', flex: 2, isNumeric: true, alignment: Alignment.centerRight),
+                      ThqResponsiveColumn(title: '80% Low Bound', flex: 2, isNumeric: true, alignment: Alignment.centerRight),
+                      ThqResponsiveColumn(title: '80% High Bound', flex: 2, isNumeric: true, alignment: Alignment.centerRight),
+                    ],
+                    rows: dailyProjections.map((p) => ThqResponsiveRow(
+                      cardTitle: Text(p['date']?.toString() ?? '-', style: const TextStyle(fontWeight: FontWeight.bold)),
+                      cardFields: [
+                        ('Day #', '${p['day_index'] ?? 0}'),
+                        ('Trend Value', canViewCost ? _money(p['trend_value']) : 'Confidential'),
+                        ('80% Low', canViewCost ? _money(p['low_bound_80']) : 'Confidential'),
+                        ('80% High', canViewCost ? _money(p['high_bound_80']) : 'Confidential'),
                       ],
-                      rows: dailyProjections.map((p) {
-                        return DataRow(cells: [
-                          DataCell(Text(p['date']?.toString() ?? '-', style: const TextStyle(fontSize: 12, fontFamily: 'monospace'))),
-                          DataCell(Text('${p['day_index'] ?? 0}', style: const TextStyle(fontSize: 12))),
-                          DataCell(Text(canViewCost ? _money(p['trend_value']) : 'Confidential', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12))),
-                          DataCell(Text(canViewCost ? _money(p['low_bound_80']) : 'Confidential', style: const TextStyle(fontSize: 12, color: Colors.grey))),
-                          DataCell(Text(canViewCost ? _money(p['high_bound_80']) : 'Confidential', style: const TextStyle(fontSize: 12, color: Colors.grey))),
-                        ]);
-                      }).toList(),
-                    ),
+                      cells: [
+                        Text(p['date']?.toString() ?? '-', style: const TextStyle(fontSize: 12, fontFamily: 'monospace')),
+                        Text('${p['day_index'] ?? 0}', style: const TextStyle(fontSize: 12)),
+                        Text(canViewCost ? _money(p['trend_value']) : 'Confidential', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12)),
+                        Text(canViewCost ? _money(p['low_bound_80']) : 'Confidential', style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                        Text(canViewCost ? _money(p['high_bound_80']) : 'Confidential', style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                      ],
+                    )).toList(),
                   ),
               ],
             ),
@@ -11670,50 +11965,59 @@ class _OperationsIntelligenceScreenState
                 if (imminentStockouts.isEmpty)
                   const Text('No imminent stockouts within selected forward horizon.', style: TextStyle(fontSize: 12))
                 else
-                  SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: DataTable(
-                      headingRowHeight: 38,
-                      dataRowMinHeight: 40,
-                      dataRowMaxHeight: 48,
-                      columns: const [
-                        DataColumn(label: Text('Product Name', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
-                        DataColumn(label: Text('SKU', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
-                        DataColumn(label: Text('Stock', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
-                        DataColumn(label: Text('Burn Rate/Day', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
-                        DataColumn(label: Text('Days Cover', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
-                        DataColumn(label: Text('Predicted Stockout', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
-                        DataColumn(label: Text('Reorder Qty', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
-                        DataColumn(label: Text('Risk', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
-                      ],
-                      rows: imminentStockouts.map((r) {
-                        final urgency = r['risk_urgency']?.toString() ?? 'medium';
-                        final isCritical = urgency == 'critical';
-
-                        return DataRow(cells: [
-                          DataCell(Text(r['product_name']?.toString() ?? 'Unknown', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12))),
-                          DataCell(Text(r['sku']?.toString() ?? '-', style: const TextStyle(fontSize: 11, fontFamily: 'monospace'))),
-                          DataCell(Text('${r['current_stock'] ?? 0}', style: const TextStyle(fontSize: 12))),
-                          DataCell(Text('${r['daily_burn_rate'] ?? 0}', style: const TextStyle(fontSize: 12))),
-                          DataCell(Text('${r['days_cover'] ?? 0} d', style: TextStyle(fontWeight: FontWeight.bold, color: isCritical ? Colors.red : Colors.orange, fontSize: 12))),
-                          DataCell(Text(r['predicted_stockout_date']?.toString() ?? '-', style: const TextStyle(fontSize: 11, fontFamily: 'monospace'))),
-                          DataCell(Text('${r['suggested_reorder'] ?? 0}', style: const TextStyle(fontSize: 12))),
-                          DataCell(
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: (isCritical ? Colors.red : Colors.orange).withValues(alpha: 0.15),
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: Text(
-                                urgency.toUpperCase(),
-                                style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: isCritical ? Colors.red.shade800 : Colors.orange.shade900),
-                              ),
-                            ),
+                  ThqResponsiveTable(
+                    columns: const [
+                      ThqResponsiveColumn(title: 'Product Name', flex: 3),
+                      ThqResponsiveColumn(title: 'SKU', flex: 2),
+                      ThqResponsiveColumn(title: 'Stock', flex: 2, isNumeric: true, alignment: Alignment.centerRight),
+                      ThqResponsiveColumn(title: 'Burn Rate/Day', flex: 2, isNumeric: true, alignment: Alignment.centerRight),
+                      ThqResponsiveColumn(title: 'Days Cover', flex: 2, isNumeric: true, alignment: Alignment.centerRight),
+                      ThqResponsiveColumn(title: 'Predicted Stockout', flex: 2),
+                      ThqResponsiveColumn(title: 'Reorder Qty', flex: 2, isNumeric: true, alignment: Alignment.centerRight),
+                      ThqResponsiveColumn(title: 'Risk', flex: 2),
+                    ],
+                    rows: imminentStockouts.map((r) {
+                      final urgency = r['risk_urgency']?.toString() ?? 'medium';
+                      final isCritical = urgency == 'critical';
+                      final badge = Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: isCritical ? Colors.red.withValues(alpha: 0.15) : Colors.orange.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          urgency.toUpperCase(),
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                            color: isCritical ? Colors.red.shade900 : Colors.orange.shade900,
                           ),
-                        ]);
-                      }).toList(),
-                    ),
+                        ),
+                      );
+
+                      return ThqResponsiveRow(
+                        cardTitle: Text(r['product_name']?.toString() ?? 'Unknown', style: const TextStyle(fontWeight: FontWeight.bold)),
+                        cardBadge: badge,
+                        cardFields: [
+                          ('SKU', r['sku']?.toString() ?? '-'),
+                          ('Stock', '${r['current_stock'] ?? 0}'),
+                          ('Burn Rate', '${_n(r['daily_burn_rate']).toStringAsFixed(1)}/d'),
+                          ('Days Cover', '${_n(r['days_of_stock_cover']).toStringAsFixed(1)} d'),
+                          ('Predicted Date', r['predicted_stockout_date']?.toString() ?? '-'),
+                          ('Reorder Qty', '${r['recommended_reorder_qty'] ?? 0}'),
+                        ],
+                        cells: [
+                          Text(r['product_name']?.toString() ?? 'Unknown', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12)),
+                          Text(r['sku']?.toString() ?? '-', style: const TextStyle(fontSize: 11, fontFamily: 'monospace')),
+                          Text('${r['current_stock'] ?? 0}', style: const TextStyle(fontSize: 12)),
+                          Text('${_n(r['daily_burn_rate']).toStringAsFixed(1)}/d', style: const TextStyle(fontSize: 12)),
+                          Text('${_n(r['days_of_stock_cover']).toStringAsFixed(1)} d', style: TextStyle(color: isCritical ? Colors.red : Colors.orange, fontWeight: FontWeight.bold, fontSize: 12)),
+                          Text(r['predicted_stockout_date']?.toString() ?? '-', style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                          Text('${r['recommended_reorder_qty'] ?? 0}', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12)),
+                          badge,
+                        ],
+                      );
+                    }).toList(),
                   ),
               ],
             ),
@@ -11738,29 +12042,30 @@ class _OperationsIntelligenceScreenState
                 if (excessStock.isEmpty)
                   const Text('No dormant stock detected.', style: TextStyle(fontSize: 12))
                 else
-                  SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: DataTable(
-                      headingRowHeight: 38,
-                      dataRowMinHeight: 40,
-                      dataRowMaxHeight: 48,
-                      columns: const [
-                        DataColumn(label: Text('Product Name', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
-                        DataColumn(label: Text('SKU', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
-                        DataColumn(label: Text('Stock Quantity', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
-                        DataColumn(label: Text('Tied Capital Value', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
-                        DataColumn(label: Text('Stagnation Indicator', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
+                  ThqResponsiveTable(
+                    columns: const [
+                      ThqResponsiveColumn(title: 'Product Name', flex: 3),
+                      ThqResponsiveColumn(title: 'SKU', flex: 2),
+                      ThqResponsiveColumn(title: 'Stock Quantity', flex: 2, isNumeric: true, alignment: Alignment.centerRight),
+                      ThqResponsiveColumn(title: 'Tied Capital Value', flex: 2, isNumeric: true, alignment: Alignment.centerRight),
+                      ThqResponsiveColumn(title: 'Stagnation Indicator', flex: 2),
+                    ],
+                    rows: excessStock.map((r) => ThqResponsiveRow(
+                      cardTitle: Text(r['product_name']?.toString() ?? 'Unknown', style: const TextStyle(fontWeight: FontWeight.bold)),
+                      cardFields: [
+                        ('SKU', r['sku']?.toString() ?? '-'),
+                        ('Stock', '${r['current_stock'] ?? 0}'),
+                        ('Value', canViewCost ? _money(r['stock_value']) : 'Confidential'),
+                        ('Indicator', r['stagnation_reason']?.toString() ?? 'Stagnant'),
                       ],
-                      rows: excessStock.map((r) {
-                        return DataRow(cells: [
-                          DataCell(Text(r['product_name']?.toString() ?? 'Unknown', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12))),
-                          DataCell(Text(r['sku']?.toString() ?? '-', style: const TextStyle(fontSize: 11, fontFamily: 'monospace'))),
-                          DataCell(Text('${r['current_stock'] ?? 0}', style: const TextStyle(fontSize: 12))),
-                          DataCell(Text(canViewCost ? _money(r['stock_value']) : 'Confidential', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12))),
-                          DataCell(Text(r['stagnation_reason']?.toString() ?? 'Stagnant', style: TextStyle(fontSize: 11, color: Colors.amber.shade900))),
-                        ]);
-                      }).toList(),
-                    ),
+                      cells: [
+                        Text(r['product_name']?.toString() ?? 'Unknown', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12)),
+                        Text(r['sku']?.toString() ?? '-', style: const TextStyle(fontSize: 11, fontFamily: 'monospace')),
+                        Text('${r['current_stock'] ?? 0}', style: const TextStyle(fontSize: 12)),
+                        Text(canViewCost ? _money(r['stock_value']) : 'Confidential', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12)),
+                        Text(r['stagnation_reason']?.toString() ?? 'Stagnant', style: TextStyle(fontSize: 11, color: Colors.amber.shade900)),
+                      ],
+                    )).toList(),
                   ),
               ],
             ),
@@ -11837,40 +12142,58 @@ class _OperationsIntelligenceScreenState
               children: [
                 const Text('Receivables & Payables Forward Horizon Breakdown', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 10),
-                SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: DataTable(
-                    headingRowHeight: 38,
-                    dataRowMinHeight: 40,
-                    dataRowMaxHeight: 48,
+                ThqResponsiveTable(
                     columns: const [
-                      DataColumn(label: Text('Working Capital Stream', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
-                      DataColumn(label: Text('Current Balance', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
-                      DataColumn(label: Text('Overdue / Delinquent', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
-                      DataColumn(label: Text('Key Operational Risk', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
+                      ThqResponsiveColumn(title: 'Working Capital Stream', flex: 3),
+                      ThqResponsiveColumn(title: 'Current Balance', flex: 2, isNumeric: true, alignment: Alignment.centerRight),
+                      ThqResponsiveColumn(title: 'Overdue / Delinquent', flex: 2, isNumeric: true, alignment: Alignment.centerRight),
+                      ThqResponsiveColumn(title: 'Key Operational Risk', flex: 3),
                     ],
                     rows: [
-                      DataRow(cells: [
-                        const DataCell(Text('Customer Receivables (A/R)', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12))),
-                        DataCell(Text(canViewCost ? _money(recPayForecast['total_receivables']) : 'Confidential', style: const TextStyle(fontSize: 12))),
-                        DataCell(Text(canViewCost ? _money(recPayForecast['overdue_receivables']) : 'Confidential', style: const TextStyle(color: Colors.red, fontSize: 12))),
-                        DataCell(Text('${recPayForecast['high_risk_customers_count'] ?? 0} High-Risk Accounts', style: const TextStyle(fontSize: 12, color: Colors.orange))),
-                      ]),
-                      DataRow(cells: [
-                        const DataCell(Text('Supplier Payables (A/P)', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12))),
-                        DataCell(Text(canViewCost ? _money(recPayForecast['total_payables']) : 'Confidential', style: const TextStyle(fontSize: 12))),
-                        DataCell(Text(canViewCost ? _money(recPayForecast['overdue_payables']) : 'Confidential', style: const TextStyle(color: Colors.red, fontSize: 12))),
-                        const DataCell(Text('Strict vendor credit term preservation', style: TextStyle(fontSize: 12))),
-                      ]),
-                      DataRow(cells: [
-                        const DataCell(Text('Operating Expenses Run-Rate', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12))),
-                        DataCell(Text(canViewCost ? _money(cashForecast['projected_expenses']) : 'Confidential', style: const TextStyle(fontSize: 12))),
-                        const DataCell(Text('N/A', style: TextStyle(fontSize: 12))),
-                        const DataCell(Text('Projected from 60-day recurring velocity', style: TextStyle(fontSize: 12))),
-                      ]),
+                      ThqResponsiveRow(
+                        cardTitle: const Text('Customer Receivables (A/R)', style: TextStyle(fontWeight: FontWeight.bold)),
+                        cardFields: [
+                          ('Balance', canViewCost ? _money(recPayForecast['total_receivables']) : 'Confidential'),
+                          ('Overdue', canViewCost ? _money(recPayForecast['overdue_receivables']) : 'Confidential'),
+                          ('Risk', '${recPayForecast['high_risk_customers_count'] ?? 0} High-Risk Accounts'),
+                        ],
+                        cells: [
+                          const Text('Customer Receivables (A/R)', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12)),
+                          Text(canViewCost ? _money(recPayForecast['total_receivables']) : 'Confidential', style: const TextStyle(fontSize: 12)),
+                          Text(canViewCost ? _money(recPayForecast['overdue_receivables']) : 'Confidential', style: const TextStyle(color: Colors.red, fontSize: 12)),
+                          Text('${recPayForecast['high_risk_customers_count'] ?? 0} High-Risk Accounts', style: const TextStyle(fontSize: 12, color: Colors.orange)),
+                        ],
+                      ),
+                      ThqResponsiveRow(
+                        cardTitle: const Text('Supplier Payables (A/P)', style: TextStyle(fontWeight: FontWeight.bold)),
+                        cardFields: [
+                          ('Balance', canViewCost ? _money(recPayForecast['total_payables']) : 'Confidential'),
+                          ('Overdue', canViewCost ? _money(recPayForecast['overdue_payables']) : 'Confidential'),
+                          ('Risk', 'Strict vendor credit term preservation'),
+                        ],
+                        cells: [
+                          const Text('Supplier Payables (A/P)', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12)),
+                          Text(canViewCost ? _money(recPayForecast['total_payables']) : 'Confidential', style: const TextStyle(fontSize: 12)),
+                          Text(canViewCost ? _money(recPayForecast['overdue_payables']) : 'Confidential', style: const TextStyle(color: Colors.red, fontSize: 12)),
+                          const Text('Strict vendor credit term preservation', style: TextStyle(fontSize: 12)),
+                        ],
+                      ),
+                      ThqResponsiveRow(
+                        cardTitle: const Text('Operating Expenses Run-Rate', style: TextStyle(fontWeight: FontWeight.bold)),
+                        cardFields: [
+                          ('Balance', canViewCost ? _money(cashForecast['projected_expenses']) : 'Confidential'),
+                          ('Overdue', 'N/A'),
+                          ('Risk', 'Projected from 60-day recurring velocity'),
+                        ],
+                        cells: [
+                          const Text('Operating Expenses Run-Rate', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12)),
+                          Text(canViewCost ? _money(cashForecast['projected_expenses']) : 'Confidential', style: const TextStyle(fontSize: 12)),
+                          const Text('N/A', style: TextStyle(fontSize: 12)),
+                          const Text('Projected from 60-day recurring velocity', style: TextStyle(fontSize: 12)),
+                        ],
+                      ),
                     ],
                   ),
-                ),
               ],
             ),
           ),
@@ -11919,44 +12242,48 @@ class _OperationsIntelligenceScreenState
                 if (churnCustomers.isEmpty)
                   const Text('No accounts meeting churn inactivity threshold (>45 days).', style: TextStyle(fontSize: 12))
                 else
-                  SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: DataTable(
-                      headingRowHeight: 38,
-                      dataRowMinHeight: 40,
-                      dataRowMaxHeight: 48,
-                      columns: const [
-                        DataColumn(label: Text('Customer Name', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
-                        DataColumn(label: Text('Contact', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
-                        DataColumn(label: Text('Days Inactive', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
-                        DataColumn(label: Text('Historical Orders', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
-                        DataColumn(label: Text('Lifetime Volume', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
-                        DataColumn(label: Text('Churn Risk', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
-                      ],
-                      rows: churnCustomers.map((c) {
-                        return DataRow(cells: [
-                          DataCell(Text(c['customer_name']?.toString() ?? 'Unknown', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12))),
-                          DataCell(Text(c['phone']?.toString() ?? '-', style: const TextStyle(fontSize: 11, fontFamily: 'monospace'))),
-                          DataCell(Text('${c['days_since_last_order'] ?? 0} d', style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 12))),
-                          DataCell(Text('${c['total_orders'] ?? 0}', style: const TextStyle(fontSize: 12))),
-                          DataCell(Text(canViewCost ? _money(c['historical_spend']) : 'Confidential', style: const TextStyle(fontSize: 12))),
-                          DataCell(
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: Colors.orange.withValues(alpha: 0.15),
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: Text(
-                                c['churn_risk_level']?.toString().toUpperCase() ?? 'HIGH',
-                                style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.orange.shade900),
-                              ),
-                            ),
-                          ),
-                        ]);
-                      }).toList(),
-                    ),
-                  ),
+                  ThqResponsiveTable(
+                    columns: const [
+                      ThqResponsiveColumn(title: 'Customer Name', flex: 3),
+                      ThqResponsiveColumn(title: 'Contact', flex: 2),
+                      ThqResponsiveColumn(title: 'Days Inactive', flex: 2, isNumeric: true, alignment: Alignment.centerRight),
+                      ThqResponsiveColumn(title: 'Historical Orders', flex: 2, isNumeric: true, alignment: Alignment.centerRight),
+                      ThqResponsiveColumn(title: 'Lifetime Volume', flex: 2, isNumeric: true, alignment: Alignment.centerRight),
+                      ThqResponsiveColumn(title: 'Churn Risk', flex: 2),
+                    ],
+                    rows: churnCustomers.map((c) {
+                      final badge = Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Colors.orange.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          c['churn_risk_level']?.toString().toUpperCase() ?? 'HIGH',
+                          style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.orange.shade900),
+                        ),
+                      );
+
+                      return ThqResponsiveRow(
+                        cardTitle: Text(c['customer_name']?.toString() ?? 'Unknown', style: const TextStyle(fontWeight: FontWeight.bold)),
+                        cardBadge: badge,
+                        cardFields: [
+                          ('Contact', c['phone']?.toString() ?? '-'),
+                          ('Days Inactive', '${c['days_since_last_order'] ?? 0} d'),
+                          ('Orders', '${c['total_orders'] ?? 0}'),
+                          ('Lifetime', canViewCost ? _money(c['historical_spend']) : 'Confidential'),
+                        ],
+                        cells: [
+                          Text(c['customer_name']?.toString() ?? 'Unknown', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12)),
+                          Text(c['phone']?.toString() ?? '-', style: const TextStyle(fontSize: 11, fontFamily: 'monospace')),
+                          Text('${c['days_since_last_order'] ?? 0} d', style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 12)),
+                          Text('${c['total_orders'] ?? 0}', style: const TextStyle(fontSize: 12)),
+                          Text(canViewCost ? _money(c['historical_spend']) : 'Confidential', style: const TextStyle(fontSize: 12)),
+                          badge,
+                        ],
+                      );
+                    }).toList(),
+                  )
               ],
             ),
           ),
@@ -11986,31 +12313,34 @@ class _OperationsIntelligenceScreenState
                 if (delaySuppliers.isEmpty)
                   const Text('No suppliers exceeding 30% delivery delay threshold.', style: TextStyle(fontSize: 12))
                 else
-                  SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: DataTable(
-                      headingRowHeight: 38,
-                      dataRowMinHeight: 40,
-                      dataRowMaxHeight: 48,
-                      columns: const [
-                        DataColumn(label: Text('Supplier Name', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
-                        DataColumn(label: Text('Total POs', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
-                        DataColumn(label: Text('Delayed POs', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
-                        DataColumn(label: Text('Delay Rate %', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
-                        DataColumn(label: Text('PO Volume', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12))),
-                      ],
-                      rows: delaySuppliers.map((s) {
-                        final rate = _n(s['delay_rate_pct']);
-                        return DataRow(cells: [
-                          DataCell(Text(s['supplier_name']?.toString() ?? 'Unknown', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12))),
-                          DataCell(Text('${s['total_pos'] ?? 0}', style: const TextStyle(fontSize: 12))),
-                          DataCell(Text('${s['delayed_pos'] ?? 0}', style: const TextStyle(color: Colors.red, fontSize: 12))),
-                          DataCell(Text('$rate%', style: TextStyle(fontWeight: FontWeight.bold, color: rate >= 50.0 ? Colors.red : Colors.orange, fontSize: 12))),
-                          DataCell(Text(canViewCost ? _money(s['po_volume']) : 'Confidential', style: const TextStyle(fontSize: 12))),
-                        ]);
-                      }).toList(),
-                    ),
-                  ),
+                  ThqResponsiveTable(
+                    columns: const [
+                      ThqResponsiveColumn(title: 'Supplier Name', flex: 3),
+                      ThqResponsiveColumn(title: 'Total POs', flex: 2, isNumeric: true, alignment: Alignment.centerRight),
+                      ThqResponsiveColumn(title: 'Delayed POs', flex: 2, isNumeric: true, alignment: Alignment.centerRight),
+                      ThqResponsiveColumn(title: 'Delay Rate %', flex: 2, isNumeric: true, alignment: Alignment.centerRight),
+                      ThqResponsiveColumn(title: 'PO Volume', flex: 2, isNumeric: true, alignment: Alignment.centerRight),
+                    ],
+                    rows: delaySuppliers.map((s) {
+                      final rate = _n(s['delay_rate_pct']);
+                      return ThqResponsiveRow(
+                        cardTitle: Text(s['supplier_name']?.toString() ?? 'Unknown', style: const TextStyle(fontWeight: FontWeight.bold)),
+                        cardFields: [
+                          ('Total POs', '${s['total_pos'] ?? 0}'),
+                          ('Delayed', '${s['delayed_pos'] ?? 0}'),
+                          ('Delay Rate', '$rate%'),
+                          ('PO Volume', canViewCost ? _money(s['po_volume']) : 'Confidential'),
+                        ],
+                        cells: [
+                          Text(s['supplier_name']?.toString() ?? 'Unknown', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 12)),
+                          Text('${s['total_pos'] ?? 0}', style: const TextStyle(fontSize: 12)),
+                          Text('${s['delayed_pos'] ?? 0}', style: const TextStyle(color: Colors.red, fontSize: 12)),
+                          Text('$rate%', style: TextStyle(fontWeight: FontWeight.bold, color: rate >= 50.0 ? Colors.red : Colors.orange, fontSize: 12)),
+                          Text(canViewCost ? _money(s['po_volume']) : 'Confidential', style: const TextStyle(fontSize: 12)),
+                        ],
+                      );
+                    }).toList(),
+                  )
               ],
             ),
           ),
@@ -12047,21 +12377,16 @@ class _OperationsIntelligenceScreenState
         const SizedBox(height: 16),
 
         // Simulation Category Selector
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(
-            children: [
-              _simCategoryButton('pricing', 'Pricing Optimization', Icons.sell_outlined),
-              const SizedBox(width: 8),
-              _simCategoryButton('bulk_purchasing', 'Bulk Purchasing Discount', Icons.shopping_bag_outlined),
-              const SizedBox(width: 8),
-              _simCategoryButton('credit_policy', 'Credit Policy Terms', Icons.credit_score_outlined),
-              const SizedBox(width: 8),
-              _simCategoryButton('staffing', 'Staffing & Shifts', Icons.badge_outlined),
-              const SizedBox(width: 8),
-              _simCategoryButton('stock_transfer', 'Stock Rebalancing', Icons.move_up_outlined),
-            ],
-          ),
+        Wrap(
+          spacing: 8,
+          runSpacing: 6,
+          children: [
+            _simCategoryButton('pricing', 'Pricing Optimization', Icons.sell_outlined),
+            _simCategoryButton('bulk_purchasing', 'Bulk Purchasing Discount', Icons.shopping_bag_outlined),
+            _simCategoryButton('credit_policy', 'Credit Policy Terms', Icons.credit_score_outlined),
+            _simCategoryButton('staffing', 'Staffing & Shifts', Icons.badge_outlined),
+            _simCategoryButton('stock_transfer', 'Stock Rebalancing', Icons.move_up_outlined),
+          ],
         ),
         const SizedBox(height: 16),
 
@@ -12456,25 +12781,24 @@ class _OperationsIntelligenceScreenState
               const SizedBox(height: 16),
               const Text('Sensitivity Analysis Matrix', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: DataTable(
-                  headingRowHeight: 36,
-                  dataRowMinHeight: 36,
-                  dataRowMaxHeight: 42,
-                  columns: const [
-                    DataColumn(label: Text('Scenario Variation', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11))),
-                    DataColumn(label: Text('Impact Shift', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11))),
-                    DataColumn(label: Text('Projected Outcome', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11))),
+              ThqResponsiveTable(
+                columns: const [
+                  ThqResponsiveColumn(title: 'Scenario Variation', flex: 3),
+                  ThqResponsiveColumn(title: 'Impact Shift', flex: 2, isNumeric: true, alignment: Alignment.centerRight),
+                  ThqResponsiveColumn(title: 'Projected Outcome', flex: 2, isNumeric: true, alignment: Alignment.centerRight),
+                ],
+                rows: sensitivity.map((s) => ThqResponsiveRow(
+                  cardTitle: Text(s['scenario']?.toString() ?? '-', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                  cardFields: [
+                    ('Impact Shift', '${s['change_pct'] ?? 0}%'),
+                    ('Projected', canViewCost ? _money(s['projected_rev'] ?? s['projected_outcome'] ?? 0) : 'Confidential'),
                   ],
-                  rows: sensitivity.map((s) {
-                    return DataRow(cells: [
-                      DataCell(Text(s['scenario']?.toString() ?? '-', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600))),
-                      DataCell(Text('${s['change_pct'] ?? 0}%', style: const TextStyle(fontSize: 11))),
-                      DataCell(Text(canViewCost ? _money(s['projected_rev'] ?? s['projected_outcome'] ?? 0) : 'Confidential', style: const TextStyle(fontSize: 11))),
-                    ]);
-                  }).toList(),
-                ),
+                  cells: [
+                    Text(s['scenario']?.toString() ?? '-', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
+                    Text('${s['change_pct'] ?? 0}%', style: const TextStyle(fontSize: 11)),
+                    Text(canViewCost ? _money(s['projected_rev'] ?? s['projected_outcome'] ?? 0) : 'Confidential', style: const TextStyle(fontSize: 11)),
+                  ],
+                )).toList(),
               ),
             ],
           ],

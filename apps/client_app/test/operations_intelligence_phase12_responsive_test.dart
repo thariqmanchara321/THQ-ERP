@@ -327,4 +327,88 @@ void main() {
     expect(find.text('Reorder Level'), findsOneWidget);
     expect(find.text('Maximum Stock'), findsOneWidget);
   });
+
+  testWidgets('Header vertical height is compact (<=84px) on desktop viewports', (tester) async {
+    tester.view.physicalSize = const Size(1920, 1080);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+
+    final mockService = MockOperationsIntelligenceService();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: OperationsIntelligenceScreen(
+            session: _createSession(),
+            service: mockService,
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final headerFinder = find.byKey(const Key('operations_intelligence_unified_header'));
+    expect(headerFinder, findsOneWidget);
+
+    final headerSize = tester.getSize(headerFinder);
+    expect(headerSize.height, lessThanOrEqualTo(84.0));
+  });
+
+  testWidgets('Metric cards render at compact width and maintain visible values', (tester) async {
+    tester.view.physicalSize = const Size(1920, 1080);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+
+    final mockService = MockOperationsIntelligenceService();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: OperationsIntelligenceScreen(
+            session: _createSession(),
+            service: mockService,
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Check overview metric values
+    expect(find.text('Gross Sales'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Multi-viewport responsive audit (1920, 1366, 1024, 768, 390) renders with zero overflow', (tester) async {
+    final viewports = [
+      const Size(1920, 1080),
+      const Size(1366, 768),
+      const Size(1024, 768),
+      const Size(768, 1024),
+      const Size(390, 844),
+    ];
+
+    final mockService = MockOperationsIntelligenceService();
+
+    for (final size in viewports) {
+      tester.view.physicalSize = size;
+      tester.view.devicePixelRatio = 1.0;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: OperationsIntelligenceScreen(
+              session: _createSession(),
+              service: mockService,
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Operations Intelligence'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    }
+
+    tester.view.resetPhysicalSize();
+  });
 }

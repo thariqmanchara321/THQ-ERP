@@ -602,28 +602,35 @@ void main() {
 
       // Verify table column headers
       expect(find.text('Store'), findsOneWidget);
-      expect(find.text('ABC'), findsOneWidget);
-      expect(find.text('Velocity'), findsOneWidget);
-      expect(find.text('Product'), findsOneWidget);
-      expect(find.text('SKU'), findsOneWidget);
+      expect(find.text('Product & SKU'), findsOneWidget);
       expect(find.text('Available'), findsOneWidget);
       expect(find.text('Incoming'), findsOneWidget);
-      expect(find.text('Reorder'), findsOneWidget);
-      expect(find.text('Max'), findsOneWidget);
-      expect(find.text('Burn Rate'), findsOneWidget);
+      expect(find.text('Reorder/Max'), findsOneWidget);
       expect(find.text('Cover'), findsOneWidget);
       expect(find.text('Suggested'), findsOneWidget);
-      expect(find.text('Stock Value'), findsOneWidget);
-      expect(find.text('Status'), findsOneWidget);
+      expect(find.text('Status & Detail'), findsOneWidget);
 
       // Check incoming breakdown for Central Cement (50 PO + 20 Transit = 70)
       expect(find.text('70'), findsNWidgets(2)); // 70 incoming for cement and 70 suggested reorder for rebar
       expect(find.byTooltip('PO: 50, In-transit: 20'), findsOneWidget);
 
+      // Open detail dialog to verify comprehensive 14-metric stock details
+      final detailBtn = find.byTooltip('View Full Stock Details').first;
+      expect(detailBtn, findsOneWidget);
+      await tester.tap(detailBtn);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Burn Rate (Avg Sales/Day)'), findsOneWidget);
+      expect(find.text('Maximum Stock'), findsOneWidget);
+      expect(find.text('Stock Valuation'), findsOneWidget);
+      await tester.tap(find.byIcon(Icons.close));
+      await tester.pumpAndSettle();
+
       // Check suggested reorder:
       // Central Cement: 0 suggested (because 320 avail + 70 incoming > 100 reorder)
       // Downtown Cement: 120 suggested (0 avail + 0 incoming < 60 reorder -> reorders to max 120)
-      expect(find.text('120'), findsNWidgets(2)); // Max stock of 120 and suggested reorder of 120
+      expect(find.text('120'), findsOneWidget); // Suggested reorder of 120
+      expect(find.text('60 / 120'), findsOneWidget); // Reorder/Max column of 60 / 120
     });
 
     testWidgets('Cost-restricted users see Hidden/— for inventory values and tied capital', (tester) async {

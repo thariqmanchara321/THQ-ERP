@@ -685,7 +685,7 @@ void main() {
       expect(find.text('Berger WeatherCoat Paint 20L (White)'), findsOneWidget);
 
       // Scroll down to Section 6: Customer Purchasing Intelligence & RFM
-      await tester.drag(find.byType(ListView), const Offset(0, -600));
+      await tester.drag(find.byType(ListView).first, const Offset(0, -600));
       await tester.pumpAndSettle();
 
       expect(find.text('Customer Purchasing & RFM Intelligence'), findsOneWidget);
@@ -699,7 +699,7 @@ void main() {
       expect(find.text('Dormant Customers'), findsOneWidget);
 
       // Scroll further down to RFM Segments and Top Customers Ranking
-      await tester.drag(find.byType(ListView), const Offset(0, -600));
+      await tester.drag(find.byType(ListView).first, const Offset(0, -600));
       await tester.pumpAndSettle();
 
       // RFM Segments grid
