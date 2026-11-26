@@ -1,102 +1,732 @@
 import 'dart:convert';
+import 'package:erp_core/erp_core.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:sqflite/sqflite.dart';
 import '../models/pos_models.dart';
 
-class MobilePosLocalStore {
+class MobilePosLocalStore implements OfflineStorageAdapter {
   MobilePosLocalStore._();
-  static final instance=MobilePosLocalStore._();
+  static final instance = MobilePosLocalStore._();
   Database? _db;
+
+  @override
+  Future<void> initialize() async {
+    await db;
+  }
+
+  @override
+  Future<void> close() async {
+    final d = _db;
+    _db = null;
+    if (d != null) {
+      await d.close();
+    }
+  }
+
   Future<Database> get db async {
-    if(_db!=null)return _db!;
-    final support=await getApplicationSupportDirectory();
-    final path=p.join(support.path,'thq_mobile_pos_v488.sqlite');
-    _db=await openDatabase(path,version:2,onCreate:(d,_) async {
-      await d.execute('CREATE TABLE meta(key TEXT PRIMARY KEY,value TEXT NOT NULL,updated_at TEXT NOT NULL)');
-      await d.execute('CREATE TABLE products(tenant_id TEXT NOT NULL,location_id TEXT NOT NULL,variant_id TEXT NOT NULL,payload_json TEXT NOT NULL,available_qty REAL NOT NULL DEFAULT 0,refreshed_at TEXT NOT NULL,PRIMARY KEY(tenant_id,location_id,variant_id))');
-      await d.execute('CREATE TABLE customers(tenant_id TEXT NOT NULL,customer_id TEXT NOT NULL,payload_json TEXT NOT NULL,refreshed_at TEXT NOT NULL,PRIMARY KEY(tenant_id,customer_id))');
-      await d.execute('CREATE TABLE serials(tenant_id TEXT NOT NULL,location_id TEXT NOT NULL,serial_id TEXT NOT NULL,serial_number TEXT NOT NULL,variant_id TEXT NOT NULL,updated_at TEXT,reserved_request_id TEXT,PRIMARY KEY(tenant_id,serial_id),UNIQUE(tenant_id,serial_number))');
-      await d.execute('CREATE TABLE invoices(request_id TEXT PRIMARY KEY,tenant_id TEXT NOT NULL,location_id TEXT NOT NULL,device_id TEXT NOT NULL,local_number TEXT NOT NULL,payload_json TEXT NOT NULL,status TEXT NOT NULL,attempts INTEGER NOT NULL DEFAULT 0,conflict_code TEXT,conflict_message TEXT,server_response_json TEXT,created_at TEXT NOT NULL,updated_at TEXT NOT NULL)');
-      await d.execute('CREATE INDEX idx_mobile_pos_queue ON invoices(tenant_id,device_id,status,created_at)');
-      await d.execute('CREATE INDEX idx_mobile_pos_serials ON serials(tenant_id,location_id,variant_id,reserved_request_id)');
-      await d.execute('CREATE TABLE held_carts(hold_id TEXT PRIMARY KEY,tenant_id TEXT NOT NULL,location_id TEXT NOT NULL,device_id TEXT NOT NULL,label TEXT NOT NULL,payload_json TEXT NOT NULL,created_at TEXT NOT NULL,updated_at TEXT NOT NULL)');
-      await d.execute('CREATE INDEX idx_mobile_pos_held_carts ON held_carts(tenant_id,device_id,updated_at)');
-      await d.execute('CREATE TABLE favorite_products(tenant_id TEXT NOT NULL,device_id TEXT NOT NULL,variant_id TEXT NOT NULL,updated_at TEXT NOT NULL,PRIMARY KEY(tenant_id,device_id,variant_id))');
-      await d.execute('CREATE TABLE recent_products(tenant_id TEXT NOT NULL,device_id TEXT NOT NULL,variant_id TEXT NOT NULL,use_count INTEGER NOT NULL DEFAULT 1,updated_at TEXT NOT NULL,PRIMARY KEY(tenant_id,device_id,variant_id))');
-    },onUpgrade:(d,oldVersion,newVersion) async {
-      if(oldVersion<2){
-        await d.execute('CREATE TABLE IF NOT EXISTS held_carts(hold_id TEXT PRIMARY KEY,tenant_id TEXT NOT NULL,location_id TEXT NOT NULL,device_id TEXT NOT NULL,label TEXT NOT NULL,payload_json TEXT NOT NULL,created_at TEXT NOT NULL,updated_at TEXT NOT NULL)');
-        await d.execute('CREATE INDEX IF NOT EXISTS idx_mobile_pos_held_carts ON held_carts(tenant_id,device_id,updated_at)');
-        await d.execute('CREATE TABLE IF NOT EXISTS favorite_products(tenant_id TEXT NOT NULL,device_id TEXT NOT NULL,variant_id TEXT NOT NULL,updated_at TEXT NOT NULL,PRIMARY KEY(tenant_id,device_id,variant_id))');
-        await d.execute('CREATE TABLE IF NOT EXISTS recent_products(tenant_id TEXT NOT NULL,device_id TEXT NOT NULL,variant_id TEXT NOT NULL,use_count INTEGER NOT NULL DEFAULT 1,updated_at TEXT NOT NULL,PRIMARY KEY(tenant_id,device_id,variant_id))');
-      }
-    });
+    if (_db != null) return _db!;
+    final support = await getApplicationSupportDirectory();
+    final path = p.join(support.path, 'thq_mobile_pos_v488.sqlite');
+    _db = await openDatabase(
+      path,
+      version: 3,
+      onCreate: (d, _) async {
+        await d.execute(
+          'CREATE TABLE meta(key TEXT PRIMARY KEY,value TEXT NOT NULL,updated_at TEXT NOT NULL)',
+        );
+        await d.execute(
+          'CREATE TABLE products(tenant_id TEXT NOT NULL,location_id TEXT NOT NULL,variant_id TEXT NOT NULL,payload_json TEXT NOT NULL,available_qty REAL NOT NULL DEFAULT 0,refreshed_at TEXT NOT NULL,PRIMARY KEY(tenant_id,location_id,variant_id))',
+        );
+        await d.execute(
+          'CREATE TABLE customers(tenant_id TEXT NOT NULL,customer_id TEXT NOT NULL,payload_json TEXT NOT NULL,refreshed_at TEXT NOT NULL,PRIMARY KEY(tenant_id,customer_id))',
+        );
+        await d.execute(
+          'CREATE TABLE serials(tenant_id TEXT NOT NULL,location_id TEXT NOT NULL,serial_id TEXT NOT NULL,serial_number TEXT NOT NULL,variant_id TEXT NOT NULL,updated_at TEXT,reserved_request_id TEXT,PRIMARY KEY(tenant_id,serial_id),UNIQUE(tenant_id,serial_number))',
+        );
+        await d.execute(
+          'CREATE TABLE invoices(request_id TEXT PRIMARY KEY,tenant_id TEXT NOT NULL,location_id TEXT NOT NULL,device_id TEXT NOT NULL,local_number TEXT NOT NULL,payload_json TEXT NOT NULL,status TEXT NOT NULL,attempts INTEGER NOT NULL DEFAULT 0,conflict_code TEXT,conflict_message TEXT,server_response_json TEXT,print_requested INTEGER NOT NULL DEFAULT 0,created_at TEXT NOT NULL,updated_at TEXT NOT NULL)',
+        );
+        await d.execute(
+          'CREATE INDEX idx_mobile_pos_queue ON invoices(tenant_id,device_id,status,created_at)',
+        );
+        await d.execute(
+          'CREATE INDEX idx_mobile_pos_serials ON serials(tenant_id,location_id,variant_id,reserved_request_id)',
+        );
+        await d.execute(
+          'CREATE TABLE held_carts(hold_id TEXT PRIMARY KEY,tenant_id TEXT NOT NULL,location_id TEXT NOT NULL,device_id TEXT NOT NULL,label TEXT NOT NULL,payload_json TEXT NOT NULL,created_at TEXT NOT NULL,updated_at TEXT NOT NULL)',
+        );
+        await d.execute(
+          'CREATE INDEX idx_mobile_pos_held_carts ON held_carts(tenant_id,device_id,updated_at)',
+        );
+        await d.execute(
+          'CREATE TABLE favorite_products(tenant_id TEXT NOT NULL,device_id TEXT NOT NULL,variant_id TEXT NOT NULL,updated_at TEXT NOT NULL,PRIMARY KEY(tenant_id,device_id,variant_id))',
+        );
+        await d.execute(
+          'CREATE TABLE recent_products(tenant_id TEXT NOT NULL,device_id TEXT NOT NULL,variant_id TEXT NOT NULL,use_count INTEGER NOT NULL DEFAULT 1,updated_at TEXT NOT NULL,PRIMARY KEY(tenant_id,device_id,variant_id))',
+        );
+      },
+      onUpgrade: (d, oldVersion, newVersion) async {
+        if (oldVersion < 2) {
+          await d.execute(
+            'CREATE TABLE IF NOT EXISTS held_carts(hold_id TEXT PRIMARY KEY,tenant_id TEXT NOT NULL,location_id TEXT NOT NULL,device_id TEXT NOT NULL,label TEXT NOT NULL,payload_json TEXT NOT NULL,created_at TEXT NOT NULL,updated_at TEXT NOT NULL)',
+          );
+          await d.execute(
+            'CREATE INDEX IF NOT EXISTS idx_mobile_pos_held_carts ON held_carts(tenant_id,device_id,updated_at)',
+          );
+          await d.execute(
+            'CREATE TABLE IF NOT EXISTS favorite_products(tenant_id TEXT NOT NULL,device_id TEXT NOT NULL,variant_id TEXT NOT NULL,updated_at TEXT NOT NULL,PRIMARY KEY(tenant_id,device_id,variant_id))',
+          );
+          await d.execute(
+            'CREATE TABLE IF NOT EXISTS recent_products(tenant_id TEXT NOT NULL,device_id TEXT NOT NULL,variant_id TEXT NOT NULL,use_count INTEGER NOT NULL DEFAULT 1,updated_at TEXT NOT NULL,PRIMARY KEY(tenant_id,device_id,variant_id))',
+          );
+        }
+        if (oldVersion < 3) {
+          try {
+            await d.execute(
+              'ALTER TABLE invoices ADD COLUMN print_requested INTEGER NOT NULL DEFAULT 0',
+            );
+          } catch (_) {}
+        }
+      },
+    );
     return _db!;
   }
 
-  Future<void> setMeta(String key,Object? value) async {final d=await db;final now=DateTime.now().toUtc().toIso8601String();await d.insert('meta',{'key':key,'value':jsonEncode(value),'updated_at':now},conflictAlgorithm:ConflictAlgorithm.replace);}
-  Future<dynamic> getMeta(String key) async {final d=await db;final rows=await d.query('meta',columns:['value'],where:'key=?',whereArgs:[key],limit:1);if(rows.isEmpty)return null;try{return jsonDecode(rows.first['value'] as String);}catch(_){return rows.first['value'];}}
-
-  Future<void> saveHeldCart({required String holdId,required String tenantId,required String locationId,required String deviceId,required String label,required Map<String,dynamic> payload}) async {
-    final d=await db;final now=DateTime.now().toUtc().toIso8601String();
-    final existing=await d.query('held_carts',columns:['created_at'],where:'hold_id=?',whereArgs:[holdId],limit:1);
-    await d.insert('held_carts',{'hold_id':holdId,'tenant_id':tenantId,'location_id':locationId,'device_id':deviceId,'label':label,'payload_json':jsonEncode(payload),'created_at':existing.isEmpty?now:existing.first['created_at'],'updated_at':now},conflictAlgorithm:ConflictAlgorithm.replace);
+  @override
+  Future<void> setMeta(String key, Object? value) async {
+    final d = await db;
+    final now = DateTime.now().toUtc().toIso8601String();
+    await d.insert(
+      'meta',
+      {'key': key, 'value': jsonEncode(value), 'updated_at': now},
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
   }
-  Future<List<Map<String,dynamic>>> heldCarts(String tenantId,String deviceId,{int limit=30}) async {
-    final d=await db;final rows=await d.query('held_carts',where:'tenant_id=? AND device_id=?',whereArgs:[tenantId,deviceId],orderBy:'updated_at DESC',limit:limit);
-    return rows.map((row){final payload=Map<String,dynamic>.from(jsonDecode(row['payload_json'] as String) as Map);return <String,dynamic>{'hold_id':row['hold_id']?.toString()??'','label':row['label']?.toString()??'Held order','created_at':row['created_at']?.toString(),'updated_at':row['updated_at']?.toString(),'payload':payload};}).toList();
-  }
-  Future<void> deleteHeldCart(String holdId) async {final d=await db;await d.delete('held_carts',where:'hold_id=?',whereArgs:[holdId]);}
-  Future<Set<String>> favoriteVariantIds(String tenantId,String deviceId) async {final d=await db;final rows=await d.query('favorite_products',columns:['variant_id'],where:'tenant_id=? AND device_id=?',whereArgs:[tenantId,deviceId],orderBy:'updated_at DESC');return rows.map((r)=>r['variant_id']?.toString()??'').where((id)=>id.isNotEmpty).toSet();}
-  Future<void> setFavorite(String tenantId,String deviceId,String variantId,bool enabled) async {final d=await db;if(!enabled){await d.delete('favorite_products',where:'tenant_id=? AND device_id=? AND variant_id=?',whereArgs:[tenantId,deviceId,variantId]);return;}await d.insert('favorite_products',{'tenant_id':tenantId,'device_id':deviceId,'variant_id':variantId,'updated_at':DateTime.now().toUtc().toIso8601String()},conflictAlgorithm:ConflictAlgorithm.replace);}
-  Future<List<String>> recentVariantIds(String tenantId,String deviceId,{int limit=24}) async {final d=await db;final rows=await d.query('recent_products',columns:['variant_id'],where:'tenant_id=? AND device_id=?',whereArgs:[tenantId,deviceId],orderBy:'updated_at DESC',limit:limit);return rows.map((r)=>r['variant_id']?.toString()??'').where((id)=>id.isNotEmpty).toList();}
-  Future<void> recordRecentProduct(String tenantId,String deviceId,String variantId) async {final d=await db;final rows=await d.query('recent_products',columns:['use_count'],where:'tenant_id=? AND device_id=? AND variant_id=?',whereArgs:[tenantId,deviceId,variantId],limit:1);final count=rows.isEmpty?1:((rows.first['use_count'] as int?)??0)+1;await d.insert('recent_products',{'tenant_id':tenantId,'device_id':deviceId,'variant_id':variantId,'use_count':count,'updated_at':DateTime.now().toUtc().toIso8601String()},conflictAlgorithm:ConflictAlgorithm.replace);}
 
-  Future<void> replaceCatalogue({required String tenantId,required String locationId,required List<Map<String,dynamic>> products,required List<Map<String,dynamic>> customers,required List<Map<String,dynamic>> serials,required Map<String,dynamic> manifest}) async {
-    final d=await db;final now=DateTime.now().toUtc().toIso8601String();
+  @override
+  Future<dynamic> getMeta(String key) async {
+    final d = await db;
+    final rows = await d.query(
+      'meta',
+      columns: ['value'],
+      where: 'key=?',
+      whereArgs: [key],
+      limit: 1,
+    );
+    if (rows.isEmpty) return null;
+    try {
+      return jsonDecode(rows.first['value'] as String);
+    } catch (_) {
+      return rows.first['value'];
+    }
+  }
+
+  Future<void> saveHeldCart({
+    required String holdId,
+    required String tenantId,
+    required String locationId,
+    required String deviceId,
+    required String label,
+    required Map<String, dynamic> payload,
+  }) async {
+    final d = await db;
+    final now = DateTime.now().toUtc().toIso8601String();
+    final existing = await d.query(
+      'held_carts',
+      columns: ['created_at'],
+      where: 'hold_id=?',
+      whereArgs: [holdId],
+      limit: 1,
+    );
+    await d.insert(
+      'held_carts',
+      {
+        'hold_id': holdId,
+        'tenant_id': tenantId,
+        'location_id': locationId,
+        'device_id': deviceId,
+        'label': label,
+        'payload_json': jsonEncode(payload),
+        'created_at': existing.isEmpty ? now : existing.first['created_at'],
+        'updated_at': now,
+      },
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  Future<List<Map<String, dynamic>>> heldCarts(
+    String tenantId,
+    String deviceId, {
+    int limit = 30,
+  }) async {
+    final d = await db;
+    final rows = await d.query(
+      'held_carts',
+      where: 'tenant_id=? AND device_id=?',
+      whereArgs: [tenantId, deviceId],
+      orderBy: 'updated_at DESC',
+      limit: limit,
+    );
+    return rows.map((row) {
+      final payload = Map<String, dynamic>.from(
+        jsonDecode(row['payload_json'] as String) as Map,
+      );
+      return <String, dynamic>{
+        'hold_id': row['hold_id']?.toString() ?? '',
+        'label': row['label']?.toString() ?? 'Held order',
+        'created_at': row['created_at']?.toString(),
+        'updated_at': row['updated_at']?.toString(),
+        'payload': payload,
+      };
+    }).toList();
+  }
+
+  Future<void> deleteHeldCart(String holdId) async {
+    final d = await db;
+    await d.delete('held_carts', where: 'hold_id=?', whereArgs: [holdId]);
+  }
+
+  Future<Set<String>> favoriteVariantIds(String tenantId, String deviceId) async {
+    final d = await db;
+    final rows = await d.query(
+      'favorite_products',
+      columns: ['variant_id'],
+      where: 'tenant_id=? AND device_id=?',
+      whereArgs: [tenantId, deviceId],
+      orderBy: 'updated_at DESC',
+    );
+    return rows
+        .map((r) => r['variant_id']?.toString() ?? '')
+        .where((id) => id.isNotEmpty)
+        .toSet();
+  }
+
+  Future<void> setFavorite(
+    String tenantId,
+    String deviceId,
+    String variantId,
+    bool enabled,
+  ) async {
+    final d = await db;
+    if (!enabled) {
+      await d.delete(
+        'favorite_products',
+        where: 'tenant_id=? AND device_id=? AND variant_id=?',
+        whereArgs: [tenantId, deviceId, variantId],
+      );
+      return;
+    }
+    await d.insert(
+      'favorite_products',
+      {
+        'tenant_id': tenantId,
+        'device_id': deviceId,
+        'variant_id': variantId,
+        'updated_at': DateTime.now().toUtc().toIso8601String(),
+      },
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  Future<List<String>> recentVariantIds(
+    String tenantId,
+    String deviceId, {
+    int limit = 24,
+  }) async {
+    final d = await db;
+    final rows = await d.query(
+      'recent_products',
+      columns: ['variant_id'],
+      where: 'tenant_id=? AND device_id=?',
+      whereArgs: [tenantId, deviceId],
+      orderBy: 'updated_at DESC',
+      limit: limit,
+    );
+    return rows
+        .map((r) => r['variant_id']?.toString() ?? '')
+        .where((id) => id.isNotEmpty)
+        .toList();
+  }
+
+  Future<void> recordRecentProduct(
+    String tenantId,
+    String deviceId,
+    String variantId,
+  ) async {
+    final d = await db;
+    final rows = await d.query(
+      'recent_products',
+      columns: ['use_count'],
+      where: 'tenant_id=? AND device_id=? AND variant_id=?',
+      whereArgs: [tenantId, deviceId, variantId],
+      limit: 1,
+    );
+    final count = rows.isEmpty ? 1 : ((rows.first['use_count'] as int?) ?? 0) + 1;
+    await d.insert(
+      'recent_products',
+      {
+        'tenant_id': tenantId,
+        'device_id': deviceId,
+        'variant_id': variantId,
+        'use_count': count,
+        'updated_at': DateTime.now().toUtc().toIso8601String(),
+      },
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  Future<void> replaceCatalogue({
+    required String tenantId,
+    required String locationId,
+    required List<Map<String, dynamic>> products,
+    required List<Map<String, dynamic>> customers,
+    required List<Map<String, dynamic>> serials,
+    required Map<String, dynamic> manifest,
+  }) async {
+    final d = await db;
+    final now = DateTime.now().toUtc().toIso8601String();
     await d.transaction((tx) async {
-      await tx.delete('products',where:'tenant_id=? AND location_id=?',whereArgs:[tenantId,locationId]);
-      for(final row in products){final p=MobileProduct.fromMap(row);await tx.insert('products',{'tenant_id':tenantId,'location_id':locationId,'variant_id':p.variantId,'payload_json':jsonEncode(row),'available_qty':p.stockQuantity,'refreshed_at':now});}
-      await tx.delete('customers',where:'tenant_id=?',whereArgs:[tenantId]);
-      for(final row in customers){final c=MobileCustomer.fromMap(row);if(c.id.isNotEmpty)await tx.insert('customers',{'tenant_id':tenantId,'customer_id':c.id,'payload_json':jsonEncode(row),'refreshed_at':now});}
-      await tx.delete('serials',where:'tenant_id=? AND location_id=?',whereArgs:[tenantId,locationId]);
-      for(final row in serials){await tx.insert('serials',{'tenant_id':tenantId,'location_id':locationId,'serial_id':row['serial_id']?.toString()??'','serial_number':row['serial_number']?.toString()??'','variant_id':row['variant_id']?.toString()??'','updated_at':row['updated_at']?.toString(),'reserved_request_id':null});}
-      await _reapplyReservations(tx,tenantId,locationId);
+      await tx.delete(
+        'products',
+        where: 'tenant_id=? AND location_id=?',
+        whereArgs: [tenantId, locationId],
+      );
+      for (final row in products) {
+        final p = MobileProduct.fromMap(row);
+        await tx.insert('products', {
+          'tenant_id': tenantId,
+          'location_id': locationId,
+          'variant_id': p.variantId,
+          'payload_json': jsonEncode(row),
+          'available_qty': p.stockQuantity,
+          'refreshed_at': now,
+        });
+      }
+      await tx.delete('customers', where: 'tenant_id=?', whereArgs: [tenantId]);
+      for (final row in customers) {
+        final c = MobileCustomer.fromMap(row);
+        if (c.id.isNotEmpty) {
+          await tx.insert('customers', {
+            'tenant_id': tenantId,
+            'customer_id': c.id,
+            'payload_json': jsonEncode(row),
+            'refreshed_at': now,
+          });
+        }
+      }
+      await tx.delete(
+        'serials',
+        where: 'tenant_id=? AND location_id=?',
+        whereArgs: [tenantId, locationId],
+      );
+      for (final row in serials) {
+        await tx.insert('serials', {
+          'tenant_id': tenantId,
+          'location_id': locationId,
+          'serial_id': row['serial_id']?.toString() ?? '',
+          'serial_number': row['serial_number']?.toString() ?? '',
+          'variant_id': row['variant_id']?.toString() ?? '',
+          'updated_at': row['updated_at']?.toString(),
+          'reserved_request_id': null,
+        });
+      }
+      await _reapplyReservations(tx, tenantId, locationId);
     });
-    await setMeta('manifest:$tenantId:$locationId',manifest);
+    await setMeta('manifest:$tenantId:$locationId', manifest);
   }
 
-  Future<List<MobileProduct>> products(String tenantId,String locationId) async {final d=await db;final rows=await d.query('products',where:'tenant_id=? AND location_id=?',whereArgs:[tenantId,locationId],orderBy:'variant_id');return rows.map((r){final m=Map<String,dynamic>.from(jsonDecode(r['payload_json'] as String) as Map);m['stock_quantity']=((r['available_qty'] as num?)?.toDouble()??0).clamp(0,double.infinity);m['offline_available_quantity']=m['stock_quantity'];return MobileProduct.fromMap(m);}).toList();}
-  Future<List<MobileCustomer>> customers(String tenantId) async {final d=await db;final rows=await d.query('customers',where:'tenant_id=?',whereArgs:[tenantId],orderBy:'customer_id');return rows.map((r)=>MobileCustomer.fromMap(Map<String,dynamic>.from(jsonDecode(r['payload_json'] as String) as Map))).toList();}
-  Future<Map<String,dynamic>?> findSerial(String tenantId,String locationId,String code) async {final d=await db;final rows=await d.query('serials',where:'tenant_id=? AND location_id=? AND lower(serial_number)=lower(?) AND reserved_request_id IS NULL',whereArgs:[tenantId,locationId,code.trim()],limit:1);return rows.isEmpty?null:Map<String,dynamic>.from(rows.first);}
-
-  Future<String> queueSale({required String requestId,required String tenantId,required String locationId,required String deviceId,required Map<String,dynamic> payload}) async {
-    final d=await db;final old=await d.query('invoices',columns:['local_number'],where:'request_id=?',whereArgs:[requestId],limit:1);if(old.isNotEmpty)return old.first['local_number'] as String;
-    final n=DateTime.now();final stamp='${n.year.toString().padLeft(4,'0')}${n.month.toString().padLeft(2,'0')}${n.day.toString().padLeft(2,'0')}-${n.hour.toString().padLeft(2,'0')}${n.minute.toString().padLeft(2,'0')}${n.second.toString().padLeft(2,'0')}-${n.millisecond.toString().padLeft(3,'0')}';final local='MOB-$stamp';final full=Map<String,dynamic>.from(payload)..['local_invoice_number']=local..['channel']='mobile_pos';final iso=n.toUtc().toIso8601String();
-    await d.transaction((tx) async {await _applyReservation(tx,tenantId,locationId,requestId,full,-1);await tx.insert('invoices',{'request_id':requestId,'tenant_id':tenantId,'location_id':locationId,'device_id':deviceId,'local_number':local,'payload_json':jsonEncode(full),'status':'pending','attempts':0,'created_at':iso,'updated_at':iso});});return local;
+  Future<List<MobileProduct>> products(
+    String tenantId,
+    String locationId,
+  ) async {
+    final d = await db;
+    final rows = await d.query(
+      'products',
+      where: 'tenant_id=? AND location_id=?',
+      whereArgs: [tenantId, locationId],
+      orderBy: 'variant_id',
+    );
+    return rows.map((r) {
+      final m = Map<String, dynamic>.from(
+        jsonDecode(r['payload_json'] as String) as Map,
+      );
+      m['stock_quantity'] =
+          ((r['available_qty'] as num?)?.toDouble() ?? 0).clamp(0, double.infinity);
+      m['offline_available_quantity'] = m['stock_quantity'];
+      return MobileProduct.fromMap(m);
+    }).toList();
   }
 
-  Future<List<LocalInvoice>> queue(String tenantId,String deviceId,{Set<String>? statuses,int limit=300}) async {final d=await db;final where=StringBuffer('tenant_id=? AND device_id=?');final args=<Object?>[tenantId,deviceId];if(statuses!=null&&statuses.isNotEmpty){where.write(' AND status IN (${List.filled(statuses.length,'?').join(',')})');args.addAll(statuses);}final rows=await d.query('invoices',where:where.toString(),whereArgs:args,orderBy:'created_at DESC',limit:limit);return rows.map(_invoice).toList();}
-  Future<LocalInvoice?> invoiceByRequest(String requestId) async {final d=await db;final rows=await d.query('invoices',where:'request_id=?',whereArgs:[requestId],limit:1);return rows.isEmpty?null:_invoice(rows.first);}
-  Future<Map<String,int>> summary(String tenantId,String deviceId) async {final rows=await queue(tenantId,deviceId,limit:10000);final out=<String,int>{};for(final r in rows){out[r.status]=(out[r.status]??0)+1;}return out;}
-  Future<void> markSyncing(String id) async=>_status(id,'syncing',attempt:true);
-  Future<void> markPending(String id,[String? message]) async=>_status(id,'pending',message:message);
-  Future<void> markConflict(String id,String code,String message) async {final d=await db;await d.update('invoices',{'status':'conflict','conflict_code':code,'conflict_message':message,'updated_at':DateTime.now().toUtc().toIso8601String()},where:'request_id=?',whereArgs:[id]);}
-  Future<void> markSynced(String id,Map<String,dynamic> response) async {final d=await db;await d.update('invoices',{'status':'synced','conflict_code':null,'conflict_message':null,'server_response_json':jsonEncode(response),'updated_at':DateTime.now().toUtc().toIso8601String()},where:'request_id=?',whereArgs:[id]);}
-  Future<void> retry(String id) async=>_status(id,'pending');
-  Future<void> cancel(String id) async {final d=await db;final rows=await d.query('invoices',where:'request_id=?',whereArgs:[id],limit:1);if(rows.isEmpty)return;final status=rows.first['status'] as String;if(status=='synced')throw StateError('A synchronized invoice cannot be cancelled locally.');if(status=='cancelled')return;final payload=Map<String,dynamic>.from(jsonDecode(rows.first['payload_json'] as String) as Map);await d.transaction((tx) async {await _applyReservation(tx,rows.first['tenant_id'] as String,rows.first['location_id'] as String,id,payload,1);await tx.update('invoices',{'status':'cancelled','updated_at':DateTime.now().toUtc().toIso8601String()},where:'request_id=?',whereArgs:[id]);});}
-  Future<void> _status(String id,String status,{String? message,bool attempt=false}) async {final d=await db;final values=<String,Object?>{'status':status,'conflict_message':message,'updated_at':DateTime.now().toUtc().toIso8601String()};if(attempt){await d.rawUpdate('UPDATE invoices SET status=?,attempts=attempts+1,conflict_message=?,updated_at=? WHERE request_id=?',[status,message,values['updated_at'],id]);}else{await d.update('invoices',values,where:'request_id=?',whereArgs:[id]);}}
+  Future<List<MobileCustomer>> customers(String tenantId) async {
+    final d = await db;
+    final rows = await d.query(
+      'customers',
+      where: 'tenant_id=?',
+      whereArgs: [tenantId],
+      orderBy: 'customer_id',
+    );
+    return rows
+        .map(
+          (r) => MobileCustomer.fromMap(
+            Map<String, dynamic>.from(jsonDecode(r['payload_json'] as String) as Map),
+          ),
+        )
+        .toList();
+  }
 
-  Map<String,dynamic>? _serverResponse(Object? raw){if(raw==null)return null;final text=raw.toString();if(text.trim().isEmpty)return null;try{final decoded=jsonDecode(text);return decoded is Map?Map<String,dynamic>.from(decoded):null;}catch(_){return null;}}
-  LocalInvoice _invoice(Map<String,Object?> r)=>LocalInvoice(requestId:r['request_id'] as String,localNumber:r['local_number'] as String,status:r['status'] as String,payload:Map<String,dynamic>.from(jsonDecode(r['payload_json'] as String) as Map),serverResponse:_serverResponse(r['server_response_json']),attempts:(r['attempts'] as int?)??0,conflictCode:r['conflict_code']?.toString()??'',conflictMessage:r['conflict_message']?.toString()??'',createdAt:DateTime.tryParse(r['created_at']?.toString()??'')??DateTime.now());
-  Future<void> _reapplyReservations(DatabaseExecutor tx,String tenant,String location) async {final rows=await tx.query('invoices',columns:['request_id','payload_json'],where:"tenant_id=? AND location_id=? AND status IN ('pending','syncing','conflict','error')",whereArgs:[tenant,location],orderBy:'created_at');for(final r in rows){await _applyReservation(tx,tenant,location,r['request_id'] as String,Map<String,dynamic>.from(jsonDecode(r['payload_json'] as String) as Map),-1,strict:false);}}
-  Future<void> _applyReservation(DatabaseExecutor tx,String tenant,String location,String request,Map<String,dynamic> payload,int direction,{bool strict=true}) async {
-    for(final raw in (payload['items'] as List? ?? const []).whereType<Map>()){
-      final item=Map<String,dynamic>.from(raw);final variant=item['variant_id']?.toString()??'';if(variant.isEmpty)continue;final base=numberValue(item['base_quantity'],numberValue(item['quantity'])*numberValue(item['conversion_to_base'],1));
-      if(base>0){final stock=await tx.query('products',columns:['available_qty'],where:'tenant_id=? AND location_id=? AND variant_id=?',whereArgs:[tenant,location,variant],limit:1);if(direction<0&&strict&&stock.isNotEmpty&&numberValue(stock.first['available_qty'])+0.000001<base)throw StateError('Not enough offline stock for ${item['product_name']??item['sku']??'product'}.');await tx.rawUpdate('UPDATE products SET available_qty=available_qty+? WHERE tenant_id=? AND location_id=? AND variant_id=?',[direction*base,tenant,location,variant]);}
-      for(final serial in (item['serial_numbers'] as List? ?? const []).map((e)=>e.toString()).where((e)=>e.isNotEmpty)){
-        if(direction<0){final changed=await tx.rawUpdate('UPDATE serials SET reserved_request_id=? WHERE tenant_id=? AND location_id=? AND lower(serial_number)=lower(?) AND (reserved_request_id IS NULL OR reserved_request_id=?)',[request,tenant,location,serial,request]);if(strict&&changed==0)throw StateError('Serial $serial is not available offline.');}else{await tx.rawUpdate('UPDATE serials SET reserved_request_id=NULL WHERE tenant_id=? AND location_id=? AND lower(serial_number)=lower(?) AND reserved_request_id=?',[tenant,location,serial,request]);}
+  Future<Map<String, dynamic>?> findSerial(
+    String tenantId,
+    String locationId,
+    String code,
+  ) async {
+    final d = await db;
+    final rows = await d.query(
+      'serials',
+      where:
+          'tenant_id=? AND location_id=? AND lower(serial_number)=lower(?) AND reserved_request_id IS NULL',
+      whereArgs: [tenantId, locationId, code.trim()],
+      limit: 1,
+    );
+    return rows.isEmpty ? null : Map<String, dynamic>.from(rows.first);
+  }
+
+  @override
+  Future<String> queueSale({
+    required String requestId,
+    required String tenantId,
+    required String locationId,
+    required String deviceId,
+    required Map<String, dynamic> payload,
+    bool printRequested = false,
+  }) async {
+    final d = await db;
+    final old = await d.query(
+      'invoices',
+      columns: ['local_number'],
+      where: 'request_id=?',
+      whereArgs: [requestId],
+      limit: 1,
+    );
+    if (old.isNotEmpty) return old.first['local_number'] as String;
+    final n = DateTime.now();
+    final stamp =
+        '${n.year.toString().padLeft(4, '0')}${n.month.toString().padLeft(2, '0')}${n.day.toString().padLeft(2, '0')}-${n.hour.toString().padLeft(2, '0')}${n.minute.toString().padLeft(2, '0')}${n.second.toString().padLeft(2, '0')}-${n.millisecond.toString().padLeft(3, '0')}';
+    final local = 'MOB-$stamp';
+    final full = Map<String, dynamic>.from(payload)
+      ..['local_invoice_number'] = local
+      ..['channel'] = 'mobile_pos';
+    final iso = n.toUtc().toIso8601String();
+    await d.transaction((tx) async {
+      await _applyReservation(tx, tenantId, locationId, requestId, full, -1);
+      await tx.insert('invoices', {
+        'request_id': requestId,
+        'tenant_id': tenantId,
+        'location_id': locationId,
+        'device_id': deviceId,
+        'local_number': local,
+        'payload_json': jsonEncode(full),
+        'status': 'pending',
+        'attempts': 0,
+        'print_requested': printRequested ? 1 : 0,
+        'created_at': iso,
+        'updated_at': iso,
+      });
+    });
+    return local;
+  }
+
+  Future<List<LocalInvoice>> queue(
+    String tenantId,
+    String deviceId, {
+    Set<String>? statuses,
+    int limit = 300,
+  }) async {
+    final d = await db;
+    final where = StringBuffer('tenant_id=? AND device_id=?');
+    final args = <Object?>[tenantId, deviceId];
+    if (statuses != null && statuses.isNotEmpty) {
+      where.write(' AND status IN (${List.filled(statuses.length, '?').join(',')})');
+      args.addAll(statuses);
+    }
+    final rows = await d.query(
+      'invoices',
+      where: where.toString(),
+      whereArgs: args,
+      orderBy: 'created_at DESC',
+      limit: limit,
+    );
+    return rows.map(_invoice).toList();
+  }
+
+  @override
+  Future<List<OfflineSaleRecord>> fetchQueue({
+    required String tenantId,
+    required String deviceId,
+    Set<String>? statuses,
+    int limit = 300,
+  }) =>
+      queue(tenantId, deviceId, statuses: statuses, limit: limit);
+
+  Future<LocalInvoice?> invoiceByRequest(String requestId) async {
+    final d = await db;
+    final rows = await d.query(
+      'invoices',
+      where: 'request_id=?',
+      whereArgs: [requestId],
+      limit: 1,
+    );
+    return rows.isEmpty ? null : _invoice(rows.first);
+  }
+
+  @override
+  Future<OfflineSaleRecord?> invoice(String requestId) =>
+      invoiceByRequest(requestId);
+
+  Future<OfflineQueueSummary> summary(String tenantId, String deviceId) async {
+    final d = await db;
+    final rows = await d.rawQuery(
+      'SELECT status, count(*) AS c FROM invoices WHERE tenant_id=? AND device_id=? GROUP BY status',
+      [tenantId, deviceId],
+    );
+    final counts = <String, int>{};
+    for (final r in rows) {
+      counts[r['status'] as String] = (r['c'] as int?) ?? 0;
+    }
+    return OfflineQueueSummary(
+      pending: (counts['pending'] ?? 0) + (counts['syncing'] ?? 0),
+      conflict: counts['conflict'] ?? 0,
+      error: counts['error'] ?? 0,
+      synced: counts['synced'] ?? 0,
+    );
+  }
+
+  @override
+  Future<OfflineQueueSummary> queueSummary({
+    required String tenantId,
+    required String deviceId,
+  }) =>
+      summary(tenantId, deviceId);
+
+  @override
+  Future<void> markSyncing(String id) async =>
+      _status(id, 'syncing', attempt: true);
+
+  @override
+  Future<void> markPending(String id, {String? message}) async =>
+      _status(id, 'pending', message: message);
+
+  @override
+  Future<void> markConflict(
+    String id, {
+    required String code,
+    required String message,
+  }) async {
+    final d = await db;
+    await d.update(
+      'invoices',
+      {
+        'status': 'conflict',
+        'conflict_code': code,
+        'conflict_message': message,
+        'updated_at': DateTime.now().toUtc().toIso8601String(),
+      },
+      where: 'request_id=?',
+      whereArgs: [id],
+    );
+  }
+
+  @override
+  Future<void> markSynced(String id, Map<String, dynamic> response) async {
+    final d = await db;
+    await d.update(
+      'invoices',
+      {
+        'status': 'synced',
+        'conflict_code': null,
+        'conflict_message': null,
+        'server_response_json': jsonEncode(response),
+        'updated_at': DateTime.now().toUtc().toIso8601String(),
+      },
+      where: 'request_id=?',
+      whereArgs: [id],
+    );
+  }
+
+  @override
+  Future<void> retry(String id) async => _status(id, 'pending');
+
+  @override
+  Future<void> cancel(String id) async {
+    final d = await db;
+    final rows = await d.query(
+      'invoices',
+      where: 'request_id=?',
+      whereArgs: [id],
+      limit: 1,
+    );
+    if (rows.isEmpty) return;
+    final status = rows.first['status'] as String;
+    if (status == 'synced') {
+      throw StateError('A synchronized invoice cannot be cancelled locally.');
+    }
+    if (status == 'cancelled') return;
+    final payload = Map<String, dynamic>.from(
+      jsonDecode(rows.first['payload_json'] as String) as Map,
+    );
+    await d.transaction((tx) async {
+      await _applyReservation(
+        tx,
+        rows.first['tenant_id'] as String,
+        rows.first['location_id'] as String,
+        id,
+        payload,
+        1,
+      );
+      await tx.update(
+        'invoices',
+        {
+          'status': 'cancelled',
+          'updated_at': DateTime.now().toUtc().toIso8601String(),
+        },
+        where: 'request_id=?',
+        whereArgs: [id],
+      );
+    });
+  }
+
+  Future<void> _status(
+    String id,
+    String status, {
+    String? message,
+    bool attempt = false,
+  }) async {
+    final d = await db;
+    final values = <String, Object?>{
+      'status': status,
+      'conflict_message': message,
+      'updated_at': DateTime.now().toUtc().toIso8601String(),
+    };
+    if (attempt) {
+      await d.rawUpdate(
+        'UPDATE invoices SET status=?,attempts=attempts+1,conflict_message=?,updated_at=? WHERE request_id=?',
+        [status, message, values['updated_at'], id],
+      );
+    } else {
+      await d.update('invoices', values, where: 'request_id=?', whereArgs: [id]);
+    }
+  }
+
+  Map<String, dynamic>? _serverResponse(Object? raw) {
+    if (raw == null) return null;
+    final text = raw.toString();
+    if (text.trim().isEmpty) return null;
+    try {
+      final decoded = jsonDecode(text);
+      return decoded is Map ? Map<String, dynamic>.from(decoded) : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  LocalInvoice _invoice(Map<String, Object?> r) => LocalInvoice(
+        requestId: r['request_id'] as String,
+        localNumber: r['local_number'] as String,
+        status: r['status'] as String,
+        payload: Map<String, dynamic>.from(
+          jsonDecode(r['payload_json'] as String) as Map,
+        ),
+        serverResponse: _serverResponse(r['server_response_json']),
+        attempts: (r['attempts'] as int?) ?? 0,
+        conflictCode: r['conflict_code']?.toString() ?? '',
+        conflictMessage: r['conflict_message']?.toString() ?? '',
+        createdAt:
+            DateTime.tryParse(r['created_at']?.toString() ?? '') ?? DateTime.now(),
+        updatedAt: DateTime.tryParse(r['updated_at']?.toString() ?? ''),
+        printRequested: (r['print_requested'] as int? ?? 0) == 1,
+      );
+
+  Future<void> _reapplyReservations(
+    DatabaseExecutor tx,
+    String tenant,
+    String location,
+  ) async {
+    final rows = await tx.query(
+      'invoices',
+      columns: ['request_id', 'payload_json'],
+      where:
+          "tenant_id=? AND location_id=? AND status IN ('pending','syncing','conflict','error')",
+      whereArgs: [tenant, location],
+      orderBy: 'created_at',
+    );
+    for (final r in rows) {
+      await _applyReservation(
+        tx,
+        tenant,
+        location,
+        r['request_id'] as String,
+        Map<String, dynamic>.from(jsonDecode(r['payload_json'] as String) as Map),
+        -1,
+        strict: false,
+      );
+    }
+  }
+
+  Future<void> _applyReservation(
+    DatabaseExecutor tx,
+    String tenant,
+    String location,
+    String request,
+    Map<String, dynamic> payload,
+    int direction, {
+    bool strict = true,
+  }) async {
+    for (final raw in (payload['items'] as List? ?? const []).whereType<Map>()) {
+      final item = Map<String, dynamic>.from(raw);
+      final variant = item['variant_id']?.toString() ?? '';
+      if (variant.isEmpty) continue;
+      final base = numberValue(
+        item['base_quantity'],
+        numberValue(item['quantity']) * numberValue(item['conversion_to_base'], 1),
+      );
+      if (base > 0) {
+        final stock = await tx.query(
+          'products',
+          columns: ['available_qty'],
+          where: 'tenant_id=? AND location_id=? AND variant_id=?',
+          whereArgs: [tenant, location, variant],
+          limit: 1,
+        );
+        if (direction < 0 &&
+            strict &&
+            stock.isNotEmpty &&
+            numberValue(stock.first['available_qty']) + 0.000001 < base) {
+          throw StateError(
+            'Not enough offline stock for ${item['product_name'] ?? item['sku'] ?? 'product'}.',
+          );
+        }
+        await tx.rawUpdate(
+          'UPDATE products SET available_qty=available_qty+? WHERE tenant_id=? AND location_id=? AND variant_id=?',
+          [direction * base, tenant, location, variant],
+        );
+      }
+      for (final serial in (item['serial_numbers'] as List? ?? const [])
+          .map((e) => e.toString())
+          .where((e) => e.isNotEmpty)) {
+        if (direction < 0) {
+          final changed = await tx.rawUpdate(
+            'UPDATE serials SET reserved_request_id=? WHERE tenant_id=? AND location_id=? AND lower(serial_number)=lower(?) AND (reserved_request_id IS NULL OR reserved_request_id=?)',
+            [request, tenant, location, serial, request],
+          );
+          if (strict && changed == 0) {
+            throw StateError('Serial $serial is not available offline.');
+          }
+        } else {
+          await tx.rawUpdate(
+            'UPDATE serials SET reserved_request_id=NULL WHERE tenant_id=? AND location_id=? AND lower(serial_number)=lower(?) AND reserved_request_id=?',
+            [tenant, location, serial, request],
+          );
+        }
       }
     }
   }

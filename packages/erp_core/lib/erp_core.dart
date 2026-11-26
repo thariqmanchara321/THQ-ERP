@@ -56,3 +56,12 @@ export 'src/intelligence/gs1_registry_provider.dart';
 export 'src/intelligence/mock_external_product_provider.dart';
 export 'src/intelligence/external_product_intelligence_engine.dart';
 
+export 'src/offline/offline_sync_status.dart';
+export 'src/offline/offline_sale_payload.dart';
+export 'src/offline/offline_sale_record.dart';
+export 'src/offline/offline_queue_summary.dart';
+export 'src/offline/offline_sync_result.dart';
+export 'src/offline/offline_sync_verifier.dart';
+export 'src/offline/offline_storage_adapter.dart';
+export 'src/offline/offline_sync_coordinator.dart';
+

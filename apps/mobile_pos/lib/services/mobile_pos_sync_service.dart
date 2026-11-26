@@ -1,21 +1,17 @@
+import 'package:erp_core/erp_core.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/pos_session.dart';
 import 'gst_v520_route_guard.dart';
 import 'mobile_pos_local_store.dart';
 
-class MobileSyncResult {
-  final int attempted;
-  final int synced;
-  final int conflicts;
-  final int pending;
-
+class MobileSyncResult extends OfflineSyncResult {
   const MobileSyncResult(
-    this.attempted,
-    this.synced,
-    this.conflicts,
-    this.pending,
-  );
+    super.attempted,
+    super.synced,
+    super.conflicts,
+    super.pending,
+  ) : super.positional();
 }
 
 class MobilePosSyncService {
@@ -142,30 +138,26 @@ class MobilePosSyncService {
               'p_payload': row.payload,
             },
           );
-          final map = raw is Map
-              ? Map<String, dynamic>.from(raw)
-              : <String, dynamic>{};
+          final verification = OfflineSyncVerifier.verify(raw);
 
-          if (map['ok'] == false || map['status'] == 'conflict') {
+          if (verification.isConflict) {
             await _local.markConflict(
               row.requestId,
-              map['code']?.toString() ?? 'SERVER_VALIDATION',
-              map['message']?.toString() ?? 'Server rejected invoice.',
+              code: verification.conflictCode ?? 'SERVER_VALIDATION',
+              message: verification.conflictMessage ?? 'Server rejected invoice.',
             );
             conflicts++;
-          } else {
-            if (map['authoritative_gst'] == false ||
-                map['gst_snapshot_id'] == null ||
-                map['gst_journal_id'] == null) {
-              throw StateError(
-                'v5.2 Mobile POS sync is missing GST snapshot/journal evidence.',
-              );
-            }
-            await _local.markSynced(row.requestId, map);
+          } else if (verification.isSuccess) {
+            await _local.markSynced(row.requestId, verification.rawResponse);
             synced++;
+          } else {
+            throw StateError(
+              verification.conflictMessage ??
+                  'v5.2 Mobile POS sync is missing GST snapshot/journal evidence.',
+            );
           }
         } catch (error) {
-          await _local.markPending(row.requestId, error.toString());
+          await _local.markPending(row.requestId, message: error.toString());
           pending++;
           break;
         }

@@ -1,3 +1,4 @@
+import 'package:erp_core/erp_core.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/client_session.dart';
@@ -18,20 +19,6 @@ class OfflineCatalogue {
     required this.customers,
     required this.serialCount,
     required this.manifest,
-  });
-}
-
-class OfflineSyncResult {
-  final int attempted;
-  final int synced;
-  final int conflicts;
-  final int pending;
-
-  const OfflineSyncResult({
-    required this.attempted,
-    required this.synced,
-    required this.conflicts,
-    required this.pending,
   });
 }
 
@@ -219,31 +206,24 @@ class OfflinePosSyncService {
               'p_payload': record.payload,
             },
           );
-          final map = result is Map
-              ? Map<String, dynamic>.from(result)
-              : <String, dynamic>{};
-
-          if (map['status']?.toString() == 'conflict' || map['ok'] == false) {
+          final verification = OfflineSyncVerifier.verify(result);
+          if (verification.isConflict) {
             await _local.markConflict(
               record.requestId,
-              code: map['code']?.toString() ?? 'SERVER_VALIDATION',
+              code: verification.conflictCode ?? 'SERVER_VALIDATION',
               message:
-                  map['message']?.toString() ??
+                  verification.conflictMessage ??
                   'Server rejected the offline invoice.',
             );
             conflicts++;
-          } else {
-            // v5.2 sync is considered complete only when the server has accepted
-            // the sale through the authoritative GST writer.
-            if (map['authoritative_gst'] == false ||
-                map['gst_snapshot_id'] == null ||
-                map['gst_journal_id'] == null) {
-              throw StateError(
-                'v5.2.2 sync response is missing authoritative GST recovery evidence.',
-              );
-            }
-            await _local.markSynced(record.requestId, map);
+          } else if (verification.isSuccess) {
+            await _local.markSynced(record.requestId, verification.rawResponse);
             synced++;
+          } else {
+            throw StateError(
+              verification.conflictMessage ??
+                  'v5.2.2 sync response is missing authoritative GST recovery evidence.',
+            );
           }
         } catch (error) {
           // Transport/API outage is not a failed sale. Keep the exact immutable

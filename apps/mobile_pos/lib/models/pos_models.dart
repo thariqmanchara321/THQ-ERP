@@ -1,3 +1,5 @@
+import 'package:erp_core/erp_core.dart';
+
 double numberValue(dynamic value, [double fallback = 0]) =>
     value is num ? value.toDouble() : double.tryParse(value?.toString() ?? '') ?? fallback;
 
@@ -282,26 +284,29 @@ class CartLine {
       };
 }
 
-class LocalInvoice {
-  final String requestId;
-  final String localNumber;
-  final String status;
-  final Map<String, dynamic> payload;
-  final Map<String, dynamic>? serverResponse;
-  final int attempts;
-  final String conflictCode;
-  final String conflictMessage;
-  final DateTime createdAt;
-
+class LocalInvoice extends OfflineSaleRecord {
   const LocalInvoice({
-    required this.requestId,
-    required this.localNumber,
-    required this.status,
-    required this.payload,
-    this.serverResponse,
-    required this.attempts,
-    required this.conflictCode,
-    required this.conflictMessage,
-    required this.createdAt,
-  });
+    required super.requestId,
+    required String localNumber,
+    required super.status,
+    required super.payload,
+    super.serverResponse,
+    required super.attempts,
+    required String conflictCode,
+    required String conflictMessage,
+    required super.createdAt,
+    DateTime? updatedAt,
+    super.printRequested,
+  }) : super(
+          localInvoiceNumber: localNumber,
+          conflictCode: conflictCode,
+          conflictMessage: conflictMessage,
+          updatedAt: updatedAt ?? createdAt,
+        );
+
+  @override
+  String get conflictCode => super.conflictCode ?? '';
+
+  @override
+  String get conflictMessage => super.conflictMessage ?? '';
 }

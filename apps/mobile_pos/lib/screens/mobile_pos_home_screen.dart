@@ -147,11 +147,8 @@ class _State extends State<MobilePosHomeScreen> {
         widget.session.tenantId,
         widget.session.deviceId,
       );
-      final conflicts = summary['conflict'] ?? 0;
-      final waiting =
-          (summary['pending'] ?? 0) +
-          (summary['error'] ?? 0) +
-          (summary['syncing'] ?? 0);
+      final conflicts = summary.conflict;
+      final waiting = summary.pending + summary.error;
       if (mounted) {
         setState(
           () => syncText = conflicts > 0
@@ -1277,11 +1274,8 @@ class _State extends State<MobilePosHomeScreen> {
         widget.session.tenantId,
         widget.session.deviceId,
       );
-      final conflicts = summary['conflict'] ?? 0;
-      final waiting =
-          (summary['pending'] ?? 0) +
-          (summary['error'] ?? 0) +
-          (summary['syncing'] ?? 0);
+      final conflicts = summary.conflict;
+      final waiting = summary.pending + summary.error;
       if (!mounted) return;
       setState(() {
         if (_manualOffline) {

@@ -2,6 +2,8 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:erp_core/erp_core.dart';
+export 'package:erp_core/erp_core.dart'
+    show OfflineQueueSummary, OfflineSaleRecord, OfflineSyncResult, OfflineStorageAdapter;
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:sqlite3/sqlite3.dart';
@@ -11,51 +13,23 @@ import '../models/inventory_product.dart';
 import 'pos_database_key_store.dart';
 import 'pos_database_security_manager.dart';
 
-class OfflineInvoiceRecord {
-  final String requestId;
-  final String localInvoiceNumber;
-  final String status;
-  final Map<String, dynamic> payload;
-  final int attempts;
-  final String? conflictCode;
-  final String? conflictMessage;
-  final Map<String, dynamic>? serverResponse;
-  final DateTime createdAt;
-  final DateTime updatedAt;
-  final bool printRequested;
-
+class OfflineInvoiceRecord extends OfflineSaleRecord {
   const OfflineInvoiceRecord({
-    required this.requestId,
-    required this.localInvoiceNumber,
-    required this.status,
-    required this.payload,
-    required this.attempts,
-    required this.conflictCode,
-    required this.conflictMessage,
-    required this.serverResponse,
-    required this.createdAt,
-    required this.updatedAt,
-    required this.printRequested,
+    required super.requestId,
+    required super.localInvoiceNumber,
+    required super.status,
+    required super.payload,
+    required super.attempts,
+    super.conflictCode,
+    super.conflictMessage,
+    super.serverResponse,
+    required super.createdAt,
+    required super.updatedAt,
+    super.printRequested,
   });
 }
 
-class OfflineQueueSummary {
-  final int pending;
-  final int conflict;
-  final int error;
-  final int synced;
-
-  const OfflineQueueSummary({
-    required this.pending,
-    required this.conflict,
-    required this.error,
-    required this.synced,
-  });
-
-  int get needsAttention => pending + conflict + error;
-}
-
-class OfflinePosService {
+class OfflinePosService implements OfflineStorageAdapter {
   OfflinePosService._();
   static final OfflinePosService instance = OfflinePosService._();
 
@@ -67,6 +41,7 @@ class OfflinePosService {
     _keyStore = keyStore;
   }
 
+  @override
   Future<void> initialize({
     String? customDatabasePath,
     PosDatabaseKeyStore? keyStore,
@@ -147,6 +122,7 @@ class OfflinePosService {
     _db = db;
   }
 
+  @override
   Future<void> close() async {
     final db = _db;
     _db = null;
@@ -204,6 +180,7 @@ class OfflinePosService {
     return value;
   }
 
+  @override
   Future<void> setMeta(String key, Object? value) async {
     await initialize();
     final now = DateTime.now().toUtc().toIso8601String();
@@ -214,6 +191,7 @@ class OfflinePosService {
     );
   }
 
+  @override
   Future<dynamic> getMeta(String key) async {
     await initialize();
     final rows = _database.select(
@@ -384,13 +362,14 @@ class OfflinePosService {
     };
   }
 
+  @override
   Future<String> queueSale({
     required String requestId,
     required String tenantId,
     required String locationId,
     required String deviceId,
     required Map<String, dynamic> payload,
-    required bool printRequested,
+    bool printRequested = false,
   }) async {
     await initialize();
     final db = _database;
@@ -462,6 +441,7 @@ class OfflinePosService {
     return _database.select(sql, args).map(_invoiceFromRow).toList();
   }
 
+  @override
   Future<OfflineInvoiceRecord?> invoice(String requestId) async {
     await initialize();
     final rows = _database.select(
@@ -492,13 +472,37 @@ class OfflinePosService {
     );
   }
 
+  @override
+  Future<List<OfflineSaleRecord>> fetchQueue({
+    required String tenantId,
+    required String deviceId,
+    Set<String>? statuses,
+    int limit = 300,
+  }) =>
+      queue(
+        tenantId: tenantId,
+        deviceId: deviceId,
+        statuses: statuses,
+        limit: limit,
+      );
+
+  @override
+  Future<OfflineQueueSummary> queueSummary({
+    required String tenantId,
+    required String deviceId,
+  }) =>
+      summary(tenantId: tenantId, deviceId: deviceId);
+
+  @override
   Future<void> markSyncing(String requestId) async =>
       _setStatus(requestId, 'syncing', incrementAttempts: true);
+  @override
   Future<void> markPending(String requestId, {String? message}) async =>
       _setStatus(requestId, 'pending', message: message);
   Future<void> markError(String requestId, String message) async =>
       _setStatus(requestId, 'error', message: message);
 
+  @override
   Future<void> markConflict(
     String requestId, {
     required String code,
@@ -511,6 +515,7 @@ class OfflinePosService {
     );
   }
 
+  @override
   Future<void> markSynced(
     String requestId,
     Map<String, dynamic> response,
@@ -526,6 +531,7 @@ class OfflinePosService {
     );
   }
 
+  @override
   Future<void> retry(String requestId) async {
     await initialize();
     _database.execute(
@@ -534,6 +540,7 @@ class OfflinePosService {
     );
   }
 
+  @override
   Future<void> cancel(String requestId) async {
     await initialize();
     final db = _database;
