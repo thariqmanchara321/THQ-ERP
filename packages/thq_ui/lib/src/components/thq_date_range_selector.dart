@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../foundations/thq_tokens.dart';
+import 'thq_compact_date_range_dialog.dart';
 
 /// Predefined standard date range presets across THQ ERP.
 enum ThqDatePreset {
@@ -99,14 +100,12 @@ class ThqDateRangeSelector extends StatelessWidget {
     final earliest = firstDate ?? DateTime(2020, 1, 1);
     final latest = lastDate ?? DateTime(now.year + 5, 12, 31);
 
-    final picked = await showDateRangePicker(
+    final picked = await showThqCompactDateRangePicker(
       context: context,
+      initialRange: selectedRange,
       firstDate: earliest,
       lastDate: latest,
-      initialDateRange: selectedRange,
-      helpText: 'Select Custom Date Range',
-      cancelText: 'Cancel',
-      confirmText: 'Apply',
+      title: 'Select Custom Date Range',
     );
 
     if (picked != null) {

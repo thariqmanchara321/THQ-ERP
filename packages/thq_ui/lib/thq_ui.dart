@@ -10,6 +10,7 @@ export 'src/components/thq_buttons.dart';
 export 'src/components/thq_card.dart';
 export 'src/components/thq_command_surface.dart';
 export 'src/components/thq_date_range_selector.dart';
+export 'src/components/thq_compact_date_range_dialog.dart';
 export 'src/components/thq_fields.dart';
 export 'src/components/thq_notification_host.dart';
 export 'src/components/thq_notification_toast.dart';

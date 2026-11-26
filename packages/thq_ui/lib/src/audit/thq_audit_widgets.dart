@@ -220,20 +220,28 @@ class AuditMetrics extends StatelessWidget {
     children: [
       for (final entry in values.entries)
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
           decoration: BoxDecoration(
             color: Theme.of(context).colorScheme.surfaceContainerLow,
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(6),
+            border: Border.all(
+              color: Theme.of(context).colorScheme.outlineVariant.withValues(alpha: 0.4),
+            ),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Text(entry.key, style: Theme.of(context).textTheme.labelSmall),
+              Text(
+                entry.key,
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(fontSize: 10),
+              ),
+              const SizedBox(height: 1),
               Text(
                 entry.value,
                 style: const TextStyle(
                   fontWeight: FontWeight.w700,
-                  fontSize: 16,
+                  fontSize: 14,
                 ),
               ),
             ],

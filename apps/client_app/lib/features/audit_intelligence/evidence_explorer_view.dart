@@ -385,18 +385,23 @@ class _EvidenceExplorerViewState extends State<EvidenceExplorerView> {
                   else
                     OutlinedButton.icon(
                       onPressed: _exporting ? null : widget.onPickPeriod,
-                      icon: const Icon(Icons.date_range, size: 16),
+                      icon: const Icon(Icons.date_range, size: 15),
                       label: Text(
                         '${auditDate(widget.from.toIso8601String().substring(0, 10))} – ${auditDate(widget.to.toIso8601String().substring(0, 10))}',
-                        style: const TextStyle(fontSize: 12),
+                        style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w500),
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        visualDensity: VisualDensity.compact,
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                       ),
                     ),
 
                   // Refresh Button
                   IconButton(
                     tooltip: 'Refresh Evidence',
+                    visualDensity: VisualDensity.compact,
                     onPressed: _loadingEvidence || _exporting ? null : _loadEvidence,
-                    icon: const Icon(Icons.refresh, size: 20),
+                    icon: const Icon(Icons.refresh, size: 19),
                   ),
 
                   // Reset Filters Button

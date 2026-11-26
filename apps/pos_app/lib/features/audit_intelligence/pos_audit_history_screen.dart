@@ -64,11 +64,12 @@ class _PosAuditHistoryScreenState extends State<PosAuditHistoryScreen> {
   }
 
   Future<void> _period() async {
-    final range = await showDateRangePicker(
+    final range = await showThqCompactDateRangePicker(
       context: context,
+      initialRange: DateTimeRange(start: _from, end: _to),
       firstDate: DateTime(2020),
       lastDate: DateTime.now(),
-      initialDateRange: DateTimeRange(start: _from, end: _to),
+      title: 'Select Audit Period',
     );
     if (range == null || !mounted) return;
     setState(() {

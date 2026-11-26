@@ -187,7 +187,7 @@ class _IntegrityReconciliationViewState
     final insufficient = res?.insufficientDataCount ?? 0;
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surface,
         border: Border(
@@ -197,8 +197,8 @@ class _IntegrityReconciliationViewState
         ),
       ),
       child: Wrap(
-        spacing: 12,
-        runSpacing: 8,
+        spacing: 8,
+        runSpacing: 6,
         crossAxisAlignment: WrapCrossAlignment.center,
         children: [
           _summaryCard(
@@ -246,7 +246,7 @@ class _IntegrityReconciliationViewState
     bool isWarning = false,
   }) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(6),
@@ -257,8 +257,8 @@ class _IntegrityReconciliationViewState
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 16, color: color),
-          const SizedBox(width: 8),
+          Icon(icon, size: 15, color: color),
+          const SizedBox(width: 6),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
@@ -266,7 +266,7 @@ class _IntegrityReconciliationViewState
               Text(
                 value,
                 style: TextStyle(
-                  fontSize: 14,
+                  fontSize: 13,
                   fontWeight: FontWeight.bold,
                   color: color,
                 ),
@@ -274,7 +274,7 @@ class _IntegrityReconciliationViewState
               Text(
                 label,
                 style: TextStyle(
-                  fontSize: 10,
+                  fontSize: 9.5,
                   color: Theme.of(
                     context,
                   ).textTheme.bodySmall?.color?.withValues(alpha: 0.7),
@@ -289,8 +289,8 @@ class _IntegrityReconciliationViewState
 
   Widget _buildCategoryTabs() {
     return Container(
-      height: 44,
-      padding: const EdgeInsets.symmetric(horizontal: 12),
+      height: 38,
+      padding: const EdgeInsets.symmetric(horizontal: 10),
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surface,
         border: Border(
@@ -302,7 +302,7 @@ class _IntegrityReconciliationViewState
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         itemCount: _categories.length,
-        separatorBuilder: (_, _) => const SizedBox(width: 6),
+        separatorBuilder: (_, _) => const SizedBox(width: 5),
         itemBuilder: (context, index) {
           final entry = _categories.entries.elementAt(index);
           final key = entry.key;
@@ -321,11 +321,13 @@ class _IntegrityReconciliationViewState
 
           return Center(
             child: ChoiceChip(
+              visualDensity: VisualDensity.compact,
+              labelPadding: const EdgeInsets.symmetric(horizontal: 4),
               label: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(label),
-                  const SizedBox(width: 6),
+                  Text(label, style: const TextStyle(fontSize: 11.5)),
+                  const SizedBox(width: 5),
                   Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 5,
@@ -346,7 +348,7 @@ class _IntegrityReconciliationViewState
                     child: Text(
                       count.toString(),
                       style: TextStyle(
-                        fontSize: 10,
+                        fontSize: 9.5,
                         fontWeight: FontWeight.bold,
                         color: categoryIssues > 0
                             ? Colors.red.shade700
@@ -373,16 +375,16 @@ class _IntegrityReconciliationViewState
 
   Widget _buildFilterBar() {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+      padding: const EdgeInsets.fromLTRB(12, 6, 12, 6),
       child: LayoutBuilder(
         builder: (context, constraints) {
           return Wrap(
-            spacing: 8,
-            runSpacing: 8,
+            spacing: 6,
+            runSpacing: 6,
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               SizedBox(
-                width: (constraints.maxWidth * 0.3).clamp(160, 320),
+                width: (constraints.maxWidth * 0.3).clamp(160, 300),
                 child: TextField(
                   controller: _search,
                   onChanged: (_) {
@@ -393,12 +395,14 @@ class _IntegrityReconciliationViewState
                   },
                   decoration: InputDecoration(
                     isDense: true,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                     hintText: 'Search checks, rules, basis…',
                     prefixIcon: const Icon(Icons.search, size: 16),
                     border: const OutlineInputBorder(),
                     suffixIcon: _search.text.isNotEmpty
                         ? IconButton(
                             tooltip: 'Clear',
+                            visualDensity: VisualDensity.compact,
                             icon: const Icon(Icons.clear, size: 14),
                             onPressed: () {
                               _search.clear();
@@ -412,7 +416,7 @@ class _IntegrityReconciliationViewState
               _buildDropdown(
                 label: 'Status',
                 value: _statusFilter,
-                width: 150,
+                width: 140,
                 items: const {
                   '': 'All statuses',
                   'issue': 'Issues only',
@@ -425,7 +429,7 @@ class _IntegrityReconciliationViewState
               _buildDropdown(
                 label: 'Severity',
                 value: _severityFilter,
-                width: 140,
+                width: 135,
                 items: const {
                   '': 'All severities',
                   'critical': 'Critical',
@@ -438,14 +442,19 @@ class _IntegrityReconciliationViewState
               ),
               OutlinedButton.icon(
                 onPressed: widget.onPickPeriod,
-                icon: const Icon(Icons.calendar_today, size: 14),
+                icon: const Icon(Icons.date_range, size: 14),
                 label: Text(
                   '${_formatDate(widget.from)} – ${_formatDate(widget.to)}',
-                  style: const TextStyle(fontSize: 11),
+                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w500),
+                ),
+                style: OutlinedButton.styleFrom(
+                  visualDensity: VisualDensity.compact,
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                 ),
               ),
               IconButton(
                 tooltip: 'Refresh checks',
+                visualDensity: VisualDensity.compact,
                 icon: const Icon(Icons.refresh, size: 18),
                 onPressed: _loadChecks,
               ),
@@ -474,7 +483,7 @@ class _IntegrityReconciliationViewState
           labelText: label,
           border: const OutlineInputBorder(),
           contentPadding: const EdgeInsets.symmetric(
-            horizontal: 10,
+            horizontal: 8,
             vertical: 8,
           ),
         ),

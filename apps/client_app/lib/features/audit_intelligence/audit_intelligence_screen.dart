@@ -249,16 +249,19 @@ class _AuditIntelligenceScreenState extends State<AuditIntelligenceScreen>
   }
 
   Future<void> _pickPeriod() async {
-    final picked = await showDateRangePicker(
+    final picked = await showThqCompactDateRangePicker(
       context: context,
+      initialRange: DateTimeRange(start: _from, end: _to),
       firstDate: DateTime(2020),
       lastDate: DateTime.now().add(const Duration(days: 1)),
-      initialDateRange: DateTimeRange(start: _from, end: _to),
+      title: 'Select Audit Period',
     );
     if (picked == null || !mounted) return;
-    _from = picked.start;
-    _to = picked.end;
-    _offset = 0;
+    setState(() {
+      _from = picked.start;
+      _to = picked.end;
+      _offset = 0;
+    });
     _reload();
   }
 
@@ -289,8 +292,8 @@ class _AuditIntelligenceScreenState extends State<AuditIntelligenceScreen>
         labelText: label,
         isDense: true,
         contentPadding: const EdgeInsets.symmetric(
-          horizontal: 10,
-          vertical: 10,
+          horizontal: 8,
+          vertical: 8,
         ),
         border: const OutlineInputBorder(),
       ),
@@ -317,32 +320,37 @@ class _AuditIntelligenceScreenState extends State<AuditIntelligenceScreen>
   Widget build(BuildContext context) => Column(
     children: [
       Padding(
-        padding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
+        padding: const EdgeInsets.fromLTRB(12, 6, 12, 4),
         child: Wrap(
           crossAxisAlignment: WrapCrossAlignment.center,
-          spacing: 8,
-          runSpacing: 8,
+          spacing: 6,
+          runSpacing: 6,
           children: [
             _select(
               'Audit section',
               _view,
               _availableSections,
               _section,
-              width: 235,
+              width: 220,
             ),
             if (_view != 'evidence') ...[
               OutlinedButton.icon(
                 onPressed: _exporting ? null : _pickPeriod,
-                icon: const Icon(Icons.date_range, size: 16),
+                icon: const Icon(Icons.date_range, size: 15),
                 label: Text(
                   '${auditDate(_from.toIso8601String().substring(0, 10))} – ${auditDate(_to.toIso8601String().substring(0, 10))}',
-                  style: const TextStyle(fontSize: 12),
+                  style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w500),
+                ),
+                style: OutlinedButton.styleFrom(
+                  visualDensity: VisualDensity.compact,
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                 ),
               ),
               IconButton(
                 tooltip: 'Refresh audit',
                 onPressed: _loading ? null : _refresh,
-                icon: const Icon(Icons.refresh, size: 20),
+                icon: const Icon(Icons.refresh, size: 19),
+                visualDensity: VisualDensity.compact,
               ),
             ],
             if (_view == 'findings')
@@ -354,17 +362,22 @@ class _AuditIntelligenceScreenState extends State<AuditIntelligenceScreen>
                         height: 14,
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
-                    : const Icon(Icons.radar, size: 16),
+                    : const Icon(Icons.radar, size: 15),
                 label: Text(
                   _scanningRisk ? 'Scanning…' : 'Run risk scan',
-                  style: const TextStyle(fontSize: 12),
+                  style: const TextStyle(fontSize: 11.5),
+                ),
+                style: OutlinedButton.styleFrom(
+                  visualDensity: VisualDensity.compact,
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                 ),
               ),
             if (_canConfigure)
               IconButton(
                 tooltip: 'Risk rules',
                 onPressed: () => _guard(_openRiskRules),
-                icon: const Icon(Icons.tune, size: 20),
+                icon: const Icon(Icons.tune, size: 19),
+                visualDensity: VisualDensity.compact,
               ),
             if (_view != 'explain' &&
                 _view != 'profitability' &&
@@ -378,7 +391,8 @@ class _AuditIntelligenceScreenState extends State<AuditIntelligenceScreen>
                         height: 18,
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
-                    : const Icon(Icons.download_outlined, size: 20),
+                    : const Icon(Icons.download_outlined, size: 19),
+                visualDensity: VisualDensity.compact,
               ),
           ],
         ),
@@ -499,12 +513,12 @@ class _AuditIntelligenceScreenState extends State<AuditIntelligenceScreen>
     ],
   );
   Widget _filters() => Padding(
-    padding: const EdgeInsets.fromLTRB(12, 7, 12, 8),
+    padding: const EdgeInsets.fromLTRB(12, 4, 12, 6),
     child: LayoutBuilder(
       builder: (context, b) => Wrap(
         crossAxisAlignment: WrapCrossAlignment.center,
-        spacing: 8,
-        runSpacing: 8,
+        spacing: 6,
+        runSpacing: 6,
         children: [
           SizedBox(
             width: (b.maxWidth * .35).clamp(180, 400),
@@ -523,19 +537,21 @@ class _AuditIntelligenceScreenState extends State<AuditIntelligenceScreen>
               },
               decoration: InputDecoration(
                 isDense: true,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                 hintText: _view == 'profitability'
                     ? 'Search product / SKU'
                     : 'Search reference, account, user…',
-                prefixIcon: const Icon(Icons.search, size: 18),
+                prefixIcon: const Icon(Icons.search, size: 16),
                 border: const OutlineInputBorder(),
                 suffixIcon: IconButton(
                   tooltip: 'Clear search',
+                  visualDensity: VisualDensity.compact,
                   onPressed: () {
                     _search.clear();
                     _offset = 0;
                     _reload();
                   },
-                  icon: const Icon(Icons.clear, size: 16),
+                  icon: const Icon(Icons.clear, size: 15),
                 ),
               ),
             ),
