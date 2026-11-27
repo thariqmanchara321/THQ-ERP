@@ -186,6 +186,8 @@ class UpdateSessionState {
   final String? recoveryAction;
   final String? tenantId;
   final String? deviceId;
+  final String? supabaseUrl;
+  final String? supabasePublishableKey;
   final DateTime startedAt;
   final DateTime? completedAt;
 
@@ -205,6 +207,8 @@ class UpdateSessionState {
     this.recoveryAction,
     this.tenantId,
     this.deviceId,
+    this.supabaseUrl,
+    this.supabasePublishableKey,
     required this.startedAt,
     this.completedAt,
   });
@@ -225,6 +229,8 @@ class UpdateSessionState {
     'recovery_action': recoveryAction,
     'tenant_id': tenantId,
     'device_id': deviceId,
+    'supabase_url': supabaseUrl,
+    'supabase_publishable_key': supabasePublishableKey,
     'started_at': startedAt.toIso8601String(),
     'completed_at': completedAt?.toIso8601String(),
   };
@@ -246,6 +252,8 @@ class UpdateSessionState {
       recoveryAction: json['recovery_action']?.toString(),
       tenantId: json['tenant_id']?.toString(),
       deviceId: json['device_id']?.toString(),
+      supabaseUrl: json['supabase_url']?.toString(),
+      supabasePublishableKey: json['supabase_publishable_key']?.toString(),
       startedAt:
           DateTime.tryParse(json['started_at']?.toString() ?? '') ??
           DateTime.now(),
@@ -263,6 +271,8 @@ class UpdateSessionState {
     String? recoveryAction,
     String? tenantId,
     String? deviceId,
+    String? supabaseUrl,
+    String? supabasePublishableKey,
     DateTime? completedAt,
   }) {
     return UpdateSessionState(
@@ -281,6 +291,9 @@ class UpdateSessionState {
       recoveryAction: recoveryAction ?? this.recoveryAction,
       tenantId: tenantId ?? this.tenantId,
       deviceId: deviceId ?? this.deviceId,
+      supabaseUrl: supabaseUrl ?? this.supabaseUrl,
+      supabasePublishableKey:
+          supabasePublishableKey ?? this.supabasePublishableKey,
       startedAt: startedAt,
       completedAt: completedAt ?? this.completedAt,
     );

@@ -63,9 +63,11 @@ function Send-TelemetryEvent {
     )
     if (-not $sessionData) { return }
     try {
+        $targetUrl = if ($sessionData.supabase_url) { $sessionData.supabase_url } else { "https://yguzrxcdvyimjrfvtcvp.supabase.co" }
+        $apiKey = if ($sessionData.supabase_publishable_key) { $sessionData.supabase_publishable_key } else { "sb_publishable_NPqpotKR9BOujU4KgeDu-A_JI6sZIlJ" }
         $headers = @{
-            "apikey" = "sb_publishable_NPqpotKR9BOujU4KgeDu-A_JI6sZIlJ"
-            "Authorization" = "Bearer sb_publishable_NPqpotKR9BOujU4KgeDu-A_JI6sZIlJ"
+            "apikey" = $apiKey
+            "Authorization" = "Bearer $apiKey"
             "Content-Type" = "application/json"
         }
         $appKey = if ($sessionData.app_key) { $sessionData.app_key } else { "client" }
@@ -98,7 +100,7 @@ function Send-TelemetryEvent {
             "p_details" = $details
         } | ConvertTo-Json -Depth 5
 
-        Invoke-RestMethod -Uri "https://yguzrxcdvyimjrfvtcvp.supabase.co/rest/v1/rpc/app_update_log_record_v820" -Headers $headers -Method Post -Body $body -TimeoutSec 5 -ErrorAction SilentlyContinue | Out-Null
+        Invoke-RestMethod -Uri "$targetUrl/rest/v1/rpc/app_update_log_record_v820" -Headers $headers -Method Post -Body $body -TimeoutSec 5 -ErrorAction SilentlyContinue | Out-Null
         Write-CoordinatorLog "Telemetry sent: $Status"
     } catch {
         Write-CoordinatorLog "Warning: Telemetry send failed ($Status): $_"

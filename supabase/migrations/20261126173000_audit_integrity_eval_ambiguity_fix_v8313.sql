@@ -1012,3 +1012,17 @@ $$;
 
 revoke all on function public.audit_workspace_page_v703(uuid,text,date,date,uuid,text,text,text,text,boolean,integer,integer,text) from public,anon;
 grant execute on function public.audit_workspace_page_v703(uuid,text,date,date,uuid,text,text,text,text,boolean,integer,integer,text) to authenticated;
+
+-- ----------------------------------------------------------------------------
+-- Register Schema Release #719 (v8.3.13)
+-- ----------------------------------------------------------------------------
+insert into public.thq_schema_releases(migration_no, schema_version, release_name, notes)
+values(
+  719,
+  'v8.3.13',
+  'audit_integrity_eval_ambiguity_fix_v8313',
+  'Audit Center integrity evaluation ambiguity fix: resolve 12/13 parameter overload ambiguity on private.audit_workspace_v703, correct accounting_accounts column reference, and wrap with explicit parameter typing in private.audit_checks_v704.'
+)
+on conflict do nothing;
+
+notify pgrst, 'reload schema';

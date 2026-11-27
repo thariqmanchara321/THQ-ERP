@@ -9,6 +9,8 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../config/supabase_config.dart';
+
 class SoftwareUpdateState {
   final UpdateStatus status;
   final AppReleaseInfo? release;
@@ -598,6 +600,8 @@ class SoftwareUpdateService {
           silent: silent,
           tenantId: tenantId,
           deviceId: deviceId,
+          supabaseUrl: SupabaseConfig.url,
+          supabasePublishableKey: SupabaseConfig.publishableKey,
         );
         return true;
       } else {

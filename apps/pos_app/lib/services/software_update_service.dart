@@ -9,6 +9,7 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../config/supabase_config.dart';
 import 'offline_pos_service.dart';
 
 class SoftwareUpdateState {
@@ -634,6 +635,8 @@ class SoftwareUpdateService {
           silent: silent,
           tenantId: tenantId,
           deviceId: deviceId,
+          supabaseUrl: SupabaseConfig.url,
+          supabasePublishableKey: SupabaseConfig.publishableKey,
         );
         return true;
       } else {
